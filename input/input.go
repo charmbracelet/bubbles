@@ -90,7 +90,10 @@ func cursor(s string, blink bool) string {
 
 // Subscription
 func Blink(model tea.Model) tea.Msg {
-	m, _ := model.(Model)
+	m, ok := model.(Model)
+	if !ok {
+		return tea.NewErrMsg("could not assert given model to the model we expected; make sure you're passing as input model")
+	}
 	time.Sleep(m.BlinkSpeed)
 	return CursorBlinkMsg{}
 }

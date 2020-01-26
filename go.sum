@@ -1,4 +1,6 @@
-github.com/charmbracelet/tea v0.0.0-20200118154546-df52853f9d94 h1:m2xhUqOw6OcefbPBR9Il0J0n0gB1663NoKU+vvkiLdU=
-github.com/charmbracelet/tea v0.0.0-20200118154546-df52853f9d94/go.mod h1:lijy1lXOKNwMjBu/jTT/DvR8yE9PhtX2olGFsCz9/Vk=
+github.com/charmbracelet/tea v0.0.0-20200126032228-29799c315162 h1:BderJi+l/5OV27L0wfE3yUA6rXaDldcKAHVUt8DfYVw=
+github.com/charmbracelet/tea v0.0.0-20200126032228-29799c315162/go.mod h1:UsFFdg04MNbcYi1r2FBtdDEFY07bObaYDKHhE1xZUaQ=
 github.com/pkg/term v0.0.0-20190109203006-aa71e9d9e942 h1:A7GG7zcGjl3jqAqGPmcNjd/D9hzL95SuoOQAaFNdLU0=
 github.com/pkg/term v0.0.0-20190109203006-aa71e9d9e942/go.mod h1:eCbImbZ95eXtAUIbLAuAVnBnwf83mjf6QIVH8SHYwqQ=
+golang.org/x/sys v0.0.0-20200120151820-655fe14d7479 h1:LhLiKguPgZL+Tglay4GhVtfF0kb8cvOJ0dHTCBO8YNI=
+golang.org/x/sys v0.0.0-20200120151820-655fe14d7479/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
