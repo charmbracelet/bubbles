@@ -36,6 +36,8 @@ func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.Type {
 		case tea.KeyBackspace:
+			fallthrough
+		case tea.KeyDelete:
 			if len(m.Value) > 0 {
 				m.Value = m.Value[:m.pos-1] + m.Value[m.pos:]
 				m.pos--
