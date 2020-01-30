@@ -56,6 +56,11 @@ func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 		case tea.KeyCtrlA: // ^A, beginning
 			m.pos = 0
 			return m, nil
+		case tea.KeyCtrlD: // ^D, delete char under cursor
+			if len(m.Value) > 0 && m.pos < len(m.Value) {
+				m.Value = m.Value[:m.pos] + m.Value[m.pos+1:]
+			}
+			return m, nil
 		case tea.KeyCtrlE: // ^E, end
 			m.pos = len(m.Value) - 1
 			return m, nil
