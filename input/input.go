@@ -43,11 +43,15 @@ func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 				m.pos--
 			}
 			return m, nil
+		case tea.KeyCtrlF: // ^F, forward one character
+			fallthrough
 		case tea.KeyLeft:
 			if m.pos > 0 {
 				m.pos--
 			}
 			return m, nil
+		case tea.KeyCtrlB: // ^B, back one charcter
+			fallthrough
 		case tea.KeyRight:
 			if m.pos < len(m.Value) {
 				m.pos++
@@ -67,6 +71,10 @@ func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 		case tea.KeyCtrlK: // ^K, kill text after cursor
 			m.Value = m.Value[:m.pos]
 			m.pos = len(m.Value)
+			return m, nil
+		case tea.KeyCtrlU: // ^U, kill text before cursor
+			m.Value = m.Value[m.pos:]
+			m.pos = 0
 			return m, nil
 		case tea.KeyRune:
 			m.Value = m.Value[:m.pos] + msg.String() + m.Value[m.pos:]
