@@ -51,6 +51,12 @@ func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 				m.pos++
 			}
 			return m, nil
+		case tea.KeyCtrlA: // ^A, beginning
+			m.pos = 0
+			return m, nil
+		case tea.KeyCtrlE: // ^E, end
+			m.pos = len(m.Value) - 1
+			return m, nil
 		case tea.KeyRune:
 			m.Value = m.Value[:m.pos] + msg.String() + m.Value[m.pos:]
 			m.pos++
