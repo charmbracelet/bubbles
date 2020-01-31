@@ -1,7 +1,16 @@
 github.com/charmbracelet/tea v0.0.0-20200130023737-bb06373836b4 h1:O8IGyYrKQuCwZZ98JP3DvzQCoPiXM5Y2zjwlDY7mOFM=
 github.com/charmbracelet/tea v0.0.0-20200130023737-bb06373836b4/go.mod h1:UsFFdg04MNbcYi1r2FBtdDEFY07bObaYDKHhE1xZUaQ=
+github.com/google/goterm v0.0.0-20190703233501-fc88cf888a3f h1:5CjVwnuUcp5adK4gmY6i72gpVFVnZDP2h5TmPScB6u4=
+github.com/google/goterm v0.0.0-20190703233501-fc88cf888a3f/go.mod h1:nOFQdrUlIlx6M6ODdSpBj1NVA+VgLC6kmw60mkw34H4=
+github.com/lucasb-eyer/go-colorful v1.0.3 h1:QIbQXiugsb+q10B+MI+7DI1oQLdmnep86tWFlaaUAac=
+github.com/lucasb-eyer/go-colorful v1.0.3/go.mod h1:R4dSotOR9KMtayYi1e77YzuveK+i7ruzyGqttikkLy0=
+github.com/mattn/go-isatty v0.0.12 h1:wuysRhFDzyxgEmMf5xjvJ2M9dZoWAXNNr5LSBS7uHXY=
+github.com/mattn/go-isatty v0.0.12/go.mod h1:cbi8OIDigv2wuxKPP5vlRcQ1OAZbq2CE4Kysco4FUpU=
+github.com/muesli/termenv v0.4.0 h1:8Bz8WDF/6OoL7QENtESkAl3TlMyQq6+c3bjtJO3y9V8=
+github.com/muesli/termenv v0.4.0/go.mod h1:O1/I6sw+6KcrgAmcs6uiUVr7Lui+DNVbHTzt9Lm/PlI=
 github.com/pkg/term v0.0.0-20190109203006-aa71e9d9e942 h1:A7GG7zcGjl3jqAqGPmcNjd/D9hzL95SuoOQAaFNdLU0=
 github.com/pkg/term v0.0.0-20190109203006-aa71e9d9e942/go.mod h1:eCbImbZ95eXtAUIbLAuAVnBnwf83mjf6QIVH8SHYwqQ=
+golang.org/x/sys v0.0.0-20200116001909-b77594299b42/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
 golang.org/x/sys v0.0.0-20200120151820-655fe14d7479 h1:LhLiKguPgZL+Tglay4GhVtfF0kb8cvOJ0dHTCBO8YNI=
 golang.org/x/sys v0.0.0-20200120151820-655fe14d7479/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
 golang.org/x/sys v0.0.0-20200124204421-9fbb57f87de9 h1:1/DFK4b7JH8DmkqhUk48onnSfrPzImPoVxuomtbT2nk=

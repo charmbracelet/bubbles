@@ -4,6 +4,8 @@ import (
 	"time"
 
 	"github.com/charmbracelet/tea"
+
+	"github.com/muesli/termenv"
 )
 
 type Model struct {
@@ -110,7 +112,7 @@ func cursor(s string, blink bool) string {
 	if blink {
 		return s
 	}
-	return tea.Invert(s)
+	return termenv.String(s).Reverse().String()
 }
 
 // Subscription
