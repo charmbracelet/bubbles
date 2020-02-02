@@ -9,26 +9,31 @@ import (
 )
 
 type Model struct {
-	Prompt       string
-	Value        string
-	Cursor       string
-	HiddenCursor string
-	BlinkSpeed   time.Duration
+	Prompt           string
+	Value            string
+	Cursor           string
+	BlinkSpeed       time.Duration
+	Placeholder      string
+	PlaceholderColor string
 
-	blink bool
-	pos   int
+	blink        bool
+	pos          int
+	colorProfile termenv.Profile
 }
 
 type CursorBlinkMsg struct{}
 
 func DefaultModel() Model {
 	return Model{
-		Prompt:     "> ",
-		Value:      "",
-		BlinkSpeed: time.Millisecond * 600,
+		Prompt:           "> ",
+		Value:            "",
+		BlinkSpeed:       time.Millisecond * 600,
+		Placeholder:      "",
+		PlaceholderColor: "240",
 
-		blink: false,
-		pos:   0,
+		blink:        false,
+		pos:          0,
+		colorProfile: termenv.ColorProfile(),
 	}
 }
 
@@ -97,13 +102,64 @@ func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 
 func View(model tea.Model) string {
 	m, _ := model.(Model)
+
+	// Placeholder text
+	if m.Value == "" && m.Placeholder != "" {
+		var v string
+
+		if m.blink {
+			v += cursor(
+				termenv.String(m.Placeholder[:1]).
+					Foreground(m.colorProfile.Color(m.PlaceholderColor)).
+					String(),
+				m.blink,
+			)
+		} else {
+			v += cursor(m.Placeholder[:1], m.blink)
+		}
+
+		v += termenv.String(m.Placeholder[1:]).
+			Foreground(m.colorProfile.Color(m.PlaceholderColor)).
+			String()
+		return m.Prompt + v
+	}
+
 	v := m.Value[:m.pos]
+
 	if m.pos < len(m.Value) {
 		v += cursor(string(m.Value[m.pos]), m.blink)
 		v += m.Value[m.pos+1:]
 	} else {
 		v += cursor(" ", m.blink)
 	}
+	return m.Prompt + v
+}
+
+func placeholderView(m Model) string {
+	var (
+		v     string
+		p     = m.Placeholder
+		c     = m.PlaceholderColor
+		color = m.colorProfile.Color
+	)
+
+	// Cursor
+	if m.blink {
+		v += cursor(
+			termenv.String(p[:1]).
+				Foreground(color(c)).
+				String(),
+			m.blink,
+		)
+	} else {
+		v += cursor(p[:1], m.blink)
+	}
+
+	// The rest of the palceholder text
+	v += termenv.String(p[1:]).
+		Foreground(color(c)).
+		String()
+
 	return m.Prompt + v
 }
 
