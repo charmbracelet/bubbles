@@ -73,7 +73,7 @@ func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 			}
 			return m, nil
 		case tea.KeyCtrlE: // ^E, end
-			m.pos = len(m.Value) - 1
+			m.pos = len(m.Value)
 			return m, nil
 		case tea.KeyCtrlK: // ^K, kill text after cursor
 			m.Value = m.Value[:m.pos]
