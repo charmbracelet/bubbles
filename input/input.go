@@ -15,6 +15,7 @@ type Model struct {
 	BlinkSpeed       time.Duration
 	Placeholder      string
 	PlaceholderColor string
+	CursorColor      string
 
 	blink        bool
 	pos          int
@@ -30,6 +31,7 @@ func DefaultModel() Model {
 		BlinkSpeed:       time.Millisecond * 600,
 		Placeholder:      "",
 		PlaceholderColor: "240",
+		CursorColor:      "",
 
 		blink:        false,
 		pos:          0,
@@ -111,10 +113,10 @@ func View(model tea.Model) string {
 	v := m.Value[:m.pos]
 
 	if m.pos < len(m.Value) {
-		v += cursor(string(m.Value[m.pos]), m.blink)
+		v += cursorView(string(m.Value[m.pos]), m)
 		v += m.Value[m.pos+1:]
 	} else {
-		v += cursor(" ", m.blink)
+		v += cursorView(" ", m)
 	}
 	return m.Prompt + v
 }
@@ -129,14 +131,14 @@ func placeholderView(m Model) string {
 
 	// Cursor
 	if m.blink && m.PlaceholderColor != "" {
-		v += cursor(
+		v += cursorView(
 			termenv.String(p[:1]).
 				Foreground(color(c)).
 				String(),
-			m.blink,
+			m,
 		)
 	} else {
-		v += cursor(p[:1], m.blink)
+		v += cursorView(p[:1], m)
 	}
 
 	// The rest of the palceholder text
@@ -148,9 +150,14 @@ func placeholderView(m Model) string {
 }
 
 // Style the cursor
-func cursor(s string, blink bool) string {
-	if blink {
+func cursorView(s string, m Model) string {
+	if m.blink {
 		return s
+	} else if m.CursorColor != "" {
+		return termenv.String(s).
+			Foreground(m.colorProfile.Color(m.CursorColor)).
+			Reverse().
+			String()
 	}
 	return termenv.String(s).Reverse().String()
 }
