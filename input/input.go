@@ -105,23 +105,7 @@ func View(model tea.Model) string {
 
 	// Placeholder text
 	if m.Value == "" && m.Placeholder != "" {
-		var v string
-
-		if m.blink {
-			v += cursor(
-				termenv.String(m.Placeholder[:1]).
-					Foreground(m.colorProfile.Color(m.PlaceholderColor)).
-					String(),
-				m.blink,
-			)
-		} else {
-			v += cursor(m.Placeholder[:1], m.blink)
-		}
-
-		v += termenv.String(m.Placeholder[1:]).
-			Foreground(m.colorProfile.Color(m.PlaceholderColor)).
-			String()
-		return m.Prompt + v
+		return placeholderView(m)
 	}
 
 	v := m.Value[:m.pos]
