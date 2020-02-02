@@ -128,7 +128,7 @@ func placeholderView(m Model) string {
 	)
 
 	// Cursor
-	if m.blink {
+	if m.blink && m.PlaceholderColor != "" {
 		v += cursor(
 			termenv.String(p[:1]).
 				Foreground(color(c)).
