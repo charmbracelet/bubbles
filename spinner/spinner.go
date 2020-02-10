@@ -7,23 +7,37 @@ import (
 	"github.com/charmbracelet/tea"
 )
 
-// Spinner animation frames
+// Spinner denotes a type of spinner
+type Spinner = int
+
+// Available types of spinners
+const (
+	Line Spinner = iota
+	Dot
+)
+
 var (
-	simple = []string{"|", "/", "-", "\\"}
+	// Spinner frames
+	spinners = map[Spinner][]string{
+		Line: []string{"|", "/", "-", "\\"},
+		Dot:  []string{"⣾ ", "⣽ ", "⣻ ", "⢿ ", "⡿ ", "⣟ ", "⣯ ", "⣷ "},
+	}
+
+	assertionErr = errors.New("could not perform assertion on model to what the spinner expects. are you sure you passed the right value?")
 )
 
 // Model contains the state for the spinner. Use NewModel to create new models
 // rather than using Model as a struct literal.
 type Model struct {
+	Type  Spinner
 	FPS   int
 	frame int
 }
 
-var assertionErr = errors.New("could not perform assertion on model to what the spinner expects. are you sure you passed the right value?")
-
 // NewModel returns a model with default values
 func NewModel() Model {
 	return Model{
+		Type:  Line,
 		FPS:   9,
 		frame: 0,
 	}
@@ -37,7 +51,7 @@ func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 	switch msg.(type) {
 	case TickMsg:
 		m.frame++
-		if m.frame >= len(simple) {
+		if m.frame >= len(spinners[m.Type]) {
 			m.frame = 0
 		}
 		return m, nil
@@ -48,10 +62,11 @@ func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 
 // View renders the model's view
 func View(model Model) string {
-	if model.frame >= len(simple) {
+	s := spinners[model.Type]
+	if model.frame >= len(s) {
 		return "[error]"
 	}
-	return simple[model.frame]
+	return s[model.frame]
 }
 
 // Sub is the subscription that allows the spinner to spin
