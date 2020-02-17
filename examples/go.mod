@@ -2,7 +2,7 @@ module examples
 
 go 1.13
 
-replace github.com/charmbracelet/tea => ../../tea
+replace github.com/charmbracelet/teaparty => ../
 
 require (
 	github.com/charmbracelet/tea v0.0.0-20200212224832-82af5a5cb50b
