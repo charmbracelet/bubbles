@@ -9,7 +9,6 @@ import (
 )
 
 func main() {
-	tea.UseSysLog("tea")
 	if err := tea.NewProgram(
 		initialize,
 		update,
@@ -52,18 +51,14 @@ func update(msg tea.Msg, model tea.Model) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		case "tab":
 			fallthrough
-		case "shift+tab":
+		case "enter":
 
 			inputs := []input.Model{
 				m.nameInput,
 				m.emailInput,
 			}
 
-			if msg.String() == "tab" {
-				m.index++
-			} else {
-				m.index--
-			}
+			m.index++
 			if m.index > len(inputs)-1 {
 				m.index = 0
 			} else if m.index < 0 {
