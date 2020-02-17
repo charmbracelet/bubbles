@@ -29,7 +29,7 @@ type Model struct {
 func initialize() (tea.Model, tea.Cmd) {
 	n := input.DefaultModel()
 	n.Placeholder = "Name"
-	n.Focus = true
+	n.Focus()
 
 	e := input.DefaultModel()
 	e.Placeholder = "Email"
@@ -75,10 +75,10 @@ func update(msg tea.Msg, model tea.Model) (tea.Model, tea.Cmd) {
 
 			for i := 0; i < len(inputs); i++ {
 				if i == m.index {
-					inputs[i].Focus = true
+					inputs[i].Focus()
 					continue
 				}
-				inputs[i].Focus = false
+				inputs[i].Blur()
 			}
 
 			m.nameInput = inputs[0]
