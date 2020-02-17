@@ -17,6 +17,10 @@ type Model struct {
 	PlaceholderColor string
 	CursorColor      string
 
+	// Focus indicates whether user input focus should be on this input
+	// component. When false, don't blink and ignore keyboard input.
+	Focus bool
+
 	blink        bool
 	pos          int
 	colorProfile termenv.Profile
@@ -32,6 +36,7 @@ func DefaultModel() Model {
 		Placeholder:      "",
 		PlaceholderColor: "240",
 		CursorColor:      "",
+		Focus:            false,
 
 		blink:        false,
 		pos:          0,
@@ -40,6 +45,11 @@ func DefaultModel() Model {
 }
 
 func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
+	if !m.Focus {
+		m.blink = true
+		return m, nil
+	}
+
 	switch msg := msg.(type) {
 
 	case tea.KeyMsg:
@@ -130,7 +140,7 @@ func placeholderView(m Model) string {
 	)
 
 	// Cursor
-	if m.blink && m.PlaceholderColor != "" {
+	if (!m.Focus || m.blink) && m.PlaceholderColor != "" {
 		v += cursorView(
 			termenv.String(p[:1]).
 				Foreground(color(c)).
@@ -151,7 +161,7 @@ func placeholderView(m Model) string {
 
 // Style the cursor
 func cursorView(s string, m Model) string {
-	if m.blink {
+	if !m.Focus || m.blink {
 		return s
 	} else if m.CursorColor != "" {
 		return termenv.String(s).
