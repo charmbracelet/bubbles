@@ -52,13 +52,21 @@ func update(msg tea.Msg, model tea.Model) (tea.Model, tea.Cmd) {
 		case "tab":
 			fallthrough
 		case "enter":
-
+			fallthrough
+		case "up":
+			fallthrough
+		case "down":
 			inputs := []input.Model{
 				m.nameInput,
 				m.emailInput,
 			}
 
-			m.index++
+			if msg.String() == "up" {
+				m.index--
+			} else {
+				m.index++
+			}
+
 			if m.index > len(inputs)-1 {
 				m.index = 0
 			} else if m.index < 0 {
