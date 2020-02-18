@@ -47,9 +47,14 @@ func update(msg tea.Msg, model tea.Model) (tea.Model, tea.Cmd) {
 
 	case tea.KeyMsg:
 		switch msg.String() {
+
 		case "ctrl+c":
 			return m, tea.Quit
+
+		// Cycle between inputs
 		case "tab":
+			fallthrough
+		case "esc": // note: shift+tab sends an escape
 			fallthrough
 		case "enter":
 			fallthrough
@@ -61,7 +66,7 @@ func update(msg tea.Msg, model tea.Model) (tea.Model, tea.Cmd) {
 				m.emailInput,
 			}
 
-			if msg.String() == "up" {
+			if msg.String() == "up" || msg.String() == "esc" {
 				m.index--
 			} else {
 				m.index++
@@ -85,6 +90,7 @@ func update(msg tea.Msg, model tea.Model) (tea.Model, tea.Cmd) {
 			m.emailInput = inputs[1]
 
 			return m, nil
+
 		default:
 			m.nameInput, _ = input.Update(msg, m.nameInput)
 			m.emailInput, _ = input.Update(msg, m.emailInput)
