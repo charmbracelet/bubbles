@@ -54,7 +54,7 @@ func update(msg tea.Msg, model tea.Model) (tea.Model, tea.Cmd) {
 		// Cycle between inputs
 		case "tab":
 			fallthrough
-		case "esc": // note: shift+tab sends an escape
+		case "shift+tab":
 			fallthrough
 		case "enter":
 			fallthrough
