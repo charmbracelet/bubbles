@@ -116,7 +116,7 @@ func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 			m.pos = 0
 			return m, nil
 		case tea.KeyRune:
-			m.Value = m.Value[:m.pos] + msg.String() + m.Value[m.pos:]
+			m.Value = m.Value[:m.pos] + string(msg.Rune) + m.Value[m.pos:]
 			m.pos++
 			return m, nil
 		default:
