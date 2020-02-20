@@ -21,20 +21,24 @@ func main() {
 }
 
 type Model struct {
-	index      int
-	nameInput  input.Model
-	emailInput input.Model
+	index         int
+	nameInput     input.Model
+	nickNameInput input.Model
+	emailInput    input.Model
 }
 
 func initialize() (tea.Model, tea.Cmd) {
-	n := input.DefaultModel()
-	n.Placeholder = "Name"
-	n.Focus()
+	name := input.DefaultModel()
+	name.Placeholder = "Name"
+	name.Focus()
 
-	e := input.DefaultModel()
-	e.Placeholder = "Email"
+	nickName := input.DefaultModel()
+	nickName.Placeholder = "Nickname"
 
-	return Model{0, n, e}, nil
+	email := input.DefaultModel()
+	email.Placeholder = "Email"
+
+	return Model{0, name, nickName, email}, nil
 }
 
 func update(msg tea.Msg, model tea.Model) (tea.Model, tea.Cmd) {
@@ -63,10 +67,12 @@ func update(msg tea.Msg, model tea.Model) (tea.Model, tea.Cmd) {
 		case "down":
 			inputs := []input.Model{
 				m.nameInput,
+				m.nickNameInput,
 				m.emailInput,
 			}
 
-			if msg.String() == "up" || msg.String() == "esc" {
+			s := msg.String()
+			if s == "up" || s == "shift+tab" {
 				m.index--
 			} else {
 				m.index++
@@ -87,18 +93,21 @@ func update(msg tea.Msg, model tea.Model) (tea.Model, tea.Cmd) {
 			}
 
 			m.nameInput = inputs[0]
-			m.emailInput = inputs[1]
+			m.nickNameInput = inputs[1]
+			m.emailInput = inputs[2]
 
 			return m, nil
 
 		default:
 			m.nameInput, _ = input.Update(msg, m.nameInput)
+			m.nickNameInput, _ = input.Update(msg, m.nickNameInput)
 			m.emailInput, _ = input.Update(msg, m.emailInput)
 			return m, nil
 		}
 
 	default:
 		m.nameInput, _ = input.Update(msg, m.nameInput)
+		m.nickNameInput, _ = input.Update(msg, m.nickNameInput)
 		m.emailInput, _ = input.Update(msg, m.emailInput)
 		return m, nil
 	}
@@ -123,6 +132,7 @@ func view(model tea.Model) string {
 
 	inputs := []string{
 		input.View(m.nameInput),
+		input.View(m.nickNameInput),
 		input.View(m.emailInput),
 	}
 
