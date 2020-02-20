@@ -6,6 +6,13 @@ import (
 
 	"github.com/charmbracelet/tea"
 	"github.com/charmbracelet/teaparty/input"
+	"github.com/muesli/termenv"
+)
+
+var (
+	color         = termenv.ColorProfile().Color
+	focusedPrompt = termenv.String("> ").Foreground(color("205")).String()
+	blurredPrompt = termenv.String("> ").Foreground(color("244")).String()
 )
 
 func main() {
@@ -31,12 +38,15 @@ func initialize() (tea.Model, tea.Cmd) {
 	name := input.DefaultModel()
 	name.Placeholder = "Name"
 	name.Focus()
+	name.Prompt = focusedPrompt
 
 	nickName := input.DefaultModel()
 	nickName.Placeholder = "Nickname"
+	nickName.Prompt = blurredPrompt
 
 	email := input.DefaultModel()
 	email.Placeholder = "Email"
+	email.Prompt = blurredPrompt
 
 	return Model{0, name, nickName, email}, nil
 }
@@ -87,9 +97,11 @@ func update(msg tea.Msg, model tea.Model) (tea.Model, tea.Cmd) {
 			for i := 0; i < len(inputs); i++ {
 				if i == m.index {
 					inputs[i].Focus()
+					inputs[i].Prompt = focusedPrompt
 					continue
 				}
 				inputs[i].Blur()
+				inputs[i].Prompt = blurredPrompt
 			}
 
 			m.nameInput = inputs[0]
