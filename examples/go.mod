@@ -4,10 +4,9 @@ go 1.13
 
 replace github.com/charmbracelet/teaparty => ../
 
-replace github.com/charmbracelet/tea => ../../tea
-
 require (
-	github.com/charmbracelet/tea v0.0.0-20200212224832-82af5a5cb50b
+	github.com/charmbracelet/tea v0.0.0-20200220032354-23432f30dd46
 	github.com/charmbracelet/teaparty v0.0.0-20200212224515-b4d35fd52906
-	golang.org/x/sys v0.0.0-20200212091648-12a6c2dcc1e4 // indirect
+	github.com/muesli/termenv v0.4.1-0.20200131124310-936567584c3e
+	golang.org/x/sys v0.0.0-20200219091948-cb0a6d8edb6c // indirect
 )
