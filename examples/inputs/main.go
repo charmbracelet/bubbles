@@ -6,13 +6,15 @@ import (
 
 	"github.com/charmbracelet/tea"
 	"github.com/charmbracelet/teaparty/input"
-	"github.com/muesli/termenv"
+	te "github.com/muesli/termenv"
 )
 
 var (
-	color         = termenv.ColorProfile().Color
-	focusedPrompt = termenv.String("> ").Foreground(color("205")).String()
-	blurredPrompt = termenv.String("> ").Foreground(color("244")).String()
+	color               = te.ColorProfile().Color
+	focusedPrompt       = te.String("> ").Foreground(color("205")).String()
+	blurredPrompt       = "> "
+	focusedSubmitButton = "[ " + te.String("Submit").Foreground(color("205")).String() + " ]"
+	blurredSubmitButton = "[ " + te.String("Submit").Foreground(color("240")).String() + " ]"
 )
 
 func main() {
@@ -32,6 +34,7 @@ type Model struct {
 	nameInput     input.Model
 	nickNameInput input.Model
 	emailInput    input.Model
+	submitButton  string
 }
 
 func initialize() (tea.Model, tea.Cmd) {
@@ -48,7 +51,7 @@ func initialize() (tea.Model, tea.Cmd) {
 	email.Placeholder = "Email"
 	email.Prompt = blurredPrompt
 
-	return Model{0, name, nickName, email}, nil
+	return Model{0, name, nickName, email, blurredSubmitButton}, nil
 }
 
 func update(msg tea.Msg, model tea.Model) (tea.Model, tea.Cmd) {
@@ -82,19 +85,27 @@ func update(msg tea.Msg, model tea.Model) (tea.Model, tea.Cmd) {
 			}
 
 			s := msg.String()
+
+			// Did the user press enter while the submit button was focused?
+			// If so, exit.
+			if s == "enter" && m.index == len(inputs) {
+				return m, tea.Quit
+			}
+
+			// Cycle indexes
 			if s == "up" || s == "shift+tab" {
 				m.index--
 			} else {
 				m.index++
 			}
 
-			if m.index > len(inputs)-1 {
+			if m.index > len(inputs) {
 				m.index = 0
 			} else if m.index < 0 {
-				m.index = len(inputs) - 1
+				m.index = len(inputs)
 			}
 
-			for i := 0; i < len(inputs); i++ {
+			for i := 0; i <= len(inputs)-1; i++ {
 				if i == m.index {
 					inputs[i].Focus()
 					inputs[i].Prompt = focusedPrompt
@@ -107,6 +118,12 @@ func update(msg tea.Msg, model tea.Model) (tea.Model, tea.Cmd) {
 			m.nameInput = inputs[0]
 			m.nickNameInput = inputs[1]
 			m.emailInput = inputs[2]
+
+			if m.index == len(inputs) {
+				m.submitButton = focusedSubmitButton
+			} else {
+				m.submitButton = blurredSubmitButton
+			}
 
 			return m, nil
 
@@ -155,7 +172,7 @@ func view(model tea.Model) string {
 		}
 	}
 
-	s += "\n"
+	s += "\n\n" + m.submitButton + "\n"
 
 	return s
 }
