@@ -14,6 +14,7 @@ type Model struct {
 	Cursor           string
 	BlinkSpeed       time.Duration
 	Placeholder      string
+	TextColor        string
 	PlaceholderColor string
 	CursorColor      string
 
@@ -46,6 +47,15 @@ func (m *Model) Blur() {
 	m.blink = true
 }
 
+// colorText colorizes a given string according to the TextColor value of the
+// model
+func (m *Model) colorText(s string) string {
+	return termenv.
+		String(s).
+		Foreground(m.colorProfile.Color(m.TextColor)).
+		String()
+}
+
 type CursorBlinkMsg struct{}
 
 func DefaultModel() Model {
@@ -54,6 +64,7 @@ func DefaultModel() Model {
 		Value:            "",
 		BlinkSpeed:       time.Millisecond * 600,
 		Placeholder:      "",
+		TextColor:        "",
 		PlaceholderColor: "240",
 		CursorColor:      "",
 
@@ -140,11 +151,11 @@ func View(model tea.Model) string {
 		return placeholderView(m)
 	}
 
-	v := m.Value[:m.pos]
+	v := m.colorText(m.Value[:m.pos])
 
 	if m.pos < len(m.Value) {
 		v += cursorView(string(m.Value[m.pos]), m)
-		v += m.Value[m.pos+1:]
+		v += m.colorText(m.Value[m.pos+1:])
 	} else {
 		v += cursorView(" ", m)
 	}

@@ -11,6 +11,7 @@ import (
 
 var (
 	color               = te.ColorProfile().Color
+	focusedText         = "205"
 	focusedPrompt       = te.String("> ").Foreground(color("205")).String()
 	blurredPrompt       = "> "
 	focusedSubmitButton = "[ " + te.String("Submit").Foreground(color("205")).String() + " ]"
@@ -42,6 +43,7 @@ func initialize() (tea.Model, tea.Cmd) {
 	name.Placeholder = "Name"
 	name.Focus()
 	name.Prompt = focusedPrompt
+	name.TextColor = focusedText
 
 	nickName := input.DefaultModel()
 	nickName.Placeholder = "Nickname"
@@ -107,12 +109,16 @@ func update(msg tea.Msg, model tea.Model) (tea.Model, tea.Cmd) {
 
 			for i := 0; i <= len(inputs)-1; i++ {
 				if i == m.index {
+					// Focused input
 					inputs[i].Focus()
 					inputs[i].Prompt = focusedPrompt
+					inputs[i].TextColor = focusedText
 					continue
 				}
+				// Blurred input
 				inputs[i].Blur()
 				inputs[i].Prompt = blurredPrompt
+				inputs[i].TextColor = ""
 			}
 
 			m.nameInput = inputs[0]
