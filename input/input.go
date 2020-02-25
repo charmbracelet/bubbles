@@ -8,6 +8,11 @@ import (
 	"github.com/muesli/termenv"
 )
 
+var (
+	// Helper for returning colors
+	color func(s string) termenv.Color = termenv.ColorProfile().Color
+)
+
 type Model struct {
 	Prompt           string
 	Value            string
@@ -22,9 +27,8 @@ type Model struct {
 	// component. When false, don't blink and ignore keyboard input.
 	focus bool
 
-	blink        bool
-	pos          int
-	colorProfile termenv.Profile
+	blink bool
+	pos   int
 }
 
 // Focused returns the focus state on the model
@@ -52,7 +56,16 @@ func (m *Model) Blur() {
 func (m *Model) colorText(s string) string {
 	return termenv.
 		String(s).
-		Foreground(m.colorProfile.Color(m.TextColor)).
+		Foreground(color(m.TextColor)).
+		String()
+}
+
+// colorPlaceholder colorizes a given string according to the TextColor value
+// of the model
+func (m *Model) colorPlaceholder(s string) string {
+	return termenv.
+		String(s).
+		Foreground(color(m.PlaceholderColor)).
 		String()
 }
 
@@ -68,10 +81,9 @@ func DefaultModel() Model {
 		PlaceholderColor: "240",
 		CursorColor:      "",
 
-		focus:        false,
-		blink:        true,
-		pos:          0,
-		colorProfile: termenv.ColorProfile(),
+		focus: false,
+		blink: true,
+		pos:   0,
 	}
 }
 
@@ -164,18 +176,14 @@ func View(model tea.Model) string {
 
 func placeholderView(m Model) string {
 	var (
-		v     string
-		p     = m.Placeholder
-		c     = m.PlaceholderColor
-		color = m.colorProfile.Color
+		v string
+		p = m.Placeholder
 	)
 
 	// Cursor
 	if m.blink && m.PlaceholderColor != "" {
 		v += cursorView(
-			termenv.String(p[:1]).
-				Foreground(color(c)).
-				String(),
+			m.colorPlaceholder(p[:1]),
 			m,
 		)
 	} else {
@@ -183,9 +191,7 @@ func placeholderView(m Model) string {
 	}
 
 	// The rest of the palceholder text
-	v += termenv.String(p[1:]).
-		Foreground(color(c)).
-		String()
+	v += m.colorPlaceholder(p[1:])
 
 	return m.Prompt + v
 }
@@ -196,7 +202,7 @@ func cursorView(s string, m Model) string {
 		return s
 	} else {
 		return termenv.String(s).
-			Foreground(m.colorProfile.Color(m.CursorColor)).
+			Foreground(color(m.CursorColor)).
 			Reverse().
 			String()
 	}
