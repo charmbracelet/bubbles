@@ -183,13 +183,12 @@ func placeholderView(m Model) string {
 func cursorView(s string, m Model) string {
 	if m.blink {
 		return s
-	} else if m.CursorColor != "" {
+	} else {
 		return termenv.String(s).
 			Foreground(m.colorProfile.Color(m.CursorColor)).
 			Reverse().
 			String()
 	}
-	return termenv.String(s).Reverse().String()
 }
 
 // Subscription
