@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/tea"
+	"github.com/muesli/termenv"
 )
 
 // Spinner denotes a type of spinner
@@ -24,13 +25,18 @@ var (
 	}
 
 	assertionErr = errors.New("could not perform assertion on model to what the spinner expects. are you sure you passed the right value?")
+
+	color = termenv.ColorProfile().Color
 )
 
 // Model contains the state for the spinner. Use NewModel to create new models
 // rather than using Model as a struct literal.
 type Model struct {
-	Type  Spinner
-	FPS   int
+	Type            Spinner
+	FPS             int
+	ForegroundColor string
+	BackgroundColor string
+
 	frame int
 }
 
@@ -66,7 +72,18 @@ func View(model Model) string {
 	if model.frame >= len(s) {
 		return "[error]"
 	}
-	return s[model.frame]
+
+	str := s[model.frame]
+
+	if model.ForegroundColor != "" || model.BackgroundColor != "" {
+		return termenv.
+			String(str).
+			Foreground(color(model.ForegroundColor)).
+			Background(color(model.BackgroundColor)).
+			String()
+	}
+
+	return str
 }
 
 // Sub is the subscription that allows the spinner to spin
