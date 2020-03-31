@@ -4,6 +4,6 @@ go 1.13
 
 require (
 	github.com/charmbracelet/tea v0.0.0-20200220032354-23432f30dd46
-	github.com/muesli/termenv v0.4.1-0.20200225030536-aeb2025df636
-	golang.org/x/sys v0.0.0-20200323222414-85ca7c5b95cd // indirect
+	github.com/muesli/termenv v0.5.0
+	golang.org/x/sys v0.0.0-20200331124033-c3d80250170d // indirect
 )
