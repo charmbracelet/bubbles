@@ -23,6 +23,10 @@ type Model struct {
 	PlaceholderColor string
 	CursorColor      string
 
+	// CharLimit is the maximum amount of characters this input element will
+	// accept. If 0 or less, there's no limit.
+	CharLimit int
+
 	// Focus indicates whether user input focus should be on this input
 	// component. When false, don't blink and ignore keyboard input.
 	focus bool
@@ -138,9 +142,11 @@ func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 			m.Value = m.Value[m.pos:]
 			m.pos = 0
 			return m, nil
-		case tea.KeyRune:
-			m.Value = m.Value[:m.pos] + string(msg.Rune) + m.Value[m.pos:]
-			m.pos++
+		case tea.KeyRune: // input a regular character
+			if m.CharLimit > 0 && len(m.Value) < m.CharLimit {
+				m.Value = m.Value[:m.pos] + string(msg.Rune) + m.Value[m.pos:]
+				m.pos++
+			}
 			return m, nil
 		default:
 			return m, nil
