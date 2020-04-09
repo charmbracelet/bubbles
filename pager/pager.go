@@ -63,13 +63,13 @@ func (m *Model) GetSliceBounds(length int) (start int, end int) {
 	return start, end
 }
 
-func (m *Model) prevPage() {
+func (m *Model) PrevPage() {
 	if m.Page > 0 {
 		m.Page--
 	}
 }
 
-func (m *Model) nextPage() {
+func (m *Model) NextPage() {
 	if m.Page < m.TotalPages-1 {
 		m.Page++
 	}
@@ -99,33 +99,33 @@ func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 		if m.UseLeftRightKeys {
 			switch msg.String() {
 			case "left":
-				m.prevPage()
+				m.PrevPage()
 			case "right":
-				m.nextPage()
+				m.NextPage()
 			}
 		}
 		if m.UseUpDownKeys {
 			switch msg.String() {
 			case "up":
-				m.prevPage()
+				m.PrevPage()
 			case "down":
-				m.nextPage()
+				m.NextPage()
 			}
 		}
 		if m.UseHLKeys {
 			switch msg.String() {
 			case "h":
-				m.prevPage()
+				m.PrevPage()
 			case "l":
-				m.nextPage()
+				m.NextPage()
 			}
 		}
 		if m.UseJKKeys {
 			switch msg.String() {
 			case "j":
-				m.prevPage()
+				m.PrevPage()
 			case "k":
-				m.nextPage()
+				m.NextPage()
 			}
 		}
 	}
