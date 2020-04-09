@@ -21,13 +21,17 @@ const (
 
 // Model is the Tea model for this user interface
 type Model struct {
-	Page         int
-	PerPage      int
-	TotalPages   int
-	ActiveDot    string
-	InactiveDot  string
-	ArabicFormat string
-	RTL          bool
+	Page             int
+	PerPage          int
+	TotalPages       int
+	ActiveDot        string
+	InactiveDot      string
+	ArabicFormat     string
+	RTL              bool
+	UseLeftRightKeys bool
+	UseUpDownKeys    bool
+	UseHLKeys        bool
+	UseJKKeys        bool
 }
 
 // SetTotalPages is a helper method for calculatng the total number of pages
@@ -45,38 +49,73 @@ func (m *Model) SetTotalPages(items int) int {
 	return n
 }
 
+func (m *Model) prevPage() {
+	if m.Page > 0 {
+		m.Page--
+	}
+}
+
+func (m *Model) nextPage() {
+	if m.Page < m.TotalPages-1 {
+		m.Page++
+	}
+}
+
 // NewModel creates a new model with defaults
 func NewModel() Model {
 	return Model{
-		Page:         0,
-		PerPage:      1,
-		TotalPages:   1,
-		ActiveDot:    "•",
-		InactiveDot:  "○",
-		ArabicFormat: "%d/%d",
-		RTL:          false,
+		Page:             0,
+		PerPage:          1,
+		TotalPages:       1,
+		ActiveDot:        "•",
+		InactiveDot:      "○",
+		ArabicFormat:     "%d/%d",
+		RTL:              false,
+		UseLeftRightKeys: true,
+		UseUpDownKeys:    false,
+		UseHLKeys:        true,
+		UseJKKeys:        false,
 	}
 }
 
 // Update is the Tea update function which binds keystrokes to pagination
-func Update(msg tea.Msg, model tea.Model) (tea.Model, tea.Cmd) {
-	m, ok := model.(Model)
-	if !ok {
-		return tea.ModelAssertionErr, nil
-	}
+func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "left":
-			if m.Page > 0 {
-				m.Page--
+		if m.UseLeftRightKeys {
+			switch msg.String() {
+			case "left":
+				m.prevPage()
+			case "right":
+				m.nextPage()
 			}
-		case "right":
-			if m.Page < m.TotalPages-1 {
-				m.Page++
+		}
+		if m.UseUpDownKeys {
+			switch msg.String() {
+			case "up":
+				m.prevPage()
+			case "down":
+				m.nextPage()
+			}
+		}
+		if m.UseHLKeys {
+			switch msg.String() {
+			case "h":
+				m.prevPage()
+			case "l":
+				m.nextPage()
+			}
+		}
+		if m.UseJKKeys {
+			switch msg.String() {
+			case "j":
+				m.prevPage()
+			case "k":
+				m.nextPage()
 			}
 		}
 	}
+
 	return m, nil
 }
 
