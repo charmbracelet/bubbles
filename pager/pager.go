@@ -15,19 +15,19 @@ type PagerType int
 
 // Pagination rendering options
 const (
-	Dots PagerType = iota
-	Arabic
+	Arabic PagerType = iota
+	Dots
 )
 
 // Model is the Tea model for this user interface
 type Model struct {
+	Type             PagerType
 	Page             int
 	PerPage          int
 	TotalPages       int
 	ActiveDot        string
 	InactiveDot      string
 	ArabicFormat     string
-	RTL              bool
 	UseLeftRightKeys bool
 	UseUpDownKeys    bool
 	UseHLKeys        bool
@@ -64,13 +64,13 @@ func (m *Model) nextPage() {
 // NewModel creates a new model with defaults
 func NewModel() Model {
 	return Model{
+		Type:             Arabic,
 		Page:             0,
 		PerPage:          1,
 		TotalPages:       1,
 		ActiveDot:        "•",
 		InactiveDot:      "○",
 		ArabicFormat:     "%d/%d",
-		RTL:              false,
 		UseLeftRightKeys: true,
 		UseUpDownKeys:    false,
 		UseHLKeys:        true,
@@ -125,21 +125,16 @@ func View(model tea.Model) string {
 	if !ok {
 		return ""
 	}
-	return dotsView(m)
+	switch m.Type {
+	case Dots:
+		return dotsView(m)
+	default:
+		return arabicView(m)
+	}
 }
 
 func dotsView(m Model) string {
 	var s string
-	if m.RTL {
-		for i := m.TotalPages; i > 0; i-- {
-			if i == m.Page {
-				s += m.ActiveDot
-				continue
-			}
-			s += m.InactiveDot
-		}
-		return s
-	}
 	for i := 0; i < m.TotalPages; i++ {
 		if i == m.Page {
 			s += m.ActiveDot
@@ -151,8 +146,5 @@ func dotsView(m Model) string {
 }
 
 func arabicView(m Model) string {
-	if m.RTL {
-		return fmt.Sprintf(m.ArabicFormat, m.TotalPages, m.Page+1)
-	}
 	return fmt.Sprintf(m.ArabicFormat, m.Page+1, m.TotalPages)
 }
