@@ -49,6 +49,20 @@ func (m *Model) SetTotalPages(items int) int {
 	return n
 }
 
+// GetSliceBounds is a helper function for paginating slices. Pass the length
+// of the slice you're rendering and you'll receive the start and end bounds
+// corresponding the to pagination. For example:
+//
+//     bunchOfStuff := []stuff{...}
+//     start, end := model.GetSliceBounds(len(bunchOfStuff))
+//     sliceToRender := bunchOfStuff[start:end]
+//
+func (m *Model) GetSliceBounds(length int) (start int, end int) {
+	start = m.Page * m.PerPage
+	end = min(m.Page*m.PerPage+m.PerPage, length)
+	return start, end
+}
+
 func (m *Model) prevPage() {
 	if m.Page > 0 {
 		m.Page--
@@ -147,4 +161,11 @@ func dotsView(m Model) string {
 
 func arabicView(m Model) string {
 	return fmt.Sprintf(m.ArabicFormat, m.Page+1, m.TotalPages)
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
