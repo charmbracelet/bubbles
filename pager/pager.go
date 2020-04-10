@@ -34,9 +34,10 @@ type Model struct {
 	UseJKKeys        bool
 }
 
-// SetTotalPages is a helper method for calculatng the total number of pages
-// from a given number of items. It's use is optional. Note that it both
-// returns the number of total pages and alters the model.
+// SetTotalPages is a helper function for calculatng the total number of pages
+// from a given number of items. It's use is optional since this pager can be
+// used for other things beyond navigating sets. Note that it both returns the
+// number of total pages and alters the model.
 func (m *Model) SetTotalPages(items int) int {
 	if items == 0 {
 		return 0
@@ -47,6 +48,13 @@ func (m *Model) SetTotalPages(items int) int {
 	}
 	m.TotalPages = n
 	return n
+}
+
+// ItemsOnPage is a helper function fro returning the numer of items on the
+// current page given the total numer of items passed as an argument.
+func (m Model) ItemsOnPage(totalItems int) int {
+	start, end := m.GetSliceBounds(totalItems)
+	return end - start
 }
 
 // GetSliceBounds is a helper function for paginating slices. Pass the length
@@ -63,12 +71,16 @@ func (m *Model) GetSliceBounds(length int) (start int, end int) {
 	return start, end
 }
 
+// PrevPage is a number function for navigating one page backward. It will not
+// page beyond the first page (i.e. page 0).
 func (m *Model) PrevPage() {
 	if m.Page > 0 {
 		m.Page--
 	}
 }
 
+// NextPage is a helper function for navigating one page forward. It will not
+// page beyond the last page (i.e. totalPages - 1).
 func (m *Model) NextPage() {
 	if m.Page < m.TotalPages-1 {
 		m.Page++
