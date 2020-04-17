@@ -193,7 +193,7 @@ func placeholderView(m Model) string {
 		v += cursorView(p[:1], m)
 	}
 
-	// The rest of the palceholder text
+	// The rest of the placeholder text
 	v += m.colorPlaceholder(p[1:])
 
 	return m.Prompt + v
