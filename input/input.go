@@ -37,10 +37,7 @@ type Model struct {
 
 // Focused returns the focus state on the model
 func (m Model) Focused() bool {
-	if m.focus {
-		return true
-	}
-	return false
+	return m.focus
 }
 
 // Focus sets the focus state on the model
@@ -206,12 +203,12 @@ func placeholderView(m Model) string {
 func cursorView(s string, m Model) string {
 	if m.blink {
 		return s
-	} else {
-		return termenv.String(s).
-			Foreground(color(m.CursorColor)).
-			Reverse().
-			String()
 	}
+
+	return termenv.String(s).
+		Foreground(color(m.CursorColor)).
+		Reverse().
+		String()
 }
 
 // Subscription
