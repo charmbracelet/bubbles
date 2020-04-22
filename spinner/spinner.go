@@ -20,8 +20,8 @@ const (
 var (
 	// Spinner frames
 	spinners = map[Spinner][]string{
-		Line: []string{"|", "/", "-", "\\"},
-		Dot:  []string{"⣾ ", "⣽ ", "⣻ ", "⢿ ", "⡿ ", "⣟ ", "⣯ ", "⣷ "},
+		Line: {"|", "/", "-", "\\"},
+		Dot:  {"⣾ ", "⣽ ", "⣻ ", "⢿ ", "⡿ ", "⣟ ", "⣯ ", "⣷ "},
 	}
 
 	assertionErr = errors.New("could not perform assertion on model to what the spinner expects. are you sure you passed the right value?")
