@@ -1,10 +1,10 @@
 package input
 
 import (
+	"errors"
 	"time"
 
 	"github.com/charmbracelet/tea"
-
 	"github.com/muesli/termenv"
 )
 
@@ -13,7 +13,10 @@ var (
 	color func(s string) termenv.Color = termenv.ColorProfile().Color
 )
 
+type ErrMsg error
+
 type Model struct {
+	Err              error
 	Prompt           string
 	Value            string
 	Cursor           string
@@ -149,6 +152,10 @@ func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 			return m, nil
 		}
 
+	case ErrMsg:
+		m.Err = msg
+		return m, nil
+
 	case CursorBlinkMsg:
 		m.blink = !m.blink
 		return m, nil
@@ -215,7 +222,7 @@ func cursorView(s string, m Model) string {
 func Blink(model tea.Model) tea.Msg {
 	m, ok := model.(Model)
 	if !ok {
-		return tea.NewErrMsg("could not assert given model to the model we expected; make sure you're passing as input model")
+		return ErrMsg(errors.New("could not assert given model to the model we expected; make sure you're passing as input model"))
 	}
 	time.Sleep(m.BlinkSpeed)
 	return CursorBlinkMsg{}

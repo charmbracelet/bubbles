@@ -1,5 +1,6 @@
 github.com/charmbracelet/tea v0.0.0-20200220032354-23432f30dd46 h1:ZRxnZ9WA8+DX7IpIrUjaAzue12wCA8bHgDWSrqARvGY=
 github.com/charmbracelet/tea v0.0.0-20200220032354-23432f30dd46/go.mod h1:96S8RyGdd7HfPcgDC8XqPKe+eH/1etFkw6lfhQCesgU=
+github.com/charmbracelet/tea v0.2.0/go.mod h1:lADjwO2mMub9qvXSCA9vAkabVWO0HeUrv4uO/lG3C+k=
 github.com/google/goterm v0.0.0-20190703233501-fc88cf888a3f h1:5CjVwnuUcp5adK4gmY6i72gpVFVnZDP2h5TmPScB6u4=
 github.com/google/goterm v0.0.0-20190703233501-fc88cf888a3f/go.mod h1:nOFQdrUlIlx6M6ODdSpBj1NVA+VgLC6kmw60mkw34H4=
 github.com/lucasb-eyer/go-colorful v1.0.3 h1:QIbQXiugsb+q10B+MI+7DI1oQLdmnep86tWFlaaUAac=
