@@ -1,4 +1,4 @@
-package input
+package textinput
 
 import (
 	"errors"
@@ -9,12 +9,16 @@ import (
 )
 
 var (
-	// Helper for returning colors
+	// color is a helper for returning colors
 	color func(s string) termenv.Color = termenv.ColorProfile().Color
 )
 
+// ErrMsg indicates there's been an error. We don't handle errors in the this
+// package; we're expecting errors to be handle in the program that implements
+// this text input.
 type ErrMsg error
 
+// Model is the Tea model for this text input element
 type Model struct {
 	Err              error
 	Prompt           string
@@ -73,9 +77,11 @@ func (m *Model) colorPlaceholder(s string) string {
 		String()
 }
 
+// CursorBlinkMsg is sent when the cursor should alternate it's blinking state
 type CursorBlinkMsg struct{}
 
-func DefaultModel() Model {
+// NewModel creates a new model with default settings
+func NewModel() Model {
 	return Model{
 		Prompt:           "> ",
 		Value:            "",
@@ -84,6 +90,7 @@ func DefaultModel() Model {
 		TextColor:        "",
 		PlaceholderColor: "240",
 		CursorColor:      "",
+		CharLimit:        0,
 
 		focus: false,
 		blink: true,
@@ -91,6 +98,7 @@ func DefaultModel() Model {
 	}
 }
 
+// Update is the Tea update loop
 func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 	if !m.focus {
 		m.blink = true
@@ -123,7 +131,7 @@ func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 			fallthrough
 		case tea.KeyCtrlB: // ^B, back one charcter
 			fallthrough
-		case tea.KeyCtrlA: // ^A, beginning
+		case tea.KeyCtrlA: // ^A, go to beginning
 			m.pos = 0
 			return m, nil
 		case tea.KeyCtrlD: // ^D, delete char under cursor
@@ -131,7 +139,7 @@ func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 				m.Value = m.Value[:m.pos] + m.Value[m.pos+1:]
 			}
 			return m, nil
-		case tea.KeyCtrlE: // ^E, end
+		case tea.KeyCtrlE: // ^E, go to end
 			m.pos = len(m.Value)
 			return m, nil
 		case tea.KeyCtrlK: // ^K, kill text after cursor
@@ -165,8 +173,12 @@ func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 	}
 }
 
+// View renders the textinput in its current state
 func View(model tea.Model) string {
-	m, _ := model.(Model)
+	m, ok := model.(Model)
+	if !ok {
+		return "could not perform assertion on model"
+	}
 
 	// Placeholder text
 	if m.Value == "" && m.Placeholder != "" {
@@ -184,6 +196,7 @@ func View(model tea.Model) string {
 	return m.Prompt + v
 }
 
+// placeholderView
 func placeholderView(m Model) string {
 	var (
 		v string
@@ -206,19 +219,19 @@ func placeholderView(m Model) string {
 	return m.Prompt + v
 }
 
-// Style the cursor
+// cursorView style the cursor
 func cursorView(s string, m Model) string {
 	if m.blink {
 		return s
 	}
-
 	return termenv.String(s).
 		Foreground(color(m.CursorColor)).
 		Reverse().
 		String()
 }
 
-// Subscription
+// Blink is the subscription that lets us know when to alternate the blinking
+// of the cursor.
 func Blink(model tea.Model) tea.Msg {
 	m, ok := model.(Model)
 	if !ok {

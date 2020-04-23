@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/charmbracelet/tea"
-	"github.com/charmbracelet/teaparty/input"
+	input "github.com/charmbracelet/teaparty/textinput"
 	te "github.com/muesli/termenv"
 )
 
@@ -39,17 +39,17 @@ type Model struct {
 }
 
 func initialize() (tea.Model, tea.Cmd) {
-	name := input.DefaultModel()
+	name := input.NewModel()
 	name.Placeholder = "Name"
 	name.Focus()
 	name.Prompt = focusedPrompt
 	name.TextColor = focusedText
 
-	nickName := input.DefaultModel()
+	nickName := input.NewModel()
 	nickName.Placeholder = "Nickname"
 	nickName.Prompt = blurredPrompt
 
-	email := input.DefaultModel()
+	email := input.NewModel()
 	email.Placeholder = "Email"
 	email.Prompt = blurredPrompt
 
@@ -134,22 +134,30 @@ func update(msg tea.Msg, model tea.Model) (tea.Model, tea.Cmd) {
 			return m, nil
 
 		default:
-			m.nameInput, _ = input.Update(msg, m.nameInput)
-			m.nickNameInput, _ = input.Update(msg, m.nickNameInput)
-			m.emailInput, _ = input.Update(msg, m.emailInput)
+			// Handle character input
+			m = updateInputs(msg, m)
 			return m, nil
 		}
 
 	default:
-		m.nameInput, _ = input.Update(msg, m.nameInput)
-		m.nickNameInput, _ = input.Update(msg, m.nickNameInput)
-		m.emailInput, _ = input.Update(msg, m.emailInput)
+		// Handle blinks
+		m = updateInputs(msg, m)
 		return m, nil
 	}
 }
 
+func updateInputs(msg tea.Msg, m Model) Model {
+	m.nameInput, _ = input.Update(msg, m.nameInput)
+	m.nickNameInput, _ = input.Update(msg, m.nickNameInput)
+	m.emailInput, _ = input.Update(msg, m.emailInput)
+	return m
+}
+
 func subscriptions(model tea.Model) tea.Subs {
 	return tea.Subs{
+		// It's a little hacky, but we're using the subscription from one
+		// input element to handle the blinking for all elements. It doesn't
+		// have to be this way, we're just feeling a bit lazy at the moment.
 		"blink": func(model tea.Model) tea.Msg {
 			m, _ := model.(Model)
 			return input.Blink(m.nameInput)

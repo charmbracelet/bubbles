@@ -149,7 +149,7 @@ func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 func View(model tea.Model) string {
 	m, ok := model.(Model)
 	if !ok {
-		return ""
+		return "could not perform assertion on model"
 	}
 	switch m.Type {
 	case Dots:
