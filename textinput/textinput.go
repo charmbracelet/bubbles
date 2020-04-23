@@ -151,7 +151,7 @@ func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 			m.pos = 0
 			return m, nil
 		case tea.KeyRune: // input a regular character
-			if m.CharLimit > 0 && len(m.Value) < m.CharLimit {
+			if m.CharLimit <= 0 || len(m.Value) < m.CharLimit {
 				m.Value = m.Value[:m.pos] + string(msg.Rune) + m.Value[m.pos:]
 				m.pos++
 			}
