@@ -230,13 +230,15 @@ func cursorView(s string, m Model) string {
 		String()
 }
 
-// Blink is the subscription that lets us know when to alternate the blinking
-// of the cursor.
-func Blink(model tea.Model) tea.Msg {
+// MakeSub return a subscription that lets us know when to alternate the
+// blinking of the cursor.
+func MakeSub(model tea.Model) (tea.Sub, error) {
 	m, ok := model.(Model)
 	if !ok {
-		return ErrMsg(errors.New("could not assert given model to the model we expected; make sure you're passing as input model"))
+		return nil, errors.New("could not assert given model to the model we expected; make sure you're passing as input model")
 	}
-	time.Sleep(m.BlinkSpeed)
-	return CursorBlinkMsg{}
+	return func() tea.Msg {
+		time.Sleep(m.BlinkSpeed)
+		return CursorBlinkMsg{}
+	}, nil
 }

@@ -154,14 +154,24 @@ func updateInputs(msg tea.Msg, m Model) Model {
 }
 
 func subscriptions(model tea.Model) tea.Subs {
+	m, ok := model.(Model)
+	if !ok {
+		return nil
+	}
+
+	// It's a little hacky, but we're using the subscription from one
+	// input element to handle the blinking for all elements. It doesn't
+	// have to be this way, we're just feeling a bit lazy at the moment.
+	inputSub, err := input.MakeSub(m.nameInput)
+	if err != nil {
+		return nil
+	}
+
 	return tea.Subs{
 		// It's a little hacky, but we're using the subscription from one
 		// input element to handle the blinking for all elements. It doesn't
 		// have to be this way, we're just feeling a bit lazy at the moment.
-		"blink": func(model tea.Model) tea.Msg {
-			m, _ := model.(Model)
-			return input.Blink(m.nameInput)
-		},
+		"blink": inputSub,
 	}
 }
 

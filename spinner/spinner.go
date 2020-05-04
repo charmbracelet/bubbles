@@ -86,12 +86,16 @@ func View(model Model) string {
 	return str
 }
 
-// Sub is the subscription that allows the spinner to spin
-func Sub(model tea.Model) tea.Msg {
+// GetSub creates the subscription that allows the spinner to spin. Remember
+// that you need to execute this function in order to get the subscription
+// you'll need.
+func MakeSub(model tea.Model) (tea.Sub, error) {
 	m, ok := model.(Model)
 	if !ok {
-		return assertionErr
+		return nil, assertionErr
 	}
-	time.Sleep(time.Second / time.Duration(m.FPS))
-	return TickMsg{}
+	return func() tea.Msg {
+		time.Sleep(time.Second / time.Duration(m.FPS))
+		return TickMsg{}
+	}, nil
 }
