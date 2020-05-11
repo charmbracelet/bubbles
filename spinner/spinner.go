@@ -50,7 +50,7 @@ func NewModel() Model {
 }
 
 // TickMsg indicates that the timer has ticked and we should render a frame
-type TickMsg struct{}
+type TickMsg time.Time
 
 // Update is the Tea update function
 func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
@@ -94,8 +94,7 @@ func MakeSub(model tea.Model) (tea.Sub, error) {
 	if !ok {
 		return nil, assertionErr
 	}
-	return func() tea.Msg {
-		time.Sleep(time.Second / time.Duration(m.FPS))
-		return TickMsg{}
-	}, nil
+	return tea.Tick(time.Second/time.Duration(m.FPS), func(t time.Time) tea.Msg {
+		return TickMsg(t)
+	}), nil
 }
