@@ -2,6 +2,8 @@ github.com/charmbracelet/tea v0.0.0-20200220032354-23432f30dd46 h1:ZRxnZ9WA8+DX7
 github.com/charmbracelet/tea v0.0.0-20200220032354-23432f30dd46/go.mod h1:96S8RyGdd7HfPcgDC8XqPKe+eH/1etFkw6lfhQCesgU=
 github.com/charmbracelet/tea v0.2.0 h1:PvoNZa2N5HeHnUELfEmZxLO+gmDgjNcrDLNHUMsSuXM=
 github.com/charmbracelet/tea v0.2.0/go.mod h1:lADjwO2mMub9qvXSCA9vAkabVWO0HeUrv4uO/lG3C+k=
+github.com/charmbracelet/tea v0.3.0 h1:W5F1x/IYeSCKpZl3/hM3Mn5v2KAagckabDFhhzh5sIE=
+github.com/charmbracelet/tea v0.3.0/go.mod h1:uA/DUzCuyIZ1NFyAdCz6k+gF8lspujo6ZvoavcSsLCM=
 github.com/google/goterm v0.0.0-20190703233501-fc88cf888a3f h1:5CjVwnuUcp5adK4gmY6i72gpVFVnZDP2h5TmPScB6u4=
 github.com/google/goterm v0.0.0-20190703233501-fc88cf888a3f/go.mod h1:nOFQdrUlIlx6M6ODdSpBj1NVA+VgLC6kmw60mkw34H4=
 github.com/lucasb-eyer/go-colorful v1.0.3 h1:QIbQXiugsb+q10B+MI+7DI1oQLdmnep86tWFlaaUAac=
@@ -14,6 +16,8 @@ github.com/muesli/termenv v0.4.1-0.20200225030536-aeb2025df636 h1:E8Ak48QMa0KO1r
 github.com/muesli/termenv v0.4.1-0.20200225030536-aeb2025df636/go.mod h1:O1/I6sw+6KcrgAmcs6uiUVr7Lui+DNVbHTzt9Lm/PlI=
 github.com/muesli/termenv v0.5.0 h1:7uYkBUJ2EE+CdWlBoYzO70I/cq/r3bOm4a40/lvmiAU=
 github.com/muesli/termenv v0.5.0/go.mod h1:O1/I6sw+6KcrgAmcs6uiUVr7Lui+DNVbHTzt9Lm/PlI=
+github.com/muesli/termenv v0.5.2 h1:N1Y1dHRtx6OizOgaIQXd8SkJl4T/cCOV+YyWXiuLUEA=
+github.com/muesli/termenv v0.5.2/go.mod h1:O1/I6sw+6KcrgAmcs6uiUVr7Lui+DNVbHTzt9Lm/PlI=
 github.com/pkg/term v0.0.0-20190109203006-aa71e9d9e942 h1:A7GG7zcGjl3jqAqGPmcNjd/D9hzL95SuoOQAaFNdLU0=
 github.com/pkg/term v0.0.0-20190109203006-aa71e9d9e942/go.mod h1:eCbImbZ95eXtAUIbLAuAVnBnwf83mjf6QIVH8SHYwqQ=
 golang.org/x/sys v0.0.0-20200116001909-b77594299b42/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
@@ -23,3 +27,6 @@ golang.org/x/sys v0.0.0-20200223170610-d5e6a3e2c0ae h1:/WDfKMnPU+m5M4xB+6x4kaepx
 golang.org/x/sys v0.0.0-20200223170610-d5e6a3e2c0ae/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
 golang.org/x/sys v0.0.0-20200331124033-c3d80250170d h1:nc5K6ox/4lTFbMVSL9WRR81ixkcwXThoiF6yf+R9scA=
 golang.org/x/sys v0.0.0-20200331124033-c3d80250170d/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+golang.org/x/sys v0.0.0-20200430202703-d923437fa56d/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+golang.org/x/sys v0.0.0-20200509044756-6aff5f38e54f h1:mOhmO9WsBaJCNmaZHPtHs9wOcdqdKCjF6OPJlmDM3KI=
+golang.org/x/sys v0.0.0-20200509044756-6aff5f38e54f/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
