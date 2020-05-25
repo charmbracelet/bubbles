@@ -1,27 +1,27 @@
-// package pager provides a Tea package for calulating pagination and rendering
-// pagination info. Note that this package does not render actual pages: it's
-// purely for handling keystrokes related to pagination, and rendering
-// pagination status.
-package pager
+// package paginator provides a Bubble Tea package for calulating pagination
+// and rendering pagination info. Note that this package does not render actual
+// pages: it's purely for handling keystrokes related to pagination, and
+// rendering pagination status.
+package paginator
 
 import (
 	"fmt"
 
-	"github.com/charmbracelet/tea"
+	tea "github.com/charmbracelet/bubbletea"
 )
 
-// PagerType specifies the way we render pagination
-type PagerType int
+// Type specifies the way we render pagination.
+type Type int
 
 // Pagination rendering options
 const (
-	Arabic PagerType = iota
+	Arabic Type = iota
 	Dots
 )
 
-// Model is the Tea model for this user interface
+// Model is the Tea model for this user interface.
 type Model struct {
-	Type             PagerType
+	Type             Type
 	Page             int
 	PerPage          int
 	TotalPages       int
@@ -44,13 +44,13 @@ func (m *Model) SetTotalPages(items int) int {
 	}
 	n := items / m.PerPage
 	if items%m.PerPage > 0 {
-		n += 1
+		n++
 	}
 	m.TotalPages = n
 	return n
 }
 
-// ItemsOnPage is a helper function fro returning the numer of items on the
+// ItemsOnPage is a helper function for returning the numer of items on the
 // current page given the total numer of items passed as an argument.
 func (m Model) ItemsOnPage(totalItems int) int {
 	start, end := m.GetSliceBounds(totalItems)
@@ -82,12 +82,17 @@ func (m *Model) PrevPage() {
 // NextPage is a helper function for navigating one page forward. It will not
 // page beyond the last page (i.e. totalPages - 1).
 func (m *Model) NextPage() {
-	if m.Page < m.TotalPages-1 {
+	if !m.OnLastPage() {
 		m.Page++
 	}
 }
 
-// NewModel creates a new model with defaults
+// LastPage returns whether or not we're on the last page.
+func (m Model) OnLastPage() bool {
+	return m.Page == m.TotalPages-1
+}
+
+// NewModel creates a new model with defaults.
 func NewModel() Model {
 	return Model{
 		Type:             Arabic,
@@ -104,7 +109,7 @@ func NewModel() Model {
 	}
 }
 
-// Update is the Tea update function which binds keystrokes to pagination
+// Update is the Tea update function which binds keystrokes to pagination.
 func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
@@ -145,7 +150,7 @@ func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 	return m, nil
 }
 
-// View renders the pagination to a string
+// View renders the pagination to a string.
 func View(model tea.Model) string {
 	m, ok := model.(Model)
 	if !ok {

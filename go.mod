@@ -1,11 +1,8 @@
-module github.com/charmbracelet/teaparty
+module github.com/charmbracelet/bubbles
 
 go 1.13
 
 require (
-	github.com/charmbracelet/tea v0.3.0
+	github.com/charmbracelet/bubbletea v0.6.4-0.20200525234836-3b8b011b5a26
 	github.com/muesli/termenv v0.5.2
-	golang.org/x/sys v0.0.0-20200509044756-6aff5f38e54f // indirect
 )
-
-replace github.com/charmbracelet/tea => ../tea

@@ -1,20 +1,23 @@
 package spinner
 
 import (
-	"errors"
 	"time"
 
-	"github.com/charmbracelet/tea"
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/muesli/termenv"
 )
 
-// Spinner denotes a type of spinner
+// Spinner is a set of frames used in animating the spinner.
 type Spinner = int
 
 // Available types of spinners
 const (
 	Line Spinner = iota
 	Dot
+)
+
+const (
+	defaultFPS = 9
 )
 
 var (
@@ -24,49 +27,66 @@ var (
 		Dot:  {"⣾ ", "⣽ ", "⣻ ", "⢿ ", "⡿ ", "⣟ ", "⣯ ", "⣷ "},
 	}
 
-	assertionErr = errors.New("could not perform assertion on model to what the spinner expects. are you sure you passed the right value?")
-
 	color = termenv.ColorProfile().Color
 )
 
 // Model contains the state for the spinner. Use NewModel to create new models
 // rather than using Model as a struct literal.
 type Model struct {
-	Type            Spinner
-	FPS             int
+
+	// Type is the set of frames to use. See Spinner.
+	Type Spinner
+
+	// FPS is the speed at which the ticker should tick
+	FPS int
+
+	// ForegroundColor sets the background color of the spinner. It can be a
+	// hex code or one of the 256 ANSI colors. If the terminal emulator can't
+	// doesn't support the color specified it will automatically degrade
+	// (per github.com/muesli/termenv).
 	ForegroundColor string
+
+	// BackgroundColor sets the background color of the spinner. It can be a
+	// hex code or one of the 256 ANSI colors. If the terminal emulator can't
+	// doesn't support the color specified it will automatically degrade
+	// (per github.com/muesli/termenv).
 	BackgroundColor string
+
+	// CustomMsgFunc can be used to a custom message on tick. This can be
+	// useful when you have spinners in different parts of your application and
+	// want to differentiate between the messages for clarity and simplicity.
+	// If nil, this setting is ignored.
+	CustomMsgFunc func() tea.Msg
 
 	frame int
 }
 
-// NewModel returns a model with default values
+// NewModel returns a model with default values.
 func NewModel() Model {
 	return Model{
-		Type:  Line,
-		FPS:   9,
-		frame: 0,
+		Type: Line,
+		FPS:  defaultFPS,
 	}
 }
 
-// TickMsg indicates that the timer has ticked and we should render a frame
-type TickMsg time.Time
+// TickMsg indicates that the timer has ticked and we should render a frame.
+type TickMsg struct{}
 
-// Update is the Tea update function
+// Update is the Tea update function. This will advance the spinner one frame
+// every time it's called, regardless the message passed, so be sure the logic
+// is setup so as not to call this Update needlessly.
 func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
-	switch msg.(type) {
-	case TickMsg:
-		m.frame++
-		if m.frame >= len(spinners[m.Type]) {
-			m.frame = 0
-		}
-		return m, nil
-	default:
-		return m, nil
+	m.frame++
+	if m.frame >= len(spinners[m.Type]) {
+		m.frame = 0
 	}
+	if m.CustomMsgFunc != nil {
+		return m, Tick(m)
+	}
+	return m, Tick(m)
 }
 
-// View renders the model's view
+// View renders the model's view.
 func View(model Model) string {
 	s := spinners[model.Type]
 	if model.frame >= len(s) {
@@ -86,15 +106,13 @@ func View(model Model) string {
 	return str
 }
 
-// GetSub creates the subscription that allows the spinner to spin. Remember
-// that you need to execute this function in order to get the subscription
-// you'll need.
-func MakeSub(model tea.Model) (tea.Sub, error) {
-	m, ok := model.(Model)
-	if !ok {
-		return nil, assertionErr
+// Tick is the command used to advance the spinner one frame.
+func Tick(model Model) tea.Cmd {
+	return func() tea.Msg {
+		time.Sleep(time.Second / time.Duration(model.FPS))
+		if model.CustomMsgFunc != nil {
+			return model.CustomMsgFunc()
+		}
+		return TickMsg{}
 	}
-	return tea.Tick(time.Second/time.Duration(m.FPS), func(t time.Time) tea.Msg {
-		return TickMsg(t)
-	}), nil
 }
