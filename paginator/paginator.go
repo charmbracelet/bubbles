@@ -53,6 +53,9 @@ func (m *Model) SetTotalPages(items int) int {
 // ItemsOnPage is a helper function for returning the numer of items on the
 // current page given the total numer of items passed as an argument.
 func (m Model) ItemsOnPage(totalItems int) int {
+	if totalItems < 1 {
+		return 0
+	}
 	start, end := m.GetSliceBounds(totalItems)
 	return end - start
 }
