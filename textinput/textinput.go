@@ -45,7 +45,7 @@ type Model struct {
 	Width int
 
 	// Underlying text value
-	value string
+	value []rune
 
 	// Focus indicates whether user input focus should be on this input
 	// component. When false, don't blink and ignore keyboard input.
@@ -64,10 +64,11 @@ type Model struct {
 
 // SetValue sets the value of the text input.
 func (m *Model) SetValue(s string) {
-	if m.CharLimit > 0 && len(s) > m.CharLimit {
-		m.value = s[:m.CharLimit]
+	runes := []rune(s)
+	if m.CharLimit > 0 && len(runes) > m.CharLimit {
+		m.value = runes[:m.CharLimit]
 	} else {
-		m.value = s
+		m.value = runes
 	}
 	if m.pos > len(m.value) {
 		m.pos = len(m.value)
@@ -77,7 +78,7 @@ func (m *Model) SetValue(s string) {
 
 // Value returns the value of the text input.
 func (m Model) Value() string {
-	return m.value
+	return string(m.value)
 }
 
 // Cursor start moves the cursor to the given position. If the position is out
@@ -118,7 +119,7 @@ func (m *Model) Blur() {
 
 // Reset sets the input to its default state with no input.
 func (m *Model) Reset() {
-	m.value = ""
+	m.value = nil
 	m.offset = 0
 	m.pos = 0
 	m.blink = false
@@ -166,7 +167,7 @@ func (m *Model) wordLeft() {
 	i := m.pos - 1
 
 	for i >= 0 {
-		if unicode.IsSpace(rune(m.value[i])) {
+		if unicode.IsSpace(m.value[i]) {
 			m.pos--
 			i--
 		} else {
@@ -175,7 +176,7 @@ func (m *Model) wordLeft() {
 	}
 
 	for i >= 0 {
-		if !unicode.IsSpace(rune(m.value[i])) {
+		if !unicode.IsSpace(m.value[i]) {
 			m.pos--
 			i--
 		} else {
@@ -224,7 +225,7 @@ func NewModel() Model {
 		CursorColor:      "",
 		CharLimit:        0,
 
-		value: "",
+		value: nil,
 		focus: false,
 		blink: true,
 		pos:   0,
@@ -245,7 +246,7 @@ func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 			fallthrough
 		case tea.KeyDelete:
 			if len(m.value) > 0 {
-				m.value = m.value[:m.pos-1] + m.value[m.pos:]
+				m.value = append(m.value[:m.pos-1], m.value[m.pos:]...)
 				m.pos--
 			}
 		case tea.KeyLeft:
@@ -272,7 +273,7 @@ func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 			m.CursorStart()
 		case tea.KeyCtrlD: // ^D, delete char under cursor
 			if len(m.value) > 0 && m.pos < len(m.value) {
-				m.value = m.value[:m.pos] + m.value[m.pos+1:]
+				m.value = append(m.value[:m.pos], m.value[m.pos+1:]...)
 			}
 		case tea.KeyCtrlE: // ^E, go to end
 			m.CursorEnd()
@@ -298,7 +299,7 @@ func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 
 			// Input a regular character
 			if m.CharLimit <= 0 || len(m.value) < m.CharLimit {
-				m.value = m.value[:m.pos] + string(msg.Rune) + m.value[m.pos:]
+				m.value = append(m.value[:m.pos], append([]rune{msg.Rune}, m.value[m.pos:]...)...)
 				m.pos++
 			}
 		}
@@ -324,7 +325,7 @@ func View(model tea.Model) string {
 	}
 
 	// Placeholder text
-	if m.value == "" && m.Placeholder != "" {
+	if m.value == nil && m.Placeholder != "" {
 		return placeholderView(m)
 	}
 
@@ -338,11 +339,11 @@ func View(model tea.Model) string {
 	value := m.value[left:right]
 	pos := m.pos - m.offset
 
-	v := m.colorText(value[:pos])
+	v := m.colorText(string(value[:pos]))
 
 	if pos < len(value) {
-		v += cursorView(string(value[pos]), m) // cursor and text under it
-		v += m.colorText(value[pos+1:])        // text after cursor
+		v += cursorView(string(value[pos]), m)  // cursor and text under it
+		v += m.colorText(string(value[pos+1:])) // text after cursor
 	} else {
 		v += cursorView(" ", m)
 	}
