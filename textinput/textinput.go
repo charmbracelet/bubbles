@@ -6,6 +6,7 @@ import (
 	"unicode"
 
 	tea "github.com/charmbracelet/bubbletea"
+	rw "github.com/mattn/go-runewidth"
 	"github.com/muesli/termenv"
 )
 
@@ -59,7 +60,8 @@ type Model struct {
 
 	// Used to emulate a viewport when width is set and the content is
 	// overflowing
-	offset int
+	offset      int
+	offsetRight int
 }
 
 // SetValue sets the value of the text input.
@@ -84,7 +86,7 @@ func (m Model) Value() string {
 // Cursor start moves the cursor to the given position. If the position is out
 // of bounds the cursor will be moved to the start or end accordingly.
 func (m *Model) SetCursor(pos int) {
-	m.pos = max(0, min(len(m.value), pos))
+	m.pos = clamp(pos, 0, len(m.value))
 	m.handleOverflow()
 }
 
@@ -120,7 +122,6 @@ func (m *Model) Blur() {
 // Reset sets the input to its default state with no input.
 func (m *Model) Reset() {
 	m.value = nil
-	m.offset = 0
 	m.pos = 0
 	m.blink = false
 }
@@ -128,14 +129,46 @@ func (m *Model) Reset() {
 // If a max width is defined, perform some logic to treat the visible area
 // as a horizontally scrolling viewport.
 func (m *Model) handleOverflow() {
-	if m.Width > 0 {
-		overflow := max(0, len(m.value)-m.Width)
+	if m.Width <= 0 || rw.StringWidth(string(m.value)) <= m.Width {
+		m.offset = 0
+		m.offsetRight = len(m.value)
+		return
+	}
 
-		if overflow > 0 && m.pos < m.offset {
-			m.offset = max(0, min(len(m.value), m.pos))
-		} else if overflow > 0 && m.pos >= m.offset+m.Width {
-			m.offset = max(0, m.pos-m.Width)
+	if m.pos < m.offset {
+
+		m.offset = m.pos
+
+		w := 0
+		i := 0
+		runes := m.value[m.offset:]
+
+		for i < len(runes) && w <= m.Width {
+			w += rw.RuneWidth(runes[i])
+			if w <= m.Width+1 {
+				i++
+			}
 		}
+
+		m.offsetRight = m.offset + i
+
+	} else if m.pos >= m.offsetRight {
+
+		m.offsetRight = m.pos
+
+		w := 0
+		runes := m.value[:m.offsetRight]
+		i := len(runes) - 1
+
+		for i > 0 && w < m.Width {
+			w += rw.RuneWidth(runes[i])
+			if w <= m.Width {
+				i--
+			}
+		}
+
+		m.offset = m.offsetRight - (len(runes) - 1 - i)
+
 	}
 }
 
@@ -329,14 +362,7 @@ func View(model tea.Model) string {
 		return placeholderView(m)
 	}
 
-	left := m.offset
-	right := 0
-	if m.Width > 0 {
-		right = min(len(m.value), m.offset+m.Width+1)
-	} else {
-		right = len(m.value)
-	}
-	value := m.value[left:right]
+	value := m.value[m.offset:m.offsetRight]
 	pos := m.pos - m.offset
 
 	v := m.colorText(string(value[:pos]))
@@ -350,9 +376,10 @@ func View(model tea.Model) string {
 
 	// If a max width and background color were set fill the empty spaces with
 	// the background color.
-	if m.Width > 0 && len(m.BackgroundColor) > 0 && len(value) <= m.Width {
-		padding := m.Width - len(value)
-		if len(value)+padding <= m.Width && pos < len(value) {
+	valWidth := rw.StringWidth(string(value))
+	if m.Width > 0 && len(m.BackgroundColor) > 0 && valWidth <= m.Width {
+		padding := max(0, m.Width-valWidth)
+		if valWidth+padding <= m.Width && pos < len(value) {
 			padding++
 		}
 		v += strings.Repeat(
@@ -411,6 +438,10 @@ func Blink(model Model) tea.Cmd {
 		time.Sleep(model.BlinkSpeed)
 		return BlinkMsg{}
 	}
+}
+
+func clamp(v, low, high int) int {
+	return min(high, max(low, v))
 }
 
 func min(a, b int) int {
