@@ -62,7 +62,7 @@ func (m *Model) SetContent(s string) {
 	m.lines = strings.Split(s, "\n")
 
 	lines := bounded(m.lines, m.YOffset, m.Height)
-	m.r.sync(strings.Join(lines, "\n"))
+	m.r.sync(lines)
 }
 
 // ViewDown moves the view down by the number of lines in the viewport.

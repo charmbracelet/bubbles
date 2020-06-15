@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"strings"
 )
 
 type renderer struct {
@@ -14,40 +15,30 @@ type renderer struct {
 	TerminalHeight int
 }
 
-// sync paints the whole area.
-func (r *renderer) sync(content string) {
-	r.clear()
-	moveTo(r.Out, r.Y, 0)
-	r.write(content)
-}
-
 // clear clears the viewport region.
 func (r *renderer) clear() {
-	b := new(bytes.Buffer)
-	moveTo(b, r.Y, 0)
+	buf := new(bytes.Buffer)
+	moveTo(buf, r.Y, 0)
 	for i := 0; i < r.Height; i++ {
-		clearLine(b)
-		cursorDown(b, 1)
+		clearLine(buf)
+		cursorDown(buf, 1)
 	}
-	r.Out.Write(b.Bytes())
+	r.Out.Write(buf.Bytes())
+}
+
+// sync paints the whole area.
+func (r *renderer) sync(lines []string) {
+	r.clear()
+	moveTo(r.Out, r.Y, 0)
+	r.write(lines)
 }
 
 // write writes to the set writer.
-func (r *renderer) write(s string) {
-	if len(s) == 0 {
+func (r *renderer) write(lines []string) {
+	if len(lines) == 0 {
 		return
 	}
-
-	buf := new(bytes.Buffer)
-	for _, r := range []rune(s) {
-		if r == '\n' {
-			buf.WriteString("\r\n")
-			continue
-		}
-		buf.WriteRune(r)
-	}
-
-	r.Out.Write(buf.Bytes())
+	io.WriteString(r.Out, strings.Join(lines, "\r\n"))
 }
 
 // Effectively scroll up. That is, insert a line at the top, scrolling
