@@ -1,6 +1,7 @@
 package viewport
 
 import (
+	"os"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -12,9 +13,36 @@ type Model struct {
 	Err    error
 	Width  int
 	Height int
-	Y      int
+
+	// YOffset is the vertical scroll position.
+	YOffset int
+
+	// Y is the position of the viewport in relation to the terminal window.
+	// It's used in high performance rendering.
+	Y int
+
+	// UseInternalRenderer specifies whether or not to use the pager's internal,
+	// high performance renderer to paint the screen.
+	UseInternalRenderer bool
 
 	lines []string
+
+	r renderer
+}
+
+func NewModel(yPos, width, height, terminalWidth, terminalHeight int) Model {
+	return Model{
+		Width:               width,
+		Height:              height,
+		UseInternalRenderer: true,
+		r: renderer{
+			Y:              yPos,
+			Height:         height,
+			TerminalWidth:  terminalWidth,
+			TerminalHeight: terminalHeight,
+			Out:            os.Stdout,
+		},
+	}
 }
 
 // Scrollpercent returns the amount scrolled as a float between 0 and 1.
@@ -22,7 +50,7 @@ func (m Model) ScrollPercent() float64 {
 	if m.Height >= len(m.lines) {
 		return 1.0
 	}
-	y := float64(m.Y)
+	y := float64(m.YOffset)
 	h := float64(m.Height)
 	t := float64(len(m.lines))
 	return y / (t - h)
@@ -32,51 +60,60 @@ func (m Model) ScrollPercent() float64 {
 func (m *Model) SetContent(s string) {
 	s = strings.Replace(s, "\r\n", "\n", -1) // normalize line endings
 	m.lines = strings.Split(s, "\n")
-}
 
-// NewModel creates a new pager model. Pass the dimensions of the pager.
-func NewModel(width, height int) Model {
-	return Model{
-		Width:  width,
-		Height: height,
-	}
+	lines := bounded(m.lines, m.YOffset, m.Height)
+	m.r.sync(strings.Join(lines, "\n"))
 }
 
 // ViewDown moves the view down by the number of lines in the viewport.
 // Basically, "page down".
 func (m *Model) ViewDown() {
-	m.Y = min(len(m.lines)-m.Height, m.Y+m.Height)
+	m.YOffset = min(len(m.lines)-m.Height, m.YOffset+m.Height)
 }
 
 // ViewUp moves the view up by one height of the viewport. Basically, "page up".
 func (m *Model) ViewUp() {
-	m.Y = max(0, m.Y-m.Height)
+	m.YOffset = max(0, m.YOffset-m.Height)
 }
 
 // HalfViewUp moves the view up by half the height of the viewport.
 func (m *Model) HalfViewUp() {
-	m.Y = max(0, m.Y-m.Height/2)
+	m.YOffset = max(0, m.YOffset-m.Height/2)
 }
 
 // HalfViewDown moves the view down by half the height of the viewport.
 func (m *Model) HalfViewDown() {
-	m.Y = min(len(m.lines)-m.Height, m.Y+m.Height/2)
+	m.YOffset = min(len(m.lines)-m.Height, m.YOffset+m.Height/2)
 }
 
 // LineDown moves the view up by the given number of lines.
 func (m *Model) LineDown(n int) {
-	m.Y = min(len(m.lines)-m.Height, m.Y+n)
+	if m.YOffset >= len(m.lines)-m.Height-1 {
+		return
+	}
+	m.YOffset = min(len(m.lines)-m.Height, m.YOffset+n)
+
+	if m.UseInternalRenderer {
+		m.r.insertBottom(m.lines[m.YOffset+m.Height-1])
+	}
 }
 
-// LineDown moves the view down by the given number of lines.
+// LineUp moves the view down by the given number of lines.
 func (m *Model) LineUp(n int) {
-	m.Y = max(0, m.Y-n)
+	if m.YOffset == 0 {
+		return
+	}
+	m.YOffset = max(0, m.YOffset-n)
+
+	if m.UseInternalRenderer {
+		m.r.insertTop(m.lines[m.YOffset])
+	}
 }
 
 // UPDATE
 
 // Update runs the update loop with default keybindings. To define your own
-// keybindings use the methods on Model.
+// keybindings use the methods on Model and define your own update function.
 func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
 
@@ -131,6 +168,12 @@ func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 
 // View renders the viewport into a string.
 func View(m Model) string {
+
+	if m.UseInternalRenderer {
+		// Skip over the area that would normally be rendered
+		return cursorDownString(m.Height)
+	}
+
 	if m.Err != nil {
 		return m.Err.Error()
 	}
@@ -138,8 +181,8 @@ func View(m Model) string {
 	var lines []string
 
 	if len(m.lines) > 0 {
-		top := max(0, m.Y)
-		bottom := min(len(m.lines), m.Y+m.Height)
+		top := max(0, m.YOffset)
+		bottom := min(len(m.lines), m.YOffset+m.Height)
 		lines = m.lines[top:bottom]
 	}
 
@@ -166,4 +209,12 @@ func max(a, b int) int {
 		return a
 	}
 	return b
+}
+
+func clamp(val, low, high int) int {
+	return max(low, min(high, val))
+}
+
+func bounded(s []string, start, end int) []string {
+	return s[clamp(start, 0, len(s)):clamp(end, 0, len(s))]
 }
