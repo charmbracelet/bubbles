@@ -11,7 +11,6 @@ type renderer struct {
 	Out            io.Writer
 	Y              int
 	Height         int
-	TerminalWidth  int
 	TerminalHeight int
 }
 
@@ -48,7 +47,7 @@ func (r *renderer) insertTop(lines []string) {
 	moveTo(r.Out, r.Y, 0)
 	insertLine(r.Out, len(lines))
 	r.writeLines(lines)
-	changeScrollingRegion(r.Out, r.TerminalWidth, r.TerminalHeight)
+	changeScrollingRegion(r.Out, 0, r.TerminalHeight)
 }
 
 // Effectively scroll down. That is, insert a line at the bottom, pushing
@@ -57,7 +56,7 @@ func (r *renderer) insertBottom(lines []string) {
 	changeScrollingRegion(r.Out, r.Y, r.Y+r.Height)
 	moveTo(r.Out, r.Y+r.Height, 0)
 	io.WriteString(r.Out, "\r\n"+strings.Join(lines, "\r\n"))
-	changeScrollingRegion(r.Out, r.TerminalWidth, r.TerminalHeight)
+	changeScrollingRegion(r.Out, 0, r.TerminalHeight)
 }
 
 // Terminal Control
