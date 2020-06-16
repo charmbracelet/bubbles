@@ -30,37 +30,37 @@ func (r *renderer) clear() {
 func (r *renderer) sync(lines []string) {
 	r.clear()
 	moveTo(r.Out, r.Y, 0)
-	r.write(lines)
+	r.writeLines(lines)
 }
 
 // write writes to the set writer.
-func (r *renderer) write(lines []string) {
+func (r *renderer) writeLines(lines []string) {
 	if len(lines) == 0 {
 		return
 	}
 	io.WriteString(r.Out, strings.Join(lines, "\r\n"))
 }
 
-// Effectively scroll up. That is, insert a line at the top, scrolling
+// Effectively scroll up. That is, insert a line at the top, pushing
 // everything else down. This is roughly how ncurses does it.
-func (r *renderer) insertTop(line string) {
+func (r *renderer) insertTop(lines []string) {
 	changeScrollingRegion(r.Out, r.Y, r.Y+r.Height)
 	moveTo(r.Out, r.Y, 0)
-	insertLine(r.Out, 1)
-	io.WriteString(r.Out, line)
+	insertLine(r.Out, len(lines))
+	r.writeLines(lines)
 	changeScrollingRegion(r.Out, r.TerminalWidth, r.TerminalHeight)
 }
 
-// Effectively scroll down. That is, insert a line at the bottom, scrolling
+// Effectively scroll down. That is, insert a line at the bottom, pushing
 // everything else up. This is roughly how ncurses does it.
-func (r *renderer) insertBottom(line string) {
+func (r *renderer) insertBottom(lines []string) {
 	changeScrollingRegion(r.Out, r.Y, r.Y+r.Height)
 	moveTo(r.Out, r.Y+r.Height, 0)
-	io.WriteString(r.Out, "\n"+line)
+	io.WriteString(r.Out, "\r\n"+strings.Join(lines, "\r\n"))
 	changeScrollingRegion(r.Out, r.TerminalWidth, r.TerminalHeight)
 }
 
-// Screen command
+// Terminal Control
 
 const csi = "\x1b["
 
