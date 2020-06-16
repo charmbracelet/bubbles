@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"strings"
+
+	te "github.com/muesli/termenv"
 )
 
 type renderer struct {
@@ -61,28 +63,26 @@ func (r *renderer) insertBottom(lines []string) {
 
 // Terminal Control
 
-const csi = "\x1b["
-
 func changeScrollingRegion(w io.Writer, top, bottom int) {
-	fmt.Fprintf(w, csi+"%d;%dr", top, bottom)
+	fmt.Fprintf(w, te.CSI+"%d;%dr", top, bottom)
 }
 
 func moveTo(w io.Writer, row, col int) {
-	fmt.Fprintf(w, csi+"%d;%dH", row, col)
+	fmt.Fprintf(w, te.CSI+te.CursorPositionSeq, row, col)
 }
 
 func cursorDown(w io.Writer, numLines int) {
-	fmt.Fprintf(w, csi+"%dB", numLines)
+	fmt.Fprintf(w, te.CSI+te.CursorDownSeq, numLines)
 }
 
 func cursorDownString(numLines int) string {
-	return fmt.Sprintf(csi+"%dB", numLines)
+	return fmt.Sprintf(te.CSI+te.CursorDownSeq, numLines)
 }
 
 func clearLine(w io.Writer) {
-	fmt.Fprint(w, csi+"2K")
+	fmt.Fprintf(w, te.CSI+te.EraseLineSeq, 2)
 }
 
 func insertLine(w io.Writer, numLines int) {
-	fmt.Fprintf(w, csi+"%dL", numLines)
+	fmt.Fprintf(w, te.CSI+"%dL", numLines)
 }
