@@ -10,9 +10,18 @@ import (
 )
 
 type renderer struct {
-	Out            io.Writer
-	Y              int
-	Height         int
+	// Out is the io.Writer to which we should render. Generally, this will
+	// be stdout.
+	Out io.Writer
+
+	// Y is the vertical offset of the rendered area in relation to the
+	// terminal window.
+	Y int
+
+	// Height is the number of rows to render.
+	Height int
+
+	// TerminalHeight is the total height of the terminal.
 	TerminalHeight int
 }
 
