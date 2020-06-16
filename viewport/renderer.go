@@ -95,3 +95,11 @@ func clearLine(w io.Writer) {
 func insertLine(w io.Writer, numLines int) {
 	fmt.Fprintf(w, te.CSI+"%dL", numLines)
 }
+
+func saveCursorPosition(w io.Writer) {
+	fmt.Fprint(w, te.CSI+"s")
+}
+
+func restoreCursorPosition(w io.Writer) {
+	fmt.Fprint(w, te.CSI+"u")
+}

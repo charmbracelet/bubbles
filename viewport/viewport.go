@@ -21,8 +21,8 @@ type Model struct {
 	// It's used in high performance rendering.
 	Y int
 
-	// UseInternalRenderer specifies whether or not to use the pager's internal,
-	// high performance renderer to paint the screen.
+	// UseInternalRenderer specifies whether or not to use the pager's
+	// internal, high performance renderer to paint the screen.
 	UseInternalRenderer bool
 
 	lines []string
