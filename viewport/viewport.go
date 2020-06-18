@@ -149,8 +149,9 @@ func (m *Model) LineUp(n int) {
 // COMMANDS
 
 func Sync(m Model) tea.Cmd {
-	top := clamp(m.YOffset, 0, len(m.lines))
-	bottom := clamp(m.YOffset+m.Height, 0, len(m.lines))
+	top := max(m.YOffset, 0)
+	bottom := min(m.YOffset+m.Height, len(m.lines)-1)
+
 	return tea.SyncScrollArea(
 		m.lines[top:bottom],
 		m.YPosition,
@@ -179,7 +180,7 @@ func ViewUp(m Model) tea.Cmd {
 	}
 
 	top := max(m.YOffset-m.Height, 0)
-	bottom := min(m.YOffset, len(m.lines))
+	bottom := min(m.YOffset, len(m.lines)-1)
 
 	return tea.ScrollUp(
 		m.lines[top:bottom],
@@ -209,7 +210,7 @@ func HalfViewUp(m Model) tea.Cmd {
 	}
 
 	top := max(m.YOffset-m.Height/2, 0)
-	bottom := clamp(m.YOffset, top, len(m.lines))
+	bottom := clamp(m.YOffset, top, len(m.lines)-1)
 
 	return tea.ScrollUp(
 		m.lines[top:bottom],
@@ -223,7 +224,7 @@ func LineDown(m Model, n int) tea.Cmd {
 		return nil
 	}
 
-	bottom := min(m.YOffset+m.Height+n, len(m.lines))
+	bottom := min(m.YOffset+m.Height+n, len(m.lines)-1)
 	top := max(bottom-n, 0)
 
 	return tea.ScrollDown(
@@ -239,7 +240,7 @@ func LineUp(m Model, n int) tea.Cmd {
 	}
 
 	top := max(m.YOffset-n, 0)
-	bottom := min(top+n, len(m.lines))
+	bottom := min(top+n, len(m.lines)-1)
 
 	return tea.ScrollUp(
 		m.lines[top:bottom],
@@ -250,8 +251,9 @@ func LineUp(m Model, n int) tea.Cmd {
 
 // UPDATE
 
-// Update runs the update loop with default keybindings. To define your own
-// keybindings use the methods on Model and define your own update function.
+// Update runs the update loop with default keybindings similar to popular
+// pagers. To define your own keybindings use the methods on Model (i.e.
+// Model.LineDown()) and define your own update function.
 func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 	var cmd tea.Cmd
 
