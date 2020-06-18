@@ -1,7 +1,6 @@
 package viewport
 
 import (
-	"os"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -17,32 +16,34 @@ type Model struct {
 	// YOffset is the vertical scroll position.
 	YOffset int
 
-	// Y is the position of the viewport in relation to the terminal window.
-	// It's used in high performance rendering.
-	Y int
+	// YPosition is the position of the viewport in relation to the terminal
+	// window. It's used in high performance rendering.
+	YPosition int
 
-	// UseInternalRenderer specifies whether or not to use the pager's
-	// internal, high performance renderer to paint the screen.
-	UseInternalRenderer bool
+	// HighPerformanceRendering bypasses the normal Bubble Tea renderer to
+	// provide higher performance rendering. Most of the time the normal Bubble
+	// Tea rendering methods will suffice, but if you're passing content with
+	// a lot of ANSI escape codes you may see improved rendering in certain
+	// terminals with this enabled.
+	//
+	// This should only be used in program occupying the entire terminal width,
+	// usually via the alternate screen buffer.
+	HighPerformanceRendering bool
 
 	lines []string
-
-	r renderer
 }
 
-func NewModel(yPos, width, height, terminalWidth, terminalHeight int) Model {
+func NewModel(width, height int) Model {
 	return Model{
-		Width:               width,
-		Height:              height,
-		UseInternalRenderer: true,
-		r: renderer{
-			Y:              yPos,
-			Height:         height,
-			TerminalWidth:  terminalWidth,
-			TerminalHeight: terminalHeight,
-			Out:            os.Stdout,
-		},
+		Width:  width,
+		Height: height,
 	}
+}
+
+func (m Model) SetSize(yPos int, width, height int) {
+	m.YPosition = yPos
+	m.Width = width
+	m.Height = height
 }
 
 // AtTop returns whether or not the viewport is in the very top position.
@@ -71,10 +72,10 @@ func (m *Model) SetContent(s string) {
 	s = strings.Replace(s, "\r\n", "\n", -1) // normalize line endings
 	m.lines = strings.Split(s, "\n")
 
-	if m.UseInternalRenderer {
-		top := max(m.YOffset, 0)
-		bottom := min(m.YOffset+m.Height, len(m.lines))
-		m.r.sync(m.lines[top:bottom])
+	if m.HighPerformanceRendering {
+		//top := max(m.YOffset, 0)
+		//bottom := min(m.YOffset+m.Height, len(m.lines))
+		//m.r.sync(m.lines[top:bottom])
 	}
 }
 
@@ -83,12 +84,6 @@ func (m *Model) SetContent(s string) {
 func (m *Model) ViewDown() {
 	if m.AtBottom() {
 		return
-	}
-
-	if m.UseInternalRenderer {
-		top := max(m.YOffset+m.Height, 0)
-		bottom := min(top+m.Height, len(m.lines)-1)
-		m.r.insertBottom(m.lines[top:bottom])
 	}
 
 	m.YOffset = min(
@@ -103,12 +98,6 @@ func (m *Model) ViewUp() {
 		return
 	}
 
-	if m.UseInternalRenderer {
-		top := max(m.YOffset-m.Height, 0)
-		bottom := min(m.YOffset, len(m.lines))
-		m.r.insertTop(m.lines[top:bottom])
-	}
-
 	m.YOffset = max(
 		m.YOffset-m.Height, // target
 		0,                  // fallback
@@ -119,12 +108,6 @@ func (m *Model) ViewUp() {
 func (m *Model) HalfViewDown() {
 	if m.AtBottom() {
 		return
-	}
-
-	if m.UseInternalRenderer {
-		top := max(m.YOffset+m.Height/2, 0)
-		bottom := min(top+m.Height, len(m.lines)-1)
-		m.r.insertBottom(m.lines[top:bottom])
 	}
 
 	m.YOffset = min(
@@ -139,12 +122,6 @@ func (m *Model) HalfViewUp() {
 		return
 	}
 
-	if m.UseInternalRenderer {
-		top := max(m.YOffset-m.Height/2, 0)
-		bottom := clamp(m.YOffset, top, len(m.lines))
-		m.r.insertTop(m.lines[top:bottom])
-	}
-
 	m.YOffset = max(
 		m.YOffset-m.Height/2, // target
 		0,                    // fallback
@@ -155,12 +132,6 @@ func (m *Model) HalfViewUp() {
 func (m *Model) LineDown(n int) {
 	if m.AtBottom() || n == 0 {
 		return
-	}
-
-	if m.UseInternalRenderer {
-		bottom := min(m.YOffset+m.Height+n, len(m.lines))
-		top := max(bottom-n, 0)
-		m.r.insertBottom(m.lines[top:bottom])
 	}
 
 	m.YOffset = min(
@@ -175,13 +146,103 @@ func (m *Model) LineUp(n int) {
 		return
 	}
 
-	if m.UseInternalRenderer {
-		top := max(m.YOffset-n, 0)
-		bottom := min(top+n, len(m.lines))
-		m.r.insertTop(m.lines[top:bottom])
+	m.YOffset = max(m.YOffset-n, 0)
+}
+
+// COMMANDS
+
+func Sync(m Model) tea.Cmd {
+	return tea.ReplaceIgnoredLines(m.YPosition, m.YPosition+m.Height)
+}
+
+func ViewDown(m Model) tea.Cmd {
+	if m.AtBottom() {
+		return nil
 	}
 
-	m.YOffset = max(m.YOffset-n, 0)
+	top := max(m.YOffset+m.Height, 0)
+	bottom := min(top+m.Height, len(m.lines)-1)
+
+	return tea.ScrollDown(
+		m.lines[top:bottom],
+		m.YPosition,
+		m.YPosition+m.Height,
+	)
+}
+
+func ViewUp(m Model) tea.Cmd {
+	if m.AtTop() {
+		return nil
+	}
+
+	top := max(m.YOffset-m.Height, 0)
+	bottom := min(m.YOffset, len(m.lines))
+
+	return tea.ScrollUp(
+		m.lines[top:bottom],
+		m.YPosition,
+		m.YPosition+m.Height,
+	)
+}
+
+func HalfViewDown(m Model) tea.Cmd {
+	if m.AtBottom() {
+		return nil
+	}
+
+	top := max(m.YOffset+m.Height/2, 0)
+	bottom := min(top+m.Height, len(m.lines)-1)
+
+	return tea.ScrollDown(
+		m.lines[top:bottom],
+		m.YPosition,
+		m.YPosition+m.Height,
+	)
+}
+
+func HalfViewUp(m Model) tea.Cmd {
+	if m.AtTop() {
+		return nil
+	}
+
+	top := max(m.YOffset-m.Height/2, 0)
+	bottom := clamp(m.YOffset, top, len(m.lines))
+
+	return tea.ScrollUp(
+		m.lines[top:bottom],
+		m.YPosition,
+		m.YPosition+m.Height,
+	)
+}
+
+func LineDown(m Model, n int) tea.Cmd {
+	if m.AtBottom() || n == 0 {
+		return nil
+	}
+
+	bottom := min(m.YOffset+m.Height+n, len(m.lines))
+	top := max(bottom-n, 0)
+
+	return tea.ScrollDown(
+		m.lines[top:bottom],
+		m.YPosition,
+		m.YPosition+m.Height,
+	)
+}
+
+func LineUp(m Model, n int) tea.Cmd {
+	if m.AtTop() || n == 0 {
+		return nil
+	}
+
+	top := max(m.YOffset-n, 0)
+	bottom := min(top+n, len(m.lines))
+
+	return tea.ScrollUp(
+		m.lines[top:bottom],
+		m.YPosition,
+		m.YPosition+m.Height,
+	)
 }
 
 // UPDATE
@@ -189,7 +250,15 @@ func (m *Model) LineUp(n int) {
 // Update runs the update loop with default keybindings. To define your own
 // keybindings use the methods on Model and define your own update function.
 func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
+	var cmd tea.Cmd
+
 	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.Width = msg.Width
+		m.Height = msg.Height
+		//if m.HighPerformanceRendering {
+		//cmd = tea.ReplaceIgnoredLines(m.YPosition, m.YPosition+m.Height)
+		//}
 
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -199,43 +268,55 @@ func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 		case " ": // spacebar
 			fallthrough
 		case "f":
+			if m.HighPerformanceRendering {
+				cmd = ViewDown(m)
+			}
 			m.ViewDown()
-			return m, nil
 
 		// Up one page
 		case "pgup":
 			fallthrough
 		case "b":
+			if m.HighPerformanceRendering {
+				cmd = ViewUp(m)
+			}
 			m.ViewUp()
-			return m, nil
 
 		// Down half page
 		case "d":
+			if m.HighPerformanceRendering {
+				cmd = HalfViewDown(m)
+			}
 			m.HalfViewDown()
-			return m, nil
 
 		// Up half page
 		case "u":
+			if m.HighPerformanceRendering {
+				cmd = HalfViewUp(m)
+			}
 			m.HalfViewUp()
-			return m, nil
 
 		// Down one line
 		case "down":
 			fallthrough
 		case "j":
+			if m.HighPerformanceRendering {
+				cmd = LineDown(m, 1)
+			}
 			m.LineDown(1)
-			return m, nil
 
 		// Up one line
 		case "up":
 			fallthrough
 		case "k":
+			if m.HighPerformanceRendering {
+				cmd = LineUp(m, 1)
+			}
 			m.LineUp(1)
-			return m, nil
 		}
 	}
 
-	return m, nil
+	return m, cmd
 }
 
 // VIEW
@@ -243,7 +324,7 @@ func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 // View renders the viewport into a string.
 func View(m Model) string {
 
-	if m.UseInternalRenderer {
+	if m.HighPerformanceRendering {
 		// Skip over the area that would normally be rendered
 		return cursorDownString(m.Height)
 	}
