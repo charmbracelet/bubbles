@@ -1,11 +1,9 @@
 package viewport
 
 import (
-	"fmt"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
-	te "github.com/muesli/termenv"
 )
 
 // MODEL
@@ -324,8 +322,10 @@ func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 func View(m Model) string {
 
 	if m.HighPerformanceRendering {
-		// Skip over the area that would normally be rendered
-		return fmt.Sprintf(te.CSI+te.CursorDownSeq, m.Height)
+		// Just send newlines  since we're doing to be rendering the actual
+		// content seprately. We do need to send something so that the Bubble
+		// Tea standard renderer can push everything else down.
+		return strings.Repeat("\n", m.Height-1)
 	}
 
 	if m.Err != nil {
