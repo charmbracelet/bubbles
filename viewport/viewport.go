@@ -1,9 +1,11 @@
 package viewport
 
 import (
+	"fmt"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
+	te "github.com/muesli/termenv"
 )
 
 // MODEL
@@ -67,16 +69,11 @@ func (m Model) ScrollPercent() float64 {
 	return y / (t - h)
 }
 
-// SetContent set the pager's text content.
+// SetContent set the pager's text content. For high performance rendering the
+// Sync command should also be called.
 func (m *Model) SetContent(s string) {
 	s = strings.Replace(s, "\r\n", "\n", -1) // normalize line endings
 	m.lines = strings.Split(s, "\n")
-
-	if m.HighPerformanceRendering {
-		//top := max(m.YOffset, 0)
-		//bottom := min(m.YOffset+m.Height, len(m.lines))
-		//m.r.sync(m.lines[top:bottom])
-	}
 }
 
 // ViewDown moves the view down by the number of lines in the viewport.
@@ -152,7 +149,13 @@ func (m *Model) LineUp(n int) {
 // COMMANDS
 
 func Sync(m Model) tea.Cmd {
-	return tea.ReplaceIgnoredLines(m.YPosition, m.YPosition+m.Height)
+	top := clamp(m.YOffset, 0, len(m.lines))
+	bottom := clamp(m.YOffset+m.Height, 0, len(m.lines))
+	return tea.SyncScrollArea(
+		m.lines[top:bottom],
+		m.YPosition,
+		m.YPosition+m.Height,
+	)
 }
 
 func ViewDown(m Model) tea.Cmd {
@@ -326,7 +329,7 @@ func View(m Model) string {
 
 	if m.HighPerformanceRendering {
 		// Skip over the area that would normally be rendered
-		return cursorDownString(m.Height)
+		return fmt.Sprintf(te.CSI+te.CursorDownSeq, m.Height)
 	}
 
 	if m.Err != nil {

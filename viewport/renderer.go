@@ -84,10 +84,6 @@ func cursorDown(w io.Writer, numLines int) {
 	fmt.Fprintf(w, te.CSI+te.CursorDownSeq, numLines)
 }
 
-func cursorDownString(numLines int) string {
-	return fmt.Sprintf(te.CSI+te.CursorDownSeq, numLines)
-}
-
 func clearLine(w io.Writer) {
 	fmt.Fprintf(w, te.CSI+te.EraseLineSeq, 2)
 }
