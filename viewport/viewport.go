@@ -256,12 +256,6 @@ func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 	var cmd tea.Cmd
 
 	switch msg := msg.(type) {
-	case tea.WindowSizeMsg:
-		m.Width = msg.Width
-		m.Height = msg.Height
-		//if m.HighPerformanceRendering {
-		//cmd = tea.ReplaceIgnoredLines(m.YPosition, m.YPosition+m.Height)
-		//}
 
 	case tea.KeyMsg:
 		switch msg.String() {
