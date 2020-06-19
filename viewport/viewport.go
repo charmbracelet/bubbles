@@ -26,8 +26,8 @@ type Model struct {
 	// a lot of ANSI escape codes you may see improved rendering in certain
 	// terminals with this enabled.
 	//
-	// This should only be used in program occupying the entire terminal width,
-	// usually via the alternate screen buffer.
+	// This should only be used in program occupying the entire terminal,
+	// which is usually via the alternate screen buffer.
 	HighPerformanceRendering bool
 
 	lines []string
@@ -41,7 +41,8 @@ func NewModel(width, height int) Model {
 	}
 }
 
-func (m Model) SetSize(yPos int, width, height int) {
+// TODO: do we really need this?
+func (m Model) SetSize(yPos, width, height int) {
 	m.YPosition = yPos
 	m.Width = width
 	m.Height = height
