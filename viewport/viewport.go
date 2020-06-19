@@ -80,7 +80,6 @@ func (m Model) visibleLines() (lines []string) {
 		bottom := min(len(m.lines), m.YOffset+m.Height)
 		lines = m.lines[top:bottom]
 	}
-
 	return lines
 }
 
@@ -114,33 +113,49 @@ func (m *Model) ViewUp() []string {
 }
 
 // HalfViewDown moves the view down by half the height of the viewport.
-func (m *Model) HalfViewDown() {
+func (m *Model) HalfViewDown() (lines []string) {
 	if m.AtBottom() {
-		return
+		return nil
 	}
 
 	m.YOffset = min(
 		m.YOffset+m.Height/2,  // target
 		len(m.lines)-m.Height, // fallback
 	)
+
+	if len(m.lines) > 0 {
+		top := max(m.YOffset+m.Height/2, 0)
+		bottom := min(m.YOffset+m.Height, len(m.lines)-1)
+		lines = m.lines[top:bottom]
+	}
+
+	return lines
 }
 
 // HalfViewUp moves the view up by half the height of the viewport.
-func (m *Model) HalfViewUp() {
+func (m *Model) HalfViewUp() (lines []string) {
 	if m.AtTop() {
-		return
+		return nil
 	}
 
 	m.YOffset = max(
 		m.YOffset-m.Height/2, // target
 		0,                    // fallback
 	)
+
+	if len(m.lines) > 0 {
+		top := max(m.YOffset, 0)
+		bottom := min(m.YOffset+m.Height/2, len(m.lines)-1)
+		lines = m.lines[top:bottom]
+	}
+
+	return lines
 }
 
 // LineDown moves the view up by the given number of lines.
 func (m *Model) LineDown(n int) (lines []string) {
 	if m.AtBottom() || n == 0 {
-		return
+		return nil
 	}
 
 	m.YOffset = min(
@@ -161,7 +176,7 @@ func (m *Model) LineDown(n int) (lines []string) {
 // lines to show.
 func (m *Model) LineUp(n int) (lines []string) {
 	if m.AtTop() || n == 0 {
-		return lines
+		return nil
 	}
 
 	m.YOffset = max(m.YOffset-n, 0)
@@ -192,78 +207,42 @@ func ViewDown(m Model, lines []string) tea.Cmd {
 	if len(lines) == 0 {
 		return nil
 	}
-
-	return tea.ScrollDown(
-		lines,
-		m.YPosition,
-		m.YPosition+m.Height,
-	)
+	return tea.ScrollDown(lines, m.YPosition, m.YPosition+m.Height)
 }
 
 func ViewUp(m Model, lines []string) tea.Cmd {
 	if len(lines) == 0 {
 		return nil
 	}
-
-	return tea.ScrollUp(
-		lines,
-		m.YPosition,
-		m.YPosition+m.Height,
-	)
+	return tea.ScrollUp(lines, m.YPosition, m.YPosition+m.Height)
 }
 
-func HalfViewDown(m Model) tea.Cmd {
-	if m.AtBottom() {
+func HalfViewDown(m Model, lines []string) tea.Cmd {
+	if len(lines) == 0 {
 		return nil
 	}
-
-	top := max(m.YOffset+m.Height/2, 0)
-	bottom := min(top+m.Height, len(m.lines)-1)
-
-	return tea.ScrollDown(
-		m.lines[top:bottom],
-		m.YPosition,
-		m.YPosition+m.Height,
-	)
+	return tea.ScrollDown(lines, m.YPosition, m.YPosition+m.Height)
 }
 
-func HalfViewUp(m Model) tea.Cmd {
-	if m.AtTop() {
+func HalfViewUp(m Model, lines []string) tea.Cmd {
+	if len(lines) == 0 {
 		return nil
 	}
-
-	top := max(m.YOffset-m.Height/2, 0)
-	bottom := clamp(m.YOffset, top, len(m.lines)-1)
-
-	return tea.ScrollUp(
-		m.lines[top:bottom],
-		m.YPosition,
-		m.YPosition+m.Height,
-	)
+	return tea.ScrollUp(lines, m.YPosition, m.YPosition+m.Height)
 }
 
 func LineDown(m Model, lines []string) tea.Cmd {
 	if len(lines) == 0 {
 		return nil
 	}
-
-	return tea.ScrollDown(
-		lines,
-		m.YPosition,
-		m.YPosition+m.Height,
-	)
+	return tea.ScrollDown(lines, m.YPosition, m.YPosition+m.Height)
 }
 
 func LineUp(m Model, lines []string) tea.Cmd {
 	if len(lines) == 0 {
 		return nil
 	}
-
-	return tea.ScrollUp(
-		lines,
-		m.YPosition,
-		m.YPosition+m.Height,
-	)
+	return tea.ScrollUp(lines, m.YPosition, m.YPosition+m.Height)
 }
 
 // UPDATE
@@ -300,17 +279,17 @@ func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 
 		// Down half page
 		case "d":
+			lines := m.HalfViewDown()
 			if m.HighPerformanceRendering {
-				cmd = HalfViewDown(m)
+				cmd = HalfViewDown(m, lines)
 			}
-			m.HalfViewDown()
 
 		// Up half page
 		case "u":
+			lines := m.HalfViewUp()
 			if m.HighPerformanceRendering {
-				cmd = HalfViewUp(m)
+				cmd = HalfViewUp(m, lines)
 			}
-			m.HalfViewUp()
 
 		// Down one line
 		case "down":
@@ -348,13 +327,7 @@ func View(m Model) string {
 		return strings.Repeat("\n", m.Height-1)
 	}
 
-	var lines []string
-
-	if len(m.lines) > 0 {
-		top := max(0, m.YOffset)
-		bottom := min(len(m.lines), m.YOffset+m.Height)
-		lines = m.lines[top:bottom]
-	}
+	lines := m.visibleLines()
 
 	// Fill empty space with newlines
 	extraLines := ""
