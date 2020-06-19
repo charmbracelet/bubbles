@@ -197,6 +197,10 @@ func (m *Model) LineUp(n int) (lines []string) {
 // COMMANDS
 
 func Sync(m Model) tea.Cmd {
+	if len(m.lines) == 0 {
+		return nil
+	}
+
 	top := max(m.YOffset, 0)
 	bottom := min(m.YOffset+m.Height, len(m.lines)-1)
 
