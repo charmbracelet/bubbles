@@ -1,6 +1,7 @@
 package viewport
 
 import (
+	"math"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -32,6 +33,7 @@ type Model struct {
 	lines []string
 }
 
+// TODO: do we really need this?
 func NewModel(width, height int) Model {
 	return Model{
 		Width:  width,
@@ -63,7 +65,8 @@ func (m Model) ScrollPercent() float64 {
 	y := float64(m.YOffset)
 	h := float64(m.Height)
 	t := float64(len(m.lines))
-	return y / (t - h)
+	v := y / (t - h)
+	return math.Max(0.0, math.Min(1.0, v))
 }
 
 // SetContent set the pager's text content. For high performance rendering the
