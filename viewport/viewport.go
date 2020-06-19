@@ -9,7 +9,6 @@ import (
 // MODEL
 
 type Model struct {
-	Err    error
 	Width  int
 	Height int
 
@@ -124,7 +123,7 @@ func (m *Model) HalfViewUp() {
 }
 
 // LineDown moves the view up by the given number of lines.
-func (m *Model) LineDown(n int) {
+func (m *Model) LineDown(n int) (lines []string) {
 	if m.AtBottom() || n == 0 {
 		return
 	}
@@ -133,15 +132,32 @@ func (m *Model) LineDown(n int) {
 		m.YOffset+n,           // target
 		len(m.lines)-m.Height, // fallback
 	)
+
+	if len(m.lines) > 0 {
+		top := max(0, m.YOffset+m.Height-n)
+		bottom := min(len(m.lines)-1, m.YOffset+m.Height)
+		lines = m.lines[top:bottom]
+	}
+
+	return lines
 }
 
-// LineUp moves the view down by the given number of lines.
-func (m *Model) LineUp(n int) {
+// LineUp moves the view down by the given number of lines. Returns the new
+// lines to show.
+func (m *Model) LineUp(n int) (lines []string) {
 	if m.AtTop() || n == 0 {
-		return
+		return lines
 	}
 
 	m.YOffset = max(m.YOffset-n, 0)
+
+	if len(m.lines) > 0 {
+		top := max(0, m.YOffset)
+		bottom := min(len(m.lines)-1, m.YOffset+n)
+		lines = m.lines[top:bottom]
+	}
+
+	return lines
 }
 
 // COMMANDS
@@ -217,31 +233,25 @@ func HalfViewUp(m Model) tea.Cmd {
 	)
 }
 
-func LineDown(m Model, n int) tea.Cmd {
-	if m.AtBottom() || n == 0 {
+func LineDown(m Model, lines []string) tea.Cmd {
+	if len(lines) == 0 {
 		return nil
 	}
 
-	bottom := min(m.YOffset+m.Height+n, len(m.lines)-1)
-	top := max(bottom-n, 0)
-
 	return tea.ScrollDown(
-		m.lines[top:bottom],
+		lines,
 		m.YPosition,
 		m.YPosition+m.Height,
 	)
 }
 
-func LineUp(m Model, n int) tea.Cmd {
-	if m.AtTop() || n == 0 {
+func LineUp(m Model, lines []string) tea.Cmd {
+	if len(lines) == 0 {
 		return nil
 	}
 
-	top := max(m.YOffset-n, 0)
-	bottom := min(top+n, len(m.lines)-1)
-
 	return tea.ScrollUp(
-		m.lines[top:bottom],
+		lines,
 		m.YPosition,
 		m.YPosition+m.Height,
 	)
@@ -297,19 +307,19 @@ func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 		case "down":
 			fallthrough
 		case "j":
+			lines := m.LineDown(1)
 			if m.HighPerformanceRendering {
-				cmd = LineDown(m, 1)
+				cmd = LineDown(m, lines)
 			}
-			m.LineDown(1)
 
 		// Up one line
 		case "up":
 			fallthrough
 		case "k":
+			lines := m.LineUp(1)
 			if m.HighPerformanceRendering {
-				cmd = LineUp(m, 1)
+				cmd = LineUp(m, lines)
 			}
-			m.LineUp(1)
 		}
 	}
 
@@ -323,13 +333,10 @@ func View(m Model) string {
 
 	if m.HighPerformanceRendering {
 		// Just send newlines  since we're doing to be rendering the actual
-		// content seprately. We do need to send something so that the Bubble
-		// Tea standard renderer can push everything else down.
+		// content seprately. We still need send something that equals the
+		// height of this view so that the Bubble Tea standard renderer can
+		// position anything below this view properly.
 		return strings.Repeat("\n", m.Height-1)
-	}
-
-	if m.Err != nil {
-		return m.Err.Error()
 	}
 
 	var lines []string
