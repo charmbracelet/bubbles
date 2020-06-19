@@ -73,29 +73,44 @@ func (m *Model) SetContent(s string) {
 	m.lines = strings.Split(s, "\n")
 }
 
+// Return the lines that should currently be visible in the viewport
+func (m Model) visibleLines() (lines []string) {
+	if len(m.lines) > 0 {
+		top := max(0, m.YOffset)
+		bottom := min(len(m.lines), m.YOffset+m.Height)
+		lines = m.lines[top:bottom]
+	}
+
+	return lines
+}
+
 // ViewDown moves the view down by the number of lines in the viewport.
 // Basically, "page down".
-func (m *Model) ViewDown() {
+func (m *Model) ViewDown() []string {
 	if m.AtBottom() {
-		return
+		return nil
 	}
 
 	m.YOffset = min(
 		m.YOffset+m.Height,    // target
 		len(m.lines)-m.Height, // fallback
 	)
+
+	return m.visibleLines()
 }
 
 // ViewUp moves the view up by one height of the viewport. Basically, "page up".
-func (m *Model) ViewUp() {
+func (m *Model) ViewUp() []string {
 	if m.AtTop() {
-		return
+		return nil
 	}
 
 	m.YOffset = max(
 		m.YOffset-m.Height, // target
 		0,                  // fallback
 	)
+
+	return m.visibleLines()
 }
 
 // HalfViewDown moves the view down by half the height of the viewport.
@@ -173,31 +188,25 @@ func Sync(m Model) tea.Cmd {
 	)
 }
 
-func ViewDown(m Model) tea.Cmd {
-	if m.AtBottom() {
+func ViewDown(m Model, lines []string) tea.Cmd {
+	if len(lines) == 0 {
 		return nil
 	}
 
-	top := max(m.YOffset+m.Height, 0)
-	bottom := min(top+m.Height, len(m.lines)-1)
-
 	return tea.ScrollDown(
-		m.lines[top:bottom],
+		lines,
 		m.YPosition,
 		m.YPosition+m.Height,
 	)
 }
 
-func ViewUp(m Model) tea.Cmd {
-	if m.AtTop() {
+func ViewUp(m Model, lines []string) tea.Cmd {
+	if len(lines) == 0 {
 		return nil
 	}
 
-	top := max(m.YOffset-m.Height, 0)
-	bottom := min(m.YOffset, len(m.lines)-1)
-
 	return tea.ScrollUp(
-		m.lines[top:bottom],
+		lines,
 		m.YPosition,
 		m.YPosition+m.Height,
 	)
@@ -275,19 +284,19 @@ func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 		case " ": // spacebar
 			fallthrough
 		case "f":
+			lines := m.ViewDown()
 			if m.HighPerformanceRendering {
-				cmd = ViewDown(m)
+				cmd = ViewDown(m, lines)
 			}
-			m.ViewDown()
 
 		// Up one page
 		case "pgup":
 			fallthrough
 		case "b":
+			lines := m.ViewUp()
 			if m.HighPerformanceRendering {
-				cmd = ViewUp(m)
+				cmd = ViewUp(m, lines)
 			}
-			m.ViewUp()
 
 		// Down half page
 		case "d":
@@ -332,7 +341,7 @@ func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 func View(m Model) string {
 
 	if m.HighPerformanceRendering {
-		// Just send newlines  since we're doing to be rendering the actual
+		// Just send newlines since we're doing to be rendering the actual
 		// content seprately. We still need send something that equals the
 		// height of this view so that the Bubble Tea standard renderer can
 		// position anything below this view properly.
