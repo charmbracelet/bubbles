@@ -196,6 +196,11 @@ func (m *Model) LineUp(n int) (lines []string) {
 
 // COMMANDS
 
+// Sync tells the renderer where the viewport will be located and requests
+// a render of the current state of the viewport. It should be called for the
+// first render and after a window resize.
+//
+// For high performance rendering only.
 func Sync(m Model) tea.Cmd {
 	if len(m.lines) == 0 {
 		return nil
@@ -211,6 +216,13 @@ func Sync(m Model) tea.Cmd {
 	)
 }
 
+// ViewDown is a high performance command that moves the viewport up by one
+// viewport height. Use Model.ViewDown to get the lines that should be
+// rendered. For example:
+//
+//     lines := model.ViewDown(1)
+//     cmd := ViewDown(m, lines)
+//
 func ViewDown(m Model, lines []string) tea.Cmd {
 	if len(lines) == 0 {
 		return nil
@@ -218,6 +230,9 @@ func ViewDown(m Model, lines []string) tea.Cmd {
 	return tea.ScrollDown(lines, m.YPosition, m.YPosition+m.Height)
 }
 
+// ViewUp is a high performance command the moves the viewport down by one
+// viewport height. Use Model.ViewDown to get the lines that should be
+// rendered.
 func ViewUp(m Model, lines []string) tea.Cmd {
 	if len(lines) == 0 {
 		return nil
@@ -225,6 +240,9 @@ func ViewUp(m Model, lines []string) tea.Cmd {
 	return tea.ScrollUp(lines, m.YPosition, m.YPosition+m.Height)
 }
 
+// HalfViewDown is a high performance command the moves the viewport down by
+// half of the height of the viewport. Use Model.HalfViewDown to get the lines
+// that should be rendered.
 func HalfViewDown(m Model, lines []string) tea.Cmd {
 	if len(lines) == 0 {
 		return nil
@@ -232,6 +250,9 @@ func HalfViewDown(m Model, lines []string) tea.Cmd {
 	return tea.ScrollDown(lines, m.YPosition, m.YPosition+m.Height)
 }
 
+// HalfViewUp is a high performance command the moves the viewport up by
+// half of the height of the viewport. Use Model.HalfViewUp to get the lines
+// that should be rendered.
 func HalfViewUp(m Model, lines []string) tea.Cmd {
 	if len(lines) == 0 {
 		return nil
@@ -239,6 +260,9 @@ func HalfViewUp(m Model, lines []string) tea.Cmd {
 	return tea.ScrollUp(lines, m.YPosition, m.YPosition+m.Height)
 }
 
+// LineDown is a high performance command the moves the viewport down by
+// a given number of lines. Use Model.LineDown to get the lines that should be
+// rendered.
 func LineDown(m Model, lines []string) tea.Cmd {
 	if len(lines) == 0 {
 		return nil
@@ -246,6 +270,9 @@ func LineDown(m Model, lines []string) tea.Cmd {
 	return tea.ScrollDown(lines, m.YPosition, m.YPosition+m.Height)
 }
 
+// LineDown is a high performance command the moves the viewport up by a given
+// number of lines. Use Model.LineDown to get the lines that should be
+// rendered.
 func LineUp(m Model, lines []string) tea.Cmd {
 	if len(lines) == 0 {
 		return nil
