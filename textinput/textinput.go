@@ -135,6 +135,9 @@ func (m *Model) handleOverflow() {
 		return
 	}
 
+	// Correct right offset if we've deleted characters
+	m.offsetRight = min(m.offsetRight, len(m.value))
+
 	if m.pos < m.offset {
 
 		m.offset = m.pos
