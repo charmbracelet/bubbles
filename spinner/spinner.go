@@ -17,7 +17,7 @@ const (
 )
 
 const (
-	defaultFPS = 9
+	defaultFPS = time.Second / 10
 )
 
 var (
@@ -38,7 +38,7 @@ type Model struct {
 	Type Spinner
 
 	// FPS is the speed at which the ticker should tick
-	FPS int
+	FPS time.Duration
 
 	// ForegroundColor sets the background color of the spinner. It can be a
 	// hex code or one of the 256 ANSI colors. If the terminal emulator can't
@@ -51,12 +51,6 @@ type Model struct {
 	// doesn't support the color specified it will automatically degrade
 	// (per github.com/muesli/termenv).
 	BackgroundColor string
-
-	// CustomMsgFunc can be used to a custom message on tick. This can be
-	// useful when you have spinners in different parts of your application and
-	// want to differentiate between the messages for clarity and simplicity.
-	// If nil, this setting is ignored.
-	CustomMsgFunc func() tea.Msg
 
 	frame int
 }
@@ -76,14 +70,14 @@ type TickMsg struct{}
 // every time it's called, regardless the message passed, so be sure the logic
 // is setup so as not to call this Update needlessly.
 func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
-	m.frame++
-	if m.frame >= len(spinners[m.Type]) {
-		m.frame = 0
-	}
-	if m.CustomMsgFunc != nil {
+	if _, ok := msg.(TickMsg); ok {
+		m.frame++
+		if m.frame >= len(spinners[m.Type]) {
+			m.frame = 0
+		}
 		return m, Tick(m)
 	}
-	return m, Tick(m)
+	return m, nil
 }
 
 // View renders the model's view.
@@ -107,12 +101,8 @@ func View(model Model) string {
 }
 
 // Tick is the command used to advance the spinner one frame.
-func Tick(model Model) tea.Cmd {
-	return func() tea.Msg {
-		time.Sleep(time.Second / time.Duration(model.FPS))
-		if model.CustomMsgFunc != nil {
-			return model.CustomMsgFunc()
-		}
+func Tick(m Model) tea.Cmd {
+	return tea.Tick(m.FPS, func(time.Time) tea.Msg {
 		return TickMsg{}
-	}
+	})
 }
