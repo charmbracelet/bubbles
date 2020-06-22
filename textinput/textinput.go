@@ -361,7 +361,7 @@ func View(model tea.Model) string {
 	}
 
 	// Placeholder text
-	if m.value == nil && m.Placeholder != "" {
+	if len(m.value) == 0 && m.Placeholder != "" {
 		return placeholderView(m)
 	}
 
