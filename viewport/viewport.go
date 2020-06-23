@@ -349,15 +349,15 @@ func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 		switch msg.Button {
 
 		case tea.MouseWheelUp:
-			lines := m.ViewUp()
+			lines := m.LineUp(3)
 			if m.HighPerformanceRendering {
-				cmd = ViewUp(m, lines)
+				cmd = LineUp(m, lines)
 			}
 
 		case tea.MouseWheelDown:
-			lines := m.ViewDown()
+			lines := m.LineDown(3)
 			if m.HighPerformanceRendering {
-				cmd = ViewDown(m, lines)
+				cmd = LineDown(m, lines)
 			}
 		}
 	}
