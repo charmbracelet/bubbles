@@ -7,25 +7,17 @@ import (
 	"github.com/muesli/termenv"
 )
 
-// Spinner is a set of frames used in animating the spinner.
-type Spinner = int
-
-// Available types of spinners
-const (
-	Line Spinner = iota
-	Dot
-)
-
 const (
 	defaultFPS = time.Second / 10
 )
 
+// Spinner is a set of frames used in animating the spinner.
+type Spinner = []string
+
 var (
-	// Spinner frames
-	spinners = map[Spinner][]string{
-		Line: {"|", "/", "-", "\\"},
-		Dot:  {"⣾ ", "⣽ ", "⣻ ", "⢿ ", "⡿ ", "⣟ ", "⣯ ", "⣷ "},
-	}
+	// Some spinners to choose from. You could also make your own.
+	Line = Spinner([]string{"|", "/", "-", "\\"})
+	Dot  = Spinner([]string{"⣾ ", "⣽ ", "⣻ ", "⢿ ", "⡿ ", "⣟ ", "⣯ ", "⣷ "})
 
 	color = termenv.ColorProfile().Color
 )
@@ -35,7 +27,7 @@ var (
 type Model struct {
 
 	// Type is the set of frames to use. See Spinner.
-	Type Spinner
+	Frames Spinner
 
 	// FPS is the speed at which the ticker should tick
 	FPS time.Duration
@@ -58,8 +50,8 @@ type Model struct {
 // NewModel returns a model with default values.
 func NewModel() Model {
 	return Model{
-		Type: Line,
-		FPS:  defaultFPS,
+		Frames: Line,
+		FPS:    defaultFPS,
 	}
 }
 
@@ -72,7 +64,7 @@ type TickMsg struct{}
 func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 	if _, ok := msg.(TickMsg); ok {
 		m.frame++
-		if m.frame >= len(spinners[m.Type]) {
+		if m.frame >= len(m.Frames) {
 			m.frame = 0
 		}
 		return m, Tick(m)
@@ -82,22 +74,21 @@ func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 
 // View renders the model's view.
 func View(model Model) string {
-	s := spinners[model.Type]
-	if model.frame >= len(s) {
-		return "[error]"
+	if model.frame >= len(model.Frames) {
+		return "error"
 	}
 
-	str := s[model.frame]
+	frame := model.Frames[model.frame]
 
 	if model.ForegroundColor != "" || model.BackgroundColor != "" {
 		return termenv.
-			String(str).
+			String(frame).
 			Foreground(color(model.ForegroundColor)).
 			Background(color(model.BackgroundColor)).
 			String()
 	}
 
-	return str
+	return frame
 }
 
 // Tick is the command used to advance the spinner one frame.
