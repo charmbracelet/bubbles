@@ -168,8 +168,8 @@ func (m *Model) LineDown(n int) (lines []string) {
 	)
 
 	if len(m.lines) > 0 {
-		top := max(0, m.YOffset+m.Height-n)
-		bottom := min(len(m.lines)-1, m.YOffset+m.Height)
+		top := max(m.YOffset+m.Height-n, 0)
+		bottom := min(m.YOffset+m.Height, len(m.lines)-1)
 		lines = m.lines[top:bottom]
 	}
 
