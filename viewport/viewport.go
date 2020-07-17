@@ -95,8 +95,8 @@ func (m *Model) ViewDown() []string {
 	}
 
 	m.YOffset = min(
-		m.YOffset+m.Height,    // target
-		len(m.lines)-m.Height, // fallback
+		m.YOffset+m.Height,      // target
+		len(m.lines)-1-m.Height, // fallback
 	)
 
 	return m.visibleLines()
@@ -123,8 +123,8 @@ func (m *Model) HalfViewDown() (lines []string) {
 	}
 
 	m.YOffset = min(
-		m.YOffset+m.Height/2,  // target
-		len(m.lines)-m.Height, // fallback
+		m.YOffset+m.Height/2,    // target
+		len(m.lines)-1-m.Height, // fallback
 	)
 
 	if len(m.lines) > 0 {
@@ -163,8 +163,8 @@ func (m *Model) LineDown(n int) (lines []string) {
 	}
 
 	m.YOffset = min(
-		m.YOffset+n,           // target
-		len(m.lines)-m.Height, // fallback
+		m.YOffset+n,             // target
+		len(m.lines)-1-m.Height, // fallback
 	)
 
 	if len(m.lines) > 0 {
