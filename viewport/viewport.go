@@ -156,7 +156,7 @@ func (m *Model) HalfViewUp() (lines []string) {
 	return lines
 }
 
-// LineDown moves the view up by the given number of lines.
+// LineDown moves the view down by the given number of lines.
 func (m *Model) LineDown(n int) (lines []string) {
 	if m.AtBottom() || n == 0 {
 		return nil
@@ -206,6 +206,8 @@ func Sync(m Model) tea.Cmd {
 		return nil
 	}
 
+	// TODO: we should probably use m.visibleLines() rather than these two
+	// expressions.
 	top := max(m.YOffset, 0)
 	bottom := min(m.YOffset+m.Height, len(m.lines)-1)
 
