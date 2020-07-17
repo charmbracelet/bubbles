@@ -53,9 +53,16 @@ func (m Model) AtTop() bool {
 	return m.YOffset <= 0
 }
 
-// AtBottom returns whether or not the viewport is at the very botom position.
+// AtBottom returns whether or not the viewport is at or past the very bottom
+// position.
 func (m Model) AtBottom() bool {
-	return m.YOffset >= len(m.lines)-m.Height-1
+	return m.YOffset >= len(m.lines)-1-m.Height
+}
+
+// PastBottom returns whether or not the viewport is scrolled beyond the last
+// line. This can happen when adjusting the viewport height.
+func (m Model) PastBottom() bool {
+	return m.YOffset > len(m.lines)-1-m.Height
 }
 
 // Scrollpercent returns the amount scrolled as a float between 0 and 1.
@@ -187,7 +194,37 @@ func (m *Model) LineUp(n int) (lines []string) {
 
 	if len(m.lines) > 0 {
 		top := max(0, m.YOffset)
-		bottom := min(len(m.lines)-1, m.YOffset+n)
+		bottom := min(m.YOffset+n, len(m.lines)-1)
+		lines = m.lines[top:bottom]
+	}
+
+	return lines
+}
+
+// GotoTop sets the viewport to the top position.
+func (m *Model) GotoTop() (lines []string) {
+	if m.AtTop() {
+		return nil
+	}
+
+	m.YOffset = 0
+
+	if len(m.lines) > 0 {
+		top := m.YOffset
+		bottom := min(m.YOffset+m.Height, len(m.lines)-1)
+		lines = m.lines[top:bottom]
+	}
+
+	return lines
+}
+
+// GotoTop sets the viewport to the bottom position.
+func (m *Model) GotoBottom() (lines []string) {
+	m.YOffset = max(len(m.lines)-1-m.Height, 0)
+
+	if len(m.lines) > 0 {
+		top := m.YOffset
+		bottom := max(len(m.lines)-1, 0)
 		lines = m.lines[top:bottom]
 	}
 
