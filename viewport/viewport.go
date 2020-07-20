@@ -7,6 +7,10 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
+const (
+	spacebar = " "
+)
+
 // MODEL
 
 type Model struct {
@@ -292,20 +296,14 @@ func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		// Down one page
-		case "pgdown":
-			fallthrough
-		case " ": // spacebar
-			fallthrough
-		case "f":
+		case "pgdown", spacebar, "f":
 			lines := m.ViewDown()
 			if m.HighPerformanceRendering {
 				cmd = ViewDown(m, lines)
 			}
 
 		// Up one page
-		case "pgup":
-			fallthrough
-		case "b":
+		case "pgup", "b":
 			lines := m.ViewUp()
 			if m.HighPerformanceRendering {
 				cmd = ViewUp(m, lines)
@@ -326,18 +324,14 @@ func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 			}
 
 		// Down one line
-		case "down":
-			fallthrough
-		case "j":
+		case "down", "j":
 			lines := m.LineDown(1)
 			if m.HighPerformanceRendering {
 				cmd = ViewDown(m, lines)
 			}
 
 		// Up one line
-		case "up":
-			fallthrough
-		case "k":
+		case "up", "k":
 			lines := m.LineUp(1)
 			if m.HighPerformanceRendering {
 				cmd = ViewUp(m, lines)
