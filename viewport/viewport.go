@@ -173,6 +173,12 @@ func (m *Model) LineDown(n int) (lines []string) {
 		return nil
 	}
 
+	// Make sure the number of lines by which we're going to scroll isn't
+	// greater than the number of lines we actually have left before we reach
+	// the bottom.
+	maxDelta := (len(m.lines) - 1) - (m.YOffset + m.Height) // number of lines - viewport bottom edge
+	n = min(n, maxDelta)
+
 	m.YOffset = min(
 		m.YOffset+n,             // target
 		len(m.lines)-1-m.Height, // fallback
@@ -193,6 +199,10 @@ func (m *Model) LineUp(n int) (lines []string) {
 	if m.AtTop() || n == 0 {
 		return nil
 	}
+
+	// Make sure the number of lines by which we're going to scroll isn't
+	// greater than the number of lines we are from the top.
+	n = min(n, m.YOffset)
 
 	m.YOffset = max(m.YOffset-n, 0)
 
