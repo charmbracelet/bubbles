@@ -21,17 +21,18 @@ const (
 
 // Model is the Tea model for this user interface.
 type Model struct {
-	Type             Type
-	Page             int
-	PerPage          int
-	TotalPages       int
-	ActiveDot        string
-	InactiveDot      string
-	ArabicFormat     string
-	UseLeftRightKeys bool
-	UseUpDownKeys    bool
-	UseHLKeys        bool
-	UseJKKeys        bool
+	Type              Type
+	Page              int
+	PerPage           int
+	TotalPages        int
+	ActiveDot         string
+	InactiveDot       string
+	ArabicFormat      string
+	UsePgUpPgDownKeys bool
+	UseLeftRightKeys  bool
+	UseUpDownKeys     bool
+	UseHLKeys         bool
+	UseJKKeys         bool
 }
 
 // SetTotalPages is a helper function for calculatng the total number of pages
@@ -98,17 +99,18 @@ func (m Model) OnLastPage() bool {
 // NewModel creates a new model with defaults.
 func NewModel() Model {
 	return Model{
-		Type:             Arabic,
-		Page:             0,
-		PerPage:          1,
-		TotalPages:       1,
-		ActiveDot:        "•",
-		InactiveDot:      "○",
-		ArabicFormat:     "%d/%d",
-		UseLeftRightKeys: true,
-		UseUpDownKeys:    false,
-		UseHLKeys:        true,
-		UseJKKeys:        false,
+		Type:              Arabic,
+		Page:              0,
+		PerPage:           1,
+		TotalPages:        1,
+		ActiveDot:         "•",
+		InactiveDot:       "○",
+		ArabicFormat:      "%d/%d",
+		UsePgUpPgDownKeys: true,
+		UseLeftRightKeys:  true,
+		UseUpDownKeys:     false,
+		UseHLKeys:         true,
+		UseJKKeys:         false,
 	}
 }
 
@@ -116,6 +118,14 @@ func NewModel() Model {
 func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
+		if m.UsePgUpPgDownKeys {
+			switch msg.String() {
+			case "pgup":
+				m.PrevPage()
+			case "pgdown":
+				m.NextPage()
+			}
+		}
 		if m.UseLeftRightKeys {
 			switch msg.String() {
 			case "left":
