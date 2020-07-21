@@ -282,8 +282,10 @@ func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 			fallthrough
 		case tea.KeyDelete:
 			if len(m.value) > 0 {
-				m.value = append(m.value[:m.pos-1], m.value[m.pos:]...)
-				m.pos--
+				m.value = append(m.value[:max(0, m.pos-1)], m.value[m.pos:]...)
+				if m.pos > 0 {
+					m.pos--
+				}
 			}
 		case tea.KeyLeft:
 			if msg.Alt { // alt+left arrow, back one word
@@ -366,7 +368,7 @@ func View(model tea.Model) string {
 	}
 
 	value := m.value[m.offset:m.offsetRight]
-	pos := m.pos - m.offset
+	pos := max(0, m.pos-m.offset)
 
 	v := m.colorText(string(value[:pos]))
 
