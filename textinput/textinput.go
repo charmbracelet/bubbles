@@ -5,6 +5,7 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/atotto/clipboard"
 	tea "github.com/charmbracelet/bubbletea"
 	rw "github.com/mattn/go-runewidth"
 	"github.com/muesli/termenv"
@@ -124,6 +125,47 @@ func (m *Model) Reset() {
 	m.value = nil
 	m.pos = 0
 	m.blink = false
+}
+
+// Paste pastes the contents of the clipboard into the text area (if supported).
+func (m *Model) Paste() {
+	pasteString, err := clipboard.ReadAll()
+	if err != nil {
+		m.Err = err
+	}
+	paste := []rune(pasteString)
+
+	availSpace := m.CharLimit - len(m.value)
+
+	// If the char limit's been reached cancel
+	if m.CharLimit > 0 && availSpace <= 0 {
+		return
+	}
+
+	// If there's not enough space to paste the whole thing cut the pasted
+	// runes down so they'll fit
+	if availSpace < len(paste) {
+		paste = paste[:len(paste)-availSpace]
+	}
+
+	// Stuff before and after the cursor
+	head := m.value[:m.pos]
+	tailSrc := m.value[m.pos:]
+	tail := make([]rune, len(tailSrc))
+	copy(tail, tailSrc)
+
+	// Insert pasted runes
+	for _, r := range paste {
+		head = append(head, r)
+		availSpace--
+		m.pos++
+		if m.CharLimit > 0 && availSpace <= 0 {
+			break
+		}
+	}
+
+	// Put it all back together
+	m.value = append(head, tail...)
 }
 
 // If a max width is defined, perform some logic to treat the visible area
@@ -322,6 +364,8 @@ func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 			m.value = m.value[m.pos:]
 			m.pos = 0
 			m.offset = 0
+		case tea.KeyCtrlV: // ^V paste
+			m.Paste()
 		case tea.KeyRune: // input a regular character
 
 			if msg.Alt {
