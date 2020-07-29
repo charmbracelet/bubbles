@@ -1,16 +1,17 @@
-# Bubbles
+Bubbles
+=======
 
-Some components for [Bubble Tea](https://github.com/charmbraclet/bubbletea):
+<p>
+    <a href="https://pkg.go.dev/github.com/charmbracelet/bubbles?tab=doc"><img src="https://godoc.org/github.com/golang/gddo?status.svg" alt="GoDoc"></a>
+    <a href="https://github.com/charmbracelet/bubbles/actions"><img src="https://github.com/charmbracelet/glow/workflows/build/badge.svg" alt="Build Status"></a>
+</p>
 
-* Spinner
-* Text Input
-* Paginator
-* Viewport
+Some components for [Bubble Tea](https://github.com/charmbraclet/bubbletea) applications.
+
+These components are used in production in [Glow][glow] and [Charm][charm].
 
 [glow]: https://github.com/charmbraclet/glow
 [charm]: https://github.com/charmbraclet/charm
-
-These components are used in production in [Glow][glow] and [Charm][charm].
 
 
 ## Spinner
