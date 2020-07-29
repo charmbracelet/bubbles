@@ -15,6 +15,8 @@ These components are used in production in [Glow][glow] and [Charm][charm].
 
 ## Spinner
 
+<img src="https://stuff.charm.sh/bubbles-examples/spinner.gif" width="400" alt="Spinner Example">
+
 A spinner, useful for indicating that some kind an operation is happening.
 There are a couple default ones, but you can also pass your own ”frames.”
 
@@ -22,6 +24,8 @@ There are a couple default ones, but you can also pass your own ”frames.”
 
 
 ## Text Input
+
+<img src="https://stuff.charm.sh/bubbles-examples/textinput.gif" width="400" alt="Text Input Example">
 
 A text input field, akin to an `<input type="text">` in HTML. Supports unicode,
 pasting, in-place scrolling when the value exceeds the width of the element and
@@ -33,6 +37,8 @@ the common, and many customization options.
 
 ## Paginator
 
+<img src="https://stuff.charm.sh/bubbles-examples/pagination.gif" width="200" alt="Paginator Example">
+
 A component for handling pagination logic and optionally drawing pagination UI.
 Supports "dot-style" pagination (similar to what you might see on iOS) and
 numeric page numbering, but you could also just use this component for the
@@ -43,6 +49,8 @@ browse SSH keys.
 
 
 ## Viewport
+
+<img src="https://stuff.charm.sh/bubbles-examples/viewport.gif" width="600" alt="Viewport Example">
 
 A viewport for vertically scrolling content. Optionally includes standard
 pager keybindings and mouse wheel support. A high performance mode is available
