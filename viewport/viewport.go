@@ -37,21 +37,6 @@ type Model struct {
 	lines []string
 }
 
-// TODO: do we really need this?
-func NewModel(width, height int) Model {
-	return Model{
-		Width:  width,
-		Height: height,
-	}
-}
-
-// TODO: do we really need this?
-func (m Model) SetSize(yPos, width, height int) {
-	m.YPosition = yPos
-	m.Width = width
-	m.Height = height
-}
-
 // AtTop returns whether or not the viewport is in the very top position.
 func (m Model) AtTop() bool {
 	return m.YOffset <= 0
