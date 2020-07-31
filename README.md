@@ -6,7 +6,7 @@ Bubbles
     <a href="https://github.com/charmbracelet/bubbles/actions"><img src="https://github.com/charmbracelet/glow/workflows/build/badge.svg" alt="Build Status"></a>
 </p>
 
-Some components for [Bubble Tea](https://github.com/charmbraclet/bubbletea) applications.
+Some components for [Bubble Tea](https://github.com/charmbracelet/bubbletea) applications.
 
 These components are used in production in [Glow][glow] and [Charm][charm].
 
