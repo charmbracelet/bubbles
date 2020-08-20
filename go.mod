@@ -3,12 +3,12 @@ module github.com/charmbracelet/bubbles
 go 1.13
 
 require (
-	github.com/atotto/clipboard v0.1.2 // indirect
-	github.com/charmbracelet/bubbletea v0.9.1-0.20200713153904-2f53eeb54b90
+	github.com/atotto/clipboard v0.1.2
+	github.com/charmbracelet/bubbletea v0.10.3
 	github.com/mattn/go-runewidth v0.0.9
-	github.com/muesli/termenv v0.5.3-0.20200625163851-04b5c30e4c04
-	golang.org/x/crypto v0.0.0-20200709230013-948cd5f35899 // indirect
-	golang.org/x/sys v0.0.0-20200625212154-ddb9806d33ae // indirect
+	github.com/muesli/termenv v0.7.0
+	golang.org/x/crypto v0.0.0-20200728195943-123391ffb6de // indirect
+	golang.org/x/sys v0.0.0-20200819171115-d785dc25833f // indirect
 )
 
 replace github.com/charmbracelet/bubbletea => ../bubbletea
