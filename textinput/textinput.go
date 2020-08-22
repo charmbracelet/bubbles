@@ -16,7 +16,7 @@ const (
 )
 
 var (
-	// color is a helper for returning colors
+	// color is a helper for returning colors.
 	color func(s string) termenv.Color = termenv.ColorProfile().Color
 )
 
@@ -181,7 +181,6 @@ func (m *Model) handleOverflow() {
 	m.offsetRight = min(m.offsetRight, len(m.value))
 
 	if m.pos < m.offset {
-
 		m.offset = m.pos
 
 		w := 0
@@ -196,9 +195,7 @@ func (m *Model) handleOverflow() {
 		}
 
 		m.offsetRight = m.offset + i
-
 	} else if m.pos >= m.offsetRight {
-
 		m.offsetRight = m.pos
 
 		w := 0
@@ -213,7 +210,6 @@ func (m *Model) handleOverflow() {
 		}
 
 		m.offset = m.offsetRight - (len(runes) - 1 - i)
-
 	}
 }
 
@@ -440,7 +436,7 @@ func View(model tea.Model) string {
 	return m.Prompt + v
 }
 
-// placeholderView
+// placeholderView.
 func placeholderView(m Model) string {
 	var (
 		v string

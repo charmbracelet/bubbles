@@ -13,7 +13,7 @@ import (
 // Type specifies the way we render pagination.
 type Type int
 
-// Pagination rendering options
+// Pagination rendering options.
 const (
 	Arabic Type = iota
 	Dots

@@ -73,7 +73,7 @@ func (m *Model) SetContent(s string) {
 	m.lines = strings.Split(s, "\n")
 }
 
-// Return the lines that should currently be visible in the viewport
+// Return the lines that should currently be visible in the viewport.
 func (m Model) visibleLines() (lines []string) {
 	if len(m.lines) > 0 {
 		top := max(0, m.YOffset)
@@ -287,7 +287,6 @@ func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 	var cmd tea.Cmd
 
 	switch msg := msg.(type) {
-
 	case tea.KeyMsg:
 		switch msg.String() {
 		// Down one page
@@ -335,7 +334,6 @@ func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 
 	case tea.MouseMsg:
 		switch msg.Button {
-
 		case tea.MouseWheelUp:
 			lines := m.LineUp(3)
 			if m.HighPerformanceRendering {
@@ -357,7 +355,6 @@ func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 
 // View renders the viewport into a string.
 func View(m Model) string {
-
 	if m.HighPerformanceRendering {
 		// Just send newlines since we're doing to be rendering the actual
 		// content seprately. We still need send something that equals the
