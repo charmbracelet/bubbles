@@ -267,7 +267,7 @@ func (m *Model) wordRight() {
 	i := m.pos
 
 	for i < len(m.value) {
-		if unicode.IsSpace(rune(m.value[i])) {
+		if unicode.IsSpace(m.value[i]) {
 			m.pos++
 			i++
 		} else {
@@ -276,7 +276,7 @@ func (m *Model) wordRight() {
 	}
 
 	for i < len(m.value) {
-		if !unicode.IsSpace(rune(m.value[i])) {
+		if !unicode.IsSpace(m.value[i]) {
 			m.pos++
 			i++
 		} else {
