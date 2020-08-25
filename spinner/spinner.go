@@ -44,7 +44,54 @@ type Model struct {
 	// (per github.com/muesli/termenv).
 	BackgroundColor string
 
-	frame int
+	// Minimum amount of time the spinner can run. Any logic around this can
+	// be implemented in view that implements this spinner. Optional.
+	MinimumLifetime time.Duration
+
+	// HideFor can be used to wait to show the spinner until a certain amount
+	// of time has passed. This can be useful for preventing flicking when load
+	// times are very fast. The hidden state can be set with HiddenState.
+	// Optional.
+	HideFor time.Duration
+
+	// HiddenState is the
+	HiddenState string
+
+	frame     int
+	startTime time.Time
+}
+
+// Start resets resets the spinner start time. For use with MinimumLifetime and
+// MinimumStartTime. Optional.
+func (m *Model) Start() {
+	m.frame = 0
+	m.startTime = time.Now()
+}
+
+// MinimumLifetimeReached returns whether or not the spinner has run for the
+// minimum specified duration, if any. If no minimum lifetime has been set, or
+// if Model.Start() hasn't been called this function returns true.
+func (m Model) MinimumLifetimeReached() bool {
+	if m.startTime.IsZero() {
+		return true
+	}
+	if m.MinimumLifetime == 0 {
+		return true
+	}
+	return m.startTime.Add(m.MinimumLifetime).Before(time.Now())
+}
+
+// Hidden returns whether or not the view should be rendered. Works in
+// conjunction with Model.HideFor. You can perform this message directly to
+// Do additional logic on your views.
+func (m Model) Hidden() bool {
+	if m.startTime.IsZero() {
+		return false
+	}
+	if m.HideFor == 0 {
+		return false
+	}
+	return m.startTime.Add(m.HideFor).After(time.Now())
 }
 
 // NewModel returns a model with default values.
@@ -56,7 +103,10 @@ func NewModel() Model {
 }
 
 // TickMsg indicates that the timer has ticked and we should render a frame.
-type TickMsg struct{}
+type TickMsg struct {
+	Time  time.Time
+	Frame string
+}
 
 // Update is the Tea update function. This will advance the spinner one frame
 // every time it's called, regardless the message passed, so be sure the logic
@@ -78,6 +128,12 @@ func View(model Model) string {
 		return "error"
 	}
 
+	if model.Hidden() {
+		return termenv.String(model.HiddenState).
+			Background(color(model.BackgroundColor)).
+			String()
+	}
+
 	frame := model.Frames[model.frame]
 
 	if model.ForegroundColor != "" || model.BackgroundColor != "" {
@@ -93,7 +149,10 @@ func View(model Model) string {
 
 // Tick is the command used to advance the spinner one frame.
 func Tick(m Model) tea.Cmd {
-	return tea.Tick(m.FPS, func(time.Time) tea.Msg {
-		return TickMsg{}
+	return tea.Tick(m.FPS, func(t time.Time) tea.Msg {
+		return TickMsg{
+			Time:  t,
+			Frame: m.Frames[m.frame],
+		}
 	})
 }
