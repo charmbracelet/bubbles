@@ -29,7 +29,7 @@ type Model struct {
 	// Type is the set of frames to use. See Spinner.
 	Frames Spinner
 
-	// FPS is the speed at which the ticker should tick
+	// FPS is the speed at which the ticker should tick.
 	FPS time.Duration
 
 	// ForegroundColor sets the background color of the spinner. It can be a
@@ -51,17 +51,19 @@ type Model struct {
 	// 200ms then MinimumLifetime will expire after 300ms.
 	//
 	// MinimumLifetime is optional.
+	//
+	// This is considered experimental and may not appear in future versions of
+	// this library.
 	MinimumLifetime time.Duration
 
 	// HideFor can be used to wait to show the spinner until a certain amount
 	// of time has passed. This can be useful for preventing flicking when load
 	// times are very fast. The hidden state can be set with HiddenState.
 	// Optional.
+	//
+	// This is considered experimental and may not appear in future versions of
+	// this library.
 	HideFor time.Duration
-
-	// HiddenState is the state to render the spinner when HideFor is in effect.
-	// For more control you can also use Model.Hidden() in the parent view.
-	HiddenState string
 
 	frame     int
 	startTime time.Time
@@ -69,15 +71,26 @@ type Model struct {
 
 // Start resets resets the spinner start time. For use with MinimumLifetime and
 // MinimumStartTime. Optional.
+//
+// This is considered experimental and may not appear in future versions of
+// this library.
 func (m *Model) Start() {
-	m.frame = 0
 	m.startTime = time.Now()
 }
 
-// MinimumLifetimeReached returns whether or not the spinner has run for the
-// minimum specified duration, if any. If no minimum lifetime has been set, or
-// if Model.Start() hasn't been called this function returns true.
-func (m Model) MinimumLifetimeReached() bool {
+// hidden returns whether or not Model.HideFor is in effect.
+func (m Model) hidden() bool {
+	if m.startTime.IsZero() {
+		return false
+	}
+	if m.HideFor == 0 {
+		return false
+	}
+	return m.startTime.Add(m.HideFor).After(time.Now())
+}
+
+// finished returns whether Model.MinimumLifetimeReached has been met.
+func (m Model) finished() bool {
 	if m.startTime.IsZero() {
 		return true
 	}
@@ -87,17 +100,20 @@ func (m Model) MinimumLifetimeReached() bool {
 	return m.startTime.Add(m.HideFor).Add(m.MinimumLifetime).Before(time.Now())
 }
 
-// Hidden returns whether or not the view should be rendered. Works in
-// conjunction with Model.HideFor. You can perform this message directly to
-// Do additional logic on your views.
-func (m Model) Hidden() bool {
-	if m.startTime.IsZero() {
-		return false
-	}
-	if m.HideFor == 0 {
-		return false
-	}
-	return m.startTime.Add(m.HideFor).After(time.Now())
+// Visible returns whether or not the view should be rendered. Works in
+// conjunction with Model.HideFor and Model.MinimumLifetimeReached. You should
+// use this message directly to determine whether or not to render this view in
+// the parent view and whether to continue sending spin messaging in the
+// parent update function.
+//
+// Also note that using this function is optional and generally considered for
+// advanced use only. Most of the time your application logic will determine
+// whether or not this view should be used.
+//
+// This is considered experimental and may not appear in future versions of
+// this library.
+func (m Model) Visible() bool {
+	return !m.hidden() && !m.finished()
 }
 
 // NewModel returns a model with default values.
@@ -131,12 +147,6 @@ func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 func View(model Model) string {
 	if model.frame >= len(model.Frames) {
 		return "error"
-	}
-
-	if model.Hidden() {
-		return termenv.String(model.HiddenState).
-			Background(color(model.BackgroundColor)).
-			String()
 	}
 
 	frame := model.Frames[model.frame]
