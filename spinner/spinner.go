@@ -44,8 +44,13 @@ type Model struct {
 	// (per github.com/muesli/termenv).
 	BackgroundColor string
 
-	// Minimum amount of time the spinner can run. Any logic around this can
-	// be implemented in view that implements this spinner. Optional.
+	// MinimumLifetime is the minimum amount of time the spinner can run. Any
+	// logic around this can be implemented in view that implements this
+	// spinner. If HideFor is set MinimumLifetime will be added on top of
+	// HideFor. In other words, if HideFor is 100ms and MinimumLifetime is
+	// 200ms then MinimumLifetime will expire after 300ms.
+	//
+	// MinimumLifetime is optional.
 	MinimumLifetime time.Duration
 
 	// HideFor can be used to wait to show the spinner until a certain amount
@@ -54,7 +59,8 @@ type Model struct {
 	// Optional.
 	HideFor time.Duration
 
-	// HiddenState is the
+	// HiddenState is the state to render the spinner when HideFor is in effect.
+	// For more control you can also use Model.Hidden() in the parent view.
 	HiddenState string
 
 	frame     int
@@ -78,7 +84,7 @@ func (m Model) MinimumLifetimeReached() bool {
 	if m.MinimumLifetime == 0 {
 		return true
 	}
-	return m.startTime.Add(m.MinimumLifetime).Before(time.Now())
+	return m.startTime.Add(m.HideFor).Add(m.MinimumLifetime).Before(time.Now())
 }
 
 // Hidden returns whether or not the view should be rendered. Works in
