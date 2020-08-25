@@ -110,8 +110,7 @@ func NewModel() Model {
 
 // TickMsg indicates that the timer has ticked and we should render a frame.
 type TickMsg struct {
-	Time  time.Time
-	Frame string
+	Time time.Time
 }
 
 // Update is the Tea update function. This will advance the spinner one frame
@@ -157,8 +156,7 @@ func View(model Model) string {
 func Tick(m Model) tea.Cmd {
 	return tea.Tick(m.FPS, func(t time.Time) tea.Msg {
 		return TickMsg{
-			Time:  t,
-			Frame: m.Frames[m.frame],
+			Time: t,
 		}
 	})
 }
