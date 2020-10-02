@@ -58,7 +58,7 @@ type Model struct {
 
 	// HideFor can be used to wait to show the spinner until a certain amount
 	// of time has passed. This can be useful for preventing flicking when load
-	// times are very fast. The hidden state can be set with HiddenState.
+	// times are very fast.
 	// Optional.
 	//
 	// This is considered experimental and may not appear in future versions of
