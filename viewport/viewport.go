@@ -333,7 +333,7 @@ func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 		}
 
 	case tea.MouseMsg:
-		switch msg.Button {
+		switch msg.Type {
 		case tea.MouseWheelUp:
 			lines := m.LineUp(3)
 			if m.HighPerformanceRendering {
