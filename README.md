@@ -10,8 +10,8 @@ Some components for [Bubble Tea](https://github.com/charmbracelet/bubbletea) app
 
 These components are used in production in [Glow][glow] and [Charm][charm].
 
-[glow]: https://github.com/charmbraclet/glow
-[charm]: https://github.com/charmbraclet/charm
+[glow]: https://github.com/charmbracelet/glow
+[charm]: https://github.com/charmbracelet/charm
 
 
 ## Spinner
