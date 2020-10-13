@@ -9,5 +9,3 @@ require (
 	github.com/muesli/termenv v0.7.2
 	golang.org/x/crypto v0.0.0-20200728195943-123391ffb6de // indirect
 )
-
-replace github.com/charmbracelet/bubbletea => ../bubbletea
