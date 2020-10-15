@@ -396,12 +396,7 @@ func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 }
 
 // View renders the textinput in its current state.
-func View(model tea.Model) string {
-	m, ok := model.(Model)
-	if !ok {
-		return "could not perform assertion on model"
-	}
-
+func View(m Model) string {
 	// Placeholder text
 	if len(m.value) == 0 && m.Placeholder != "" {
 		return placeholderView(m)
