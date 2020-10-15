@@ -20,11 +20,6 @@ var (
 	color func(s string) termenv.Color = termenv.ColorProfile().Color
 )
 
-// ErrMsg indicates there's been an error. We don't handle errors in the this
-// package; we're expecting errors to be handle in the program that implements
-// this text input.
-type ErrMsg error
-
 // Model is the Tea model for this text input element.
 type Model struct {
 	Err              error
@@ -382,9 +377,6 @@ func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 			}
 		}
 
-	case ErrMsg:
-		m.Err = msg
-
 	case BlinkMsg:
 		m.blink = !m.blink
 		return m, Blink(m)
@@ -440,10 +432,7 @@ func placeholderView(m Model) string {
 
 	// Cursor
 	if m.blink && m.PlaceholderColor != "" {
-		v += cursorView(
-			m.colorPlaceholder(p[:1]),
-			m,
-		)
+		v += cursorView(m.colorPlaceholder(p[:1]), m)
 	} else {
 		v += cursorView(p[:1], m)
 	}
