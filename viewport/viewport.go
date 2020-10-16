@@ -389,7 +389,3 @@ func max(a, b int) int {
 	}
 	return b
 }
-
-func clamp(val, low, high int) int {
-	return max(low, min(high, val))
-}
