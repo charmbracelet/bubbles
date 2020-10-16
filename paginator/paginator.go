@@ -164,11 +164,7 @@ func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 }
 
 // View renders the pagination to a string.
-func View(model tea.Model) string {
-	m, ok := model.(Model)
-	if !ok {
-		return "could not perform assertion on model"
-	}
+func View(m Model) string {
 	switch m.Type {
 	case Dots:
 		return dotsView(m)
