@@ -59,7 +59,7 @@ for applications which make use of the alterate screen buffer.
 
 * [Example code](https://github.com/charmbracelet/tea/tree/master/examples/pager/main.go)
 
-This compoent is well complimented with [Reflow][reflow] for ANSI-aware
+This component is well complimented with [Reflow][reflow] for ANSI-aware
 indenting and text wrapping.
 
 [reflow]: https://github.com/muesli/reflow
