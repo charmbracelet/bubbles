@@ -71,8 +71,9 @@ indenting and text wrapping.
 
 ***
 
-A [Charm](https://charm.sh) project.
+Part of [Charm](https://charm.sh).
 
-<img alt="the Charm logo" src="https://stuff.charm.sh/charm-badge.jpg" width="400">
+<a href="https://charm.sh/"><img alt="the Charm logo" src="https://stuff.charm.sh/charm-badge.jpg" width="400"></a>
 
-Charm热爱开源!
+Charm热爱开源! / Charm loves open source!
+
