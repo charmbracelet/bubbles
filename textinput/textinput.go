@@ -11,26 +11,48 @@ import (
 	"github.com/muesli/termenv"
 )
 
+const defaultBlinkSpeed = time.Millisecond * 600
+
 const (
-	defaultBlinkSpeed = time.Millisecond * 600
+	// EchoNormal displays text as is. This is the default behavior.
+	EchoNormal EchoMode = iota
+
+	// EchoPassword displays the EchoCharacter mask instead of actual
+	// characters.  This is commonly used for password fields.
+	EchoPassword
+
+	// EchoNone displays nothing as characters are entered. This is commonly
+	// seen for password fields on the command line.
+	EchoNone
+
+	// EchoOnEdit
 )
+
+// EchoMode sets the input behavior of the text input field.
+type EchoMode int
 
 var (
 	// color is a helper for returning colors.
 	color func(s string) termenv.Color = termenv.ColorProfile().Color
 )
 
-// Model is the Tea model for this text input element.
+// Model is the Bubble Tea model for this text input element.
 type Model struct {
-	Err              error
-	Prompt           string
-	Cursor           string
-	BlinkSpeed       time.Duration
-	Placeholder      string
+	Err error
+
+	Prompt      string
+	Placeholder string
+
+	Cursor     string
+	BlinkSpeed time.Duration
+
 	TextColor        string
 	BackgroundColor  string
 	PlaceholderColor string
 	CursorColor      string
+
+	EchoMode      EchoMode
+	EchoCharacter rune
 
 	// CharLimit is the maximum amount of characters this input element will
 	// accept. If 0 or less, there's no limit.
@@ -41,21 +63,21 @@ type Model struct {
 	// viewport. If 0 or less this setting is ignored.
 	Width int
 
-	// Underlying text value
+	// Underlying text value.
 	value []rune
 
 	// Focus indicates whether user input focus should be on this input
 	// component. When false, don't blink and ignore keyboard input.
 	focus bool
 
-	// Cursor blink state
+	// Cursor blink state.
 	blink bool
 
-	// Cursor position
+	// Cursor position.
 	pos int
 
 	// Used to emulate a viewport when width is set and the content is
-	// overflowing
+	// overflowing.
 	offset      int
 	offsetRight int
 }
@@ -79,8 +101,8 @@ func (m Model) Value() string {
 	return string(m.value)
 }
 
-// Cursor start moves the cursor to the given position. If the position is out
-// of bounds the cursor will be moved to the start or end accordingly.
+// SetCursor start moves the cursor to the given position. If the position is
+// out of bounds the cursor will be moved to the start or end accordingly.
 func (m *Model) SetCursor(pos int) {
 	m.pos = clamp(pos, 0, len(m.value))
 	m.handleOverflow()
@@ -280,19 +302,36 @@ func (m *Model) wordRight() {
 	}
 }
 
+func (m Model) echoTransform(v string) string {
+	switch m.EchoMode {
+	case EchoPassword:
+		return strings.Repeat(string(m.EchoCharacter), rw.StringWidth(v))
+	case EchoNone:
+		return ""
+
+	default:
+		return v
+	}
+}
+
 // BlinkMsg is sent when the cursor should alternate it's blinking state.
 type BlinkMsg struct{}
 
 // NewModel creates a new model with default settings.
 func NewModel() Model {
 	return Model{
-		Prompt:           "> ",
-		BlinkSpeed:       defaultBlinkSpeed,
-		Placeholder:      "",
+		Prompt:      "> ",
+		Placeholder: "",
+
+		BlinkSpeed: defaultBlinkSpeed,
+
 		TextColor:        "",
 		PlaceholderColor: "240",
 		CursorColor:      "",
-		CharLimit:        0,
+
+		EchoCharacter: '*',
+
+		CharLimit: 0,
 
 		value: nil,
 		focus: false,
@@ -396,12 +435,11 @@ func View(m Model) string {
 
 	value := m.value[m.offset:m.offsetRight]
 	pos := max(0, m.pos-m.offset)
-
-	v := m.colorText(string(value[:pos]))
+	v := m.colorText(m.echoTransform(string(value[:pos])))
 
 	if pos < len(value) {
-		v += cursorView(string(value[pos]), m)  // cursor and text under it
-		v += m.colorText(string(value[pos+1:])) // text after cursor
+		v += cursorView(m.echoTransform(string(value[pos])), m)  // cursor and text under it
+		v += m.colorText(m.echoTransform(string(value[pos+1:]))) // text after cursor
 	} else {
 		v += cursorView(" ", m)
 	}
