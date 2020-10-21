@@ -14,7 +14,7 @@ import (
 const (
 	defaultBlinkSpeed = time.Millisecond * 600
 
-	EchoNormal = iota
+	EchoNormal EchoMode = iota
 	EchoPassword
 	EchoNone
 	// EchoOnEdit
