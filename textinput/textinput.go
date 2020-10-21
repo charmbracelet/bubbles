@@ -13,7 +13,14 @@ import (
 
 const (
 	defaultBlinkSpeed = time.Millisecond * 600
+
+	EchoNormal = iota
+	EchoPassword
+	EchoNone
+	// EchoOnEdit
 )
+
+type EchoMode int
 
 var (
 	// color is a helper for returning colors.
@@ -22,15 +29,21 @@ var (
 
 // Model is the Tea model for this text input element.
 type Model struct {
-	Err              error
-	Prompt           string
-	Cursor           string
-	BlinkSpeed       time.Duration
-	Placeholder      string
+	Err error
+
+	Prompt      string
+	Placeholder string
+
+	Cursor     string
+	BlinkSpeed time.Duration
+
 	TextColor        string
 	BackgroundColor  string
 	PlaceholderColor string
 	CursorColor      string
+
+	EchoMode      EchoMode
+	EchoCharacter rune
 
 	// CharLimit is the maximum amount of characters this input element will
 	// accept. If 0 or less, there's no limit.
@@ -280,19 +293,36 @@ func (m *Model) wordRight() {
 	}
 }
 
+func (m Model) echoTransform(v string) string {
+	switch m.EchoMode {
+	case EchoPassword:
+		return strings.Repeat(string(m.EchoCharacter), rw.StringWidth(v))
+	case EchoNone:
+		return ""
+
+	default:
+		return v
+	}
+}
+
 // BlinkMsg is sent when the cursor should alternate it's blinking state.
 type BlinkMsg struct{}
 
 // NewModel creates a new model with default settings.
 func NewModel() Model {
 	return Model{
-		Prompt:           "> ",
-		BlinkSpeed:       defaultBlinkSpeed,
-		Placeholder:      "",
+		Prompt:      "> ",
+		Placeholder: "",
+
+		BlinkSpeed: defaultBlinkSpeed,
+
 		TextColor:        "",
 		PlaceholderColor: "240",
 		CursorColor:      "",
-		CharLimit:        0,
+
+		EchoCharacter: '*',
+
+		CharLimit: 0,
 
 		value: nil,
 		focus: false,
@@ -396,12 +426,11 @@ func View(m Model) string {
 
 	value := m.value[m.offset:m.offsetRight]
 	pos := max(0, m.pos-m.offset)
-
-	v := m.colorText(string(value[:pos]))
+	v := m.colorText(m.echoTransform(string(value[:pos])))
 
 	if pos < len(value) {
-		v += cursorView(string(value[pos]), m)  // cursor and text under it
-		v += m.colorText(string(value[pos+1:])) // text after cursor
+		v += cursorView(m.echoTransform(string(value[pos])), m)  // cursor and text under it
+		v += m.colorText(m.echoTransform(string(value[pos+1:]))) // text after cursor
 	} else {
 		v += cursorView(" ", m)
 	}
