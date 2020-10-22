@@ -350,9 +350,7 @@ func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.Type {
-		case tea.KeyBackspace:
-			fallthrough
-		case tea.KeyDelete:
+		case tea.KeyBackspace: // delete character before cursor
 			if len(m.value) > 0 {
 				m.value = append(m.value[:max(0, m.pos-1)], m.value[m.pos:]...)
 				if m.pos > 0 {
@@ -379,13 +377,13 @@ func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 			fallthrough
 		case tea.KeyCtrlB: // ^B, back one charcter
 			fallthrough
-		case tea.KeyCtrlA: // ^A, go to beginning
+		case tea.KeyHome, tea.KeyCtrlA: // ^A, go to beginning
 			m.CursorStart()
-		case tea.KeyCtrlD: // ^D, delete char under cursor
+		case tea.KeyDelete, tea.KeyCtrlD: // ^D, delete char under cursor
 			if len(m.value) > 0 && m.pos < len(m.value) {
 				m.value = append(m.value[:m.pos], m.value[m.pos+1:]...)
 			}
-		case tea.KeyCtrlE: // ^E, go to end
+		case tea.KeyCtrlE, tea.KeyEnd: // ^E, go to end
 			m.CursorEnd()
 		case tea.KeyCtrlK: // ^K, kill text after cursor
 			m.value = m.value[:m.pos]
