@@ -304,14 +304,14 @@ func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 			}
 
 		// Down half page
-		case "d":
+		case "d", "ctrl+d":
 			lines := m.HalfViewDown()
 			if m.HighPerformanceRendering {
 				cmd = ViewDown(m, lines)
 			}
 
 		// Up half page
-		case "u":
+		case "u", "ctrl+u":
 			lines := m.HalfViewUp()
 			if m.HighPerformanceRendering {
 				cmd = ViewUp(m, lines)
