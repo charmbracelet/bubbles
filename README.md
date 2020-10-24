@@ -2,9 +2,9 @@ Bubbles
 =======
 
 [![Latest Release](https://img.shields.io/github/release/charmbracelet/bubbles.svg)](https://github.com/charmbracelet/bubbles/releases)
+[![GoDoc](https://godoc.org/github.com/golang/gddo?status.svg)](https://pkg.go.dev/github.com/charmbracelet/bubbles)
 [![Build Status](https://github.com/charmbracelet/bubbles/workflows/build/badge.svg)](https://github.com/charmbracelet/bubbles/actions)
 [![Go ReportCard](http://goreportcard.com/badge/charmbracelet/bubbles)](http://goreportcard.com/report/charmbracelet/bubbles)
-[![GoDoc](https://godoc.org/github.com/golang/gddo?status.svg)](https://pkg.go.dev/github.com/charmbracelet/bubbles)
 
 Some components for [Bubble Tea](https://github.com/charmbracelet/bubbletea) applications.
 
