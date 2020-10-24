@@ -13,6 +13,9 @@ import (
 
 const defaultBlinkSpeed = time.Millisecond * 530
 
+// EchoMode sets the input behavior of the text input field.
+type EchoMode int
+
 const (
 	// EchoNormal displays text as is. This is the default behavior.
 	EchoNormal EchoMode = iota
@@ -28,31 +31,27 @@ const (
 	// EchoOnEdit
 )
 
-// EchoMode sets the input behavior of the text input field.
-type EchoMode int
+// color is a helper for returning colors.
+var color func(s string) termenv.Color = termenv.ColorProfile().Color
 
-var (
-	// color is a helper for returning colors.
-	color func(s string) termenv.Color = termenv.ColorProfile().Color
-)
+// blinkMsg is used to blink the cursor.
+type blinkMsg struct{}
 
 // Model is the Bubble Tea model for this text input element.
 type Model struct {
 	Err error
 
-	Prompt      string
-	Placeholder string
-
-	Cursor     string
-	BlinkSpeed time.Duration
-
+	// General settings
+	Prompt           string
+	Placeholder      string
+	Cursor           string
+	BlinkSpeed       time.Duration
 	TextColor        string
 	BackgroundColor  string
 	PlaceholderColor string
 	CursorColor      string
-
-	EchoMode      EchoMode
-	EchoCharacter rune
+	EchoMode         EchoMode
+	EchoCharacter    rune
 
 	// CharLimit is the maximum amount of characters this input element will
 	// accept. If 0 or less, there's no limit.
@@ -80,6 +79,9 @@ type Model struct {
 	// overflowing.
 	offset      int
 	offsetRight int
+
+	// Used to manage cursor blink
+	blinkTimer *time.Timer
 }
 
 // SetValue sets the value of the text input.
@@ -105,8 +107,16 @@ func (m Model) Value() string {
 // out of bounds the cursor will be moved to the start or end accordingly.
 func (m *Model) SetCursor(pos int) {
 	m.pos = clamp(pos, 0, len(m.value))
-	m.blink = false
 	m.handleOverflow()
+	m.blink = false
+
+	if m.blinkTimer != nil {
+		// Reset blink timer
+		if !m.blinkTimer.Stop() {
+			<-m.blinkTimer.C
+		}
+		m.blinkTimer.Reset(m.BlinkSpeed)
+	}
 }
 
 // CursorStart moves the cursor to the start of the field.
@@ -381,24 +391,17 @@ func (m Model) echoTransform(v string) string {
 	}
 }
 
-// BlinkMsg is sent when the cursor should alternate it's blinking state.
-type BlinkMsg struct{}
-
 // NewModel creates a new model with default settings.
 func NewModel() Model {
 	return Model{
-		Prompt:      "> ",
-		Placeholder: "",
-
-		BlinkSpeed: defaultBlinkSpeed,
-
+		Prompt:           "> ",
+		Placeholder:      "",
+		BlinkSpeed:       defaultBlinkSpeed,
 		TextColor:        "",
 		PlaceholderColor: "240",
 		CursorColor:      "",
-
-		EchoCharacter: '*',
-
-		CharLimit: 0,
+		EchoCharacter:    '*',
+		CharLimit:        0,
 
 		value: nil,
 		focus: false,
@@ -407,7 +410,7 @@ func NewModel() Model {
 	}
 }
 
-// Update is the Tea update loop.
+// Update is the Bubble Tea update loop.
 func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 	if !m.focus {
 		m.blink = true
@@ -490,9 +493,11 @@ func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 			}
 		}
 
-	case BlinkMsg:
+	case blinkMsg:
 		m.blink = !m.blink
-		return m, Blink(m)
+		t, cmd := m.blinkCmd()
+		m.blinkTimer = t
+		return m, cmd
 	}
 
 	m.handleOverflow()
@@ -574,10 +579,16 @@ func cursorView(s string, m Model) string {
 }
 
 // Blink is a command used to time the cursor blinking.
-func Blink(model Model) tea.Cmd {
-	return func() tea.Msg {
-		time.Sleep(model.BlinkSpeed)
-		return BlinkMsg{}
+func Blink() tea.Msg {
+	return blinkMsg{}
+}
+
+// blinkCmd is an internal command used to manage cursor blinking
+func (m Model) blinkCmd() (*time.Timer, tea.Cmd) {
+	t := time.NewTimer(m.BlinkSpeed)
+	return t, func() tea.Msg {
+		<-t.C
+		return blinkMsg{}
 	}
 }
 
