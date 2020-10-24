@@ -150,7 +150,10 @@ func (m *Model) Paste() {
 	}
 	paste := []rune(pasteString)
 
-	availSpace := m.CharLimit - len(m.value)
+	var availSpace int
+	if m.CharLimit > 0 {
+		availSpace = m.CharLimit - len(m.value)
+	}
 
 	// If the char limit's been reached cancel
 	if m.CharLimit > 0 && availSpace <= 0 {
@@ -159,7 +162,7 @@ func (m *Model) Paste() {
 
 	// If there's not enough space to paste the whole thing cut the pasted
 	// runes down so they'll fit
-	if availSpace < len(paste) {
+	if m.CharLimit > 0 && availSpace < len(paste) {
 		paste = paste[:len(paste)-availSpace]
 	}
 
@@ -172,10 +175,12 @@ func (m *Model) Paste() {
 	// Insert pasted runes
 	for _, r := range paste {
 		head = append(head, r)
-		availSpace--
 		m.SetCursor(m.pos + 1)
-		if m.CharLimit > 0 && availSpace <= 0 {
-			break
+		if m.CharLimit > 0 {
+			availSpace--
+			if availSpace <= 0 {
+				break
+			}
 		}
 	}
 
