@@ -32,7 +32,7 @@ pasting, in-place scrolling when the value exceeds the width of the element and
 the common, and many customization options.
 
 * [Example code, one field](https://github.com/charmbracelet/tea/tree/master/examples/textinput/main.go)
-* [Example code, many fields](https://github.com/charmbracelet/tea/tree/master/examples/textinput/main.go)
+* [Example code, many fields](https://github.com/charmbracelet/tea/tree/master/examples/textinputs/main.go)
 
 
 ## Paginator
