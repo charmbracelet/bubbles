@@ -11,7 +11,7 @@ import (
 	"github.com/muesli/termenv"
 )
 
-const defaultBlinkSpeed = time.Millisecond * 600
+const defaultBlinkSpeed = time.Millisecond * 530
 
 const (
 	// EchoNormal displays text as is. This is the default behavior.
@@ -91,7 +91,7 @@ func (m *Model) SetValue(s string) {
 		m.value = runes
 	}
 	if m.pos > len(m.value) {
-		m.pos = len(m.value)
+		m.SetCursor(len(m.value))
 	}
 	m.handleOverflow()
 }
@@ -105,19 +105,18 @@ func (m Model) Value() string {
 // out of bounds the cursor will be moved to the start or end accordingly.
 func (m *Model) SetCursor(pos int) {
 	m.pos = clamp(pos, 0, len(m.value))
+	m.blink = false
 	m.handleOverflow()
 }
 
 // CursorStart moves the cursor to the start of the field.
 func (m *Model) CursorStart() {
-	m.pos = 0
-	m.handleOverflow()
+	m.SetCursor(0)
 }
 
 // CursorEnd moves the cursor to the end of the field.
 func (m *Model) CursorEnd() {
-	m.pos = len(m.value)
-	m.handleOverflow()
+	m.SetCursor(len(m.value))
 }
 
 // Focused returns the focus state on the model.
@@ -140,8 +139,7 @@ func (m *Model) Blur() {
 // Reset sets the input to its default state with no input.
 func (m *Model) Reset() {
 	m.value = nil
-	m.pos = 0
-	m.blink = false
+	m.SetCursor(0)
 }
 
 // Paste pastes the contents of the clipboard into the text area (if supported).
@@ -175,7 +173,7 @@ func (m *Model) Paste() {
 	for _, r := range paste {
 		head = append(head, r)
 		availSpace--
-		m.pos++
+		m.SetCursor(m.pos + 1)
 		if m.CharLimit > 0 && availSpace <= 0 {
 			break
 		}
@@ -259,7 +257,7 @@ func (m *Model) wordLeft() {
 
 	for i >= 0 {
 		if unicode.IsSpace(m.value[i]) {
-			m.pos--
+			m.SetCursor(m.pos - 1)
 			i--
 		} else {
 			break
@@ -268,7 +266,7 @@ func (m *Model) wordLeft() {
 
 	for i >= 0 {
 		if !unicode.IsSpace(m.value[i]) {
-			m.pos--
+			m.SetCursor(m.pos - 1)
 			i--
 		} else {
 			break
@@ -285,7 +283,7 @@ func (m *Model) wordRight() {
 
 	for i < len(m.value) {
 		if unicode.IsSpace(m.value[i]) {
-			m.pos++
+			m.SetCursor(m.pos + 1)
 			i++
 		} else {
 			break
@@ -294,7 +292,7 @@ func (m *Model) wordRight() {
 
 	for i < len(m.value) {
 		if !unicode.IsSpace(m.value[i]) {
-			m.pos++
+			m.SetCursor(m.pos + 1)
 			i++
 		} else {
 			break
@@ -354,7 +352,7 @@ func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 			if len(m.value) > 0 {
 				m.value = append(m.value[:max(0, m.pos-1)], m.value[m.pos:]...)
 				if m.pos > 0 {
-					m.pos--
+					m.SetCursor(m.pos - 1)
 				}
 			}
 		case tea.KeyLeft:
@@ -363,7 +361,7 @@ func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 				break
 			}
 			if m.pos > 0 {
-				m.pos--
+				m.SetCursor(m.pos - 1)
 			}
 		case tea.KeyRight:
 			if msg.Alt { // alt+right arrow, forward one word
@@ -371,7 +369,7 @@ func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 				break
 			}
 			if m.pos < len(m.value) {
-				m.pos++
+				m.SetCursor(m.pos + 1)
 			}
 		case tea.KeyCtrlF: // ^F, forward one character
 			fallthrough
@@ -387,15 +385,14 @@ func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 			m.CursorEnd()
 		case tea.KeyCtrlK: // ^K, kill text after cursor
 			m.value = m.value[:m.pos]
-			m.pos = len(m.value)
+			m.SetCursor(len(m.value))
 		case tea.KeyCtrlU: // ^U, kill text before cursor
 			m.value = m.value[m.pos:]
-			m.pos = 0
+			m.SetCursor(0)
 			m.offset = 0
 		case tea.KeyCtrlV: // ^V paste
 			m.Paste()
 		case tea.KeyRune: // input a regular character
-
 			if msg.Alt {
 				if msg.Rune == 'b' { // alt+b, back one word
 					m.wordLeft()
@@ -410,7 +407,7 @@ func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 			// Input a regular character
 			if m.CharLimit <= 0 || len(m.value) < m.CharLimit {
 				m.value = append(m.value[:m.pos], append([]rune{msg.Rune}, m.value[m.pos:]...)...)
-				m.pos++
+				m.SetCursor(m.pos + 1)
 			}
 		}
 
