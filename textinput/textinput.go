@@ -175,7 +175,7 @@ func (m *Model) Paste() {
 	// Insert pasted runes
 	for _, r := range paste {
 		head = append(head, r)
-		m.SetCursor(m.pos + 1)
+		m.pos++
 		if m.CharLimit > 0 {
 			availSpace--
 			if availSpace <= 0 {
@@ -186,6 +186,9 @@ func (m *Model) Paste() {
 
 	// Put it all back together
 	m.value = append(head, tail...)
+
+	// Reset blink state and run overflow checks
+	m.SetCursor(m.pos)
 }
 
 // If a max width is defined, perform some logic to treat the visible area
