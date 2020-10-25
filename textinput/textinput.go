@@ -88,6 +88,25 @@ type Model struct {
 	blinkTimer *time.Timer
 }
 
+// NewModel creates a new model with default settings.
+func NewModel() Model {
+	return Model{
+		Prompt:           "> ",
+		Placeholder:      "",
+		BlinkSpeed:       defaultBlinkSpeed,
+		TextColor:        "",
+		PlaceholderColor: "240",
+		CursorColor:      "",
+		EchoCharacter:    '*',
+		CharLimit:        0,
+
+		value: nil,
+		focus: false,
+		blink: true,
+		pos:   0,
+	}
+}
+
 // SetValue sets the value of the text input.
 func (m *Model) SetValue(s string) {
 	runes := []rune(s)
@@ -391,27 +410,8 @@ func (m Model) echoTransform(v string) string {
 	}
 }
 
-// NewModel creates a new model with default settings.
-func NewModel() Model {
-	return Model{
-		Prompt:           "> ",
-		Placeholder:      "",
-		BlinkSpeed:       defaultBlinkSpeed,
-		TextColor:        "",
-		PlaceholderColor: "240",
-		CursorColor:      "",
-		EchoCharacter:    '*',
-		CharLimit:        0,
-
-		value: nil,
-		focus: false,
-		blink: true,
-		pos:   0,
-	}
-}
-
 // Update is the Bubble Tea update loop.
-func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
+func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	if !m.focus {
 		m.blink = true
 		return m, nil
@@ -511,10 +511,10 @@ func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 }
 
 // View renders the textinput in its current state.
-func View(m Model) string {
+func (m Model) View() string {
 	// Placeholder text
 	if len(m.value) == 0 && m.Placeholder != "" {
-		return placeholderView(m)
+		return m.placeholderView()
 	}
 
 	value := m.value[m.offset:m.offsetRight]
@@ -522,10 +522,10 @@ func View(m Model) string {
 	v := m.colorText(m.echoTransform(string(value[:pos])))
 
 	if pos < len(value) {
-		v += cursorView(m.echoTransform(string(value[pos])), m)  // cursor and text under it
+		v += m.cursorView(m.echoTransform(string(value[pos])))   // cursor and text under it
 		v += m.colorText(m.echoTransform(string(value[pos+1:]))) // text after cursor
 	} else {
-		v += cursorView(" ", m)
+		v += m.cursorView(" ")
 	}
 
 	// If a max width and background color were set fill the empty spaces with
@@ -545,8 +545,8 @@ func View(m Model) string {
 	return m.Prompt + v
 }
 
-// placeholderView.
-func placeholderView(m Model) string {
+// placeholderView returns the prompt and placeholder view, if any.
+func (m Model) placeholderView() string {
 	var (
 		v string
 		p = m.Placeholder
@@ -554,9 +554,9 @@ func placeholderView(m Model) string {
 
 	// Cursor
 	if m.blink && m.PlaceholderColor != "" {
-		v += cursorView(m.colorPlaceholder(p[:1]), m)
+		v += m.cursorView(m.colorPlaceholder(p[:1]))
 	} else {
-		v += cursorView(p[:1], m)
+		v += m.cursorView(p[:1])
 	}
 
 	// The rest of the placeholder text
@@ -566,34 +566,21 @@ func placeholderView(m Model) string {
 }
 
 // cursorView styles the cursor.
-func cursorView(s string, m Model) string {
+func (m Model) cursorView(v string) string {
 	if m.blink {
 		if m.TextColor != "" || m.BackgroundColor != "" {
-			return termenv.String(s).
+			return termenv.String(v).
 				Foreground(color(m.TextColor)).
 				Background(color(m.BackgroundColor)).
 				String()
 		}
-		return s
+		return v
 	}
-	return termenv.String(s).
+	return termenv.String(v).
 		Foreground(color(m.CursorColor)).
 		Background(color(m.BackgroundColor)).
 		Reverse().
 		String()
-}
-
-// Blink is a command used to time the cursor blinking.
-func Blink() tea.Msg {
-	return blinkMsg{}
-}
-
-func Paste() tea.Msg {
-	str, err := clipboard.ReadAll()
-	if err != nil {
-		return pasteErrMsg{err}
-	}
-	return pasteMsg(str)
 }
 
 // blinkCmd is an internal command used to manage cursor blinking
@@ -603,6 +590,20 @@ func (m Model) blinkCmd() (*time.Timer, tea.Cmd) {
 		<-t.C
 		return blinkMsg{}
 	}
+}
+
+// Blink is a command used to initialize cursor blinking.
+func Blink() tea.Msg {
+	return blinkMsg{}
+}
+
+// Paste is a command for pasting from the clipboard into the text input.
+func Paste() tea.Msg {
+	str, err := clipboard.ReadAll()
+	if err != nil {
+		return pasteErrMsg{err}
+	}
+	return pasteMsg(str)
 }
 
 func clamp(v, low, high int) int {
