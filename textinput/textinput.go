@@ -37,6 +37,10 @@ var color func(s string) termenv.Color = termenv.ColorProfile().Color
 // blinkMsg is used to blink the cursor.
 type blinkMsg struct{}
 
+// Messages for clipboard events
+type pasteMsg string
+type pasteErrMsg struct{ error }
+
 // Model is the Bubble Tea model for this text input element.
 type Model struct {
 	Err error
@@ -152,13 +156,9 @@ func (m *Model) Reset() {
 	m.SetCursor(0)
 }
 
-// Paste pastes the contents of the clipboard into the text area (if supported).
-func (m *Model) Paste() {
-	pasteString, err := clipboard.ReadAll()
-	if err != nil {
-		m.Err = err
-	}
-	paste := []rune(pasteString)
+// handle a clipboard paste event, if supported.
+func (m *Model) handlePaste(v string) {
+	paste := []rune(v)
 
 	var availSpace int
 	if m.CharLimit > 0 {
@@ -469,7 +469,7 @@ func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 			m.SetCursor(0)
 			m.offset = 0
 		case tea.KeyCtrlV: // ^V paste
-			m.Paste()
+			return m, Paste
 		case tea.KeyRune: // input a regular character
 			if msg.Alt {
 				if msg.Rune == 'd' { // alt+d, delete word right of cursor
@@ -498,10 +498,15 @@ func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 		t, cmd := m.blinkCmd()
 		m.blinkTimer = t
 		return m, cmd
+
+	case pasteMsg:
+		m.handlePaste(string(msg))
+
+	case pasteErrMsg:
+		m.Err = msg
 	}
 
 	m.handleOverflow()
-
 	return m, nil
 }
 
@@ -581,6 +586,14 @@ func cursorView(s string, m Model) string {
 // Blink is a command used to time the cursor blinking.
 func Blink() tea.Msg {
 	return blinkMsg{}
+}
+
+func Paste() tea.Msg {
+	str, err := clipboard.ReadAll()
+	if err != nil {
+		return pasteErrMsg{err}
+	}
+	return pasteMsg(str)
 }
 
 // blinkCmd is an internal command used to manage cursor blinking
