@@ -256,6 +256,67 @@ func (m *Model) colorPlaceholder(s string) string {
 		String()
 }
 
+// deleteWordLeft deletes the word left to the cursor.
+func (m *Model) deleteWordLeft() {
+	if m.pos == 0 || len(m.value) == 0 {
+		return
+	}
+
+	i := m.pos
+	m.SetCursor(m.pos - 1)
+	for unicode.IsSpace(m.value[m.pos]) {
+		// ignore series of whitespace before cursor
+		m.SetCursor(m.pos - 1)
+	}
+
+	for m.pos > 0 {
+		if !unicode.IsSpace(m.value[m.pos]) {
+			m.SetCursor(m.pos - 1)
+		} else {
+			if m.pos > 0 {
+				// keep the previous space
+				m.SetCursor(m.pos + 1)
+			}
+			break
+		}
+	}
+
+	if i > len(m.value) {
+		m.value = m.value[:m.pos]
+	} else {
+		m.value = append(m.value[:m.pos], m.value[i:]...)
+	}
+}
+
+// deleteWordRight deletes the word right to the cursor.
+func (m *Model) deleteWordRight() {
+	if m.pos >= len(m.value) || len(m.value) == 0 {
+		return
+	}
+
+	i := m.pos
+	m.SetCursor(m.pos + 1)
+	for unicode.IsSpace(m.value[m.pos]) {
+		// ignore series of whitespace after cursor
+		m.SetCursor(m.pos + 1)
+	}
+
+	for m.pos < len(m.value) {
+		if !unicode.IsSpace(m.value[m.pos]) {
+			m.SetCursor(m.pos + 1)
+		} else {
+			break
+		}
+	}
+
+	if m.pos > len(m.value) {
+		m.value = m.value[:i]
+	} else {
+		m.value = append(m.value[:i], m.value[m.pos:]...)
+	}
+	m.SetCursor(i)
+}
+
 func (m *Model) wordLeft() {
 	if m.pos == 0 || len(m.value) == 0 {
 		return
@@ -379,6 +440,8 @@ func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 			if m.pos < len(m.value) {
 				m.SetCursor(m.pos + 1)
 			}
+		case tea.KeyCtrlW: // ^W, delete word left of cursor
+			m.deleteWordLeft()
 		case tea.KeyCtrlF: // ^F, forward one character
 			fallthrough
 		case tea.KeyCtrlB: // ^B, back one charcter
@@ -402,6 +465,10 @@ func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 			m.Paste()
 		case tea.KeyRune: // input a regular character
 			if msg.Alt {
+				if msg.Rune == 'd' { // alt+d, delete word right of cursor
+					m.deleteWordRight()
+					break
+				}
 				if msg.Rune == 'b' { // alt+b, back one word
 					m.wordLeft()
 					break
