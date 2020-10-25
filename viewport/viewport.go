@@ -77,7 +77,7 @@ func (m *Model) SetContent(s string) {
 func (m Model) visibleLines() (lines []string) {
 	if len(m.lines) > 0 {
 		top := max(0, m.YOffset)
-		bottom := min(len(m.lines), m.YOffset+m.Height)
+		bottom := clamp(m.YOffset+m.Height, top, len(m.lines))
 		lines = m.lines[top:bottom]
 	}
 	return lines
@@ -125,7 +125,7 @@ func (m *Model) HalfViewDown() (lines []string) {
 
 	if len(m.lines) > 0 {
 		top := max(m.YOffset+m.Height/2, 0)
-		bottom := min(m.YOffset+m.Height, len(m.lines)-1)
+		bottom := clamp(m.YOffset+m.Height, top, len(m.lines)-1)
 		lines = m.lines[top:bottom]
 	}
 
@@ -145,7 +145,7 @@ func (m *Model) HalfViewUp() (lines []string) {
 
 	if len(m.lines) > 0 {
 		top := max(m.YOffset, 0)
-		bottom := min(m.YOffset+m.Height/2, len(m.lines)-1)
+		bottom := clamp(m.YOffset+m.Height/2, top, len(m.lines)-1)
 		lines = m.lines[top:bottom]
 	}
 
@@ -171,7 +171,7 @@ func (m *Model) LineDown(n int) (lines []string) {
 
 	if len(m.lines) > 0 {
 		top := max(m.YOffset+m.Height-n, 0)
-		bottom := min(m.YOffset+m.Height, len(m.lines)-1)
+		bottom := clamp(m.YOffset+m.Height, top, len(m.lines)-1)
 		lines = m.lines[top:bottom]
 	}
 
@@ -193,7 +193,7 @@ func (m *Model) LineUp(n int) (lines []string) {
 
 	if len(m.lines) > 0 {
 		top := max(0, m.YOffset)
-		bottom := min(m.YOffset+n, len(m.lines)-1)
+		bottom := clamp(m.YOffset+n, top, len(m.lines)-1)
 		lines = m.lines[top:bottom]
 	}
 
@@ -210,7 +210,7 @@ func (m *Model) GotoTop() (lines []string) {
 
 	if len(m.lines) > 0 {
 		top := m.YOffset
-		bottom := min(m.YOffset+m.Height, len(m.lines)-1)
+		bottom := clamp(m.YOffset+m.Height, top, len(m.lines)-1)
 		lines = m.lines[top:bottom]
 	}
 
@@ -245,7 +245,7 @@ func Sync(m Model) tea.Cmd {
 	// TODO: we should probably use m.visibleLines() rather than these two
 	// expressions.
 	top := max(m.YOffset, 0)
-	bottom := min(m.YOffset+m.Height, len(m.lines)-1)
+	bottom := clamp(m.YOffset+m.Height, 0, len(m.lines)-1)
 
 	return tea.SyncScrollArea(
 		m.lines[top:bottom],
@@ -375,6 +375,10 @@ func View(m Model) string {
 }
 
 // ETC
+
+func clamp(v, low, high int) int {
+	return min(high, max(low, v))
+}
 
 func min(a, b int) int {
 	if a < b {
