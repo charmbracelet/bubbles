@@ -1,6 +1,7 @@
 package textinput
 
 import (
+	"context"
 	"strings"
 	"time"
 	"unicode"
@@ -12,6 +13,17 @@ import (
 )
 
 const defaultBlinkSpeed = time.Millisecond * 530
+
+// color is a helper for returning colors.
+var color func(s string) termenv.Color = termenv.ColorProfile().Color
+
+// blinkMsg and blinkCanceled are used to manage cursor blinking
+type blinkMsg struct{}
+type blinkCanceled struct{}
+
+// Messages for clipboard events
+type pasteMsg string
+type pasteErrMsg struct{ error }
 
 // EchoMode sets the input behavior of the text input field.
 type EchoMode int
@@ -31,15 +43,19 @@ const (
 	// EchoOnEdit
 )
 
-// color is a helper for returning colors.
-var color func(s string) termenv.Color = termenv.ColorProfile().Color
+// Manages cursor blinking
+type blinkCtx struct {
+	ctx    context.Context
+	cancel context.CancelFunc
+}
 
-// blinkMsg is used to blink the cursor.
-type blinkMsg struct{}
+type cursorMode int
 
-// Messages for clipboard events
-type pasteMsg string
-type pasteErrMsg struct{ error }
+const (
+	cursorBlink = iota
+	cursorStatic
+	cursorHide
+)
 
 // Model is the Bubble Tea model for this text input element.
 type Model struct {
@@ -85,7 +101,10 @@ type Model struct {
 	offsetRight int
 
 	// Used to manage cursor blink
-	blinkTimer *time.Timer
+	blinkCtx *blinkCtx
+
+	// cursorMode determines the behavior of the cursor
+	cursorMode cursorMode
 }
 
 // NewModel creates a new model with default settings.
@@ -100,10 +119,15 @@ func NewModel() Model {
 		EchoCharacter:    '*',
 		CharLimit:        0,
 
-		value: nil,
-		focus: false,
-		blink: true,
-		pos:   0,
+		value:      nil,
+		focus:      false,
+		blink:      true,
+		pos:        0,
+		cursorMode: cursorBlink,
+
+		blinkCtx: &blinkCtx{
+			ctx: context.Background(),
+		},
 	}
 }
 
@@ -128,28 +152,28 @@ func (m Model) Value() string {
 
 // SetCursor start moves the cursor to the given position. If the position is
 // out of bounds the cursor will be moved to the start or end accordingly.
-func (m *Model) SetCursor(pos int) {
+// Returns whether or nor the cursor timer should be reset.
+func (m *Model) SetCursor(pos int) bool {
 	m.pos = clamp(pos, 0, len(m.value))
 	m.handleOverflow()
 	m.blink = false
 
-	if m.blinkTimer != nil {
-		// Reset blink timer
-		if !m.blinkTimer.Stop() {
-			<-m.blinkTimer.C
-		}
-		m.blinkTimer.Reset(m.BlinkSpeed)
+	if m.cursorMode == cursorBlink {
+		return true
 	}
+	return false
 }
 
-// CursorStart moves the cursor to the start of the field.
-func (m *Model) CursorStart() {
-	m.SetCursor(0)
+// CursorStart moves the cursor to the start of the field. Returns whether or
+// not the curosr blink should be reset.
+func (m *Model) CursorStart() bool {
+	return m.SetCursor(0)
 }
 
-// CursorEnd moves the cursor to the end of the field.
-func (m *Model) CursorEnd() {
-	m.SetCursor(len(m.value))
+// CursorEnd moves the cursor to the end of the field. Returns whether or not
+// the cursor blink should be reset.
+func (m *Model) CursorEnd() bool {
+	return m.SetCursor(len(m.value))
 }
 
 // Focused returns the focus state on the model.
@@ -169,14 +193,16 @@ func (m *Model) Blur() {
 	m.blink = true
 }
 
-// Reset sets the input to its default state with no input.
-func (m *Model) Reset() {
+// Reset sets the input to its default state with no input. Returns whether
+// or not the cursor blink should reset.
+func (m *Model) Reset() bool {
 	m.value = nil
-	m.SetCursor(0)
+	return m.SetCursor(0)
 }
 
-// handle a clipboard paste event, if supported.
-func (m *Model) handlePaste(v string) {
+// handle a clipboard paste event, if supported. Returns whether or not the
+// cursor blink should be reset.
+func (m *Model) handlePaste(v string) (blink bool) {
 	paste := []rune(v)
 
 	var availSpace int
@@ -216,8 +242,8 @@ func (m *Model) handlePaste(v string) {
 	// Put it all back together
 	m.value = append(head, tail...)
 
-	// Reset blink state and run overflow checks
-	m.SetCursor(m.pos)
+	// Reset blink state if necessary and run overflow checks
+	return m.SetCursor(m.pos)
 }
 
 // If a max width is defined, perform some logic to treat the visible area
@@ -285,26 +311,27 @@ func (m *Model) colorPlaceholder(s string) string {
 		String()
 }
 
-// deleteWordLeft deletes the word left to the cursor.
-func (m *Model) deleteWordLeft() {
+// deleteWordLeft deletes the word left to the cursor. Returns whether or not
+// the cursor blink should be reset.
+func (m *Model) deleteWordLeft() (blink bool) {
 	if m.pos == 0 || len(m.value) == 0 {
 		return
 	}
 
 	i := m.pos
-	m.SetCursor(m.pos - 1)
+	blink = m.SetCursor(m.pos - 1)
 	for unicode.IsSpace(m.value[m.pos]) {
 		// ignore series of whitespace before cursor
-		m.SetCursor(m.pos - 1)
+		blink = m.SetCursor(m.pos - 1)
 	}
 
 	for m.pos > 0 {
 		if !unicode.IsSpace(m.value[m.pos]) {
-			m.SetCursor(m.pos - 1)
+			blink = m.SetCursor(m.pos - 1)
 		} else {
 			if m.pos > 0 {
 				// keep the previous space
-				m.SetCursor(m.pos + 1)
+				blink = m.SetCursor(m.pos + 1)
 			}
 			break
 		}
@@ -315,24 +342,27 @@ func (m *Model) deleteWordLeft() {
 	} else {
 		m.value = append(m.value[:m.pos], m.value[i:]...)
 	}
+
+	return
 }
 
-// deleteWordRight deletes the word right to the cursor.
-func (m *Model) deleteWordRight() {
+// deleteWordRight deletes the word right to the cursor. Returns whether or not
+// the cursor blink should be reset.
+func (m *Model) deleteWordRight() (blink bool) {
 	if m.pos >= len(m.value) || len(m.value) == 0 {
 		return
 	}
 
 	i := m.pos
-	m.SetCursor(m.pos + 1)
+	blink = m.SetCursor(m.pos + 1)
 	for unicode.IsSpace(m.value[m.pos]) {
 		// ignore series of whitespace after cursor
-		m.SetCursor(m.pos + 1)
+		blink = m.SetCursor(m.pos + 1)
 	}
 
 	for m.pos < len(m.value) {
 		if !unicode.IsSpace(m.value[m.pos]) {
-			m.SetCursor(m.pos + 1)
+			blink = m.SetCursor(m.pos + 1)
 		} else {
 			break
 		}
@@ -343,10 +373,14 @@ func (m *Model) deleteWordRight() {
 	} else {
 		m.value = append(m.value[:i], m.value[m.pos:]...)
 	}
-	m.SetCursor(i)
+	blink = m.SetCursor(i)
+
+	return
 }
 
-func (m *Model) wordLeft() {
+// wordLeft moves the cursor one word to the left. Returns whether or not the
+// cursor blink should be reset.
+func (m *Model) wordLeft() (blink bool) {
 	if m.pos == 0 || len(m.value) == 0 {
 		return
 	}
@@ -355,7 +389,7 @@ func (m *Model) wordLeft() {
 
 	for i >= 0 {
 		if unicode.IsSpace(m.value[i]) {
-			m.SetCursor(m.pos - 1)
+			blink = m.SetCursor(m.pos - 1)
 			i--
 		} else {
 			break
@@ -364,15 +398,19 @@ func (m *Model) wordLeft() {
 
 	for i >= 0 {
 		if !unicode.IsSpace(m.value[i]) {
-			m.SetCursor(m.pos - 1)
+			blink = m.SetCursor(m.pos - 1)
 			i--
 		} else {
 			break
 		}
 	}
+
+	return
 }
 
-func (m *Model) wordRight() {
+// wordRight moves the cursor one word to the right. Returns whether or not the
+// cursor blink should be reset.
+func (m *Model) wordRight() (blink bool) {
 	if m.pos >= len(m.value) || len(m.value) == 0 {
 		return
 	}
@@ -381,7 +419,7 @@ func (m *Model) wordRight() {
 
 	for i < len(m.value) {
 		if unicode.IsSpace(m.value[i]) {
-			m.SetCursor(m.pos + 1)
+			blink = m.SetCursor(m.pos + 1)
 			i++
 		} else {
 			break
@@ -390,12 +428,14 @@ func (m *Model) wordRight() {
 
 	for i < len(m.value) {
 		if !unicode.IsSpace(m.value[i]) {
-			m.SetCursor(m.pos + 1)
+			blink = m.SetCursor(m.pos + 1)
 			i++
 		} else {
 			break
 		}
 	}
+
+	return
 }
 
 func (m Model) echoTransform(v string) string {
@@ -417,71 +457,73 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		return m, nil
 	}
 
+	var resetBlink bool
+
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.Type {
 		case tea.KeyBackspace: // delete character before cursor
 			if msg.Alt {
-				m.deleteWordLeft()
+				resetBlink = m.deleteWordLeft()
 			} else {
 				if len(m.value) > 0 {
 					m.value = append(m.value[:max(0, m.pos-1)], m.value[m.pos:]...)
 					if m.pos > 0 {
-						m.SetCursor(m.pos - 1)
+						resetBlink = m.SetCursor(m.pos - 1)
 					}
 				}
 			}
 		case tea.KeyLeft:
 			if msg.Alt { // alt+left arrow, back one word
-				m.wordLeft()
+				resetBlink = m.wordLeft()
 				break
 			}
 			if m.pos > 0 {
-				m.SetCursor(m.pos - 1)
+				resetBlink = m.SetCursor(m.pos - 1)
 			}
 		case tea.KeyRight:
 			if msg.Alt { // alt+right arrow, forward one word
-				m.wordRight()
+				resetBlink = m.wordRight()
 				break
 			}
 			if m.pos < len(m.value) {
-				m.SetCursor(m.pos + 1)
+				resetBlink = m.SetCursor(m.pos + 1)
 			}
 		case tea.KeyCtrlW: // ^W, delete word left of cursor
-			m.deleteWordLeft()
+			resetBlink = m.deleteWordLeft()
 		case tea.KeyCtrlF: // ^F, forward one character
 			fallthrough
 		case tea.KeyCtrlB: // ^B, back one charcter
 			fallthrough
 		case tea.KeyHome, tea.KeyCtrlA: // ^A, go to beginning
-			m.CursorStart()
+			resetBlink = m.CursorStart()
 		case tea.KeyDelete, tea.KeyCtrlD: // ^D, delete char under cursor
 			if len(m.value) > 0 && m.pos < len(m.value) {
 				m.value = append(m.value[:m.pos], m.value[m.pos+1:]...)
 			}
 		case tea.KeyCtrlE, tea.KeyEnd: // ^E, go to end
-			m.CursorEnd()
+			resetBlink = m.CursorEnd()
 		case tea.KeyCtrlK: // ^K, kill text after cursor
 			m.value = m.value[:m.pos]
-			m.SetCursor(len(m.value))
+			resetBlink = m.SetCursor(len(m.value))
 		case tea.KeyCtrlU: // ^U, kill text before cursor
 			m.value = m.value[m.pos:]
-			m.SetCursor(0)
+			resetBlink = m.SetCursor(0)
 			m.offset = 0
 		case tea.KeyCtrlV: // ^V paste
 			return m, Paste
 		case tea.KeyRune: // input a regular character
 			if msg.Alt {
 				if msg.Rune == 'd' { // alt+d, delete word right of cursor
-					m.deleteWordRight()
+					resetBlink = m.deleteWordRight()
 					break
 				}
 				if msg.Rune == 'b' { // alt+b, back one word
-					m.wordLeft()
+					resetBlink = m.wordLeft()
 					break
 				}
 				if msg.Rune == 'f' { // alt+f, forward one word
-					m.wordRight()
+					resetBlink = m.wordRight()
 					break
 				}
 			}
@@ -489,25 +531,32 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			// Input a regular character
 			if m.CharLimit <= 0 || len(m.value) < m.CharLimit {
 				m.value = append(m.value[:m.pos], append([]rune{msg.Rune}, m.value[m.pos:]...)...)
-				m.SetCursor(m.pos + 1)
+				resetBlink = m.SetCursor(m.pos + 1)
 			}
 		}
 
 	case blinkMsg:
 		m.blink = !m.blink
-		t, cmd := m.blinkCmd()
-		m.blinkTimer = t
+		cmd := m.blinkCmd()
 		return m, cmd
 
+	case blinkCanceled: // no-op
+		return m, nil
+
 	case pasteMsg:
-		m.handlePaste(string(msg))
+		resetBlink = m.handlePaste(string(msg))
 
 	case pasteErrMsg:
 		m.Err = msg
 	}
 
+	var cmd tea.Cmd
+	if resetBlink {
+		cmd = m.blinkCmd()
+	}
+
 	m.handleOverflow()
-	return m, nil
+	return m, cmd
 }
 
 // View renders the textinput in its current state.
@@ -584,11 +633,21 @@ func (m Model) cursorView(v string) string {
 }
 
 // blinkCmd is an internal command used to manage cursor blinking
-func (m Model) blinkCmd() (*time.Timer, tea.Cmd) {
-	t := time.NewTimer(m.BlinkSpeed)
-	return t, func() tea.Msg {
-		<-t.C
-		return blinkMsg{}
+func (m Model) blinkCmd() tea.Cmd {
+	if m.blinkCtx != nil && m.blinkCtx.cancel != nil {
+		m.blinkCtx.cancel()
+	}
+
+	ctx, cancel := context.WithTimeout(m.blinkCtx.ctx, m.BlinkSpeed)
+	m.blinkCtx.cancel = cancel
+
+	return func() tea.Msg {
+		defer cancel()
+		<-ctx.Done()
+		if ctx.Err() == context.DeadlineExceeded {
+			return blinkMsg{}
+		}
+		return blinkCanceled{}
 	}
 }
 
