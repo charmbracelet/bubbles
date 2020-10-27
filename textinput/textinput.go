@@ -473,28 +473,24 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 					}
 				}
 			}
-		case tea.KeyLeft:
+		case tea.KeyLeft, tea.KeyCtrlB:
 			if msg.Alt { // alt+left arrow, back one word
 				resetBlink = m.wordLeft()
 				break
 			}
-			if m.pos > 0 {
+			if m.pos > 0 { // left arrow, ^F, back one character
 				resetBlink = m.SetCursor(m.pos - 1)
 			}
-		case tea.KeyRight:
+		case tea.KeyRight, tea.KeyCtrlF:
 			if msg.Alt { // alt+right arrow, forward one word
 				resetBlink = m.wordRight()
 				break
 			}
-			if m.pos < len(m.value) {
+			if m.pos < len(m.value) { // right arrow, ^F, forward one word
 				resetBlink = m.SetCursor(m.pos + 1)
 			}
 		case tea.KeyCtrlW: // ^W, delete word left of cursor
 			resetBlink = m.deleteWordLeft()
-		case tea.KeyCtrlF: // ^F, forward one character
-			fallthrough
-		case tea.KeyCtrlB: // ^B, back one charcter
-			fallthrough
 		case tea.KeyHome, tea.KeyCtrlA: // ^A, go to beginning
 			resetBlink = m.CursorStart()
 		case tea.KeyDelete, tea.KeyCtrlD: // ^D, delete char under cursor
