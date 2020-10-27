@@ -7,9 +7,7 @@ import (
 	"github.com/muesli/termenv"
 )
 
-const (
-	defaultFPS = time.Second / 10
-)
+const defaultFPS = time.Second / 10
 
 // Spinner is a set of frames used in animating the spinner.
 type Spinner = []string
@@ -150,33 +148,39 @@ type TickMsg struct {
 	Time time.Time
 }
 
+type startTick struct{}
+
 // Update is the Tea update function. This will advance the spinner one frame
 // every time it's called, regardless the message passed, so be sure the logic
 // is setup so as not to call this Update needlessly.
-func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
-	if _, ok := msg.(TickMsg); ok {
+func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
+	switch msg.(type) {
+	case startTick:
+		return m, m.tick()
+	case TickMsg:
 		m.frame++
 		if m.frame >= len(m.Frames) {
 			m.frame = 0
 		}
-		return m, Tick(m)
+		return m, m.tick()
+	default:
+		return m, nil
 	}
-	return m, nil
 }
 
 // View renders the model's view.
-func View(model Model) string {
-	if model.frame >= len(model.Frames) {
+func (m Model) View() string {
+	if m.frame >= len(m.Frames) {
 		return "error"
 	}
 
-	frame := model.Frames[model.frame]
+	frame := m.Frames[m.frame]
 
-	if model.ForegroundColor != "" || model.BackgroundColor != "" {
+	if m.ForegroundColor != "" || m.BackgroundColor != "" {
 		return termenv.
 			String(frame).
-			Foreground(color(model.ForegroundColor)).
-			Background(color(model.BackgroundColor)).
+			Foreground(color(m.ForegroundColor)).
+			Background(color(m.BackgroundColor)).
 			String()
 	}
 
@@ -184,7 +188,11 @@ func View(model Model) string {
 }
 
 // Tick is the command used to advance the spinner one frame.
-func Tick(m Model) tea.Cmd {
+func Tick() tea.Msg {
+	return startTick{}
+}
+
+func (m Model) tick() tea.Cmd {
 	return tea.Tick(m.FPS, func(t time.Time) tea.Msg {
 		return TickMsg{
 			Time: t,

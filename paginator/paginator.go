@@ -19,7 +19,7 @@ const (
 	Dots
 )
 
-// Model is the Tea model for this user interface.
+// Model is the Bubble Tea model for this user interface.
 type Model struct {
 	Type              Type
 	Page              int
