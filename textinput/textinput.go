@@ -418,10 +418,14 @@ func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.Type {
 		case tea.KeyBackspace: // delete character before cursor
-			if len(m.value) > 0 {
-				m.value = append(m.value[:max(0, m.pos-1)], m.value[m.pos:]...)
-				if m.pos > 0 {
-					m.SetCursor(m.pos - 1)
+			if msg.Alt {
+				m.deleteWordLeft()
+			} else {
+				if len(m.value) > 0 {
+					m.value = append(m.value[:max(0, m.pos-1)], m.value[m.pos:]...)
+					if m.pos > 0 {
+						m.SetCursor(m.pos - 1)
+					}
 				}
 			}
 		case tea.KeyLeft:
