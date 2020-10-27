@@ -115,7 +115,7 @@ func NewModel() Model {
 }
 
 // Update is the Tea update function which binds keystrokes to pagination.
-func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
+func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		if m.UsePgUpPgDownKeys {
@@ -164,16 +164,16 @@ func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 }
 
 // View renders the pagination to a string.
-func View(m Model) string {
+func (m Model) View() string {
 	switch m.Type {
 	case Dots:
-		return dotsView(m)
+		return m.dotsView()
 	default:
-		return arabicView(m)
+		return m.arabicView()
 	}
 }
 
-func dotsView(m Model) string {
+func (m Model) dotsView() string {
 	var s string
 	for i := 0; i < m.TotalPages; i++ {
 		if i == m.Page {
@@ -185,7 +185,7 @@ func dotsView(m Model) string {
 	return s
 }
 
-func arabicView(m Model) string {
+func (m Model) arabicView() string {
 	return fmt.Sprintf(m.ArabicFormat, m.Page+1, m.TotalPages)
 }
 
