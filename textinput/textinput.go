@@ -156,7 +156,9 @@ func (m Model) Value() string {
 func (m *Model) SetCursor(pos int) bool {
 	m.pos = clamp(pos, 0, len(m.value))
 	m.handleOverflow()
-	m.blink = false
+
+	// Show the cursor unless it's been explicitly hidden
+	m.blink = m.cursorMode == cursorHide
 
 	if m.cursorMode == cursorBlink {
 		return true
@@ -184,7 +186,7 @@ func (m Model) Focused() bool {
 // Focus sets the focus state on the model.
 func (m *Model) Focus() {
 	m.focus = true
-	m.blink = false
+	m.blink = m.cursorMode == cursorHide // show the cursor unless we've explicitly hidden it
 }
 
 // Blur removes the focus state on the model.
@@ -532,8 +534,11 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		}
 
 	case blinkMsg:
-		m.blink = !m.blink
-		cmd := m.blinkCmd()
+		var cmd tea.Cmd
+		if m.cursorMode == cursorBlink {
+			m.blink = !m.blink
+			cmd = m.blinkCmd()
+		}
 		return m, cmd
 
 	case blinkCanceled: // no-op
