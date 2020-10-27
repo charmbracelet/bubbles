@@ -17,11 +17,11 @@ const defaultBlinkSpeed = time.Millisecond * 530
 // color is a helper for returning colors.
 var color func(s string) termenv.Color = termenv.ColorProfile().Color
 
-// blinkMsg and blinkCanceled are used to manage cursor blinking
+// blinkMsg and blinkCanceled are used to manage cursor blinking.
 type blinkMsg struct{}
 type blinkCanceled struct{}
 
-// Messages for clipboard events
+// Messages for clipboard events.
 type pasteMsg string
 type pasteErrMsg struct{ error }
 
@@ -43,7 +43,7 @@ const (
 	// EchoOnEdit
 )
 
-// Manages cursor blinking
+// blinkCtx manages cursor blinking.
 type blinkCtx struct {
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -160,10 +160,8 @@ func (m *Model) SetCursor(pos int) bool {
 	// Show the cursor unless it's been explicitly hidden
 	m.blink = m.cursorMode == cursorHide
 
-	if m.cursorMode == cursorBlink {
-		return true
-	}
-	return false
+	// Reset cursor blink if necessary
+	return m.cursorMode == cursorBlink
 }
 
 // CursorStart moves the cursor to the start of the field. Returns whether or
@@ -633,7 +631,7 @@ func (m Model) cursorView(v string) string {
 		String()
 }
 
-// blinkCmd is an internal command used to manage cursor blinking
+// blinkCmd is an internal command used to manage cursor blinking.
 func (m Model) blinkCmd() tea.Cmd {
 	if m.blinkCtx != nil && m.blinkCtx.cancel != nil {
 		m.blinkCtx.cancel()
