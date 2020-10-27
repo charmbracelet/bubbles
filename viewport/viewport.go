@@ -7,9 +7,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-const (
-	spacebar = " "
-)
+const spacebar = " "
 
 // MODEL
 
@@ -269,7 +267,7 @@ func ViewDown(m Model, lines []string) tea.Cmd {
 }
 
 // ViewUp is a high performance command the moves the viewport down by a given
-// number of lines height. Use Model.ViewDown to get the lines that should be
+// number of lines height. Use Model.ViewUp to get the lines that should be
 // rendered.
 func ViewUp(m Model, lines []string) tea.Cmd {
 	if len(lines) == 0 {
@@ -283,7 +281,7 @@ func ViewUp(m Model, lines []string) tea.Cmd {
 // Update runs the update loop with default keybindings similar to popular
 // pagers. To define your own keybindings use the methods on Model (i.e.
 // Model.LineDown()) and define your own update function.
-func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
+func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	var cmd tea.Cmd
 
 	switch msg := msg.(type) {
@@ -354,7 +352,7 @@ func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 // VIEW
 
 // View renders the viewport into a string.
-func View(m Model) string {
+func (m Model) View() string {
 	if m.HighPerformanceRendering {
 		// Just send newlines since we're doing to be rendering the actual
 		// content seprately. We still need send something that equals the
