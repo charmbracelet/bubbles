@@ -40,8 +40,8 @@ type Model struct {
 // used for other things beyond navigating sets. Note that it both returns the
 // number of total pages and alters the model.
 func (m *Model) SetTotalPages(items int) int {
-	if items == 0 {
-		return 0
+	if items < 1 {
+		return m.TotalPages
 	}
 	n := items / m.PerPage
 	if items%m.PerPage > 0 {
