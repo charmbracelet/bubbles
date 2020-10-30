@@ -36,6 +36,11 @@ the common, and many customization options.
 * [Example code, many fields](https://github.com/charmbracelet/tea/tree/master/examples/textinputs/main.go)
 
 
+## Button
+
+A button component.
+
+
 ## Paginator
 
 <img src="https://stuff.charm.sh/bubbles-examples/pagination.gif" width="200" alt="Paginator Example">
