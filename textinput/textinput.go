@@ -67,6 +67,7 @@ type Model struct {
 	Cursor           string
 	BlinkSpeed       time.Duration
 	TextColor        string
+	FocusedTextColor string
 	BackgroundColor  string
 	PlaceholderColor string
 	CursorColor      string
@@ -114,6 +115,7 @@ func NewModel() Model {
 		Placeholder:      "",
 		BlinkSpeed:       defaultBlinkSpeed,
 		TextColor:        "",
+		FocusedTextColor: "205",
 		PlaceholderColor: "240",
 		CursorColor:      "",
 		EchoCharacter:    '*',
@@ -182,15 +184,19 @@ func (m Model) Focused() bool {
 }
 
 // Focus sets the focus state on the model.
-func (m *Model) Focus() {
+func (m Model) Focus() tea.Model {
 	m.focus = true
 	m.blink = m.cursorMode == cursorHide // show the cursor unless we've explicitly hidden it
+
+	return m
 }
 
 // Blur removes the focus state on the model.
-func (m *Model) Blur() {
+func (m Model) Blur() tea.Model {
 	m.focus = false
 	m.blink = true
+
+	return m
 }
 
 // Reset sets the input to its default state with no input. Returns whether
@@ -450,8 +456,12 @@ func (m Model) echoTransform(v string) string {
 	}
 }
 
+func (m Model) Init() tea.Cmd {
+	return Blink
+}
+
 // Update is the Bubble Tea update loop.
-func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
+func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if !m.focus {
 		m.blink = true
 		return m, nil
@@ -560,9 +570,14 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 // View renders the textinput in its current state.
 func (m Model) View() string {
+	prompt := termenv.String(m.Prompt)
+	if m.focus {
+		prompt = prompt.Foreground(color(m.FocusedTextColor))
+	}
+
 	// Placeholder text
 	if len(m.value) == 0 && m.Placeholder != "" {
-		return m.placeholderView()
+		return prompt.String() + m.placeholderView()
 	}
 
 	value := m.value[m.offset:m.offsetRight]
@@ -590,7 +605,7 @@ func (m Model) View() string {
 		)
 	}
 
-	return m.Prompt + v
+	return prompt.String() + v
 }
 
 // placeholderView returns the prompt and placeholder view, if any.
@@ -610,7 +625,7 @@ func (m Model) placeholderView() string {
 	// The rest of the placeholder text
 	v += m.colorPlaceholder(p[1:])
 
-	return m.Prompt + v
+	return v
 }
 
 // cursorView styles the cursor.
