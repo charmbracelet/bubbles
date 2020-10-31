@@ -508,17 +508,17 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.offset = 0
 		case tea.KeyCtrlV: // ^V paste
 			return m, Paste
-		case tea.KeyRune: // input a regular character
-			if msg.Alt {
-				if msg.Rune == 'd' { // alt+d, delete word right of cursor
+		case tea.KeyRunes: // input regular characters
+			if msg.Alt && len(msg.Runes) == 1 {
+				if msg.Runes[0] == 'd' { // alt+d, delete word right of cursor
 					resetBlink = m.deleteWordRight()
 					break
 				}
-				if msg.Rune == 'b' { // alt+b, back one word
+				if msg.Runes[0] == 'b' { // alt+b, back one word
 					resetBlink = m.wordLeft()
 					break
 				}
-				if msg.Rune == 'f' { // alt+f, forward one word
+				if msg.Runes[0] == 'f' { // alt+f, forward one word
 					resetBlink = m.wordRight()
 					break
 				}
@@ -526,8 +526,8 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 			// Input a regular character
 			if m.CharLimit <= 0 || len(m.value) < m.CharLimit {
-				m.value = append(m.value[:m.pos], append([]rune{msg.Rune}, m.value[m.pos:]...)...)
-				resetBlink = m.SetCursor(m.pos + 1)
+				m.value = append(m.value[:m.pos], append(msg.Runes, m.value[m.pos:]...)...)
+				resetBlink = m.SetCursor(m.pos + len(msg.Runes))
 			}
 		}
 

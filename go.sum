@@ -1,7 +1,7 @@
 github.com/atotto/clipboard v0.1.2 h1:YZCtFu5Ie8qX2VmVTBnrqLSiU9XOWwqNRmdT3gIQzbY=
 github.com/atotto/clipboard v0.1.2/go.mod h1:ZY9tmq7sm5xIbd9bOK4onWV4S6X0u6GY7Vn0Yu86PYI=
-github.com/charmbracelet/bubbletea v0.12.1 h1:t21pkG2IDBRduPbt2J64Dx5yt8yIidAkXwhhrc11SzY=
-github.com/charmbracelet/bubbletea v0.12.1/go.mod h1:3gZkYELUOiEUOp0bTInkxguucy/xRbGSOcbMs1geLxg=
+github.com/charmbracelet/bubbletea v0.12.2-0.20201101135743-116a0cfb8f37 h1:BQLGyhKVE19a9XdNYcsnYlO9XHPlOVHIWM7+mmS014k=
+github.com/charmbracelet/bubbletea v0.12.2-0.20201101135743-116a0cfb8f37/go.mod h1:3gZkYELUOiEUOp0bTInkxguucy/xRbGSOcbMs1geLxg=
 github.com/containerd/console v1.0.1 h1:u7SFAJyRqWcG6ogaMAx3KjSTy1e3hT9QxqX7Jco7dRc=
 github.com/containerd/console v1.0.1/go.mod h1:XUsP6YE/mKtz6bxc+I8UiKKTP04qjQL4qcS3XoQ5xkw=
 github.com/google/goterm v0.0.0-20190703233501-fc88cf888a3f h1:5CjVwnuUcp5adK4gmY6i72gpVFVnZDP2h5TmPScB6u4=
