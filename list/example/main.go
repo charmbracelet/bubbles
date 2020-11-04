@@ -1,12 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"os"
 	"strconv"
-	"strings"
 )
 
 type model struct {
@@ -17,11 +17,17 @@ type model struct {
 	jump      string
 }
 
+type stringItem string
+
+func (s stringItem) String() string {
+	return string(s)
+}
+
 func main() {
-	items := []string{
+	itemList := []string{
 		"Welcome to the bubbles-list example!",
 		"Use 'q' or 'ctrl-c' to quit!",
-		"You can move the highlighted index up and down with the (arrow) keys 'k' and 'j'.",
+		"You can move the highlighted index up and down with the (arrow keys 'k' and 'j'.",
 		"Move to the beginning with 'g' and to the end with 'G'.",
 		"Sort the entrys with 's', but be carefull you can't unsort it again.",
 		"The list can handel linebreaks,\nand has wordwrap enabled if the line gets to long.",
@@ -33,9 +39,11 @@ func main() {
 		"The key 'v' inverts the selected state of each item.",
 		"To toggle betwen only absolute itemnumbers and also relativ numbers, the 'r' key is your friend.",
 	}
+	stringerList := list.MakeStringerList(itemList)
+
 	endResult := make(chan string, 1)
 
-	p := tea.NewProgram(initialize(items, endResult), update, view)
+	p := tea.NewProgram(initialize(stringerList, endResult), update, view)
 
 	// Use the full size of the terminal in its "alternate screen buffer"
 	fullScreen := false // change to true if you want fullscreen
@@ -60,7 +68,7 @@ func main() {
 
 // initialize sets up the model and returns it to the bubbletea runtime
 // as a function result, so it can later be handed over to the update and view functions.
-func initialize(lineList []string, endResult chan<- string) func() (tea.Model, tea.Cmd) {
+func initialize(lineList []fmt.Stringer, endResult chan<- string) func() (tea.Model, tea.Cmd) {
 	l := list.NewModel()
 	l.AddItems(lineList)
 	// l.WrapPrefix = false // uncomment for fancy check (selected) box :-)
@@ -123,8 +131,12 @@ func update(msg tea.Msg, mdl tea.Model) (tea.Model, tea.Cmd) {
 
 		// Enter prints the selected lines to StdOut
 		if msg.Type == tea.KeyEnter {
-			result := strings.Join(m.list.GetSelected(), "\n")
-			m.endResult <- result
+			var result bytes.Buffer
+			for _, item := range m.list.GetSelected() {
+				result.WriteString(item.String())
+				result.WriteString("\n")
+			}
+			m.endResult <- result.String()
 			return m, tea.Quit
 		}
 

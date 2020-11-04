@@ -15,11 +15,11 @@ type Model struct {
 	focus bool
 
 	listItems     []item
-	curIndex      int                    // curser
+	curIndex      int                    // cursor
 	visibleOffset int                    // begin of the visible lines
 	less          func(k, l string) bool // function used for sorting
 
-	CurserOffset int // offset or margin between the cursor and the viewport(visible) border
+	CursorOffset int // offset or margin between the cursor and the viewport(visible) border
 
 	Width  int
 	Height int
@@ -43,20 +43,36 @@ type Model struct {
 }
 
 // Item are Items used in the list Model
-// to hold the Content representat as a string
+// to hold the Content represented as a string
 type item struct {
 	selected     bool
-	content      string
 	wrapedLines  []string
 	wrapedLenght int
 	wrapedto     int
-	userValue    interface{}
+	value        fmt.Stringer
 }
 
-// genVisLines renews the wrap of the content into wraplines
+// StringItem is just a convenience to have fast a version
+// to satisfy the fmt.Stringer interface with plain strings
+type StringItem string
+
+func (s StringItem) String() string {
+	return string(s)
+}
+
+// MakeStringerList is a shortcut to convert a string List to a List that satisfies the fmt.Stringer Interface
+func MakeStringerList(list []string) []fmt.Stringer {
+	stringerList := make([]fmt.Stringer, len(list))
+	for i, item := range list {
+		stringerList[i] = StringItem(item)
+	}
+	return stringerList
+}
+
+// genVisLines renews the wrap of the content into wrapedLines
 func (i item) genVisLines(wrapTo int) item {
-	i.wrapedLines = strings.Split(wordwrap.String(i.content, wrapTo), "\n")
-	//TODO hardwrap lines/words
+	i.wrapedLines = strings.Split(wordwrap.String(i.value.String(), wrapTo), "\n")
+	//TODO hard wrap lines/words
 	i.wrapedLenght = len(i.wrapedLines)
 	i.wrapedto = wrapTo
 	return i
@@ -70,15 +86,16 @@ func (m *Model) View() string {
 // Lines returns the Visible lines of the list items
 // used to display the current user interface
 func (m *Model) Lines() []string {
+	// get public variables as locals so they can't change while using
 	// check visible area
 	height := m.Height
 	width := m.Width
-	offset := m.visibleOffset
 	if height*width <= 0 {
 		panic("Can't display with zero width or hight of Viewport")
 	}
+	offset := m.visibleOffset
 
-	// Get max seperator width
+	// Get separators width
 	widthItem := ansi.PrintableRuneWidth(m.Seperator)
 	widthWrap := ansi.PrintableRuneWidth(m.SeperatorWrap)
 
@@ -96,35 +113,35 @@ func (m *Model) Lines() []string {
 	}
 
 	// pad all prefixes to the same width for easy exchange
-	prefix := m.SelectedPrefix
-	prepad := m.UnSelectedPrefix
-	preWid := ansi.PrintableRuneWidth(prefix)
-	tmpWid := ansi.PrintableRuneWidth(prepad)
+	selected := m.SelectedPrefix
+	unselect := m.UnSelectedPrefix
+	selWid := ansi.PrintableRuneWidth(selected)
+	tmpWid := ansi.PrintableRuneWidth(unselect)
 
-	preWidth := preWid
-	if tmpWid > preWidth {
-		preWidth = tmpWid
+	selectWidth := selWid
+	if tmpWid > selectWidth {
+		selectWidth = tmpWid
 	}
-	prefix = strings.Repeat(" ", preWidth-preWid) + prefix
+	selected = strings.Repeat(" ", selectWidth-selWid) + selected
 
-	wrapPrePad := prepad
+	wrapPrePad := unselect
 	if !m.WrapPrefix {
-		wrapPrePad = strings.Repeat(" ", preWidth)
+		wrapPrePad = strings.Repeat(" ", selectWidth)
 	}
 
-	prepad = strings.Repeat(" ", preWidth-tmpWid) + prepad
+	unselect = strings.Repeat(" ", selectWidth-tmpWid) + unselect
 
-	// pad all seperators to the same width for easy exchange
+	// pad all separators to the same width for easy exchange
 	sepItem := strings.Repeat(" ", sepWidth-widthItem) + m.Seperator
 	sepWrap := strings.Repeat(" ", sepWidth-widthWrap) + m.SeperatorWrap
 
-	// pad right of prefix, with lenght of current pointer
+	// pad right of prefix, with length of current pointer
 	mark := m.CurrentMarker
 	markWidth := ansi.PrintableRuneWidth(mark)
 	unmark := strings.Repeat(" ", markWidth)
 
 	// Get the hole prefix width
-	holePrefixWidth := numWidth + preWidth + sepWidth + markWidth
+	holePrefixWidth := numWidth + selectWidth + sepWidth + markWidth
 
 	// Get actual content width
 	contentWidth := width - holePrefixWidth
@@ -158,28 +175,28 @@ out:
 			panic("cant display item with no visible content")
 		}
 
-		// if a number is set, prepend firstline with number and both with enough spaces
+		// if a number is set, prepend first line with number and both with enough spaces
 		firstPad := strings.Repeat(" ", numWidth)
 		var wrapPad string
 		if m.Number {
 			lineNum := lineNumber(m.NumberRelative, m.curIndex, index)
 			number := fmt.Sprintf("%d", lineNum)
-			// since diggets are only singel bytes, len is sufficent:
+			// since digits are only single bytes, len is sufficient:
 			firstPad = strings.Repeat(" ", numWidth-len(number)) + number
-			// pad wraped lines
+			// pad wrapped lines
 			wrapPad = strings.Repeat(" ", numWidth)
 		}
 
-		// Selecting: handel highlighting and prefixing of selected lines
-		selString := prepad
+		// Selecting: handle highlighting and prefixing of selected lines
+		selString := unselect
 		style := m.LineStyle
 
 		if item.selected {
 			style = m.SelectedStyle
-			selString = prefix
+			selString = selected
 		}
 
-		// Current: handel highlighting of current item/first-line
+		// Current: handle highlighting of current item/first-line
 		curPad := unmark
 		if index == m.curIndex {
 			style = m.CurrentStyle
@@ -191,12 +208,18 @@ out:
 
 		linePrefix = strings.Join([]string{firstPad, selString, sepItem, curPad}, "")
 		if wrap {
-			wrapPrefix = strings.Join([]string{wrapPad, wrapPrePad, sepWrap, unmark}, "") // dont prefix wrap lines with CurrentMarker (suffix)
+			wrapPrefix = strings.Join([]string{wrapPad, wrapPrePad, sepWrap, unmark}, "") // don't prefix wrap lines with CurrentMarker (unmark)
+		}
+
+		content := item.wrapedLines[0]
+		if !wrap {
+			content = item.value.String()
+			// TODO hard limit the string length
 		}
 
 		// join pad and first line content
-		// NOTE linebreak is not added here because it would mess with the highlighting
-		line := fmt.Sprintf("%s%s", linePrefix, item.wrapedLines[0])
+		// NOTE line break is not added here because it would mess with the highlighting
+		line := fmt.Sprintf("%s%s", linePrefix, content)
 
 		// Highlight and write first line
 		stringLines = append(stringLines, style.Styled(line))
@@ -207,18 +230,18 @@ out:
 			break out
 		}
 
-		// Dont write wraped lines if not set
+		// Don't write wrapped lines if not set
 		if !wrap || item.wrapedLenght <= 1 {
 			continue
 		}
 
-		// Write wraped lines
+		// Write wrapped lines
 		for _, line := range item.wrapedLines[1:] {
 			// Pad left of line
-			// NOTE linebreak is not added here because it would mess with the highlighting
+			// NOTE line break is not added here because it would mess with the highlighting
 			padLine := fmt.Sprintf("%s%s", wrapPrefix, line)
 
-			// Highlight and write wraped line
+			// Highlight and write wrapped line
 			stringLines = append(stringLines, style.Styled(padLine))
 			visLines++
 
@@ -232,7 +255,7 @@ out:
 }
 
 // lineNumber returns line number of the given index
-// and if relative is true the absolute difference to the curser
+// and if relative is true the absolute difference to the cursor
 func lineNumber(relativ bool, curser, current int) int {
 	if !relativ || curser == current {
 		return current
@@ -321,19 +344,19 @@ func (m Model) Init() tea.Cmd {
 	return nil
 }
 
-// AddItems addes the given Items to the list Model
+// AddItems adds the given Items to the list Model
 // Without performing updating the View TODO
-func (m *Model) AddItems(itemList []string) {
+func (m *Model) AddItems(itemList []fmt.Stringer) {
 	for _, i := range itemList {
 		m.listItems = append(m.listItems, item{
 			selected: false,
-			content:  i},
+			value:    i},
 		)
 	}
 }
 
 // Down moves the "cursor" or current line down.
-// If the end is allready reached err is not nil.
+// If the end is already reached err is not nil.
 func (m *Model) Down() error {
 	return m.Move(1)
 }
@@ -345,15 +368,15 @@ func (m *Model) Up() error {
 }
 
 // Move moves the cursor by amount, does nothing if amount is 0
-// and returns error != nil if amount gos beyond list borders
-// or if the CurserOffset is greater than half of the display height
+// and returns error != nil if amount go's beyond list borders
+// or if the CursorOffset is greater than half of the display height
 func (m *Model) Move(amount int) error {
 	// do nothing
 	if amount == 0 {
 		return nil
 	}
 	var err error
-	curOff := m.CurserOffset
+	curOff := m.CursorOffset
 	visOff := m.visibleOffset
 	height := m.Height
 	if curOff >= height/2 {
@@ -365,7 +388,7 @@ func (m *Model) Move(amount int) error {
 	if !m.CheckWithinBorder(target) {
 		return fmt.Errorf("Cant move outside the list: %d", target)
 	}
-	// move visible part of list if Curser is going beyond border.
+	// move visible part of list if Cursor is going beyond border.
 	lowerBorder := height + visOff - curOff
 	upperBorder := visOff + curOff
 
@@ -382,7 +405,7 @@ func (m *Model) Move(amount int) error {
 	if direction < 0 && target < upperBorder {
 		visOff = target - curOff
 	}
-	// dont go infront of list begin
+	// don't go in front of list begin
 	if visOff < 0 {
 		visOff = 0
 	}
@@ -398,11 +421,11 @@ func NewModel() Model {
 	// just reverse colors to keep there information
 	curStyle := termenv.Style{}.Reverse()
 	return Model{
-		// Accept keypresses
+		// Accept key presses
 		focus: true,
 
-		// Try to keep $CurserOffset lines between Cursor and screen Border
-		CurserOffset: 5,
+		// Try to keep $CursorOffset lines between Cursor and screen Border
+		CursorOffset: 5,
 
 		// Wrap lines to have no loss of information
 		Wrap: true,
@@ -429,9 +452,9 @@ func NewModel() Model {
 
 // ToggleSelect toggles the selected status
 // of the current Index if amount is 0
-// returns err != nil when amount lands outside list and savely does nothing
-// else if amount is not 0 toggels selected amount items
-// excluding the item on which the curser lands
+// returns err != nil when amount lands outside list and safely does nothing
+// else if amount is not 0 toggles selected amount items
+// excluding the item on which the cursor lands
 func (m *Model) ToggleSelect(amount int) error {
 	if amount == 0 {
 		m.listItems[m.curIndex].selected = !m.listItems[m.curIndex].selected
@@ -456,9 +479,9 @@ func (m *Model) ToggleSelect(amount int) error {
 }
 
 // MarkSelected selects or unselects depending on 'mark'
-// amount = 0 changes the current item but does not move the curser
+// amount = 0 changes the current item but does not move the cursor
 // if amount would be outside the list error is not nil
-// else all items till but excluding the end curser position
+// else all items till but excluding the end cursor position
 func (m *Model) MarkSelected(amount int, mark bool) error {
 	cur := m.curIndex
 	if amount == 0 {
@@ -499,7 +522,7 @@ func (m *Model) Top() {
 func (m *Model) Bottom() {
 	end := len(m.listItems) - 1
 	m.curIndex = end
-	maxVisItems := m.Height - m.CurserOffset
+	maxVisItems := m.Height - m.CursorOffset
 	var visLines, smallestVisIndex int
 	for c := end; visLines < maxVisItems; c-- {
 		if c < 0 {
@@ -513,28 +536,28 @@ func (m *Model) Bottom() {
 
 // GetSelected returns you a list of all items
 // that are selected in current (displayed) order
-func (m *Model) GetSelected() []string {
-	var selected []string
+func (m *Model) GetSelected() []fmt.Stringer {
+	var selected []fmt.Stringer
 	for _, item := range m.listItems {
 		if item.selected {
-			selected = append(selected, item.content)
+			selected = append(selected, item.value)
 		}
 	}
 	return selected
 }
 
 // Less is a Proxy to the less function, set from the user.
-// Swap is used to fullfill the Sort-interface
+// Swap is used to fulfill the Sort-interface
 func (m *Model) Less(i, j int) bool {
-	return m.less(m.listItems[i].content, m.listItems[j].content)
+	return m.less(m.listItems[i].value.String(), m.listItems[j].value.String())
 }
 
-// Swap is used to fullfill the Sort-interface
+// Swap is used to fulfill the Sort-interface
 func (m *Model) Swap(i, j int) {
 	m.listItems[i], m.listItems[j] = m.listItems[j], m.listItems[i]
 }
 
-// Len is used to fullfill the Sort-interface
+// Len is used to fulfill the Sort-interface
 func (m *Model) Len() int {
 	return len(m.listItems)
 }
@@ -544,7 +567,7 @@ func (m *Model) SetLess(less func(string, string) bool) {
 	m.less = less
 }
 
-// Sort sorts the listitems acording to the set less function
+// Sort sorts the listitems according to the set less function
 // The current Item will maybe change!
 // Since the index of the current pointer does not change
 func (m *Model) Sort() {
@@ -554,7 +577,7 @@ func (m *Model) Sort() {
 // MoveItem moves the current item by amount to the end
 // So: MoveItem(1) Moves the Item towards the end by one
 // and MoveItem(-1) Moves the Item towards the beginning
-// MoveItem(0) savely does nothing
+// MoveItem(0) safely does nothing
 // and a amount that would result outside the list returns a error != nil
 func (m *Model) MoveItem(amount int) error {
 	if amount == 0 {
@@ -585,17 +608,17 @@ func (m *Model) CheckWithinBorder(index int) bool {
 //	m.listItems = append(m.listItems, item{content: content, userValue: data})
 //}
 
-// Focus sets the list Model focus so it accepts keyinput and responds to them
+// Focus sets the list Model focus so it accepts key input and responds to them
 func (m *Model) Focus() {
 	m.focus = true
 }
 
-// UnFocus removes the focus so that the list Model does NOT responed to key presses
+// UnFocus removes the focus so that the list Model does NOT respond to key presses
 func (m *Model) UnFocus() {
 	m.focus = false
 }
 
-// Focused returns if the list Model is focused and acccepts keypresses
+// Focused returns if the list Model is focused and accepts key presses
 func (m *Model) Focused() bool {
 	return m.focus
 }

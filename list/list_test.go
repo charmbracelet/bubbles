@@ -84,7 +84,7 @@ func genModels(rawLists []test) []testModel {
 		m := NewModel()
 		m.Height = list.vHeight
 		m.Width = list.vWidth
-		m.AddItems(list.items)
+		m.AddItems(MakeStringerList(list.items))
 		newItem := testModel{model: m, shouldBe: list.shouldBe}
 		processedList[i] = newItem
 	}
@@ -166,12 +166,12 @@ func genDynamicModels() []testModel {
 	moveBottom := NewModel()
 	moveBottom.Width = 10
 	moveBottom.Height = 10
-	moveBottom.AddItems([]string{"", "", "", ""})
+	moveBottom.AddItems(MakeStringerList([]string{"", "", "", ""}))
 	moveBottom.Bottom()
 	moveDown := NewModel()
 	moveDown.Height = 50
 	moveDown.Width = 80
-	moveDown.AddItems([]string{"", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""})
+	moveDown.AddItems(MakeStringerList([]string{"", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""}))
 	moveDown.curIndex = 45 // set cursor next to line Offset Border so that the down move, should move the hole visible area.
 	moveDown.Down()
 	return []testModel{
@@ -237,7 +237,7 @@ func genDynamicModels() []testModel {
 
 func TestCheckBorder(t *testing.T) {
 	m := NewModel()
-	m.AddItems([]string{"", "", "", ""})
+	m.AddItems(MakeStringerList([]string{"", "", "", ""}))
 	if !m.CheckWithinBorder(0) {
 		t.Errorf("zero is not out of border")
 	}
