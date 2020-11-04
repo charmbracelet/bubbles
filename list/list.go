@@ -290,7 +290,7 @@ func lineNumber(relativ bool, curser, current int) int {
 }
 
 // Update changes the Model of the List according to the messages received
-func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
+func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if !m.focus {
 		return m, nil
 	}
@@ -383,50 +383,27 @@ func (m *Model) AddItems(itemList []fmt.Stringer) {
 //	return m.Move(-1)
 //}
 
-// Move moves the cursor by amount, does nothing if amount is 0
-// and returns OutOfBounds error if amount go's beyond list borders
+// Move moves the cursor by amount and returns OutOfBounds error if amount go's beyond list borders
 // or if the CursorOffset is greater than half of the display height returns ConfigError
+// if amount is 0 the Curser is within the view bounds
 func (m *Model) Move(amount int) error {
-	// do nothing
-	if amount == 0 {
-		return nil
-	}
 	var err error
 	curOff := m.CursorOffset
-	visOff := m.visibleOffset
 	height := m.Height
 	if curOff >= height/2 {
 		curOff = 0
 		err = ConfigError(fmt.Errorf("cursor offset must be less than halfe of the display height: setting it to zero"))
+		// still do the movement and return the error at the end if here was any
 	}
 
 	target := m.curIndex + amount
 	if !m.CheckWithinBorder(target) {
 		return OutOfBounds(fmt.Errorf("Cant move outside the list: %d", target))
 	}
-	// move visible part of list if Cursor is going beyond border.
-	lowerBorder := height + visOff - curOff
-	upperBorder := visOff + curOff
 
-	direction := 1
-	if amount < 0 {
-		direction = -1
-	}
-
-	// visible Down movement
-	if direction > 0 && target > lowerBorder {
-		visOff = target - (height - curOff)
-	}
-	// visible Up movement
-	if direction < 0 && target < upperBorder {
-		visOff = target - curOff
-	}
-	// don't go in front of list begin
-	if visOff < 0 {
-		visOff = 0
-	}
 	m.curIndex = target
-	m.visibleOffset = visOff
+	// Keep the cursor within visbile bouderys
+	m.KeepInVis()
 	return err
 }
 
@@ -442,7 +419,7 @@ func NewModel() Model {
 		focus: true,
 
 		// Try to keep $CursorOffset lines between Cursor and screen Border
-		CursorOffset: 5,
+		CursorOffset: 0,
 
 		// Wrap lines to have no loss of information
 		Wrap:       true,
@@ -466,6 +443,11 @@ func NewModel() Model {
 		SelectedStyle: selStyle,
 		CurrentStyle:  curStyle,
 	}
+}
+
+// Init does nothing
+func (m Model) Init() tea.Cmd {
+	return nil
 }
 
 // ToggleSelect toggles the selected status
@@ -603,6 +585,7 @@ func (m *Model) Sort() {
 			break // Stop when first (and hopefully only one) is found
 		}
 	}
+	m.Move(0)
 
 }
 
@@ -615,6 +598,7 @@ func (m *Model) MoveItem(amount int) error {
 	if amount == 0 {
 		return nil
 	}
+	m.Move(0)
 	cur := m.curIndex
 	target := cur + amount
 	if !m.CheckWithinBorder(target) {
@@ -693,9 +677,9 @@ func (m *Model) GetIndex(toSearch fmt.Stringer) (int, error) {
 }
 
 // UpdateAllItems takes a function and updates with it, all items in the list
-func (m *Model) UpdateAllItems(processor func(fmt.Stringer) fmt.Stringer) {
+func (m *Model) UpdateAllItems(updater func(fmt.Stringer) fmt.Stringer) {
 	for i, item := range m.listItems {
-		m.listItems[i].value = processor(item.value)
+		m.listItems[i].value = updater(item.value)
 	}
 }
 
@@ -705,8 +689,58 @@ func (m *Model) GetCursorIndex() (int, error) {
 		return m.curIndex, NotFocused(fmt.Errorf("Model is not focused"))
 	}
 	if m.CheckWithinBorder(m.curIndex) {
-		return m.curIndex, OutOfBounds(fmt.Errorf("Cursor isout auf bounds"))
+		return m.curIndex, OutOfBounds(fmt.Errorf("Cursor is out auf bounds"))
 	}
 	// TODO handel not focused case
 	return m.curIndex, nil
+}
+
+// GetAllItems returns all items in the list in current order
+func (m *Model) GetAllItems() []fmt.Stringer {
+	list := m.listItems
+	stringerList := make([]fmt.Stringer, len(list))
+	for i, item := range list {
+		stringerList[i] = item.value
+	}
+	return stringerList
+}
+
+// UpdateSelectedItems updates all selected items within the list with given function
+func (m *Model)UpdateSelectedItems(updater func(fmt.Stringer) fmt.Stringer) {
+	for i, item := range m.listItems {
+		if item.selected {
+			m.listItems[i].value = updater(item.value)
+		}
+	}
+}
+
+// KeepInVis move the visible offset so that the cursor is withn the visible border
+func (m *Model) KeepInVis() {
+	cursor := m.curIndex
+
+	// can't keep the cursor within border, without offsetting the first item
+	if cursor < 0 + m.CursorOffset {
+		return
+	}
+
+	// numeric lower and upper border
+	lowerBorder := m.visibleOffset + m.CursorOffset
+	upperBorder := m.visibleOffset + m.Height - m.CursorOffset
+
+	if cursor < lowerBorder-1 {
+		diff := lowerBorder - cursor
+		m.visibleOffset -= diff
+	}
+	if cursor > upperBorder+1 {
+		m.visibleOffset += (cursor - upperBorder)
+	}
+
+//	if m.visibleOffset < 0 {
+//		m.visibleOffset = 0
+//	}
+//
+//	length := len(m.listItems)
+//	if m.visibleOffset >= length {
+//		m.visibleOffset = length
+//	}
 }
