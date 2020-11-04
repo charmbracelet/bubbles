@@ -66,7 +66,7 @@ func (m *Model) View() string {
 	width := m.Viewport.Width
 
 	// check visible area
-	height := m.Viewport.Height - 1 // TODO question: why -1, otherwise firstline gets cut of
+	height := m.Viewport.Height - 1 // TODO question: why does the first line get cut of, if i ommit the -1?
 	width := m.Viewport.Width
 	offset := m.visibleOffset
 	if height*width <= 0 {
@@ -204,6 +204,20 @@ out:
 		}
 	}
 	return holeString.String()
+}
+
+// lineNumber returns line number of the given index
+// and if relative is true the absolute difference to the curser
+func lineNumber(relativ bool, curser, current int) int {
+	if !relativ || curser == current {
+		return current
+	}
+
+	diff := curser - current
+	if diff < 0 {
+		diff *= -1
+	}
+	return diff
 }
 
 // Update changes the Model of the List according to the messages recieved
@@ -394,18 +408,4 @@ func (m *Model) SetLess(less func(string, string) bool) {
 // Sort sorts the listitems acording to the set less function
 func (m *Model) Sort() {
 	sort.Sort(m)
-}
-
-// lineNumber returns line number of the given index
-// and if relative is true the absolute difference to the curser
-func lineNumber(relativ bool, curser, current int) int {
-	if !relativ || curser == current {
-		return current
-	}
-
-	diff := curser - current
-	if diff < 0 {
-		diff *= -1
-	}
-	return diff
 }
