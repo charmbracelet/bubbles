@@ -5,9 +5,8 @@ import (
 	"fmt"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
-	runewidth "github.com/mattn/go-runewidth"
-	"github.com/muesli/reflow/wordwrap"
 	"github.com/muesli/reflow/ansi"
+	"github.com/muesli/reflow/wordwrap"
 	"github.com/muesli/termenv"
 	"sort"
 	"strings"
@@ -18,23 +17,23 @@ type Model struct {
 	focus bool
 
 	listItems        []item
-	curIndex         int
-	visibleOffset    int
-	lineCurserOffset int
-	less             func(k, l string) bool
+	curIndex         int                    // curser
+	visibleOffset    int                    // begin of the visible lines
+	lineCurserOffset int                    // offset or margin between the cursor and the viewport(visible) border
+	less             func(k, l string) bool // function used for sorting
 
 	jump int // maybe buffer for jumping multiple lines
 
 	Viewport viewport.Model
 	Wrap     bool
 
-	SelectedPrefix   string
-	Seperator        string
-	SeperatorWrap    string
-	CurrentMarker string
+	SelectedPrefix string
+	Seperator      string
+	SeperatorWrap  string
+	CurrentMarker  string
 
-	Number   bool
-	NumberRelative   bool
+	Number         bool
+	NumberRelative bool
 
 	LineForeGroundStyle     termenv.Style
 	LineBackGroundStyle     termenv.Style
@@ -67,17 +66,16 @@ func (m *Model) View() string {
 	width := m.Viewport.Width
 
 	// check visible area
-	height := m.Viewport.Height
+	height := m.Viewport.Height - 1 // TODO question: why -1, otherwise firstline gets cut of
 	width := m.Viewport.Width
+	offset := m.visibleOffset
 	if height*width <= 0 {
 		panic("Can't display with zero width or hight of Viewport")
 	}
 
-
 	// Get max seperator width
 	widthItem := ansi.PrintableRuneWidth(m.Seperator)
 	widthWrap := ansi.PrintableRuneWidth(m.SeperatorWrap)
-
 
 	// Find max width
 	sepWidth := widthItem
@@ -85,9 +83,32 @@ func (m *Model) View() string {
 		sepWidth = widthWrap
 	}
 
+	// get widest *displayed* number, for padding
+	numWidth := len(fmt.Sprintf("%d", len(m.listItems)-1))
+	localMaxWidth := len(fmt.Sprintf("%d", offset+height-1))
+	if localMaxWidth < numWidth {
+		numWidth = localMaxWidth
+	}
+
+	// pad all prefixes to the same width for easy exchange
+	prefix := m.SelectedPrefix
+	preWidth := ansi.PrintableRuneWidth(prefix)
+	prepad := strings.Repeat(" ", preWidth)
+
+	// pad all seperators to the same width for easy exchange
+	sepItem := strings.Repeat(" ", sepWidth-widthItem) + m.Seperator
+	sepWrap := strings.Repeat(" ", sepWidth-widthWrap) + m.SeperatorWrap
+
+	// pad right of prefix, with lenght of current pointer
+	suffix := m.CurrentMarker
+	sufWidth := ansi.PrintableRuneWidth(suffix)
+	sufpad := strings.Repeat(" ", sufWidth)
+
+	// Get the hole prefix width
+	holePrefixWidth := numWidth + preWidth + sepWidth + sufWidth
+
 	// Get actual content width
-	numWidth := len(m.listItems)
-	contentWidth := width - (numWidth + sepWidth)
+	contentWidth := width - holePrefixWidth
 
 	// Check if there is space for the content left
 	if contentWidth <= 0 {
@@ -97,73 +118,54 @@ func (m *Model) View() string {
 	// renew wrap of all items TODO check if to slow
 	for i := range m.listItems {
 		m.listItems[i] = m.listItems[i].genVisLines(contentWidth)
-
 	}
-
-
-	// pad all prefixes to the same width for easy exchange
-	prefix := m.SelectedPrefix
-	prepad := strings.Repeat(" ", ansi.PrintableRuneWidth(m.SelectedPrefix))
-
-	// pad all seperators to the same width for easy exchange
-	sepItem := strings.Repeat(" ", sepWidth-widthItem)+m.Seperator
-	sepWrap := strings.Repeat(" ", sepWidth-widthWrap)+m.SeperatorWrap
-
-	// pad right of prefix, with lenght of current pointer
-	suffix := m.CurrentMarker
-	sufpad := strings.Repeat(" ", ansi.PrintableRuneWidth(suffix))
 
 	var visLines int
 	var holeString bytes.Buffer
 out:
 	// Handle list items, start at first visible and go till end of list or visible (break)
-	for index := m.visibleOffset; index < len(m.listItems); index++ {
+	for index := offset; index < len(m.listItems); index++ {
 		if index >= len(m.listItems) || index < 0 {
+			// TODO log error
 			break
 		}
 
 		item := m.listItems[index]
-		if item.wrapedLenght == 0 {
+		if item.wrapedLenght <= 0 {
 			panic("cant display item with no visible content")
 		}
 
-
-		var linePrefix, wrapPrefix string
-
-		// if a number is set, prepend firstline with number and both with enough spaceses
+		// if a number is set, prepend firstline with number and both with enough spaces
 		firstPad := strings.Repeat(" ", numWidth)
 		var wrapPad string
 		if m.Number {
-			lineNum := lineNumber(m.NumberRelative, m.curIndex, m.visibleOffset+index)
+			lineNum := lineNumber(m.NumberRelative, m.curIndex, index)
 			number := fmt.Sprintf("%d", lineNum)
-			// since diggets are only singel bytes len is sufficent:
+			// since diggets are only singel bytes, len is sufficent:
 			firstPad = strings.Repeat(" ", numWidth-len(number)) + number
 			// pad wraped lines
 			wrapPad = strings.Repeat(" ", numWidth)
 		}
 
-
 		// Selecting: handel highlighting and prefixing of selected lines
-		selString := prepad // assume not selected
+		selString := prepad       // assume not selected
 		style := termenv.String() // create empty style
 
 		if item.selected {
 			style = m.SelectedBackGroundStyle // fill style
-			selString = prefix // change if selected
+			selString = prefix                // change if selected
 		}
-
 
 		// Current: handel highlighting of current item/first-line
 		curPad := sufpad
-		if index+m.visibleOffset == m.curIndex {
+		if index == m.curIndex {
 			style = style.Reverse()
 			curPad = suffix
 		}
 
 		// join all prefixes
-		linePrefix = strings.Join([]string{firstPad, linePrefix, selString, sepItem, curPad}, "")
-		wrapPrefix = strings.Join([]string{wrapPad, linePrefix, selString, sepWrap, sufpad}, "")
-
+		linePrefix := strings.Join([]string{firstPad, selString, sepItem, curPad}, "")
+		wrapPrefix := strings.Join([]string{wrapPad, selString, sepWrap, sufpad}, "") // dont prefix wrap lines with CurrentMarker (suffix)
 
 		// join pad and first line content
 		// NOTE linebreak is not added here because it would mess with the highlighting
@@ -174,14 +176,14 @@ out:
 		holeString.WriteString("\n")
 		visLines++
 
-		// Dont write wraped lines if not set
-		if !m.Wrap || item.wrapedLenght <= 1 {
-			continue
-		}
-
 		// Only write lines that are visible
 		if visLines >= height {
 			break out
+		}
+
+		// Dont write wraped lines if not set
+		if !m.Wrap || item.wrapedLenght <= 1 {
+			continue
 		}
 
 		// Write wraped lines
@@ -284,8 +286,8 @@ func (m *Model) Down() error {
 	m.curIndex++
 	// move visible part of list if Curser is going beyond border.
 	lowerBorder := m.Viewport.Height + m.visibleOffset - m.lineCurserOffset
-	if m.curIndex >= lowerBorder {
-		m.visibleOffset++
+	if m.curIndex > lowerBorder {
+		m.visibleOffset = m.curIndex - (m.Viewport.Height - m.lineCurserOffset)
 	}
 	return nil
 }
@@ -301,7 +303,7 @@ func (m *Model) Up() error {
 	// move visible part of list if Curser is going beyond border.
 	upperBorder := m.visibleOffset + m.lineCurserOffset
 	if m.visibleOffset > 0 && m.curIndex <= upperBorder {
-		m.visibleOffset--
+		m.visibleOffset = m.curIndex - m.lineCurserOffset
 	}
 	return nil
 }
@@ -320,11 +322,12 @@ func NewModel() Model {
 
 		Wrap: true,
 
-		Seperator:        "╭",
-		SeperatorWrap:    "│",
-		CurrentMarker: ">",
-		SelectedPrefix:   "*",
-		Number:   true,
+		Seperator:      "╭",
+		SeperatorWrap:  "│",
+		CurrentMarker:  ">",
+		SelectedPrefix: "*",
+		Number:         true,
+
 		less: func(k, l string) bool {
 			return k < l
 		},
@@ -355,21 +358,8 @@ func (m *Model) Bottom() {
 	m.visibleOffset = smallestVisIndex
 }
 
-// maxRuneWidth returns the maximal lenght of occupied space
-// frome the given strings
-func maxRuneWidth(words ...string) int {
-	var max int
-	for _, w := range words {
-		width := runewidth.StringWidth(w)
-		if width > max {
-			max = width
-		}
-	}
-	return max
-}
-
-// GetSelected returns you a orderd list of all items
-// that are selected
+// GetSelected returns you a list of all items
+// that are selected in current (displayed) order
 func (m *Model) GetSelected() []string {
 	var selected []string
 	for _, item := range m.listItems {
@@ -406,12 +396,14 @@ func (m *Model) Sort() {
 	sort.Sort(m)
 }
 
+// lineNumber returns line number of the given index
+// and if relative is true the absolute difference to the curser
 func lineNumber(relativ bool, curser, current int) int {
 	if !relativ || curser == current {
 		return current
 	}
 
-	diff :=  curser - current
+	diff := curser - current
 	if diff < 0 {
 		diff *= -1
 	}

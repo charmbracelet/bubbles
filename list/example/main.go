@@ -33,7 +33,6 @@ func main() {
 		"Ones you hit 'enter', the selected lines will be printed to StdOut and the program exits.",
 		"When you print the items there will be a loss of information,",
 		"since one can not say what was a line break within an item or what is a new item",
-
 	}
 	endResult := make(chan string, 1)
 
@@ -77,9 +76,9 @@ func view(mdl tea.Model) string {
 		return "\n  Initalizing...\n\n  Waiting for info about window size."
 	}
 
-	return list.View(m.list)
+	listString := list.View(m.list)
+	return listString
 }
-
 
 // update recives messages and the model and changes the model accordingly to the messages
 func update(msg tea.Msg, mdl tea.Model) (tea.Model, tea.Cmd) {

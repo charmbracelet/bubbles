@@ -62,7 +62,7 @@ func TestPanic(t *testing.T) {
 	}
 }
 
-//TestDynamic tests the view output after a movement/view-changing method
+// TestDynamic tests the view output after a movement/view-changing method
 func TestDynamic(t *testing.T) {
 	for _, test := range genDynamicModels() {
 		actual := View(test.model)
@@ -100,7 +100,7 @@ func genTestModels() []test {
 			[]string{
 				"",
 			},
-			"\x1b[7m0  ╭>\x1b[0m\n",
+			"\x1b[7m0 ╭>\x1b[0m\n",
 		},
 		// if exceding the boards and softwrap (at word bounderys are possible
 		// wrap there. Dont increment the item number because its still the same item.
@@ -110,7 +110,23 @@ func genTestModels() []test {
 			[]string{
 				"robert frost",
 			},
-			"\x1b[7m0  ╭>robert\x1b[0m\n\x1b[7m   │ frost\x1b[0m\n",
+			"\x1b[7m0 ╭>robert\x1b[0m\n\x1b[7m  │ frost\x1b[0m\n",
+		},
+		{
+			10,
+			10,
+			[]string{"", "", "", "", "", "", "", "", "", "", "", "", "", "", ""},
+			"\x1b[7m0 ╭>\x1b[0m\n" +
+				`1 ╭ 
+2 ╭ 
+3 ╭ 
+4 ╭ 
+5 ╭ 
+6 ╭ 
+7 ╭ 
+8 ╭ 
+9 ╭ 
+`,
 		},
 	}
 }
@@ -147,18 +163,72 @@ func genDynamicModels() []testModel {
 	moveBottom := NewModel()
 	moveBottom.Viewport.Width = 10
 	moveBottom.Viewport.Height = 10
-	moveBottom.AddItems([]string{
-		"1",
-		"2",
-		"3",
-		"4",
-	},
-	)
+	moveBottom.AddItems([]string{"", "", "", ""})
 	moveBottom.Bottom()
+	moveDown := NewModel()
+	moveDown.Viewport.Height = 50
+	moveDown.Viewport.Width = 80
+	moveDown.AddItems([]string{"", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""})
+	moveDown.curIndex = 45 // set cursor next to line Offset Border so that the down move, should move the hole visible area.
+	moveDown.Down()
 	return []testModel{
 		{model: moveBottom,
-			shouldBe:     "0  ╭ \n1  ╭ \n2  ╭ \n\x1b[7m3  ╭>\x1b[0m\n",
+			shouldBe:     "0 ╭ \n1 ╭ \n2 ╭ \n\x1b[7m3 ╭>\x1b[0m\n",
 			afterMethode: "Bottom",
+		},
+		{model: moveDown,
+			shouldBe: ` 1 ╭ 
+ 2 ╭ 
+ 3 ╭ 
+ 4 ╭ 
+ 5 ╭ 
+ 6 ╭ 
+ 7 ╭ 
+ 8 ╭ 
+ 9 ╭ 
+10 ╭ 
+11 ╭ 
+12 ╭ 
+13 ╭ 
+14 ╭ 
+15 ╭ 
+16 ╭ 
+17 ╭ 
+18 ╭ 
+19 ╭ 
+20 ╭ 
+21 ╭ 
+22 ╭ 
+23 ╭ 
+24 ╭ 
+25 ╭ 
+26 ╭ 
+27 ╭ 
+28 ╭ 
+29 ╭ 
+30 ╭ 
+31 ╭ 
+32 ╭ 
+33 ╭ 
+34 ╭ 
+35 ╭ 
+36 ╭ 
+37 ╭ 
+38 ╭ 
+39 ╭ 
+40 ╭ 
+41 ╭ 
+42 ╭ 
+43 ╭ 
+44 ╭ 
+45 ╭ ` +
+				"\n\x1b[7m46 ╭>\x1b[0m\n" +
+				`47 ╭ 
+48 ╭ 
+49 ╭ 
+50 ╭ 
+`,
+			afterMethode: "Down",
 		},
 	}
 }
