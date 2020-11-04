@@ -387,23 +387,46 @@ func (m *Model) AddItems(itemList []fmt.Stringer) {
 // or if the CursorOffset is greater than half of the display height returns ConfigError
 // if amount is 0 the Curser is within the view bounds
 func (m *Model) Move(amount int) error {
+	// do nothing
+	if amount == 0 {
+		return nil
+	}
 	var err error
 	curOff := m.CursorOffset
+	visOff := m.visibleOffset
 	height := m.Height
 	if curOff >= height/2 {
 		curOff = 0
 		err = ConfigError(fmt.Errorf("cursor offset must be less than halfe of the display height: setting it to zero"))
-		// still do the movement and return the error at the end if here was any
 	}
 
 	target := m.curIndex + amount
 	if !m.CheckWithinBorder(target) {
 		return OutOfBounds(fmt.Errorf("Cant move outside the list: %d", target))
 	}
+	// move visible part of list if Cursor is going beyond border.
+	lowerBorder := visOff + height - curOff
+	upperBorder := visOff + curOff
 
+	direction := 1
+	if amount < 0 {
+		direction = -1
+	}
+
+	// visible Down movement
+	if direction > 0 && target > lowerBorder {
+		visOff = target - (height - curOff)
+	}
+	// visible Up movement
+	if direction < 0 && target < upperBorder {
+		visOff = target - curOff
+	}
+	// don't go in front of list begin
+	if visOff < 0 {
+		visOff = 0
+	}
 	m.curIndex = target
-	// Keep the cursor within visbile bouderys
-	m.KeepInVis()
+	m.visibleOffset = visOff
 	return err
 }
 
@@ -712,35 +735,4 @@ func (m *Model)UpdateSelectedItems(updater func(fmt.Stringer) fmt.Stringer) {
 			m.listItems[i].value = updater(item.value)
 		}
 	}
-}
-
-// KeepInVis move the visible offset so that the cursor is withn the visible border
-func (m *Model) KeepInVis() {
-	cursor := m.curIndex
-
-	// can't keep the cursor within border, without offsetting the first item
-	if cursor < 0 + m.CursorOffset {
-		return
-	}
-
-	// numeric lower and upper border
-	lowerBorder := m.visibleOffset + m.CursorOffset
-	upperBorder := m.visibleOffset + m.Height - m.CursorOffset
-
-	if cursor < lowerBorder-1 {
-		diff := lowerBorder - cursor
-		m.visibleOffset -= diff
-	}
-	if cursor > upperBorder+1 {
-		m.visibleOffset += (cursor - upperBorder)
-	}
-
-//	if m.visibleOffset < 0 {
-//		m.visibleOffset = 0
-//	}
-//
-//	length := len(m.listItems)
-//	if m.visibleOffset >= length {
-//		m.visibleOffset = length
-//	}
 }
