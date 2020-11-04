@@ -176,7 +176,8 @@ func (m *Model) Lines() []string {
 	if wrap {
 		// renew wrap of all items
 		for i := range m.listItems {
-			m.listItems[i] = m.listItems[i].genVisLines(contentWidth)
+			lineAm := m.listItems[i].genVisLines(contentWidth)
+			m.listItems[i] = lineAm
 		}
 	}
 
@@ -274,13 +275,14 @@ out:
 			// NOTE line break is not added here because it would mess with the highlighting
 			padLine := fmt.Sprintf("%s%s", wrapPrefix, line)
 
-			if lineOffset < 0 {
-				// Highlight and write wrapped line
-				stringLines = append(stringLines, style.Styled(padLine))
-				visLines++
-			} else {
+			if ignoreLines && lineOffset >= 0 {
 				lineOffset--
+				continue
 			}
+
+			// Highlight and write wrapped line
+			stringLines = append(stringLines, style.Styled(padLine))
+			visLines++
 
 			// Only write lines that are visible
 			if visLines > height {
@@ -417,7 +419,7 @@ func NewModel() Model {
 		CursorOffset: 0,
 
 		// Wrap lines to have no loss of information
-		Wrap:       false, //TODO
+		Wrap:       true,
 		PrefixWrap: true,
 
 		// Make clear where a item begins and where it ends
@@ -760,41 +762,55 @@ func (m *Model) KeepVisible(cursor int) (int, error) {
 }
 
 func (m *Model) keepVisibleWrap(cursor int) (int, error) {
-
 	var lower, upper bool // Visible lower/upper
-	var lineSum int
 	var lineCount [][2]int
 
-	// Reset all Offsets
-	m.visibleOffset = 0
-	m.lineOffset = 0
+	if !m.CheckWithinBorder(cursor) {
+		return 0, OutOfBounds(fmt.Errorf("can't move beyond list bonderys, with requested cursor position: %d", cursor))
+	}
+
 
 	// Nothing to do
 	if cursor == 0 {
+		// Reset all Offsets
+		m.visibleOffset = 0
+		m.lineOffset = 0
 		return 0, nil
 	}
 
+	direction := 1
+	if cursor- m.curIndex < 0 {
+		direction = -1
+	}
+
+	lineSum := 1 // Cursorline is not counted in the following loop, so do it here
 	// calculate how much space(lines) the items take
-	for c := cursor - 1; c > 0 && c > cursor-m.Height; c-- {
-		lineSum += m.listItems[c].wrapedLenght
+	for c := cursor - 1; c >= 0 && c > cursor-m.Height; c-- {
+		lineAm := m.listItems[c].wrapedLenght
+		lineSum += lineAm
 		lineCount = append(lineCount, [2]int{lineSum, c})
-		if lineSum >= m.CursorOffset {
+
+		// if new cursor infront of old visible offset dont mark borders
+		if cursor-1 < m.visibleOffset {
+			continue
+		}
+
+		// mark the pass of a border
+		if lineSum > m.CursorOffset {
 			upper = true
 		}
-		if lineSum >= m.Height-m.CursorOffset {
+		lowerBorder := m.Height-m.CursorOffset
+		if lineSum >= lowerBorder {
+			log.Println("setting lower border to true") //debug
 			lower = true
 		}
 	}
 
-	direction := 1
-	if m.curIndex-cursor < 0 {
-		direction = -1
-	}
-
 	// Can't Move infront of list begin
-	if direction < 0 && lineCount[len(lineCount)-1][0] < m.CursorOffset && m.visibleOffset <= 0 && m.lineOffset <= 0 {
+	if direction < 0 && len(lineCount) > 0 && lineCount[len(lineCount)-1][0] < m.CursorOffset && m.visibleOffset <= 0 && m.lineOffset <= 0 {
 		m.visibleOffset = 0
 		m.lineOffset = 0
+		log.Println("before")
 		return cursor, nil
 	}
 	// can't Move beyond list end, setting offsets accordingly
@@ -811,11 +827,13 @@ func (m *Model) keepVisibleWrap(cursor int) (int, error) {
 		m.visibleOffset = lastOffset
 		m.lineOffset = lineOffset
 		cursor = len(m.listItems) - 1
+		log.Println("after")
 		return cursor, nil
 	}
 
 	// Within bounds
 	if upper && !lower {
+		log.Println("middle")
 		return cursor, nil
 	}
 
@@ -832,6 +850,7 @@ func (m *Model) keepVisibleWrap(cursor int) (int, error) {
 		}
 		m.visibleOffset = lastOffset
 		m.lineOffset = lineOffset
+		log.Println("up")
 		return cursor, nil
 	}
 
@@ -840,16 +859,18 @@ func (m *Model) keepVisibleWrap(cursor int) (int, error) {
 		var lastOffset, lineOffset int
 		lowerBorder := m.Height - m.CursorOffset
 		for _, item := range lineCount {
-			lastOffset = item[1] // Visible Offset
-			if item[0] > lowerBorder {
+			if item[0] >= lowerBorder {
+				lastOffset = item[1] // Visible Offset
 				lineOffset = item[0] - lowerBorder
 				break
 			}
 		}
 		m.visibleOffset = lastOffset
 		m.lineOffset = lineOffset
+		log.Println("down")
 		return cursor, nil
 	}
+	log.Printf("unhandelt case, direction: %d, lower: %t", direction, lower)
 	return cursor, fmt.Errorf("unhandelt case")
 
 }
