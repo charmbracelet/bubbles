@@ -25,12 +25,12 @@ type Model struct {
 	Viewport viewport.Model
 	Wrap     bool
 
-	Seperator         string
-	SeperatorWrap     string
-	SeperatorSelected string
-	CurrentSeperator  string
-	RelativeNumber    bool
-	AbsoluteNumber    bool
+	Seperator        string
+	SeperatorWrap    string
+	SeperatorCurrent string
+	SelectedPrefix   string
+	RelativeNumber   bool
+	AbsoluteNumber   bool
 
 	LineForeGroundStyle     termenv.Style
 	LineBackGroundStyle     termenv.Style
@@ -87,10 +87,13 @@ func (m *Model) View() string {
 	}
 
 	// Get max seperator width
-	sepWidth := maxRuneWidth(m.Seperator, m.SeperatorWrap, m.CurrentSeperator)
+	sepWidth := maxRuneWidth(m.Seperator, m.SeperatorWrap, m.SeperatorCurrent) + runewidth.StringWidth(m.SelectedPrefix)
+
+	//Get hole Width
+	holeWidth := sepWidth + padWidth
 
 	// Get actual content width
-	contentWidth := width - (sepWidth + padWidth + 1)
+	contentWidth := width - (holeWidth + 1)
 
 	// Check if there is space for the content left
 	if contentWidth <= 0 {
@@ -115,32 +118,37 @@ out:
 		item := m.listItems[index]
 
 		sepString := m.Seperator
+		wrapString := m.SeperatorWrap
 
-		// handel highlighting of selected lines
+		// handel highlighting and prefixing of selected lines
 		style := termenv.String()
 		if item.selected {
 			style = m.SelectedBackGroundStyle
+			sepString = m.SelectedPrefix + sepString
+			wrapString = m.SelectedPrefix + wrapString
 		}
 
 		// handel highlighting of current line
 		if index+m.visibleOffset == m.curIndex {
 			style = style.Reverse()
-			sepString = m.CurrentSeperator
+			sepString = m.SeperatorCurrent
 		}
 
-		// if set prepend firstline with linenumber
+		// if set, prepend firstline with enough space for linenumber and seperator
+		// This while first create a string like: "%3d%4s"
+		// Which will be than filled with linenumber and seperator string
 		var firstPad string
 		if m.AbsoluteNumber || m.RelativeNumber {
 			lineOffset := m.visibleOffset + index
 			firstPad = fmt.Sprintf("%"+fmt.Sprint(padWidth)+"d%"+fmt.Sprint(sepWidth)+"s", lineOffset, sepString)
 		}
 
-		// join pad and line content
 		if item.wrapedLenght == 0 {
 			panic("cant display item with no visible content")
 		}
 
 		lineContent := item.wrapedLines[0]
+		// join pad and line content
 		// NOTE linebreak is not added here because it would mess with the highlighting
 		line := fmt.Sprintf("%s%s", firstPad, lineContent)
 
@@ -162,7 +170,8 @@ out:
 		// Write wraped lines
 		for _, line := range item.wrapedLines[1:] {
 			// Pad left of line
-			pad := strings.Repeat(" ", padWidth) + m.SeperatorWrap
+			// TODO performance: do stringlength and prepending befor loop
+			pad := strings.Repeat(" ", holeWidth-runewidth.StringWidth(wrapString)) + wrapString
 			// NOTE linebreak is not added here because it would mess with the highlighting
 			padLine := fmt.Sprintf("%s%s", pad, line)
 
@@ -264,7 +273,8 @@ func NewModel() Model {
 
 		Seperator:        " ╭ ",
 		SeperatorWrap:    " │ ",
-		CurrentSeperator: " ╭>",
+		SeperatorCurrent: " ╭>",
+		SelectedPrefix:   "*",
 		AbsoluteNumber:   true,
 
 		SelectedBackGroundStyle: style,
