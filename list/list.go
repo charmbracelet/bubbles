@@ -19,6 +19,7 @@ type Model struct {
 	curIndex      int
 	visibleItems  []item
 	visibleOffset int
+	lineCurserOffset int
 
 	Viewport viewport.Model
 	wrap     bool
@@ -48,9 +49,10 @@ func (m *Model) View() string {
 	width := m.Viewport.Width
 
 	// padding for the right amount of numbers
-	max := m.Viewport.Height
-	if m.curIndex > max {
-		max = m.curIndex
+	max := m.Viewport.Height // relativ
+	abs := m.visibleOffset+m.Viewport.Height-1 // absolute
+	if abs > max {
+		max = abs
 	}
 
 	padTo := runewidth.StringWidth(fmt.Sprintf("%d", max))
@@ -61,8 +63,21 @@ func (m *Model) View() string {
 		panic("Can't display with zero width for content")
 	}
 
-	m.seperator = " ╭ "
-	m.seperatorWrap = " │ "
+	// set Visible lines
+	if len(m.listItems) <= m.Viewport.Height {
+		m.visibleItems = m.listItems
+	} else {
+		begin := m.visibleOffset
+		if begin < 0 {
+			begin = 0
+		}
+		end := m.visibleOffset+m.Viewport.Height
+		lenght := len(m.listItems)
+		if end > lenght {
+			end = len(m.listItems)
+		}
+		m.visibleItems = m.listItems[begin:end]
+	}
 
 	p := termenv.ColorProfile()
 
@@ -70,12 +85,12 @@ func (m *Model) View() string {
 	var holeString bytes.Buffer
 out:
 	// Handle list items
-	for index, item := range m.listItems {
+	for index, item := range m.visibleItems {
 		sep := m.seperator
 		// handel highlighting of current or selected lines
 		colored := termenv.String()
 		if item.selected {
-			colored = colored.Background(p.Color("#ff0000"))
+			colored = colored.Background(p.Color(m.SelectedBackGroundColor))
 		}
 		if index+m.visibleOffset == m.curIndex {
 			colored = colored.Reverse()
@@ -134,9 +149,6 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.listItems[m.curIndex].selected = !m.listItems[m.curIndex].selected
 		}
 	}
-	if m.Viewport.Height >= len(m.listItems) {
-		m.visibleItems = m.listItems
-	}
 	return m, nil
 }
 
@@ -170,10 +182,17 @@ func (m *Model) SetSeperator(sep string) {
 // Down moves the "cursor" or current line down.
 // If the end is allready reached err is not nil.
 func (m *Model) Down() error {
-	if m.curIndex > len(m.listItems) {
+	length := len(m.listItems)-1
+	if m.curIndex >= length {
+		m.curIndex = length
 		return fmt.Errorf("Can't go beyond last item")
 	}
 	m.curIndex++
+	// move visible part of list if Curser is going beyond border.
+	lowerBorder := m.Viewport.Height+m.visibleOffset-m.lineCurserOffset
+	if m.curIndex >= lowerBorder {
+		m.visibleOffset++
+	}
 	return nil
 }
 
@@ -181,13 +200,50 @@ func (m *Model) Down() error {
 // If the start is allready reached err is not nil.
 func (m *Model) Up() error {
 	if m.curIndex <= 0 {
+		m.curIndex = 0
 		return fmt.Errorf("Can't go infront of first item")
 	}
 	m.curIndex--
+	// move visible part of list if Curser is going beyond border.
+	upperBorder := m.visibleOffset+m.lineCurserOffset
+	if m.visibleOffset > 0 && m.curIndex <= upperBorder {
+		m.visibleOffset--
+	}
 	return nil
 }
 
 // ToggleSelect toggles the selected status of the current Index
 func (m *Model) ToggleSelect() {
 	m.listItems[m.curIndex].selected = !m.listItems[m.curIndex].selected
+}
+
+// NewModel returns a Model with some save/sane defaults
+func NewModel() Model {
+	return Model{
+		lineCurserOffset: 5,
+
+		wrap: true,
+
+		seperator: " ╭ ",
+		seperatorWrap: " │ ",
+		absoluteNumber: true,
+
+		SelectedBackGroundColor: "#ff0000",
+	}
+}
+
+// Top moves the cursor to the first line
+func (m *Model) Top() {
+	m.visibleOffset = 0
+	m.visibleItems = m.listItems[0:m.Viewport.Height]
+	m.curIndex = 0
+}
+
+// Bottom moves the cursor to the first line
+func (m *Model) Bottom() {
+	visLines := m.Viewport.Height-m.lineCurserOffset
+	start :=len(m.listItems)-visLines// FIXME acount for wraped lines
+	m.visibleOffset = start
+	m.visibleItems = m.listItems[start:start+visLines]
+	m.curIndex = len(m.listItems)-1
 }
