@@ -7,6 +7,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	runewidth "github.com/mattn/go-runewidth"
 	"github.com/muesli/reflow/wordwrap"
+	"github.com/muesli/reflow/ansi"
 	"github.com/muesli/termenv"
 	"sort"
 	"strings"
@@ -27,12 +28,13 @@ type Model struct {
 	Viewport viewport.Model
 	Wrap     bool
 
+	SelectedPrefix   string
 	Seperator        string
 	SeperatorWrap    string
-	SeperatorCurrent string
-	SelectedPrefix   string
-	RelativeNumber   bool
-	AbsoluteNumber   bool
+	CurrentMarker string
+
+	Number   bool
+	NumberRelative   bool
 
 	LineForeGroundStyle     termenv.Style
 	LineBackGroundStyle     termenv.Style
@@ -71,31 +73,21 @@ func (m *Model) View() string {
 		panic("Can't display with zero width or hight of Viewport")
 	}
 
-	// if there is something to pad
-	var relWidth, absWidth, padWidth int
-
-	if m.RelativeNumber {
-		relWidth = len(fmt.Sprintf("%d", height))
-	}
-
-	if m.AbsoluteNumber {
-		absWidth = len(fmt.Sprintf("%d", len(m.listItems)))
-	}
-
-	// get widest number to pad
-	padWidth = relWidth
-	if padWidth < absWidth {
-		padWidth = absWidth
-	}
 
 	// Get max seperator width
-	sepWidth := maxRuneWidth(m.Seperator, m.SeperatorWrap, m.SeperatorCurrent) + runewidth.StringWidth(m.SelectedPrefix)
+	widthItem := ansi.PrintableRuneWidth(m.Seperator)
+	widthWrap := ansi.PrintableRuneWidth(m.SeperatorWrap)
 
-	//Get hole Width
-	holeWidth := sepWidth + padWidth
+
+	// Find max width
+	sepWidth := widthItem
+	if widthWrap > sepWidth {
+		sepWidth = widthWrap
+	}
 
 	// Get actual content width
-	contentWidth := width - (holeWidth + 1)
+	numWidth := len(m.listItems)
+	contentWidth := width - (numWidth + sepWidth)
 
 	// Check if there is space for the content left
 	if contentWidth <= 0 {
@@ -108,6 +100,19 @@ func (m *Model) View() string {
 
 	}
 
+
+	// pad all prefixes to the same width for easy exchange
+	prefix := m.SelectedPrefix
+	prepad := strings.Repeat(" ", ansi.PrintableRuneWidth(m.SelectedPrefix))
+
+	// pad all seperators to the same width for easy exchange
+	sepItem := strings.Repeat(" ", sepWidth-widthItem)+m.Seperator
+	sepWrap := strings.Repeat(" ", sepWidth-widthWrap)+m.SeperatorWrap
+
+	// pad right of prefix, with lenght of current pointer
+	suffix := m.CurrentMarker
+	sufpad := strings.Repeat(" ", ansi.PrintableRuneWidth(suffix))
+
 	var visLines int
 	var holeString bytes.Buffer
 out:
@@ -118,41 +123,51 @@ out:
 		}
 
 		item := m.listItems[index]
-
-		sepString := m.Seperator
-		wrapString := m.SeperatorWrap
-
-		// handel highlighting and prefixing of selected lines
-		style := termenv.String()
-		if item.selected {
-			style = m.SelectedBackGroundStyle
-			sepString = m.SelectedPrefix + sepString
-			wrapString = m.SelectedPrefix + wrapString
-		}
-
-		// handel highlighting of current line
-		if index+m.visibleOffset == m.curIndex {
-			style = style.Reverse()
-			sepString = m.SeperatorCurrent
-		}
-
-		// if set, prepend firstline with enough space for linenumber and seperator
-		// This while first create a string like: "%3d%4s"
-		// Which will be than filled with linenumber and seperator string
-		var firstPad string
-		if m.AbsoluteNumber || m.RelativeNumber {
-			lineOffset := m.visibleOffset + index
-			firstPad = fmt.Sprintf("%"+fmt.Sprint(padWidth)+"d%"+fmt.Sprint(sepWidth)+"s", lineOffset, sepString)
-		}
-
 		if item.wrapedLenght == 0 {
 			panic("cant display item with no visible content")
 		}
 
-		lineContent := item.wrapedLines[0]
-		// join pad and line content
+
+		var linePrefix, wrapPrefix string
+
+		// if a number is set, prepend firstline with number and both with enough spaceses
+		firstPad := strings.Repeat(" ", numWidth)
+		var wrapPad string
+		if m.Number {
+			lineNum := lineNumber(m.NumberRelative, m.curIndex, m.visibleOffset+index)
+			number := fmt.Sprintf("%d", lineNum)
+			// since diggets are only singel bytes len is sufficent:
+			firstPad = strings.Repeat(" ", numWidth-len(number)) + number
+			// pad wraped lines
+			wrapPad = strings.Repeat(" ", numWidth)
+		}
+
+
+		// Selecting: handel highlighting and prefixing of selected lines
+		selString := prepad // assume not selected
+		style := termenv.String() // create empty style
+
+		if item.selected {
+			style = m.SelectedBackGroundStyle // fill style
+			selString = prefix // change if selected
+		}
+
+
+		// Current: handel highlighting of current item/first-line
+		curPad := sufpad
+		if index+m.visibleOffset == m.curIndex {
+			style = style.Reverse()
+			curPad = suffix
+		}
+
+		// join all prefixes
+		linePrefix = strings.Join([]string{firstPad, linePrefix, selString, sepItem, curPad}, "")
+		wrapPrefix = strings.Join([]string{wrapPad, linePrefix, selString, sepWrap, sufpad}, "")
+
+
+		// join pad and first line content
 		// NOTE linebreak is not added here because it would mess with the highlighting
-		line := fmt.Sprintf("%s%s", firstPad, lineContent)
+		line := fmt.Sprintf("%s%s", linePrefix, item.wrapedLines[0])
 
 		// Highlight and write first line
 		holeString.WriteString(style.Styled(line))
@@ -160,7 +175,7 @@ out:
 		visLines++
 
 		// Dont write wraped lines if not set
-		if !m.Wrap || item.wrapedLenght < 1 {
+		if !m.Wrap || item.wrapedLenght <= 1 {
 			continue
 		}
 
@@ -172,10 +187,8 @@ out:
 		// Write wraped lines
 		for _, line := range item.wrapedLines[1:] {
 			// Pad left of line
-			// TODO performance: do stringlength and prepending befor loop
-			pad := strings.Repeat(" ", holeWidth-runewidth.StringWidth(wrapString)) + wrapString
 			// NOTE linebreak is not added here because it would mess with the highlighting
-			padLine := fmt.Sprintf("%s%s", pad, line)
+			padLine := fmt.Sprintf("%s%s", wrapPrefix, line)
 
 			// Highlight and write wraped line
 			holeString.WriteString(style.Styled(padLine))
@@ -307,11 +320,11 @@ func NewModel() Model {
 
 		Wrap: true,
 
-		Seperator:        " ╭ ",
-		SeperatorWrap:    " │ ",
-		SeperatorCurrent: " ╭>",
+		Seperator:        "╭",
+		SeperatorWrap:    "│",
+		CurrentMarker: ">",
 		SelectedPrefix:   "*",
-		AbsoluteNumber:   true,
+		Number:   true,
 		less: func(k, l string) bool {
 			return k < l
 		},
@@ -391,4 +404,16 @@ func (m *Model) SetLess(less func(string, string) bool) {
 // Sort sorts the listitems acording to the set less function
 func (m *Model) Sort() {
 	sort.Sort(m)
+}
+
+func lineNumber(relativ bool, curser, current int) int {
+	if !relativ || curser == current {
+		return current
+	}
+
+	diff :=  curser - current
+	if diff < 0 {
+		diff *= -1
+	}
+	return diff
 }
