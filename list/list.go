@@ -44,7 +44,7 @@ type ScreenInfo struct {
 // and then Prefix ones, per line to draw, to generate according prefixes.
 type Prefixer interface {
 	InitPrefixer(ViewPos, ScreenInfo) int
-	Prefix(currentItem, currentLine int, selected, lastLine bool) string
+	Prefix(currentItem, currentLine int, selected bool) string
 }
 
 // Suffixer is used to suffix all visible Lines.
@@ -52,7 +52,7 @@ type Prefixer interface {
 // and then Suffix ones, per line to draw, to generate according suffixes.
 type Suffixer interface {
 	InitSuffixer(ViewPos, ScreenInfo) int
-	Suffix(currentItem, currentLine int, selected, lastLine bool) string
+	Suffix(currentItem, currentLine int, selected bool) string
 }
 
 // Model is a bubbletea List of strings
@@ -74,8 +74,8 @@ type Model struct {
 
 	Wrap bool
 
-	// PrefixFunc func(position ViewPos, height int) (func(currentIndex int, selected bool, wrapedIndex int) string, int)
 	PrefixGen Prefixer
+	SuffixGen Suffixer
 
 	LineStyle     termenv.Style
 	SelectedStyle termenv.Style
@@ -126,6 +126,7 @@ func (m Model) View() string {
 // used to display the current user interface
 func (m *Model) Lines() []string {
 	// get public variables as locals so they can't change while using
+
 	// check visible area
 	height := m.Height
 	width := m.Width
@@ -133,21 +134,23 @@ func (m *Model) Lines() []string {
 		panic("Can't display with zero width or hight of Viewport")
 	}
 
-	// This is only used if the Lines methode is called befor the Update methode is called the first time
-	var holePrefixWidth int
+	// Get the Width of each suf/prefix
+	var prefixWidth, suffixWidth int
 	if m.PrefixGen != nil {
-		holePrefixWidth = m.PrefixGen.InitPrefixer(m.viewPos, ScreenInfo{Height: m.Height, Width: m.Width, Profile: termenv.ColorProfile()})
+		prefixWidth = m.PrefixGen.InitPrefixer(m.viewPos, ScreenInfo{Height: m.Height, Width: m.Width, Profile: termenv.ColorProfile()})
+	}
+	if m.SuffixGen != nil {
+		suffixWidth = m.SuffixGen.InitSuffixer(m.viewPos, ScreenInfo{Height: m.Height, Width: m.Width, Profile: termenv.ColorProfile()})
 	}
 
 	// Get actual content width
-	contentWidth := width - holePrefixWidth
+	contentWidth := width - prefixWidth - suffixWidth
 
 	// Check if there is space for the content left
 	if contentWidth <= 0 {
 		panic("Can't display with zero width for content")
 	}
 
-	// If set
 	wrap := m.Wrap
 	if wrap {
 		// renew wrap of all items
@@ -188,16 +191,19 @@ out:
 			// TODO hard limit the string length
 		}
 
-		var linePrefix string
+		// Surrounding content
+		var linePrefix, lineSuffix string
 		if m.PrefixGen != nil {
-			linePrefix = m.PrefixGen.Prefix(index, 0, item.selected, item.wrapedLenght == 0)
+			linePrefix = m.PrefixGen.Prefix(index, 0, item.selected)
+		}
+		if m.SuffixGen != nil {
+			lineSuffix = fmt.Sprintf("%s%s", strings.Repeat(" ", contentWidth-ansi.PrintableRuneWidth(content)), m.SuffixGen.Suffix(index, 0, item.selected))
 		}
 
-		// join pad and first line content
-		// NOTE line break is not added here because it would mess with the highlighting
-		line := fmt.Sprintf("%s%s", linePrefix, content)
+		// Join all
+		line := fmt.Sprintf("%s%s%s", linePrefix, content, lineSuffix)
 
-		// Selecting: handle highlighting of selected and current lines
+		// Highlighting of selected and current lines
 		style := m.LineStyle
 		if item.selected {
 			style = m.SelectedStyle
@@ -238,7 +244,7 @@ out:
 			// NOTE line break is not added here because it would mess with the highlighting
 			var wrapPrefix string
 			if m.PrefixGen != nil {
-				wrapPrefix = m.PrefixGen.Prefix(index, i+1, item.selected, i == item.wrapedLenght-2)
+				wrapPrefix = m.PrefixGen.Prefix(index, i+1, item.selected)
 			}
 			padLine := fmt.Sprintf("%s%s", wrapPrefix, line)
 
@@ -915,7 +921,7 @@ func (d *DefaultPrefixer) InitPrefixer(position ViewPos, screen ScreenInfo) int 
 }
 
 // Prefix prefixes a given line
-func (d *DefaultPrefixer) Prefix(currentIndex int, wrapIndex int, selected, lastLine bool) string {
+func (d *DefaultPrefixer) Prefix(currentIndex int, wrapIndex int, selected bool) string {
 	// if a number is set, prepend first line with number and both with enough spaces
 	firstPad := strings.Repeat(" ", d.numWidth)
 	var wrapPad string

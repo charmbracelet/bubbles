@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/muesli/reflow/ansi"
 	"os"
 	"strconv"
+	"strings"
 )
 
 type model struct {
@@ -44,6 +46,7 @@ func main() {
 	endResult := make(chan string, 1)
 	list := list.NewModel()
 	list.AddItems(stringerList)
+	list.SuffixGen = &exampleSuffixer{currentMarker: "<"}
 
 	// Since in this example we only use UNIQUE string items we can use a String Comparison for the equals methode
 	// but be aware that different items in your case can have the same string -> false-positiv
@@ -200,4 +203,23 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	return m, nil
+}
+
+type exampleSuffixer struct {
+	viewPos       list.ViewPos
+	currentMarker string
+	markerLenght  int
+}
+
+func (e *exampleSuffixer) InitSuffixer(viewPos list.ViewPos, screen list.ScreenInfo) int {
+	e.viewPos = viewPos
+	e.markerLenght = ansi.PrintableRuneWidth(e.currentMarker)
+	return e.markerLenght
+}
+
+func (e *exampleSuffixer) Suffix(item, line int, selected bool) string {
+	if item == e.viewPos.Cursor && line == 0 {
+		return e.currentMarker
+	}
+	return strings.Repeat(" ", e.markerLenght)
 }
