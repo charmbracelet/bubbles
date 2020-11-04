@@ -258,3 +258,16 @@ func maxRuneWidth(words ...string) int {
 	}
 	return max
 }
+
+// GetSelected returns you a orderd list of all items
+// that are selected
+func (m *Model) GetSelected()  []string {
+	var selected []string
+	for _, item := range m.listItems {
+		if item.selected {
+			selected = append(selected, item.content)
+		}
+	}
+	return selected
+}
+
