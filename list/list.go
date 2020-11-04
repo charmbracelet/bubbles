@@ -34,10 +34,9 @@ type Model struct {
 	Number         bool
 	NumberRelative bool
 
-	LineForeGroundStyle     termenv.Style
-	LineBackGroundStyle     termenv.Style
-	SelectedForeGroundStyle termenv.Style
-	SelectedBackGroundStyle termenv.Style
+	LineStyle     termenv.Style
+	SelectedStyle termenv.Style
+	CurrentStyle  termenv.Style
 }
 
 // Item are Items used in the list Model
@@ -151,18 +150,18 @@ out:
 		}
 
 		// Selecting: handel highlighting and prefixing of selected lines
-		selString := prepad       // assume not selected
-		style := termenv.String() // create empty style
+		selString := prepad
+		style := m.LineStyle
 
 		if item.selected {
-			style = m.SelectedBackGroundStyle // fill style
-			selString = prefix                // change if selected
+			style = m.SelectedStyle
+			selString = prefix
 		}
 
 		// Current: handel highlighting of current item/first-line
 		curPad := sufpad
 		if index == m.curIndex {
-			style = style.Reverse()
+			style = m.CurrentStyle
 			curPad = suffix
 		}
 
@@ -367,7 +366,8 @@ func (m *Model) Move(amount int) error {
 // NewModel returns a Model with some save/sane defaults
 func NewModel() Model {
 	p := termenv.ColorProfile()
-	style := termenv.Style{}.Background(p.Color("#ff0000"))
+	selStyle := termenv.Style{}.Background(p.Color("#ff0000"))
+	curStyle := termenv.Style{}.Reverse()
 	return Model{
 		CurserOffset: 5,
 
@@ -383,7 +383,8 @@ func NewModel() Model {
 			return k < l
 		},
 
-		SelectedBackGroundStyle: style,
+		SelectedStyle: selStyle,
+		CurrentStyle:  curStyle,
 	}
 }
 

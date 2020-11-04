@@ -5,6 +5,7 @@ import (
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -13,6 +14,7 @@ type model struct {
 	list      list.Model
 	finished  bool
 	endResult chan<- string
+	jump      string
 }
 
 func main() {
@@ -28,7 +30,8 @@ func main() {
 		"When you print the items there will be a loss of information,",
 		"since one can not say what was a line break within an item or what is a new item",
 		"Use '+' or '-' to move the item under the curser up and down.",
-		"The 'v' inverts the selected state of each item.",
+		"The key 'v' inverts the selected state of each item.",
+		"To toggle betwen only absolute itemnumbers and also relativ numbers, the 'r' key is your friend.",
 	}
 	endResult := make(chan string, 1)
 
@@ -87,10 +90,32 @@ func update(msg tea.Msg, mdl tea.Model) (tea.Model, tea.Cmd) {
 			m.endResult <- ""
 			return m, tea.Quit
 		}
-		switch msg.String() {
+		switch keyString := msg.String(); keyString {
 		case "q":
 			m.endResult <- ""
 			return m, tea.Quit
+		case "1", "2", "3", "4", "5", "6", "7", "8", "9", "0":
+			m.jump += keyString
+			return m, nil
+		case "down", "j":
+			j := 1
+			if m.jump != "" {
+				j, _ = strconv.Atoi(m.jump)
+				m.jump = ""
+			}
+			m.list.Move(j)
+			return m, nil
+		case "up", "k":
+			j := 1
+			if m.jump != "" {
+				j, _ = strconv.Atoi(m.jump)
+				m.jump = ""
+			}
+			m.list.Move(-j)
+			return m, nil
+		case "r":
+			m.list.NumberRelative = !m.list.NumberRelative
+			return m, nil
 		}
 
 		// Enter prints the selected lines to StdOut
