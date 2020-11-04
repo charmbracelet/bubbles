@@ -30,7 +30,7 @@ type Model struct {
 	relativeNumber   bool
 	absoluteNumber   bool
 
-	jump int
+	jump int // maybe buffer for jumping multiple lines
 
 	LineForeGroundColor     string
 	LineBackGroundColor     string
@@ -84,48 +84,60 @@ out:
 	// Handle list items
 	for index, item := range m.visibleItems {
 		sepString := m.seperator
-		// handel highlighting of current or selected lines
+
+		// handel highlighting of selected lines
 		colored := termenv.String()
 		if item.selected {
 			colored = colored.Background(p.Color(m.SelectedBackGroundColor))
 		}
+
+		// handel highlighting of current line
 		if index+m.visibleOffset == m.curIndex {
 			colored = colored.Reverse()
 			sepString = m.currentSeperator
 		}
-		contentLines := strings.Split(wordwrap.String(colored.Styled(item.content), contentWidth), "\n")
 
-		var firstPad string
+		// Get wraplines
+		contentLines := strings.Split(wordwrap.String((item.content), contentWidth), "\n")
+
 		// if set prepend firstline with linenumber
+		var firstPad string
 		if m.absoluteNumber || m.relativeNumber {
-			firstPad = colored.Styled(fmt.Sprintf("%"+fmt.Sprint(padTo)+"d%"+fmt.Sprint(sep)+"s", m.visibleOffset+index, sepString))
+			firstPad = fmt.Sprintf("%"+fmt.Sprint(padTo)+"d%"+fmt.Sprint(sep)+"s", m.visibleOffset+index, sepString)
 		}
+
 		// Only handel lines that are visible
 		if visLines+len(contentLines) >= m.Viewport.Height {
 			break out
 		}
-		// Write first line
-		holeString.WriteString(firstPad)
-		holeString.WriteString(contentLines[0])
-		holeString.WriteString("\n")
 
+		// join pad and line content
+		line := fmt.Sprintf("%s%s\n", firstPad, contentLines[0])
+
+		// Highlight and write first line
+		holeString.WriteString(colored.Styled(line))
+
+		// Dont write wraped lines if not set
 		visLines++
-		if len(contentLines) == 1 || !m.wrap {
+		if !m.wrap {
 			continue
 		}
 
 		// Write wraped lines
 		for _, line := range contentLines[1:] {
-			holeString.WriteString(strings.Repeat(" ", padTo) + m.seperatorWrap) // Pad line
-			holeString.WriteString(line)                                         // write line
-			holeString.WriteString("\n")                                         // Write end of line
-			visLines++
+			// Pad line
+			pad := strings.Repeat(" ", padTo) + m.seperatorWrap
+			padLine := fmt.Sprintf("%s%s\n", pad, line)
+
+			// Highlight and write wrap lines
+			holeString.WriteString(colored.Styled(padLine))
+
 			// Only write lines that are visible
+			visLines++
 			if visLines >= m.Viewport.Height {
 				break out
 			}
 		}
-
 	}
 	return holeString.String()
 }
@@ -138,7 +150,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "down":
 			if m.jump > 0 {
 				m.curIndex -= m.jump
-				m.jump = 0 // TODO check if this realy resets jump (if m is a pointer) likely pointer
+				m.jump = 0
 			} else {
 				m.curIndex--
 			}
