@@ -29,7 +29,7 @@ func main() {
 		"Use 'q' or 'ctrl-c' to quit!",
 		"You can move the highlighted index up and down with the (arrow keys 'k' and 'j'.",
 		"Move to the beginning with 'g' and to the end with 'G'.",
-		"Sort the entrys with 's', but be carefull you can't unsort it again.",
+		"Sort the entrys with 's', but be carefull you can't restore the former order again.",
 		"The list can handel linebreaks,\nand has wordwrap enabled if the line gets to long.",
 		"You can select items with the space key which will select the line and mark it as such.",
 		"Ones you hit 'enter', the selected lines will be printed to StdOut and the program exits.",
@@ -37,12 +37,11 @@ func main() {
 		"since one can not say what was a line break within an item or what is a new item",
 		"Use '+' or '-' to move the item under the curser up and down.",
 		"The key 'v' inverts the selected state of each item.",
-		//"To toggle betwen only absolute itemnumbers and also relativ numbers, the 'r' key is your friend.",
+		"To toggle betwen only absolute item numbers and relativ numbers, the 'r' key is your friend.",
 	}
 	stringerList := list.MakeStringerList(itemList)
 
 	endResult := make(chan string, 1)
-	prefixFunc := list.AbsolutLinePrefix
 	list := list.NewModel()
 	list.AddItems(stringerList)
 
@@ -52,7 +51,6 @@ func main() {
 	list.SetEquals(func(first, second fmt.Stringer) bool { return first.String() == second.String() })
 	m := model{}
 	m.list = list
-	m.list.PrefixFunc = prefixFunc
 
 	m.endResult = endResult
 
@@ -95,6 +93,10 @@ func (m model) View() string {
 
 // update recives messages and the model and changes the model accordingly to the messages
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if m.list.PrefixGen == nil {
+		// use default
+		m.list.PrefixGen = list.NewDefault()
+	}
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
@@ -130,9 +132,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m.list.Move(-j)
 			return m, nil
-		//case "r":
-		//	m.list.NumberRelative = !m.list.NumberRelative
-		//	return m, nil
+		case "r":
+			d, ok := m.list.PrefixGen.(*list.DefaultPrefixer)
+			if ok {
+				d.NumberRelative = !d.NumberRelative
+			}
+			return m, nil
 		case "m":
 			j := 1
 			if m.jump != "" {

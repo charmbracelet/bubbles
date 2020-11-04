@@ -32,6 +32,29 @@ type ViewPos struct {
 	LineOffset int
 }
 
+// ScreenInfo holds all information about the screen Area
+type ScreenInfo struct {
+	Width   int
+	Height  int
+	Profile termenv.Profile
+}
+
+// Prefixer is used to prefix all visible Lines.
+// Init gets called ones on the beginning of the Lines methode
+// and then Prefix ones, per line to draw, to generate according prefixes.
+type Prefixer interface {
+	InitPrefixer(ViewPos, ScreenInfo) int
+	Prefix(currentItem, currentLine int, selected, lastLine bool) string
+}
+
+// Suffixer is used to suffix all visible Lines.
+// InitSuffixer gets called ones on the beginning of the Lines methode
+// and then Suffix ones, per line to draw, to generate according suffixes.
+type Suffixer interface {
+	InitSuffixer(ViewPos, ScreenInfo) int
+	Suffix(currentItem, currentLine int, selected, lastLine bool) string
+}
+
 // Model is a bubbletea List of strings
 type Model struct {
 	focus bool
@@ -51,11 +74,8 @@ type Model struct {
 
 	Wrap bool
 
-	PrefixFunc func(position ViewPos, height int) (func(currentIndex int, selected bool, wrapedIndex int) string, int)
-	// PrefixFunc     func(value fmt.Stringer, position ViewPos, selected bool) string
-	// PrefixWrapFunc func(value fmt.Stringer, position ViewPos, selected bool, wrapedIndex int) string
-	// SuffixFunc     func(value fmt.Stringer, position ViewPos, selected bool) string
-	// SuffixWrapFunc func(value fmt.Stringer, position ViewPos, selected bool, wrapedIndex int) string
+	// PrefixFunc func(position ViewPos, height int) (func(currentIndex int, selected bool, wrapedIndex int) string, int)
+	PrefixGen Prefixer
 
 	LineStyle     termenv.Style
 	SelectedStyle termenv.Style
@@ -113,13 +133,10 @@ func (m *Model) Lines() []string {
 		panic("Can't display with zero width or hight of Viewport")
 	}
 
-	var prefixFunc func(int, bool, int) string
+	// This is only used if the Lines methode is called befor the Update methode is called the first time
 	var holePrefixWidth int
-	if m.PrefixFunc != nil {
-		prefixFunc, holePrefixWidth = m.PrefixFunc(m.viewPos, height)
-	} else {
-		// use default
-		prefixFunc, holePrefixWidth = AbsolutLinePrefix(m.viewPos, height)
+	if m.PrefixGen != nil {
+		holePrefixWidth = m.PrefixGen.InitPrefixer(m.viewPos, ScreenInfo{Height: m.Height, Width: m.Width, Profile: termenv.ColorProfile()})
 	}
 
 	// Get actual content width
@@ -171,10 +188,9 @@ out:
 			// TODO hard limit the string length
 		}
 
-		// retrieve line prefix from prefix closure
 		var linePrefix string
-		if prefixFunc != nil {
-			linePrefix = prefixFunc(index, item.selected, 0)
+		if m.PrefixGen != nil {
+			linePrefix = m.PrefixGen.Prefix(index, 0, item.selected, item.wrapedLenght == 0)
 		}
 
 		// join pad and first line content
@@ -221,8 +237,8 @@ out:
 			// Pad left of line
 			// NOTE line break is not added here because it would mess with the highlighting
 			var wrapPrefix string
-			if prefixFunc != nil {
-				wrapPrefix = prefixFunc(index, item.selected, i+1)
+			if m.PrefixGen != nil {
+				wrapPrefix = m.PrefixGen.Prefix(index, i+1, item.selected, i == item.wrapedLenght-2)
 			}
 			padLine := fmt.Sprintf("%s%s", wrapPrefix, line)
 
@@ -249,6 +265,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if !m.focus {
 		return m, nil
 	}
+
+	if m.PrefixGen == nil {
+		// use default
+		m.PrefixGen = NewDefault()
+	}
+
 	var cmd tea.Cmd
 
 	switch msg := msg.(type) {
@@ -780,30 +802,72 @@ func (m *Model) keepVisibleWrap(target int) (ViewPos, error) {
 	return ViewPos{ItemOffset: m.viewPos.ItemOffset, LineOffset: m.viewPos.LineOffset, Cursor: target}, nil
 }
 
-// AbsolutLinePrefix returns a function which will be used for prefix generation
-func AbsolutLinePrefix(position ViewPos, height int) (func(currentLine int, selected bool, wrapIndex int) string, int) {
-
-	PrefixWrap := false
+// DefaultPrefixer is the default struct used for Prefixing a line
+type DefaultPrefixer struct {
+	PrefixWrap bool
 
 	// Make clear where a item begins and where it ends
-	Seperator := "╭"
-	SeperatorWrap := "│"
+	Seperator     string
+	SeperatorWrap string
 
 	// Mark it so that even without color support all is explicit
-	CurrentMarker := ">"
-	SelectedPrefix := "*"
+	CurrentMarker  string
+	SelectedPrefix string
 
 	// enable Linenumber
-	Number := true
-	NumberRelative := false
+	Number         bool
+	NumberRelative bool
 
-	UnSelectedPrefix := ""
+	UnSelectedPrefix string
+
+	prefixWidth int
+	viewPos     ViewPos
+
+	markWidth int
+	numWidth  int
+
+	unmark string
+	mark   string
+
+	selectedString string
+	unselect       string
+
+	wrapSelectPad string
+	wrapUnSelePad string
+
+	sepItem string
+	sepWrap string
+}
+
+// NewDefault returns a DefautPrefixer with default values
+func NewDefault() *DefaultPrefixer {
+	return &DefaultPrefixer{
+		PrefixWrap: false,
+
+		// Make clear where a item begins and where it ends
+		Seperator:     "╭",
+		SeperatorWrap: "│",
+
+		// Mark it so that even without color support all is explicit
+		CurrentMarker:    ">",
+		SelectedPrefix:   "*",
+		UnSelectedPrefix: "",
+
+		// enable Linenumber
+		Number:         true,
+		NumberRelative: false,
+	}
+}
+
+// InitPrefixer returns a function which will be used for prefix generation
+func (d *DefaultPrefixer) InitPrefixer(position ViewPos, screen ScreenInfo) int {
+	d.viewPos = position
 
 	offset := position.ItemOffset
 
 	// Get separators width
-	widthItem := ansi.PrintableRuneWidth(Seperator)
-	widthWrap := ansi.PrintableRuneWidth(SeperatorWrap)
+	widthItem := ansi.PrintableRuneWidth(d.Seperator)
+	widthWrap := ansi.PrintableRuneWidth(d.SeperatorWrap)
 
 	// Find max width
 	sepWidth := widthItem
@@ -812,83 +876,83 @@ func AbsolutLinePrefix(position ViewPos, height int) (func(currentLine int, sele
 	}
 
 	// get widest possible number, for padding
-	numWidth := len(fmt.Sprintf("%d", offset+height-1))
+	d.numWidth = len(fmt.Sprintf("%d", offset+screen.Height))
 
 	// pad all prefixes to the same width for easy exchange
-	selectedString := SelectedPrefix
-	unselect := UnSelectedPrefix
-	selWid := ansi.PrintableRuneWidth(selectedString)
-	tmpWid := ansi.PrintableRuneWidth(unselect)
+	d.selectedString = d.SelectedPrefix
+	d.unselect = d.UnSelectedPrefix
+	selWid := ansi.PrintableRuneWidth(d.selectedString)
+	tmpWid := ansi.PrintableRuneWidth(d.unselect)
 
 	selectWidth := selWid
 	if tmpWid > selectWidth {
 		selectWidth = tmpWid
 	}
-	selectedString = strings.Repeat(" ", selectWidth-selWid) + selectedString
+	d.selectedString = strings.Repeat(" ", selectWidth-selWid) + d.selectedString
 
-	wrapSelectPad := strings.Repeat(" ", selectWidth)
-	wrapUnSelePad := strings.Repeat(" ", selectWidth)
-	if PrefixWrap {
-		wrapSelectPad = strings.Repeat(" ", selectWidth-selWid) + selectedString
-		wrapUnSelePad = strings.Repeat(" ", selectWidth-tmpWid) + unselect
+	d.wrapSelectPad = strings.Repeat(" ", selectWidth)
+	d.wrapUnSelePad = strings.Repeat(" ", selectWidth)
+	if d.PrefixWrap {
+		d.wrapSelectPad = strings.Repeat(" ", selectWidth-selWid) + d.selectedString
+		d.wrapUnSelePad = strings.Repeat(" ", selectWidth-tmpWid) + d.unselect
 	}
 
-	unselect = strings.Repeat(" ", selectWidth-tmpWid) + unselect
+	d.unselect = strings.Repeat(" ", selectWidth-tmpWid) + d.unselect
 
 	// pad all separators to the same width for easy exchange
-	sepItem := strings.Repeat(" ", sepWidth-widthItem) + Seperator
-	sepWrap := strings.Repeat(" ", sepWidth-widthWrap) + SeperatorWrap
+	d.sepItem = strings.Repeat(" ", sepWidth-widthItem) + d.Seperator
+	d.sepWrap = strings.Repeat(" ", sepWidth-widthWrap) + d.SeperatorWrap
 
 	// pad right of prefix, with length of current pointer
-	mark := CurrentMarker
-	markWidth := ansi.PrintableRuneWidth(mark)
-	unmark := strings.Repeat(" ", markWidth)
+	d.mark = d.CurrentMarker
+	d.markWidth = ansi.PrintableRuneWidth(d.mark)
+	d.unmark = strings.Repeat(" ", d.markWidth)
 
 	// Get the hole prefix width
-	holePrefixWidth := numWidth + selectWidth + sepWidth + markWidth
+	d.prefixWidth = d.numWidth + selectWidth + sepWidth + d.markWidth
 
-	// Closure varibale
-	currentCursor := position.Cursor
+	return d.prefixWidth
+}
 
-	return func(currentIndex int, selected bool, wrapIndex int) string {
-		// if a number is set, prepend first line with number and both with enough spaces
-		firstPad := strings.Repeat(" ", numWidth)
-		var wrapPad string
-		var lineNum int
-		if Number {
-			lineNum = lineNumber(NumberRelative, currentCursor, currentIndex)
-		}
-		number := fmt.Sprintf("%d", lineNum)
-		// since digits are only single bytes, len is sufficient:
-		firstPad = strings.Repeat(" ", numWidth-len(number)) + number
-		// pad wrapped lines
-		wrapPad = strings.Repeat(" ", numWidth)
-		// Selecting: handle highlighting and prefixing of selected lines
-		selString := unselect
+// Prefix prefixes a given line
+func (d *DefaultPrefixer) Prefix(currentIndex int, wrapIndex int, selected, lastLine bool) string {
+	// if a number is set, prepend first line with number and both with enough spaces
+	firstPad := strings.Repeat(" ", d.numWidth)
+	var wrapPad string
+	var lineNum int
+	if d.Number {
+		lineNum = lineNumber(d.NumberRelative, d.viewPos.Cursor, currentIndex)
+	}
+	number := fmt.Sprintf("%d", lineNum)
+	// since digits are only single bytes, len is sufficient:
+	firstPad = strings.Repeat(" ", d.numWidth-len(number)) + number
+	// pad wrapped lines
+	wrapPad = strings.Repeat(" ", d.numWidth)
+	// Selecting: handle highlighting and prefixing of selected lines
+	selString := d.unselect
 
-		wrapPrePad := wrapUnSelePad
-		if selected {
-			selString = selectedString
-			wrapPrePad = wrapSelectPad
-		}
+	wrapPrePad := d.wrapUnSelePad
+	if selected {
+		selString = d.selectedString
+		wrapPrePad = d.wrapSelectPad
+	}
 
-		// Current: handle highlighting of current item/first-line
-		curPad := unmark
-		if currentIndex == position.Cursor {
-			curPad = mark
-		}
+	// Current: handle highlighting of current item/first-line
+	curPad := d.unmark
+	if currentIndex == d.viewPos.Cursor {
+		curPad = d.mark
+	}
 
-		// join all prefixes
-		var wrapPrefix, linePrefix string
+	// join all prefixes
+	var wrapPrefix, linePrefix string
 
-		linePrefix = strings.Join([]string{firstPad, selString, sepItem, curPad}, "")
-		if wrapIndex > 0 {
-			wrapPrefix = strings.Join([]string{wrapPad, wrapPrePad, sepWrap, unmark}, "") // don't prefix wrap lines with CurrentMarker (unmark)
-			return wrapPrefix
-		}
+	linePrefix = strings.Join([]string{firstPad, selString, d.sepItem, curPad}, "")
+	if wrapIndex > 0 {
+		wrapPrefix = strings.Join([]string{wrapPad, wrapPrePad, d.sepWrap, d.unmark}, "") // don't prefix wrap lines with CurrentMarker (unmark)
+		return wrapPrefix
+	}
 
-		return linePrefix
-	}, holePrefixWidth
+	return linePrefix
 }
 
 // lineNumber returns line number of the given index
