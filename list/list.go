@@ -1,7 +1,6 @@
 package list
 
 import (
-	"bytes"
 	"fmt"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/muesli/reflow/ansi"
@@ -15,11 +14,12 @@ import (
 type Model struct {
 	focus bool
 
-	listItems        []item
-	curIndex         int                    // curser
-	visibleOffset    int                    // begin of the visible lines
-	lineCurserOffset int                    // offset or margin between the cursor and the viewport(visible) border
-	less             func(k, l string) bool // function used for sorting
+	listItems     []item
+	curIndex      int                    // curser
+	visibleOffset int                    // begin of the visible lines
+	less          func(k, l string) bool // function used for sorting
+
+	CurserOffset int // offset or margin between the cursor and the viewport(visible) border
 
 	Width  int
 	Height int
@@ -62,10 +62,14 @@ func (i item) genVisLines(wrapTo int) item {
 
 // View renders the Lst to a (displayable) string
 func (m *Model) View() string {
-	width := m.Viewport.Width
+	return strings.Join(m.Lines(), "\n")
+}
 
+// Lines returns the Visible lines of the list items
+// used to display the current user interface
+func (m *Model) Lines() []string {
 	// check visible area
-	height := m.Height - 1 // TODO question: why does the first line get cut of, if i ommit the -1?
+	height := m.Height
 	width := m.Width
 	offset := m.visibleOffset
 	if height*width <= 0 {
@@ -120,7 +124,7 @@ func (m *Model) View() string {
 	}
 
 	var visLines int
-	var holeString bytes.Buffer
+	stringLines := make([]string, 0, height)
 out:
 	// Handle list items, start at first visible and go till end of list or visible (break)
 	for index := offset; index < len(m.listItems); index++ {
@@ -171,8 +175,7 @@ out:
 		line := fmt.Sprintf("%s%s", linePrefix, item.wrapedLines[0])
 
 		// Highlight and write first line
-		holeString.WriteString(style.Styled(line))
-		holeString.WriteString("\n")
+		stringLines = append(stringLines, style.Styled(line))
 		visLines++
 
 		// Only write lines that are visible
@@ -192,17 +195,16 @@ out:
 			padLine := fmt.Sprintf("%s%s", wrapPrefix, line)
 
 			// Highlight and write wraped line
-			holeString.WriteString(style.Styled(padLine))
-			holeString.WriteString("\n")
+			stringLines = append(stringLines, style.Styled(padLine))
 			visLines++
 
 			// Only write lines that are visible
-			if visLines >= height {
+			if visLines > height {
 				break out
 			}
 		}
 	}
-	return holeString.String()
+	return stringLines
 }
 
 // lineNumber returns line number of the given index
@@ -317,16 +319,49 @@ func (m *Model) Up() error {
 
 // Move moves the cursor by amount, does nothing if amount is 0
 // and returns error != nil if amount gos beyond list borders
+// or if the CurserOffset is greater than half of the display height
 func (m *Model) Move(amount int) error {
+	// do nothing
 	if amount == 0 {
 		return nil
 	}
+	var err error
+	curOff := m.CurserOffset
+	visOff := m.visibleOffset
+	height := m.Height
+	if curOff >= height/2 {
+		curOff = 0
+		err = fmt.Errorf("cursor offset must be less than halfe of the display height: setting it to zero")
+	}
+
 	target := m.curIndex + amount
 	if !m.CheckWithinBorder(target) {
 		return fmt.Errorf("Cant move outside the list: %d", target)
 	}
+	// move visible part of list if Curser is going beyond border.
+	lowerBorder := height + visOff - curOff
+	upperBorder := visOff + curOff
+
+	direction := 1
+	if amount < 0 {
+		direction = -1
+	}
+
+	// visible Down movement
+	if direction > 0 && target > lowerBorder {
+		visOff = target - (height - curOff)
+	}
+	// visible Up movement
+	if direction < 0 && target < upperBorder {
+		visOff = target - curOff
+	}
+	// dont go infront of list begin
+	if visOff < 0 {
+		visOff = 0
+	}
 	m.curIndex = target
-	return nil
+	m.visibleOffset = visOff
+	return err
 }
 
 // NewModel returns a Model with some save/sane defaults
@@ -334,7 +369,7 @@ func NewModel() Model {
 	p := termenv.ColorProfile()
 	style := termenv.Style{}.Background(p.Color("#ff0000"))
 	return Model{
-		lineCurserOffset: 5,
+		CurserOffset: 5,
 
 		Wrap: true,
 
@@ -424,7 +459,7 @@ func (m *Model) Top() {
 func (m *Model) Bottom() {
 	end := len(m.listItems) - 1
 	m.curIndex = end
-	maxVisItems := m.Height - m.lineCurserOffset
+	maxVisItems := m.Height - m.CurserOffset
 	var visLines, smallestVisIndex int
 	for c := end; visLines < maxVisItems; c-- {
 		if c < 0 {
