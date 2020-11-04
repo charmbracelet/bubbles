@@ -155,8 +155,7 @@ func (m *Model) Lines() []string {
 	if wrap {
 		// renew wrap of all items
 		for i := range m.listItems {
-			lineAm := m.listItems[i].genVisLines(contentWidth)
-			m.listItems[i] = lineAm
+			m.listItems[i] = m.listItems[i].genVisLines(contentWidth)
 		}
 	}
 
@@ -174,7 +173,7 @@ out:
 		}
 
 		var ignoreLines bool
-		if wrap && lineOffset != 0 && index == offset {
+		if wrap && lineOffset > 0 && index == offset {
 			ignoreLines = true
 		}
 
@@ -212,15 +211,12 @@ out:
 			style = m.CurrentStyle
 		}
 
-		// skip lines when line offset is activ
+		// skip lines only when line offset is activ
 		if !ignoreLines {
 			// Highlight and write first line
 			stringLines = append(stringLines, style.Styled(line))
 			visLines++
 		}
-		// else { // TODO nessecary?
-		//	lineOffset--
-		// }
 
 		// Only write lines that are visible
 		if visLines >= height {
@@ -235,7 +231,7 @@ out:
 		// Write wrapped lines
 		for i, line := range item.wrapedLines[1:] {
 			// skip unvisible leading lines
-			if ignoreLines && lineOffset >= 0 {
+			if ignoreLines && lineOffset < 0 {
 				lineOffset--
 				continue
 			}
@@ -716,7 +712,6 @@ func (m *Model) keepVisibleWrap(target int) (ViewPos, error) {
 		return ViewPos{}, OutOfBounds(fmt.Errorf("can't move beyond list bonderys, with requested cursor position: %d", target))
 	}
 
-	// Nothing to do
 	if target == 0 {
 		return ViewPos{}, nil
 	}
@@ -784,7 +779,7 @@ func (m *Model) keepVisibleWrap(target int) (ViewPos, error) {
 		for _, item := range lineCount {
 			lastOffset = item.listIndex // Visible Offset
 			if item.linesBefor > upperBorder {
-				lineOffset = item.linesBefor - upperBorder
+				lineOffset = item.linesBefor - upperBorder - 1
 				break
 			}
 		}

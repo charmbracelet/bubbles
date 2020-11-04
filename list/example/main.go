@@ -29,7 +29,7 @@ func main() {
 	itemList := []string{
 		"Welcome to the bubbles-list example!",
 		"Use 'q' or 'ctrl-c' to quit!",
-		"You can move the highlighted index up and down with the (arrow keys 'k' and 'j'.",
+		"You can move the highlighted index up and down with the (arrow keys or 'k' and 'j'.)",
 		"Move to the beginning with 'g' and to the end with 'G'.",
 		"Sort the entrys with 's', but be carefull you can't restore the former order again.",
 		"The list can handel linebreaks,\nand has wordwrap enabled if the line gets to long.",
