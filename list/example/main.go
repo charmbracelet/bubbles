@@ -167,7 +167,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.jump = ""
 			}
 			m.list.ToggleSelect(j)
-			m.list.Move(1)
 			return m, nil
 		case "enter":
 			// Enter prints the selected lines to StdOut

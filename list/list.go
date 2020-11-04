@@ -463,16 +463,22 @@ func (m *Model) ToggleSelect(amount int) error {
 	}
 
 	cur := m.curIndex
-	target := cur + amount - direction
-	if !m.CheckWithinBorder(target) {
-		return OutOfBounds(fmt.Errorf("Cant go beyond list borders: %d", target))
+
+	// mark index zero when trying to move infront of list
+	var o int
+	// but not when moving on index zero
+	if cur+amount >= 0{
+		o=1
 	}
-	for c := 0; c < amount*direction; c++ {
-		m.listItems[cur+c].selected = !m.listItems[cur+c].selected
+	target, err := m.Move(amount)
+	start, end := cur, target
+	if direction < 0 {
+		start, end = target+o, cur+1
 	}
-	m.curIndex = target - direction
-	m.Move(direction)
-	return nil
+	for c := start; c < end; c++{
+		m.listItems[c].selected = !m.listItems[c].selected
+	}
+	return err
 }
 
 // MarkSelected selects or unselects depending on 'mark'
