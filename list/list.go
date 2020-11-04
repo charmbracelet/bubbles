@@ -20,21 +20,22 @@ type Model struct {
 	visibleOffset    int
 	lineCurserOffset int
 
+	jump int // maybe buffer for jumping multiple lines
+
 	Viewport viewport.Model
 	Wrap     bool
 
-	Seperator        string
-	SeperatorWrap    string
-	CurrentSeperator string
-	RelativeNumber   bool
-	AbsoluteNumber   bool
+	Seperator         string
+	SeperatorWrap     string
+	SeperatorSelected string
+	CurrentSeperator  string
+	RelativeNumber    bool
+	AbsoluteNumber    bool
 
-	jump int // maybe buffer for jumping multiple lines
-
-	LineForeGroundColor     string
-	LineBackGroundColor     string
-	SelectedForeGroundColor string
-	SelectedBackGroundColor string
+	LineForeGroundStyle     termenv.Style
+	LineBackGroundStyle     termenv.Style
+	SelectedForeGroundStyle termenv.Style
+	SelectedBackGroundStyle termenv.Style
 }
 
 // Item are Items used in the list Model
@@ -45,6 +46,7 @@ type item struct {
 	wrapedLines  []string
 	wrapedLenght int
 	wrapedto     int
+	userValue    interface{}
 }
 
 // genVisLines renews the wrap of the content into wraplines
@@ -101,8 +103,6 @@ func (m *Model) View() string {
 
 	}
 
-	p := termenv.ColorProfile()
-
 	var visLines int
 	var holeString bytes.Buffer
 out:
@@ -117,14 +117,14 @@ out:
 		sepString := m.Seperator
 
 		// handel highlighting of selected lines
-		colored := termenv.String()
+		style := termenv.String()
 		if item.selected {
-			colored = colored.Background(p.Color(m.SelectedBackGroundColor))
+			style = m.SelectedBackGroundStyle
 		}
 
 		// handel highlighting of current line
 		if index+m.visibleOffset == m.curIndex {
-			colored = colored.Reverse()
+			style = style.Reverse()
 			sepString = m.CurrentSeperator
 		}
 
@@ -145,8 +145,7 @@ out:
 		line := fmt.Sprintf("%s%s", firstPad, lineContent)
 
 		// Highlight and write first line
-		coloredLine := colored.Styled(line)
-		holeString.WriteString(coloredLine)
+		holeString.WriteString(style.Styled(line))
 		holeString.WriteString("\n")
 		visLines++
 
@@ -168,7 +167,7 @@ out:
 			padLine := fmt.Sprintf("%s%s", pad, line)
 
 			// Highlight and write wraped line
-			holeString.WriteString(colored.Styled(padLine))
+			holeString.WriteString(style.Styled(padLine))
 			holeString.WriteString("\n")
 			visLines++
 
@@ -256,6 +255,8 @@ func (m *Model) ToggleSelect() {
 
 // NewModel returns a Model with some save/sane defaults
 func NewModel() Model {
+	p := termenv.ColorProfile()
+	style := termenv.Style{}.Background(p.Color("#ff0000"))
 	return Model{
 		lineCurserOffset: 5,
 
@@ -266,7 +267,7 @@ func NewModel() Model {
 		CurrentSeperator: " ╭>",
 		AbsoluteNumber:   true,
 
-		SelectedBackGroundColor: "#ff0000",
+		SelectedBackGroundStyle: style,
 	}
 }
 

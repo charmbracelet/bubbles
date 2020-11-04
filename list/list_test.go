@@ -1,9 +1,9 @@
 package list
 
 import (
-	"testing"
 	"github.com/muesli/reflow/ansi"
 	"strings"
+	"testing"
 )
 
 // test is a shorthand and will be converted to proper testModels
