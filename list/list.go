@@ -13,6 +13,8 @@ import (
 
 // Model is a bubbletea List of strings
 type Model struct {
+	focus bool
+
 	listItems     []item
 	curIndex      int
 	visibleItems  []item
@@ -22,6 +24,7 @@ type Model struct {
 	wrap     bool
 
 	seperator      string
+	seperatorWrap  string
 	relativeNumber bool
 	absoluteNumber bool
 
@@ -55,45 +58,55 @@ func (m *Model) View() string {
 
 	contentWidth := width - (padTo + sep)
 	if contentWidth <= 0 {
-		panic("Can't display width zero width for content")
+		panic("Can't display with zero width for content")
 	}
+
+	m.seperator = " ╭ "
+	m.seperatorWrap = " │ "
 
 	p := termenv.ColorProfile()
 
 	var visLines int
 	var holeString bytes.Buffer
 out:
+	// Handle list items
 	for index, item := range m.listItems {
-		//handel highlighting of current or selected lines
+		sep := m.seperator
+		// handel highlighting of current or selected lines
 		colored := termenv.String()
 		if item.selected {
-			colored.Background(p.Color("ff1111"))
+			colored = colored.Background(p.Color("#ff0000"))
 		}
 		if index+m.visibleOffset == m.curIndex {
-			colored.Reverse()
+			colored = colored.Reverse()
+			sep = " ╭>"
 		}
-		contentLines := strings.Split(wordwrap.String(colored.Styled(item.content), contentWidth), "\n") // QUEST why does colored.Styled needs the argument?
+		contentLines := strings.Split(wordwrap.String(colored.Styled(item.content), contentWidth), "\n")
 
-		// is set prepend firstline with linenumber
+		var firstPad string
+		// if set prepend firstline with linenumber
 		if m.absoluteNumber || m.relativeNumber {
-			holeString.WriteString(fmt.Sprintf("%"+fmt.Sprint(padTo)+"d"+m.seperator, m.visibleOffset+index))
+			firstPad = colored.Styled(fmt.Sprintf("%"+fmt.Sprint(padTo)+"d"+sep, m.visibleOffset+index))
 		}
 		// Only handel lines that are visible
 		if visLines+len(contentLines) >= m.Viewport.Height {
 			break out
 		}
 		// Write first line
+		holeString.WriteString(firstPad)
 		holeString.WriteString(contentLines[0])
 		holeString.WriteString("\n")
 
 		visLines++
-		if len(contentLines) == 1 || !m.wrap {
+		if len(contentLines) == 1 || m.wrap {
 			continue
 		}
+
 		// Write wraped lines
 		for _, line := range contentLines[1:] {
-			holeString.WriteString("\n" + strings.Repeat(" ", padTo) + m.seperator) // Pad line
-			holeString.WriteString(line)                                            // write line
+			holeString.WriteString(strings.Repeat(" ", padTo) + m.seperatorWrap) // Pad line // TODO test seperator width
+			holeString.WriteString(line)                                         // write line
+			holeString.WriteString("\n")                                         // Write end of line
 			visLines++
 			// Only write lines that are visible
 			if visLines >= m.Viewport.Height {
@@ -152,4 +165,29 @@ func (m *Model) SetAbsNumber(setTo bool) {
 // between left border and the content of the line
 func (m *Model) SetSeperator(sep string) {
 	m.seperator = sep
+}
+
+// Down moves the "cursor" or current line down.
+// If the end is allready reached err is not nil.
+func (m *Model) Down() error {
+	if m.curIndex > len(m.listItems) {
+		return fmt.Errorf("Can't go beyond last item")
+	}
+	m.curIndex++
+	return nil
+}
+
+// Up moves the "cursor" or current line up.
+// If the start is allready reached err is not nil.
+func (m *Model) Up() error {
+	if m.curIndex <= 0 {
+		return fmt.Errorf("Can't go infront of first item")
+	}
+	m.curIndex--
+	return nil
+}
+
+// ToggleSelect toggles the selected status of the current Index
+func (m *Model) ToggleSelect() {
+	m.listItems[m.curIndex].selected = !m.listItems[m.curIndex].selected
 }
