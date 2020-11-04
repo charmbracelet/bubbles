@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/viewport"
@@ -23,19 +22,19 @@ type model struct {
 }
 
 func main() {
-	scanner := bufio.NewScanner(os.Stdin)
-	lineList := make([]string, 0, 1000)
-	for scanner.Scan() {
-		lineList = append(lineList, scanner.Text())
-	}
+	items := []string{
+		"Welcome to the bubbles-list example!",
+		"You Can move the highlighted Item up and down with the keys 'k' and 'j'",
+		"The list can handel linebreaks,\nand has wordwrap enabled if the line gets to long.",
+		"You can Select items with the space key which will select the line and mark it as such.",
+		"Ones you finish this example with 'q' or 'ctrl-c' the selected lines will be printed to StdOut.",
+		"When you print the the items there will be a loss of information,",
+		"since one can not say what was a line break within an item or what is a new item",
 
-	if err := scanner.Err(); err != nil {
-		fmt.Fprintln(os.Stderr, "Error reading from stdin:", err)
-		os.Exit(1)
 	}
 	endResult := make(chan string, 1)
 
-	p := tea.NewProgram(initialize(lineList, endResult), update, view)
+	p := tea.NewProgram(initialize(items, endResult), update, view)
 
 	// Use the full size of the terminal in its "alternate screen buffer"
 	p.EnterAltScreen()
