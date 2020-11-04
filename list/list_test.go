@@ -27,11 +27,11 @@ func TestViewBounds(t *testing.T) {
 	for _, testM := range genModels(genTestModels()) {
 		for i, line := range strings.Split(View(testM.model), "\n") {
 			lineWidth := ansi.PrintableRuneWidth(line)
-			width := testM.model.Viewport.Width
+			width := testM.model.Width
 			if lineWidth > width {
 				t.Errorf("The line:\n\n%s\n%s^\n\n is %d chars longer than the Viewport width.", line, strings.Repeat(" ", width-1), lineWidth-width)
 			}
-			if i > testM.model.Viewport.Height {
+			if i > testM.model.Height {
 				t.Error("There are more lines produced from the View() than the Viewport height")
 			}
 		}
@@ -82,8 +82,8 @@ func genModels(rawLists []test) []testModel {
 	processedList := make([]testModel, len(rawLists))
 	for i, list := range rawLists {
 		m := NewModel()
-		m.Viewport.Height = list.vHeight
-		m.Viewport.Width = list.vWidth
+		m.Height = list.vHeight
+		m.Width = list.vWidth
 		m.AddItems(list.items)
 		newItem := testModel{model: m, shouldBe: list.shouldBe}
 		processedList[i] = newItem
@@ -165,13 +165,13 @@ func genPanicTests() []test {
 // genDynamicModels generats test cases for dynamic actions like movement, sorting, resizing
 func genDynamicModels() []testModel {
 	moveBottom := NewModel()
-	moveBottom.Viewport.Width = 10
-	moveBottom.Viewport.Height = 10
+	moveBottom.Width = 10
+	moveBottom.Height = 10
 	moveBottom.AddItems([]string{"", "", "", ""})
 	moveBottom.Bottom()
 	moveDown := NewModel()
-	moveDown.Viewport.Height = 50
-	moveDown.Viewport.Width = 80
+	moveDown.Height = 50
+	moveDown.Width = 80
 	moveDown.AddItems([]string{"", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""})
 	moveDown.curIndex = 45 // set cursor next to line Offset Border so that the down move, should move the hole visible area.
 	moveDown.Down()
@@ -234,5 +234,22 @@ func genDynamicModels() []testModel {
 `,
 			afterMethode: "Down",
 		},
+	}
+}
+
+func TestCheckBorder(t *testing.T) {
+	m := NewModel()
+	m.AddItems([]string{"", "", "", ""})
+	if !m.CheckWithinBorder(0) {
+		t.Errorf("zero is not out of border")
+	}
+	if !m.CheckWithinBorder(len(m.listItems) - 1) {
+		t.Errorf("lasitem is not out of border")
+	}
+	if m.CheckWithinBorder(-1) {
+		t.Errorf("-1 is out of border")
+	}
+	if m.CheckWithinBorder(len(m.listItems)) {
+		t.Errorf("len(list) is out of border")
 	}
 }

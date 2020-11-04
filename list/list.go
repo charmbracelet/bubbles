@@ -3,7 +3,6 @@ package list
 import (
 	"bytes"
 	"fmt"
-	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/muesli/reflow/ansi"
 	"github.com/muesli/reflow/wordwrap"
@@ -22,10 +21,10 @@ type Model struct {
 	lineCurserOffset int                    // offset or margin between the cursor and the viewport(visible) border
 	less             func(k, l string) bool // function used for sorting
 
-	jump int // maybe buffer for jumping multiple lines
+	Width  int
+	Height int
 
-	Viewport viewport.Model
-	Wrap     bool
+	Wrap bool
 
 	SelectedPrefix string
 	Seperator      string
@@ -66,8 +65,8 @@ func (m *Model) View() string {
 	width := m.Viewport.Width
 
 	// check visible area
-	height := m.Viewport.Height - 1 // TODO question: why does the first line get cut of, if i ommit the -1?
-	width := m.Viewport.Width
+	height := m.Height - 1 // TODO question: why does the first line get cut of, if i ommit the -1?
+	width := m.Width
 	offset := m.visibleOffset
 	if height*width <= 0 {
 		panic("Can't display with zero width or hight of Viewport")
@@ -234,13 +233,13 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "q":
 			return m, tea.Quit
 		case "down", "j":
-			m.Down()
+			m.Move(1)
 			return m, nil
 		case "up", "k":
-			m.Up()
+			m.Move(-1)
 			return m, nil
 		case " ":
-			m.ToggleSelect()
+			m.ToggleSelect(1)
 			m.Down()
 			return m, nil
 		case "g":
@@ -252,23 +251,38 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "s":
 			m.Sort()
 			return m, nil
+		case "+":
+			m.MoveItem(-1)
+			return m, nil
+		case "-":
+			m.MoveItem(1)
+			return m, nil
+		case "v": // inVert
+			m.ToggleAllSelected()
+			return m, nil
+		case "m": // mark
+			m.MarkSelected(1, true)
+			return m, nil
+		case "M": // mark False
+			m.MarkSelected(1, false)
+			return m, nil
 		}
 
 	case tea.WindowSizeMsg:
 
-		m.Viewport.Width = msg.Width
-		m.Viewport.Height = msg.Height
-
-		// Because we're using the viewport's default update function (with pager-
-		// style navigation) it's important that the viewport's update function:
-		//
-		// * Recieves messages from the Bubble Tea runtime
-		// * Returns commands to the Bubble Tea runtime
-		//
-
-		m.Viewport, cmd = viewport.Update(msg, m.Viewport)
+		m.Width = msg.Width
+		m.Height = msg.Height
 
 		return m, cmd
+
+	case tea.MouseMsg:
+		switch msg.Button {
+		case tea.MouseWheelUp:
+			m.Up()
+
+		case tea.MouseWheelDown:
+			m.Down()
+		}
 	}
 	return m, nil
 }
@@ -292,39 +306,27 @@ func (m *Model) AddItems(itemList []string) {
 // Down moves the "cursor" or current line down.
 // If the end is allready reached err is not nil.
 func (m *Model) Down() error {
-	length := len(m.listItems) - 1
-	if m.curIndex >= length {
-		m.curIndex = length
-		return fmt.Errorf("Can't go beyond last item")
-	}
-	m.curIndex++
-	// move visible part of list if Curser is going beyond border.
-	lowerBorder := m.Viewport.Height + m.visibleOffset - m.lineCurserOffset
-	if m.curIndex > lowerBorder {
-		m.visibleOffset = m.curIndex - (m.Viewport.Height - m.lineCurserOffset)
-	}
-	return nil
+	return m.Move(1)
 }
 
 // Up moves the "cursor" or current line up.
-// If the start is allready reached err is not nil.
+// If the start is already reached, err is not nil.
 func (m *Model) Up() error {
-	if m.curIndex <= 0 {
-		m.curIndex = 0
-		return fmt.Errorf("Can't go infront of first item")
-	}
-	m.curIndex--
-	// move visible part of list if Curser is going beyond border.
-	upperBorder := m.visibleOffset + m.lineCurserOffset
-	if m.visibleOffset > 0 && m.curIndex <= upperBorder {
-		m.visibleOffset = m.curIndex - m.lineCurserOffset
-	}
-	return nil
+	return m.Move(-1)
 }
 
-// ToggleSelect toggles the selected status of the current Index
-func (m *Model) ToggleSelect() {
-	m.listItems[m.curIndex].selected = !m.listItems[m.curIndex].selected
+// Move moves the cursor by amount, does nothing if amount is 0
+// and returns error != nil if amount gos beyond list borders
+func (m *Model) Move(amount int) error {
+	if amount == 0 {
+		return nil
+	}
+	target := m.curIndex + amount
+	if !m.CheckWithinBorder(target) {
+		return fmt.Errorf("Cant move outside the list: %d", target)
+	}
+	m.curIndex = target
+	return nil
 }
 
 // NewModel returns a Model with some save/sane defaults
@@ -350,6 +352,68 @@ func NewModel() Model {
 	}
 }
 
+// ToggleSelect toggles the selected status
+// of the current Index if amount is 0
+// returns err != nil when amount lands outside list and savely does nothing
+// else if amount is not 0 toggels selected amount items
+// excluding the item on which the curser lands
+func (m *Model) ToggleSelect(amount int) error {
+	if amount == 0 {
+		m.listItems[m.curIndex].selected = !m.listItems[m.curIndex].selected
+	}
+
+	direction := 1
+	if amount < 0 {
+		direction = -1
+	}
+
+	cur := m.curIndex
+	target := cur + amount - direction
+	if !m.CheckWithinBorder(target) {
+		return fmt.Errorf("Cant go beyond list borders: %d", target)
+	}
+	for c := 0; c < amount*direction; c++ {
+		m.listItems[cur+c].selected = !m.listItems[cur+c].selected
+	}
+	m.curIndex = target - direction
+	m.Move(direction)
+	return nil
+}
+
+// MarkSelected selects or unselects depending on 'mark'
+// amount = 0 changes the current item but does not move the curser
+// if amount would be outside the list error is not nil
+// else all items till but excluding the end curser position
+func (m *Model) MarkSelected(amount int, mark bool) error {
+	cur := m.curIndex
+	if amount == 0 {
+		m.listItems[cur].selected = mark
+		return nil
+	}
+	direction := 1
+	if amount < 0 {
+		direction = -1
+	}
+
+	target := cur + amount - direction
+	if !m.CheckWithinBorder(target) {
+		return fmt.Errorf("Cant go beyond list borders: %d", target)
+	}
+	for c := 0; c < amount*direction; c++ {
+		m.listItems[cur+c].selected = mark
+	}
+	m.curIndex = target
+	m.Move(direction)
+	return nil
+}
+
+// ToggleAllSelected inverts the select state of ALL items
+func (m *Model) ToggleAllSelected() {
+	for i := range m.listItems {
+		m.listItems[i].selected = !m.listItems[i].selected
+	}
+}
+
 // Top moves the cursor to the first line
 func (m *Model) Top() {
 	m.visibleOffset = 0
@@ -360,7 +424,7 @@ func (m *Model) Top() {
 func (m *Model) Bottom() {
 	end := len(m.listItems) - 1
 	m.curIndex = end
-	maxVisItems := m.Viewport.Height - m.lineCurserOffset
+	maxVisItems := m.Height - m.lineCurserOffset
 	var visLines, smallestVisIndex int
 	for c := end; visLines < maxVisItems; c-- {
 		if c < 0 {
@@ -406,6 +470,42 @@ func (m *Model) SetLess(less func(string, string) bool) {
 }
 
 // Sort sorts the listitems acording to the set less function
+// The current Item will maybe change!
+// Since the index of the current pointer does not change
 func (m *Model) Sort() {
 	sort.Sort(m)
 }
+
+// MoveItem moves the current item by amount to the end
+// So: MoveItem(1) Moves the Item towards the end by one
+// and MoveItem(-1) Moves the Item towards the beginning
+// MoveItem(0) savely does nothing
+// and a amount that would result outside the list returns a error != nil
+func (m *Model) MoveItem(amount int) error {
+	if amount == 0 {
+		return nil
+	}
+	cur := m.curIndex
+	target := cur + amount
+	if !m.CheckWithinBorder(target) {
+		return fmt.Errorf("Cant move outside the list: %d", target)
+	}
+	m.Swap(cur, target)
+	m.curIndex = target
+	return nil
+}
+
+// CheckWithinBorder returns true if the give index is within the list borders
+func (m *Model) CheckWithinBorder(index int) bool {
+	length := len(m.listItems)
+	if index >= length || index < 0 {
+		return false
+	}
+	return true
+}
+
+// AddDataItem adds a Item with the given interface{} value added to the List item
+// So that when sorting, the connection between the string and the interfave{} value stays.
+//func (m *Model) AddDataItem(content string, data interface{}) {
+//	m.listItems = append(m.listItems, item{content: content, userValue: data})
+//}

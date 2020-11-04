@@ -3,16 +3,10 @@ package main
 import (
 	"fmt"
 	"github.com/charmbracelet/bubbles/list"
-	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"os"
 	"strings"
 )
-
-/*
-Reads from StdIn, opens lines as bubbles-list.
-When closed print, with space, selected lines to StdOut
-*/
 
 type model struct {
 	ready     bool
@@ -25,7 +19,7 @@ func main() {
 	items := []string{
 		"Welcome to the bubbles-list example!",
 		"Use 'q' or 'ctrl-c' to quit!",
-		"You can move the highlighted index up and down with the keys 'k' and 'j'.",
+		"You can move the highlighted index up and down with the (arrow) keys 'k' and 'j'.",
 		"Move to the beginning with 'g' and to the end with 'G'.",
 		"Sort the entrys with 's', but be carefull you can't unsort it again.",
 		"The list can handel linebreaks,\nand has wordwrap enabled if the line gets to long.",
@@ -33,6 +27,8 @@ func main() {
 		"Ones you hit 'enter', the selected lines will be printed to StdOut and the program exits.",
 		"When you print the items there will be a loss of information,",
 		"since one can not say what was a line break within an item or what is a new item",
+		"Use '+' or '-' to move the item under the curser up and down.",
+		"The 'v' inverts the selected state of each item.",
 	}
 	endResult := make(chan string, 1)
 
@@ -84,8 +80,6 @@ func view(mdl tea.Model) string {
 func update(msg tea.Msg, mdl tea.Model) (tea.Model, tea.Cmd) {
 	m, _ := mdl.(model)
 
-	var cmd tea.Cmd
-
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		// Ctrl+c exits
@@ -114,8 +108,8 @@ func update(msg tea.Msg, mdl tea.Model) (tea.Model, tea.Cmd) {
 
 	case tea.WindowSizeMsg:
 
-		m.list.Viewport.Width = msg.Width
-		m.list.Viewport.Height = msg.Height
+		m.list.Width = msg.Width
+		m.list.Height = msg.Height
 
 		if !m.ready {
 			// Since this program is using the full size of the viewport we need
@@ -126,16 +120,7 @@ func update(msg tea.Msg, mdl tea.Model) (tea.Model, tea.Cmd) {
 			m.ready = true
 		}
 
-		// Because we're using the viewport's default update function (with pager-
-		// style navigation) it's important that the viewport's update function:
-		//
-		// * Recieves messages from the Bubble Tea runtime
-		// * Returns commands to the Bubble Tea runtime
-		//
-
-		m.list.Viewport, cmd = viewport.Update(msg, m.list.Viewport)
-
-		return m, cmd
+		return m, nil
 
 	}
 
