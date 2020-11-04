@@ -393,59 +393,63 @@ func (m *Model) AddItems(itemList []fmt.Stringer) {
 // or if the CursorOffset is greater than half of the display height returns ConfigError
 // if amount is 0 the Curser is within the view bounds
 func (m *Model) Move(amount int) error {
-	// do nothing
-	if amount == 0 {
-		return nil
-	}
-	var err error
-	curOff := m.CursorOffset
-	visOff := m.visibleOffset
-	height := m.Height-1 // TODO find out why the windowsize massage reported 51 lines when there was only 50
-	wrap := m.Wrap
-	if curOff >= height/2 {
-		curOff = 0
-		err = ConfigError(fmt.Errorf("cursor offset must be less than halfe of the display height: setting it to zero"))
-		// still do the movement and return the error at the end if here was any
-	}
+//	// do nothing
+//	if amount == 0 {
+//		return nil
+//	}
+//	var err error
+//	curOff := m.CursorOffset
+//	visOff := m.visibleOffset
+//	height := m.Height-1 // TODO find out why the windowsize massage reported 51 lines when there was only 50
+//	wrap := m.Wrap
+//	if curOff >= height/2 {
+//		curOff = 0
+//		err = ConfigError(fmt.Errorf("cursor offset must be less than halfe of the display height: setting it to zero"))
+//		// still do the movement and return the error at the end if here was any
+//	}
 
 	target := m.curIndex + amount
-	if !m.CheckWithinBorder(target) {
-		return OutOfBounds(fmt.Errorf("Cant move outside the list: %d", target))
-	}
-	// move visible part of list if Cursor is going beyond border.
-	upperBorder := visOff + curOff
-	lowerBorder := visOff + height - curOff
-
-	// visible Down movement
-	if wrap && amount > 0 && target > lowerBorder {
-		var sum int
-		for _, item := range m.listItems[visOff: visOff+height] {
-			if item.wrapedLenght > 1 {
-				sum += item.wrapedLenght-1
-			}
-		}
-		visOff = target - (height - curOff)
-		log.Println("Visible down movement")
-		visOff += sum
-	} else if amount > 0 && target > lowerBorder {
-		visOff = target - (height - curOff)
-		log.Println("Visible down movement")
-	}
-	// visible Up movement
-	if amount < 0 && target < upperBorder {
-		visOff = target - curOff
-		log.Println("Visible up movement")
-	}
-	// don't go in front of list begin
-	if visOff < 0 {
-		visOff = 0
-		log.Println("Visible offset was infront of list begin")
-	}
-
-	log.Println("setting cursor and visible offset after movement")
-	m.curIndex = target
-	m.visibleOffset = visOff
+	newCursor, err := m.KeepVisible(target)
+	m.curIndex = newCursor // TODO
+	log.Printf("Requesting cursor position: %d, setting to: %d", target, newCursor)
 	return err
+//	if !m.CheckWithinBorder(target) {
+//		return OutOfBounds(fmt.Errorf("Cant move outside the list: %d", target))
+//	}
+//	// move visible part of list if Cursor is going beyond border.
+//	upperBorder := visOff + curOff
+//	lowerBorder := visOff + height - curOff
+//
+//	// visible Down movement
+//	if wrap && amount > 0 && target > lowerBorder {
+//		var sum int
+//		for _, item := range m.listItems[visOff: visOff+height] {
+//			if item.wrapedLenght > 1 {
+//				sum += item.wrapedLenght-1
+//			}
+//		}
+//		visOff = target - (height - curOff)
+//		log.Println("Visible down movement")
+//		visOff += sum
+//	} else if amount > 0 && target > lowerBorder {
+//		visOff = target - (height - curOff)
+//		log.Println("Visible down movement")
+//	}
+//	// visible Up movement
+//	if amount < 0 && target < upperBorder {
+//		visOff = target - curOff
+//		log.Println("Visible up movement")
+//	}
+//	// don't go in front of list begin
+//	if visOff < 0 {
+//		visOff = 0
+//		log.Println("Visible offset was infront of list begin")
+//	}
+//
+//	log.Println("setting cursor and visible offset after movement")
+//	m.curIndex = target
+//	m.visibleOffset = visOff
+//	return err
 }
 
 // NewModel returns a Model with some save/sane defaults
@@ -753,4 +757,73 @@ func (m *Model)UpdateSelectedItems(updater func(fmt.Stringer) fmt.Stringer) {
 			m.listItems[i].value = updater(item.value)
 		}
 	}
+}
+
+// KeepVisible will set the Cursor within the visible area of the list
+// and if CursorOffset is != 0 will set it within this bounderys
+// if CursorOffset is bigger than half the screen hight error will be of type ConfigError
+// If the cursor would be outside of the list, it will be set to the according nearest value
+// and error will be of type OutOfBounds. The return int is the absolut item number on which the cursor gets set
+func (m *Model) KeepVisible(cursor int) (int, error) {
+	var newCursor int
+	//defer func(m *Model, setTo *int) {
+	//	m.curIndex = *setTo
+	//}(m, &newCursor)
+
+	var visItemsBeforCursor int
+	beforCursor := cursor - m.visibleOffset
+
+	var lineCount[][2]int
+	// calculate how much Lines/Items are infront of the cursor
+	if m.Wrap {
+		var lineSum int
+		for c := m.curIndex; c > 0; c-- {
+
+			if lineSum > beforCursor {
+				visItemsBeforCursor = c
+				break
+			}
+			lineSum += m.listItems[c].wrapedLenght
+			lineCount = append(lineCount, [2]int{lineSum, c})
+		}
+	} else {
+		visItemsBeforCursor = cursor - m.visibleOffset
+	}
+
+	var err error
+	// Check if Cursor would be beyond list
+	if length := len(m.listItems); cursor >= length {
+		newCursor = length-1
+		m.curIndex = newCursor
+		err = OutOfBounds(fmt.Errorf("requested cursor position was behind of the list"))
+	}
+
+	// Check if Cursor would be infront of list
+	if cursor < 0 {
+		newCursor = 0
+		m.curIndex = newCursor
+		err = OutOfBounds(fmt.Errorf("requested cursor position was infront of the list"))
+	}
+
+
+	// Visible Area and Cursor are at beginning of List -> cant move further up.
+	if visItemsBeforCursor <= m.CursorOffset && m.visibleOffset <= 0 {
+		m.visibleOffset = 0
+		return newCursor, err
+	}
+
+	// Cursor is infront of Boundry -> move visible Area up
+	if visItemsBeforCursor <= m.CursorOffset {
+		m.visibleOffset = m.curIndex - visItemsBeforCursor
+		return newCursor, err
+	}
+
+	// Cursor Position is within bounds -> all good
+	if visItemsBeforCursor > m.CursorOffset && visItemsBeforCursor < m.Height-m.CursorOffset {
+		return newCursor, err
+	}
+
+	// Cursor is beyond boundry -> move visibel Area down
+	m.visibleOffset = m.Height - m.CursorOffset - visItemsBeforCursor
+	return newCursor, err
 }
