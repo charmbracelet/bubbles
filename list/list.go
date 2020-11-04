@@ -6,7 +6,6 @@ import (
 	"github.com/muesli/reflow/ansi"
 	"github.com/muesli/reflow/wordwrap"
 	"github.com/muesli/termenv"
-	"log"
 	"sort"
 	"strings"
 )
@@ -400,7 +399,6 @@ func (m *Model) Move(amount int) (int, error) {
 	target := m.curIndex + amount
 	newCursor, err := m.KeepVisible(target)
 	m.curIndex = newCursor // TODO
-	log.Printf("Requesting cursor position: %d, setting to: %d", target, newCursor)
 	return newCursor, err
 }
 
@@ -464,18 +462,20 @@ func (m *Model) ToggleSelect(amount int) error {
 
 	cur := m.curIndex
 
-	// mark index zero when trying to move infront of list
-	var o int
-	// but not when moving on index zero
-	if cur+amount >= 0{
-		o=1
-	}
 	target, err := m.Move(amount)
 	start, end := cur, target
 	if direction < 0 {
-		start, end = target+o, cur+1
+		start, end = target+1, cur+1
 	}
-	for c := start; c < end; c++{
+	// mark/start at first item
+	if cur+amount < 0 {
+		start = 0
+	}
+	// mark last item when trying to go beyond list
+	if cur+amount >= len(m.listItems) {
+		end++
+	}
+	for c := start; c < end; c++ {
 		m.listItems[c].selected = !m.listItems[c].selected
 	}
 	return err
@@ -718,7 +718,6 @@ func (m *Model) KeepVisible(cursor int) (int, error) {
 		cursor = length - 1
 		errMsg := "requested cursor position was behind of the list"
 		err = OutOfBounds(fmt.Errorf(errMsg))
-		log.Println(errMsg)
 	}
 
 	// Check if Cursor would be infront of list
@@ -726,7 +725,6 @@ func (m *Model) KeepVisible(cursor int) (int, error) {
 		cursor = 0
 		errMsg := "requested cursor position was infront of the list"
 		err = OutOfBounds(fmt.Errorf(errMsg))
-		log.Println(errMsg)
 	}
 
 	if cursor == 0 {
@@ -749,7 +747,7 @@ func (m *Model) KeepVisible(cursor int) (int, error) {
 
 	// Cursor is infront of Boundry -> move visible Area up
 	if visItemsBeforCursor < m.CursorOffset {
-		m.visibleOffset = m.curIndex + visItemsBeforCursor
+		m.visibleOffset = cursor - m.CursorOffset
 		return cursor, err
 	}
 
@@ -770,7 +768,6 @@ func (m *Model) keepVisibleWrap(cursor int) (int, error) {
 		return 0, OutOfBounds(fmt.Errorf("can't move beyond list bonderys, with requested cursor position: %d", cursor))
 	}
 
-
 	// Nothing to do
 	if cursor == 0 {
 		// Reset all Offsets
@@ -780,12 +777,12 @@ func (m *Model) keepVisibleWrap(cursor int) (int, error) {
 	}
 
 	direction := 1
-	if cursor- m.curIndex < 0 {
+	if cursor-m.curIndex < 0 {
 		direction = -1
 	}
 
 	type beforCursor struct {
-		listIndex int
+		listIndex  int
 		linesBefor int
 	}
 
@@ -802,7 +799,7 @@ func (m *Model) keepVisibleWrap(cursor int) (int, error) {
 		lineCount = append(lineCount, beforCursor{c, lineSum})
 
 		// if new cursor infront of old visible offset dont mark borders
-		if cursor-1 < m.visibleOffset + m.CursorOffset {
+		if cursor-1 < m.visibleOffset+m.CursorOffset {
 			continue
 		}
 
@@ -811,7 +808,7 @@ func (m *Model) keepVisibleWrap(cursor int) (int, error) {
 		if !upper && lineSum > upperBorder {
 			upper = true
 		}
-		lowerBorder := m.Height-m.CursorOffset
+		lowerBorder := m.Height - m.CursorOffset
 		if !lower && lineSum >= lowerBorder {
 			lower = true
 		}
