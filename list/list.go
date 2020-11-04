@@ -22,6 +22,9 @@ type MultipleMatches error
 // ConfigError is return if there is a error with the configuration of the list Modul
 type ConfigError error
 
+// NotFocused is a error return if the action can only be applied to a focused list
+type NotFocused error
+
 // Model is a bubbletea List of strings
 type Model struct {
 	focus bool
@@ -687,5 +690,23 @@ func (m *Model) GetIndex(toSearch fmt.Stringer) (int, error) {
 		return -c, MultipleMatches(fmt.Errorf("The provided equals function yields multiple matches betwen one and other fmt.Stringer's"))
 	}
 	return lastIndex, nil
+}
 
+// UpdateAllItems takes a function and updates with it, all items in the list
+func (m *Model) UpdateAllItems(processor func(fmt.Stringer) fmt.Stringer) {
+	for i, item := range m.listItems {
+		m.listItems[i].value = processor(item.value)
+	}
+}
+
+// GetCursorIndex returns current cursor position within the List
+func (m *Model) GetCursorIndex() (int, error) {
+	if !m.focus {
+		return m.curIndex, NotFocused(fmt.Errorf("Model is not focused"))
+	}
+	if m.CheckWithinBorder(m.curIndex) {
+		return m.curIndex, OutOfBounds(fmt.Errorf("Cursor isout auf bounds"))
+	}
+	// TODO handel not focused case
+	return m.curIndex, nil
 }
