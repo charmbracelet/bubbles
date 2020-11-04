@@ -26,10 +26,13 @@ type Model struct {
 
 	Wrap bool
 
-	SelectedPrefix string
-	Seperator      string
-	SeperatorWrap  string
-	CurrentMarker  string
+	SelectedPrefix   string
+	UnSelectedPrefix string
+	Seperator        string
+	SeperatorWrap    string
+	CurrentMarker    string
+
+	WrapPrefix bool
 
 	Number         bool
 	NumberRelative bool
@@ -94,20 +97,34 @@ func (m *Model) Lines() []string {
 
 	// pad all prefixes to the same width for easy exchange
 	prefix := m.SelectedPrefix
-	preWidth := ansi.PrintableRuneWidth(prefix)
-	prepad := strings.Repeat(" ", preWidth)
+	prepad := m.UnSelectedPrefix
+	preWid := ansi.PrintableRuneWidth(prefix)
+	tmpWid := ansi.PrintableRuneWidth(prepad)
+
+	preWidth := preWid
+	if tmpWid > preWidth {
+		preWidth = tmpWid
+	}
+	prefix = strings.Repeat(" ", preWidth-preWid) + prefix
+
+	wrapPrePad := prepad
+	if !m.WrapPrefix {
+		wrapPrePad = strings.Repeat(" ", preWidth)
+	}
+
+	prepad = strings.Repeat(" ", preWidth-tmpWid) + prepad
 
 	// pad all seperators to the same width for easy exchange
 	sepItem := strings.Repeat(" ", sepWidth-widthItem) + m.Seperator
 	sepWrap := strings.Repeat(" ", sepWidth-widthWrap) + m.SeperatorWrap
 
 	// pad right of prefix, with lenght of current pointer
-	suffix := m.CurrentMarker
-	sufWidth := ansi.PrintableRuneWidth(suffix)
-	sufpad := strings.Repeat(" ", sufWidth)
+	mark := m.CurrentMarker
+	markWidth := ansi.PrintableRuneWidth(mark)
+	unmark := strings.Repeat(" ", markWidth)
 
 	// Get the hole prefix width
-	holePrefixWidth := numWidth + preWidth + sepWidth + sufWidth
+	holePrefixWidth := numWidth + preWidth + sepWidth + markWidth
 
 	// Get actual content width
 	contentWidth := width - holePrefixWidth
@@ -117,9 +134,13 @@ func (m *Model) Lines() []string {
 		panic("Can't display with zero width for content")
 	}
 
-	// renew wrap of all items TODO check if to slow
-	for i := range m.listItems {
-		m.listItems[i] = m.listItems[i].genVisLines(contentWidth)
+	// If set
+	wrap := m.Wrap
+	if wrap {
+		// renew wrap of all items
+		for i := range m.listItems {
+			m.listItems[i] = m.listItems[i].genVisLines(contentWidth)
+		}
 	}
 
 	var visLines int
@@ -133,7 +154,7 @@ out:
 		}
 
 		item := m.listItems[index]
-		if item.wrapedLenght <= 0 {
+		if wrap && item.wrapedLenght <= 0 {
 			panic("cant display item with no visible content")
 		}
 
@@ -159,15 +180,19 @@ out:
 		}
 
 		// Current: handel highlighting of current item/first-line
-		curPad := sufpad
+		curPad := unmark
 		if index == m.curIndex {
 			style = m.CurrentStyle
-			curPad = suffix
+			curPad = mark
 		}
 
 		// join all prefixes
-		linePrefix := strings.Join([]string{firstPad, selString, sepItem, curPad}, "")
-		wrapPrefix := strings.Join([]string{wrapPad, selString, sepWrap, sufpad}, "") // dont prefix wrap lines with CurrentMarker (suffix)
+		var wrapPrefix, linePrefix string
+
+		linePrefix = strings.Join([]string{firstPad, selString, sepItem, curPad}, "")
+		if wrap {
+			wrapPrefix = strings.Join([]string{wrapPad, wrapPrePad, sepWrap, unmark}, "") // dont prefix wrap lines with CurrentMarker (suffix)
+		}
 
 		// join pad and first line content
 		// NOTE linebreak is not added here because it would mess with the highlighting
@@ -183,7 +208,7 @@ out:
 		}
 
 		// Dont write wraped lines if not set
-		if !m.Wrap || item.wrapedLenght <= 1 {
+		if !wrap || item.wrapedLenght <= 1 {
 			continue
 		}
 
@@ -222,6 +247,9 @@ func lineNumber(relativ bool, curser, current int) int {
 
 // Update changes the Model of the List according to the messages recieved
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if !m.focus {
+		return m, nil
+	}
 	var cmd tea.Cmd
 
 	switch msg := msg.(type) {
@@ -367,17 +395,28 @@ func (m *Model) Move(amount int) error {
 func NewModel() Model {
 	p := termenv.ColorProfile()
 	selStyle := termenv.Style{}.Background(p.Color("#ff0000"))
+	// just reverse colors to keep there information
 	curStyle := termenv.Style{}.Reverse()
 	return Model{
+		// Accept keypresses
+		focus: true,
+
+		// Try to keep $CurserOffset lines between Cursor and screen Border
 		CurserOffset: 5,
 
+		// Wrap lines to have no loss of information
 		Wrap: true,
 
-		Seperator:      "╭",
-		SeperatorWrap:  "│",
+		// Make clear where a item begins and where it ends
+		Seperator:     "╭",
+		SeperatorWrap: "│",
+
+		// Mark it so that even without color support all is explicit
 		CurrentMarker:  ">",
 		SelectedPrefix: "*",
-		Number:         true,
+
+		// enable Linenumber
+		Number: true,
 
 		less: func(k, l string) bool {
 			return k < l
@@ -545,3 +584,18 @@ func (m *Model) CheckWithinBorder(index int) bool {
 //func (m *Model) AddDataItem(content string, data interface{}) {
 //	m.listItems = append(m.listItems, item{content: content, userValue: data})
 //}
+
+// Focus sets the list Model focus so it accepts keyinput and responds to them
+func (m *Model) Focus() {
+	m.focus = true
+}
+
+// UnFocus removes the focus so that the list Model does NOT responed to key presses
+func (m *Model) UnFocus() {
+	m.focus = false
+}
+
+// Focused returns if the list Model is focused and acccepts keypresses
+func (m *Model) Focused() bool {
+	return m.focus
+}

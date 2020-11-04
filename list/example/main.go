@@ -63,6 +63,9 @@ func main() {
 func initialize(lineList []string, endResult chan<- string) func() (tea.Model, tea.Cmd) {
 	l := list.NewModel()
 	l.AddItems(lineList)
+	// l.WrapPrefix = false // uncomment for fancy check (selected) box :-)
+	// l.SelectedPrefix = " [x]"
+	// l.UnSelectedPrefix = "[ ]"
 
 	return func() (tea.Model, tea.Cmd) { return model{list: l, endResult: endResult}, nil }
 }

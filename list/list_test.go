@@ -104,7 +104,7 @@ func genTestModels() []test {
 			[]string{
 				"",
 			},
-			"\x1b[7m0 ╭>\x1b[0m\n",
+			"\x1b[7m0 ╭>\x1b[0m",
 		},
 		// if exceding the boards and softwrap (at word bounderys are possible
 		// wrap there. Dont increment the item number because its still the same item.
@@ -114,7 +114,7 @@ func genTestModels() []test {
 			[]string{
 				"robert frost",
 			},
-			"\x1b[7m0 ╭>robert\x1b[0m\n\x1b[7m  │ frost\x1b[0m\n",
+			"\x1b[7m0 ╭>robert\x1b[0m\n\x1b[7m  │ frost\x1b[0m",
 		},
 		{
 			10,
@@ -129,8 +129,7 @@ func genTestModels() []test {
 6 ╭ 
 7 ╭ 
 8 ╭ 
-9 ╭ 
-`,
+9 ╭ `,
 		},
 	}
 }
@@ -177,7 +176,7 @@ func genDynamicModels() []testModel {
 	moveDown.Down()
 	return []testModel{
 		{model: moveBottom,
-			shouldBe:     "0 ╭ \n1 ╭ \n2 ╭ \n\x1b[7m3 ╭>\x1b[0m\n",
+			shouldBe:     "0 ╭ \n1 ╭ \n2 ╭ \n\x1b[7m3 ╭>\x1b[0m",
 			afterMethode: "Bottom",
 		},
 		{model: moveDown,
@@ -230,8 +229,7 @@ func genDynamicModels() []testModel {
 				`47 ╭ 
 48 ╭ 
 49 ╭ 
-50 ╭ 
-`,
+50 ╭ `,
 			afterMethode: "Down",
 		},
 	}
