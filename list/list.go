@@ -2,6 +2,7 @@ package list
 
 import (
 	"fmt"
+	"log"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/muesli/reflow/ansi"
 	"github.com/muesli/reflow/wordwrap"
@@ -231,9 +232,11 @@ out:
 			wrapPrefix = strings.Join([]string{wrapPad, wrapPrePad, sepWrap, unmark}, "") // don't prefix wrap lines with CurrentMarker (unmark)
 		}
 
-		content := item.wrapedLines[0]
-		if !wrap {
-			content = item.value.String()
+		var content string
+		if wrap {
+			content = item.wrapedLines[0]
+		} else {
+			content = strings.Split(item.value.String(), "\n")[0] // TODO SplitN
 			// TODO hard limit the string length
 		}
 
@@ -270,6 +273,9 @@ out:
 				break out
 			}
 		}
+	}
+	if len(stringLines) > m.Height {
+		panic("can't display more lines than screen has lines.")
 	}
 	return stringLines
 }
@@ -394,10 +400,12 @@ func (m *Model) Move(amount int) error {
 	var err error
 	curOff := m.CursorOffset
 	visOff := m.visibleOffset
-	height := m.Height
+	height := m.Height-1 // TODO find out why the windowsize massage reported 51 lines when there was only 50
+	wrap := m.Wrap
 	if curOff >= height/2 {
 		curOff = 0
 		err = ConfigError(fmt.Errorf("cursor offset must be less than halfe of the display height: setting it to zero"))
+		// still do the movement and return the error at the end if here was any
 	}
 
 	target := m.curIndex + amount
@@ -405,26 +413,36 @@ func (m *Model) Move(amount int) error {
 		return OutOfBounds(fmt.Errorf("Cant move outside the list: %d", target))
 	}
 	// move visible part of list if Cursor is going beyond border.
-	lowerBorder := visOff + height - curOff
 	upperBorder := visOff + curOff
-
-	direction := 1
-	if amount < 0 {
-		direction = -1
-	}
+	lowerBorder := visOff + height - curOff
 
 	// visible Down movement
-	if direction > 0 && target > lowerBorder {
+	if wrap && amount > 0 && target > lowerBorder {
+		var sum int
+		for _, item := range m.listItems[visOff: visOff+height] {
+			if item.wrapedLenght > 1 {
+				sum += item.wrapedLenght-1
+			}
+		}
 		visOff = target - (height - curOff)
+		log.Println("Visible down movement")
+		visOff += sum
+	} else if amount > 0 && target > lowerBorder {
+		visOff = target - (height - curOff)
+		log.Println("Visible down movement")
 	}
 	// visible Up movement
-	if direction < 0 && target < upperBorder {
+	if amount < 0 && target < upperBorder {
 		visOff = target - curOff
+		log.Println("Visible up movement")
 	}
 	// don't go in front of list begin
 	if visOff < 0 {
 		visOff = 0
+		log.Println("Visible offset was infront of list begin")
 	}
+
+	log.Println("setting cursor and visible offset after movement")
 	m.curIndex = target
 	m.visibleOffset = visOff
 	return err
@@ -445,7 +463,7 @@ func NewModel() Model {
 		CursorOffset: 0,
 
 		// Wrap lines to have no loss of information
-		Wrap:       true,
+		Wrap:       false, //TODO
 		PrefixWrap: true,
 
 		// Make clear where a item begins and where it ends

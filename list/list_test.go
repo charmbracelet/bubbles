@@ -163,6 +163,11 @@ func genPanicTests() []test {
 
 // genDynamicModels generats test cases for dynamic actions like movement, sorting, resizing
 func genDynamicModels() []testModel {
+	blankModel := Model{}
+	blankModel.Height = 10
+	blankModel.Width = 10
+	blankModel.AddItems(MakeStringerList([]string{"","","","","","","","","","","",""}))
+	blankModel.Move(0)
 	moveBottom := NewModel()
 	moveBottom.Width = 10
 	moveBottom.Height = 10
@@ -175,6 +180,10 @@ func genDynamicModels() []testModel {
 	moveDown.curIndex = 45 // set cursor next to line Offset Border so that the down move, should move the hole visible area.
 	moveDown.Move(1)
 	return []testModel{
+		{model: blankModel,
+			shouldBe: "\n\n\n\n\n\n\n\n",
+			afterMethode: "Move(0)",
+		},
 		{model: moveBottom,
 			shouldBe:     "0 ╭ \n1 ╭ \n2 ╭ \n\x1b[7m3 ╭>\x1b[0m",
 			afterMethode: "Bottom",
