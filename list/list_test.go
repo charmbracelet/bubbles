@@ -16,8 +16,9 @@ type test struct {
 }
 
 type testModel struct {
-	model    Model
-	shouldBe string
+	model        Model
+	shouldBe     string
+	afterMethode string
 }
 
 // TestViewBounds is use to make sure that the Renderer String
@@ -61,6 +62,31 @@ func TestPanic(t *testing.T) {
 	}
 }
 
+//TestDynamic tests the view output after a movement/view-changing method
+func TestDynamic(t *testing.T) {
+	for _, test := range genDynamicModels() {
+		actual := View(test.model)
+		expected := test.shouldBe
+		if actual != expected {
+			t.Errorf("expected Output, after Methode '%s' called:\n\n%s\n\nactual Output:\n\n%s\n\n", test.afterMethode, expected, actual)
+		}
+	}
+}
+
+// genModels embeds the fields from the rawModels into an actual model
+func genModels(rawLists []test) []testModel {
+	processedList := make([]testModel, len(rawLists))
+	for i, list := range rawLists {
+		m := NewModel()
+		m.Viewport.Height = list.vHeight
+		m.Viewport.Width = list.vWidth
+		m.AddItems(list.items)
+		newItem := testModel{model: m, shouldBe: list.shouldBe}
+		processedList[i] = newItem
+	}
+	return processedList
+}
+
 // small helper function to generate simple test cases.
 // for more elaborate ones append them afterwards.
 func genTestModels() []test {
@@ -89,20 +115,7 @@ func genTestModels() []test {
 	}
 }
 
-func genModels(rawLists []test) []testModel {
-	processedList := make([]testModel, len(rawLists))
-	for i, list := range rawLists {
-		m := NewModel()
-		m.Viewport.Height = list.vHeight
-		m.Viewport.Width = list.vWidth
-		m.AddItems(list.items)
-		newItem := testModel{model: m, shouldBe: list.shouldBe}
-		processedList[i] = newItem
-	}
-	return processedList
-}
-
-//
+// genPanicTests generats test cases that should panic with the shouldBe string
 func genPanicTests() []test {
 	return []test{
 		// no width to display -> panic
@@ -125,6 +138,27 @@ func genPanicTests() []test {
 			1,
 			[]string{},
 			"",
+		},
+	}
+}
+
+// genDynamicModels generats test cases for dynamic actions like movement, sorting, resizing
+func genDynamicModels() []testModel {
+	moveBottom := NewModel()
+	moveBottom.Viewport.Width = 10
+	moveBottom.Viewport.Height = 10
+	moveBottom.AddItems([]string{
+		"1",
+		"2",
+		"3",
+		"4",
+	},
+	)
+	moveBottom.Bottom()
+	return []testModel{
+		{model: moveBottom,
+			shouldBe:     "0  ╭ \n1  ╭ \n2  ╭ \n\x1b[7m3  ╭>\x1b[0m\n",
+			afterMethode: "Bottom",
 		},
 	}
 }

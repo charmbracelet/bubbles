@@ -24,7 +24,7 @@ type model struct {
 func main() {
 	items := []string{
 		"Welcome to the bubbles-list example!",
-		"You Can move the highlighted Item up and down with the keys 'k' and 'j'",
+		"You Can move the highlighted index up and down with the keys 'k' and 'j'",
 		"The list can handel linebreaks,\nand has wordwrap enabled if the line gets to long.",
 		"You can Select items with the space key which will select the line and mark it as such.",
 		"Ones you finish this example with 'q' or 'ctrl-c' the selected lines will be printed to StdOut.",

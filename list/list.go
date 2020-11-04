@@ -8,8 +8,8 @@ import (
 	runewidth "github.com/mattn/go-runewidth"
 	"github.com/muesli/reflow/wordwrap"
 	"github.com/muesli/termenv"
-	"strings"
 	"sort"
+	"strings"
 )
 
 // Model is a bubbletea List of strings
@@ -20,7 +20,7 @@ type Model struct {
 	curIndex         int
 	visibleOffset    int
 	lineCurserOffset int
-	less func (k, l string) bool
+	less             func(k, l string) bool
 
 	jump int // maybe buffer for jumping multiple lines
 
@@ -282,8 +282,6 @@ func NewModel() Model {
 			return k < l
 		},
 
-
-
 		SelectedBackGroundStyle: style,
 	}
 }
@@ -329,7 +327,7 @@ func (m *Model) GetSelected() []string {
 
 // Less is a Proxy to the less function, set from the user.
 // Swap is used to fullfill the Sort-interface
-func (m *Model) Less(i ,j int) bool {
+func (m *Model) Less(i, j int) bool {
 	return m.less(m.listItems[i].content, m.listItems[j].content)
 }
 
@@ -344,7 +342,7 @@ func (m *Model) Len() int {
 }
 
 // SetLess sets the internal less function used for sorting the list items
-func (m *Model) SetLess(less func(string, string) bool ) {
+func (m *Model) SetLess(less func(string, string) bool) {
 	m.less = less
 }
 
