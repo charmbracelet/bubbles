@@ -98,6 +98,8 @@ out:
 		}
 
 		// Get wraplines
+		// NOTE Highlighting is not done here because wordwrap, while Ansi aware,
+		// does not ende and starts Ansi-sequenses at linebreak as of now
 		contentLines := strings.Split(wordwrap.String((item.content), contentWidth), "\n")
 
 		// if set prepend firstline with linenumber
@@ -112,10 +114,12 @@ out:
 		}
 
 		// join pad and line content
-		line := fmt.Sprintf("%s%s\n", firstPad, contentLines[0])
+		// NOTE linebreak is not added here because it would mess with the highlighting
+		line := fmt.Sprintf("%s%s", firstPad, contentLines[0])
 
 		// Highlight and write first line
 		holeString.WriteString(colored.Styled(line))
+		holeString.WriteString("\n")
 
 		// Dont write wraped lines if not set
 		visLines++
@@ -125,12 +129,14 @@ out:
 
 		// Write wraped lines
 		for _, line := range contentLines[1:] {
-			// Pad line
+			// Pad left of line
 			pad := strings.Repeat(" ", padTo) + m.seperatorWrap
-			padLine := fmt.Sprintf("%s%s\n", pad, line)
+			// NOTE linebreak is not added here because it would mess with the highlighting
+			padLine := fmt.Sprintf("%s%s", pad, line)
 
-			// Highlight and write wrap lines
+			// Highlight and write wraped line
 			holeString.WriteString(colored.Styled(padLine))
+			holeString.WriteString("\n")
 
 			// Only write lines that are visible
 			visLines++
