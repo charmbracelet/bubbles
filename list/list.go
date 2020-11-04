@@ -110,13 +110,13 @@ out:
 		holeString.WriteString("\n")
 
 		visLines++
-		if len(contentLines) == 1 || m.wrap {
+		if len(contentLines) == 1 || !m.wrap {
 			continue
 		}
 
 		// Write wraped lines
 		for _, line := range contentLines[1:] {
-			holeString.WriteString(strings.Repeat(" ", padTo) + m.seperatorWrap) // Pad line // TODO test seperator width
+			holeString.WriteString(strings.Repeat(" ", padTo) + m.seperatorWrap) // Pad line
 			holeString.WriteString(line)                                         // write line
 			holeString.WriteString("\n")                                         // Write end of line
 			visLines++
