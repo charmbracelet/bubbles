@@ -416,7 +416,7 @@ func NewModel() Model {
 		focus: true,
 
 		// Try to keep $CursorOffset lines between Cursor and screen Border
-		CursorOffset: 0,
+		CursorOffset: 5,
 
 		// Wrap lines to have no loss of information
 		Wrap:       true,
@@ -738,32 +738,27 @@ func (m *Model) KeepVisible(cursor int) (int, error) {
 	// Visible Area and Cursor are at beginning of List -> cant move further up.
 	if m.visibleOffset <= 0 && visItemsBeforCursor <= m.CursorOffset {
 		m.visibleOffset = 0
-		log.Println("beginning") //debug
 		return cursor, err
 	}
 
 	// Cursor is infront of Boundry -> move visible Area up
 	if visItemsBeforCursor < m.CursorOffset {
 		m.visibleOffset = m.curIndex + visItemsBeforCursor
-		log.Println("moving up") //debug
 		return cursor, err
 	}
 
 	// Cursor Position is within bounds -> all good
 	if visItemsBeforCursor >= m.CursorOffset && visItemsBeforCursor < m.Height-m.CursorOffset {
-		log.Println("middel") //debug
 		return cursor, err
 	}
 
 	// Cursor is beyond boundry -> move visibel Area down
 	m.visibleOffset = m.visibleOffset - (m.Height - m.CursorOffset - visItemsBeforCursor - 1)
-	log.Printf("end, vis: %d", m.visibleOffset) //debug
 	return cursor, err
 }
 
 func (m *Model) keepVisibleWrap(cursor int) (int, error) {
 	var lower, upper bool // Visible lower/upper
-	var lineCount [][2]int
 
 	if !m.CheckWithinBorder(cursor) {
 		return 0, OutOfBounds(fmt.Errorf("can't move beyond list bonderys, with requested cursor position: %d", cursor))
@@ -783,6 +778,13 @@ func (m *Model) keepVisibleWrap(cursor int) (int, error) {
 		direction = -1
 	}
 
+	type beforCursor struct {
+		listIndex int
+		linesBefor int
+	}
+
+	var lineCount []beforCursor
+
 	var lineSum int
 	if direction >= 0 {
 		lineSum = 1 // Cursorline is not counted in the following loop, so do it here
@@ -791,28 +793,28 @@ func (m *Model) keepVisibleWrap(cursor int) (int, error) {
 	for c := cursor - 1; c >= 0 && c > cursor-m.Height; c-- {
 		lineAm := m.listItems[c].wrapedLenght
 		lineSum += lineAm
-		lineCount = append(lineCount, [2]int{lineSum, c})
+		lineCount = append(lineCount, beforCursor{c, lineSum})
 
 		// if new cursor infront of old visible offset dont mark borders
-		if cursor-1 < m.visibleOffset {
+		if cursor-1 < m.visibleOffset + m.CursorOffset {
 			continue
 		}
 
 		// mark the pass of a border
-		if lineSum > m.CursorOffset {
+		upperBorder := m.CursorOffset
+		if !upper && lineSum > upperBorder {
 			upper = true
 		}
 		lowerBorder := m.Height-m.CursorOffset
-		if !lower && c >= m.CursorOffset && lineSum >= lowerBorder {
+		if !lower && lineSum >= lowerBorder {
 			lower = true
 		}
 	}
 
 	// Can't Move infront of list begin
-	if direction < 0 && len(lineCount) > 0 && lineCount[len(lineCount)-1][0] < m.CursorOffset && m.visibleOffset <= 0 && m.lineOffset <= 0 {
+	if direction < 0 && len(lineCount) > 0 && lineCount[len(lineCount)-1].linesBefor < m.CursorOffset && m.visibleOffset <= 0 && m.lineOffset <= 0 {
 		m.visibleOffset = 0
 		m.lineOffset = 0
-		log.Println("before")
 		return cursor, nil
 	}
 	// can't Move beyond list end, setting offsets accordingly
@@ -820,16 +822,15 @@ func (m *Model) keepVisibleWrap(cursor int) (int, error) {
 		var lastOffset, lineOffset int
 		lowerBorder := m.Height - m.CursorOffset
 		for _, item := range lineCount {
-			lastOffset = item[1] // Visible Offset
-			if item[0] > lowerBorder {
-				lineOffset = item[0] - lowerBorder
+			lastOffset = item.listIndex // Visible Offset
+			if item.linesBefor > lowerBorder {
+				lineOffset = item.linesBefor - lowerBorder
 				break
 			}
 		}
 		m.visibleOffset = lastOffset
 		m.lineOffset = lineOffset
 		cursor = len(m.listItems) - 1
-		log.Println("after")
 		return cursor, nil
 	}
 
@@ -838,15 +839,14 @@ func (m *Model) keepVisibleWrap(cursor int) (int, error) {
 		var lastOffset, lineOffset int
 		upperBorder := m.CursorOffset
 		for _, item := range lineCount {
-			lastOffset = item[1] // Visible Offset
-			if item[0] > upperBorder {
-				lineOffset = item[0] - upperBorder
+			lastOffset = item.listIndex // Visible Offset
+			if item.linesBefor > upperBorder {
+				lineOffset = item.linesBefor - upperBorder
 				break
 			}
 		}
 		m.visibleOffset = lastOffset
 		m.lineOffset = lineOffset
-		log.Println("up")
 		return cursor, nil
 	}
 
@@ -855,18 +855,16 @@ func (m *Model) keepVisibleWrap(cursor int) (int, error) {
 		var lastOffset, lineOffset int
 		lowerBorder := m.Height - m.CursorOffset
 		for _, item := range lineCount {
-			if item[0] >= lowerBorder {
-				lastOffset = item[1] // Visible Offset
-				lineOffset = item[0] - lowerBorder
+			if item.linesBefor >= lowerBorder {
+				lastOffset = item.listIndex // Visible Offset
+				lineOffset = item.linesBefor - lowerBorder
 				break
 			}
 		}
 		m.visibleOffset = lastOffset
 		m.lineOffset = lineOffset
-		log.Println("down")
 		return cursor, nil
 	}
 	// Within bounds
-	log.Println("middle")
 	return cursor, nil
 }
