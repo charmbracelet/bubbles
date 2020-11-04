@@ -25,6 +25,13 @@ type ConfigError error
 // NotFocused is a error return if the action can only be applied to a focused list
 type NotFocused error
 
+// ViewPos is used for holding the information about the View parameters
+type ViewPos struct {
+	Cursor     int
+	ItemOffset int
+	LineOffset int
+}
+
 // Model is a bubbletea List of strings
 type Model struct {
 	focus bool
@@ -69,8 +76,7 @@ type item struct {
 	value        fmt.Stringer
 }
 
-// StringItem is just a convenience to have fast a version
-// to satisfy the fmt.Stringer interface with plain strings
+// StringItem is just a convenience to satisfy the fmt.Stringer interface with plain strings
 type StringItem string
 
 func (s StringItem) String() string {
@@ -284,13 +290,14 @@ out:
 			visLines++
 
 			// Only write lines that are visible
-			if visLines > height {
+			if visLines >= height {
 				break out
 			}
 		}
 	}
-	if len(stringLines) > m.Height {
-		panic("can't display more lines than screen has lines.")
+	lenght := len(stringLines)
+	if lenght > m.Height {
+		panic(fmt.Sprintf("can't display %d lines when screen has %d lines.", lenght, m.Height))
 	}
 	return stringLines
 }
@@ -311,6 +318,7 @@ func lineNumber(relativ bool, curser, current int) int {
 }
 
 // Update changes the Model of the List according to the messages received
+// if the list is focused, else does nothing.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if !m.focus {
 		return m, nil
@@ -449,7 +457,7 @@ func (m Model) Init() tea.Cmd {
 // of the current Index if amount is 0
 // returns err != nil when amount lands outside list and safely does nothing
 // else if amount is not 0 toggles selected amount items
-// excluding the item on which the cursor lands
+// excluding the item on which the cursor would land
 func (m *Model) ToggleSelect(amount int) error {
 	if amount == 0 {
 		m.listItems[m.curIndex].selected = !m.listItems[m.curIndex].selected
@@ -545,12 +553,14 @@ func (m *Model) Less(i, j int) bool {
 	return m.less(m.listItems[i].value.String(), m.listItems[j].value.String())
 }
 
-// Swap is used to fulfill the Sort-interface
+// Swap swaps the items position within the list
+// and is used to fulfill the Sort-interface
 func (m *Model) Swap(i, j int) {
 	m.listItems[i], m.listItems[j] = m.listItems[j], m.listItems[i]
 }
 
-// Len is used to fulfill the Sort-interface
+// Len returns the amount of list-items
+// and is used to fulfill the Sort-interface
 func (m *Model) Len() int {
 	return len(m.listItems)
 }
@@ -637,8 +647,7 @@ func (m *Model) GetEquals() func(first, second fmt.Stringer) bool {
 }
 
 // GetIndex returns NotFound error if the Equals Methode is not set (SetEquals)
-// or multiple items match the returns MultipleMatches error
-// else it returns the index of the found found item
+// else it returns the index of the found item
 func (m *Model) GetIndex(toSearch fmt.Stringer) (int, error) {
 	if m.equals == nil {
 		return -1, NotFound(fmt.Errorf("no equals function provided. Use SetEquals to set it"))
@@ -792,7 +801,7 @@ func (m *Model) keepVisibleWrap(cursor int) (int, error) {
 	if direction >= 0 {
 		lineSum = 1 // Cursorline is not counted in the following loop, so do it here
 	}
-	// calculate how much space(lines) the items take
+	// calculate how much space(lines) the items befor the requested cursor position occupy
 	for c := cursor - 1; c >= 0 && c > cursor-m.Height; c-- {
 		lineAm := m.listItems[c].wrapedLenght
 		lineSum += lineAm
@@ -809,7 +818,7 @@ func (m *Model) keepVisibleWrap(cursor int) (int, error) {
 			upper = true
 		}
 		lowerBorder := m.Height - m.CursorOffset
-		if !lower && lineSum >= lowerBorder {
+		if !lower && lineSum >= lowerBorder && c >= m.visibleOffset {
 			lower = true
 		}
 	}
