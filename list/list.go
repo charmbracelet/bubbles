@@ -36,12 +36,12 @@ type ViewPos struct {
 type Model struct {
 	focus bool
 
-	listItems     []item
-	curIndex      int                                   // cursor
-	visibleOffset int                                   // begin of the visible lines
-	lineOffset    int                                   // if wrap is enabled start at line "lineOffset" from "visibleOffset"
-	less          func(string, string) bool             // function used for sorting
-	equals        func(fmt.Stringer, fmt.Stringer) bool // to be set from the user
+	listItems []item
+
+	viewPos ViewPos
+
+	less   func(string, string) bool             // function used for sorting
+	equals func(fmt.Stringer, fmt.Stringer) bool // used after sorting, to be set from the user
 
 	CursorOffset int // offset or margin between the cursor and the viewport(visible) border
 
@@ -116,7 +116,7 @@ func (m *Model) Lines() []string {
 	if height*width <= 0 {
 		panic("Can't display with zero width or hight of Viewport")
 	}
-	offset := m.visibleOffset
+	offset := m.viewPos.ItemOffset
 
 	// Get separators width
 	widthItem := ansi.PrintableRuneWidth(m.Seperator)
@@ -186,7 +186,7 @@ func (m *Model) Lines() []string {
 		}
 	}
 
-	lineOffset := m.lineOffset
+	lineOffset := m.viewPos.LineOffset
 
 	var visLines int
 	stringLines := make([]string, 0, height)
@@ -212,7 +212,7 @@ out:
 		firstPad := strings.Repeat(" ", numWidth)
 		var wrapPad string
 		if m.Number {
-			lineNum := lineNumber(m.NumberRelative, m.curIndex, index)
+			lineNum := lineNumber(m.NumberRelative, m.viewPos.Cursor, index)
 			number := fmt.Sprintf("%d", lineNum)
 			// since digits are only single bytes, len is sufficient:
 			firstPad = strings.Repeat(" ", numWidth-len(number)) + number
@@ -233,7 +233,7 @@ out:
 
 		// Current: handle highlighting of current item/first-line
 		curPad := unmark
-		if index == m.curIndex {
+		if index == m.viewPos.Cursor {
 			style = m.CurrentStyle
 			curPad = mark
 		}
@@ -404,10 +404,10 @@ func (m *Model) AddItems(itemList []fmt.Stringer) {
 // or if the CursorOffset is greater than half of the display height returns ConfigError
 // if amount is 0 the Curser will get set within the view bounds
 func (m *Model) Move(amount int) (int, error) {
-	target := m.curIndex + amount
-	newCursor, err := m.KeepVisible(target)
-	m.curIndex = newCursor // TODO
-	return newCursor, err
+	target := m.viewPos.Cursor + amount
+	newPos, err := m.KeepVisible(target)
+	m.viewPos = newPos
+	return newPos.Cursor, err
 }
 
 // NewModel returns a Model with some save/sane defaults
@@ -460,7 +460,7 @@ func (m Model) Init() tea.Cmd {
 // excluding the item on which the cursor would land
 func (m *Model) ToggleSelect(amount int) error {
 	if amount == 0 {
-		m.listItems[m.curIndex].selected = !m.listItems[m.curIndex].selected
+		m.listItems[m.viewPos.Cursor].selected = !m.listItems[m.viewPos.Cursor].selected
 	}
 
 	direction := 1
@@ -468,7 +468,7 @@ func (m *Model) ToggleSelect(amount int) error {
 		direction = -1
 	}
 
-	cur := m.curIndex
+	cur := m.viewPos.Cursor
 
 	target, err := m.Move(amount)
 	start, end := cur, target
@@ -494,7 +494,7 @@ func (m *Model) ToggleSelect(amount int) error {
 // if amount would be outside the list error is from type OutOfBounds
 // else all items till but excluding the end cursor position gets (un-)marked
 func (m *Model) MarkSelected(amount int, mark bool) error {
-	cur := m.curIndex
+	cur := m.viewPos.Cursor
 	if amount == 0 {
 		m.listItems[cur].selected = mark
 		return nil
@@ -511,7 +511,7 @@ func (m *Model) MarkSelected(amount int, mark bool) error {
 	for c := 0; c < amount*direction; c++ {
 		m.listItems[cur+c].selected = mark
 	}
-	m.curIndex = target
+	m.viewPos.Cursor = target
 	m.Move(direction)
 	return nil
 }
@@ -525,9 +525,9 @@ func (m *Model) ToggleAllSelected() {
 
 // Top moves the cursor to the first line
 func (m *Model) Top() {
-	m.curIndex = 0
-	m.visibleOffset = 0
-	m.lineOffset = 0
+	m.viewPos.Cursor = 0
+	m.viewPos.ItemOffset = 0
+	m.viewPos.LineOffset = 0
 }
 
 // Bottom moves the cursor to the last line
@@ -577,7 +577,7 @@ func (m *Model) Sort() {
 	equ := m.equals
 	var tmp item
 	if equ != nil {
-		tmp = m.listItems[m.curIndex]
+		tmp = m.listItems[m.viewPos.Cursor]
 	}
 	sort.Sort(m)
 	if equ == nil {
@@ -585,7 +585,7 @@ func (m *Model) Sort() {
 	}
 	for i, item := range m.listItems {
 		if is := equ(item.value, tmp.value); is {
-			m.curIndex = i
+			m.viewPos.Cursor = i
 			break // Stop when first (and hopefully only one) is found
 		}
 	}
@@ -602,7 +602,7 @@ func (m *Model) MoveItem(amount int) error {
 	if amount == 0 {
 		return nil
 	}
-	cur := m.curIndex
+	cur := m.viewPos.Cursor
 	target, err := m.Move(amount)
 	if err != nil {
 		return err
@@ -687,13 +687,13 @@ func (m *Model) UpdateAllItems(updater func(fmt.Stringer) fmt.Stringer) {
 // GetCursorIndex returns current cursor position within the List
 func (m *Model) GetCursorIndex() (int, error) {
 	if !m.focus {
-		return m.curIndex, NotFocused(fmt.Errorf("Model is not focused"))
+		return m.viewPos.Cursor, NotFocused(fmt.Errorf("Model is not focused"))
 	}
-	if m.CheckWithinBorder(m.curIndex) {
-		return m.curIndex, OutOfBounds(fmt.Errorf("Cursor is out auf bounds"))
+	if m.CheckWithinBorder(m.viewPos.Cursor) {
+		return m.viewPos.Cursor, OutOfBounds(fmt.Errorf("Cursor is out auf bounds"))
 	}
 	// TODO handel not focused case
-	return m.curIndex, nil
+	return m.viewPos.Cursor, nil
 }
 
 // GetAllItems returns all items in the list in current order
@@ -720,73 +720,67 @@ func (m *Model) UpdateSelectedItems(updater func(fmt.Stringer) fmt.Stringer) {
 // if CursorOffset is bigger than half the screen hight error will be of type ConfigError
 // If the cursor would be outside of the list, it will be set to the according nearest value
 // and error will be of type OutOfBounds. The return int is the absolut item number on which the cursor gets set
-func (m *Model) KeepVisible(cursor int) (int, error) {
+func (m *Model) KeepVisible(target int) (ViewPos, error) {
 	var err error
 	// Check if Cursor would be beyond list
-	if length := len(m.listItems); cursor >= length {
-		cursor = length - 1
+	if length := len(m.listItems); target >= length {
+		target = length - 1
 		errMsg := "requested cursor position was behind of the list"
 		err = OutOfBounds(fmt.Errorf(errMsg))
 	}
 
 	// Check if Cursor would be infront of list
-	if cursor < 0 {
-		cursor = 0
+	if target < 0 {
+		target = 0
 		errMsg := "requested cursor position was infront of the list"
 		err = OutOfBounds(fmt.Errorf(errMsg))
 	}
 
-	if cursor == 0 {
-		m.visibleOffset = 0
-		m.lineOffset = 0
-		return 0, nil
+	if target == 0 {
+		return ViewPos{}, nil
 	}
 
 	if m.Wrap {
-		return m.keepVisibleWrap(cursor)
+		return m.keepVisibleWrap(target)
 	}
+	m.viewPos.LineOffset = 0
 
-	visItemsBeforCursor := cursor - m.visibleOffset
+	visItemsBeforCursor := target - m.viewPos.ItemOffset
 
 	// Visible Area and Cursor are at beginning of List -> cant move further up.
-	if m.visibleOffset <= 0 && visItemsBeforCursor <= m.CursorOffset {
-		m.visibleOffset = 0
-		return cursor, err
+	if m.viewPos.ItemOffset <= 0 && visItemsBeforCursor <= m.CursorOffset {
+		return ViewPos{Cursor: target}, err
 	}
 
 	// Cursor is infront of Boundry -> move visible Area up
 	if visItemsBeforCursor < m.CursorOffset {
-		m.visibleOffset = cursor - m.CursorOffset
-		return cursor, err
+		return ViewPos{Cursor: target, ItemOffset: target - m.CursorOffset}, err
 	}
 
 	// Cursor Position is within bounds -> all good
 	if visItemsBeforCursor >= m.CursorOffset && visItemsBeforCursor < m.Height-m.CursorOffset {
-		return cursor, err
+		return ViewPos{Cursor: target, ItemOffset: m.viewPos.ItemOffset}, err
 	}
 
 	// Cursor is beyond boundry -> move visibel Area down
-	m.visibleOffset = m.visibleOffset - (m.Height - m.CursorOffset - visItemsBeforCursor - 1)
-	return cursor, err
+	lowerOffset := m.viewPos.ItemOffset - (m.Height - m.CursorOffset - visItemsBeforCursor - 1)
+	return ViewPos{Cursor: target, ItemOffset: lowerOffset}, err
 }
 
-func (m *Model) keepVisibleWrap(cursor int) (int, error) {
+func (m *Model) keepVisibleWrap(target int) (ViewPos, error) {
 	var lower, upper bool // Visible lower/upper
 
-	if !m.CheckWithinBorder(cursor) {
-		return 0, OutOfBounds(fmt.Errorf("can't move beyond list bonderys, with requested cursor position: %d", cursor))
+	if !m.CheckWithinBorder(target) {
+		return ViewPos{}, OutOfBounds(fmt.Errorf("can't move beyond list bonderys, with requested cursor position: %d", target))
 	}
 
 	// Nothing to do
-	if cursor == 0 {
-		// Reset all Offsets
-		m.visibleOffset = 0
-		m.lineOffset = 0
-		return 0, nil
+	if target == 0 {
+		return ViewPos{}, nil
 	}
 
 	direction := 1
-	if cursor-m.curIndex < 0 {
+	if target-m.viewPos.Cursor < 0 {
 		direction = -1
 	}
 
@@ -802,13 +796,13 @@ func (m *Model) keepVisibleWrap(cursor int) (int, error) {
 		lineSum = 1 // Cursorline is not counted in the following loop, so do it here
 	}
 	// calculate how much space(lines) the items befor the requested cursor position occupy
-	for c := cursor - 1; c >= 0 && c > cursor-m.Height; c-- {
+	for c := target - 1; c >= 0 && c > target-m.Height; c-- {
 		lineAm := m.listItems[c].wrapedLenght
 		lineSum += lineAm
 		lineCount = append(lineCount, beforCursor{c, lineSum})
 
-		// if new cursor infront of old visible offset dont mark borders
-		if cursor-1 < m.visibleOffset+m.CursorOffset {
+		// if new target infront of old visible offset dont mark borders
+		if target-1 < m.viewPos.ItemOffset+m.CursorOffset {
 			continue
 		}
 
@@ -818,19 +812,17 @@ func (m *Model) keepVisibleWrap(cursor int) (int, error) {
 			upper = true
 		}
 		lowerBorder := m.Height - m.CursorOffset
-		if !lower && lineSum >= lowerBorder && c >= m.visibleOffset {
+		if !lower && lineSum >= lowerBorder && c >= m.viewPos.ItemOffset {
 			lower = true
 		}
 	}
 
-	// Can't Move infront of list begin
-	if direction < 0 && len(lineCount) > 0 && lineCount[len(lineCount)-1].linesBefor < m.CursorOffset && m.visibleOffset <= 0 && m.lineOffset <= 0 {
-		m.visibleOffset = 0
-		m.lineOffset = 0
-		return cursor, nil
+	// Can't Move visible infront of list begin
+	if direction < 0 && len(lineCount) > 0 && lineCount[len(lineCount)-1].linesBefor < m.CursorOffset && m.viewPos.ItemOffset <= 0 && m.viewPos.LineOffset <= 0 {
+		return ViewPos{Cursor: target}, nil
 	}
 	// can't Move beyond list end, setting offsets accordingly
-	if direction >= 0 && cursor >= len(m.listItems)-1 {
+	if direction >= 0 && target >= len(m.listItems)-1 {
 		var lastOffset, lineOffset int
 		lowerBorder := m.Height - m.CursorOffset
 		for _, item := range lineCount {
@@ -840,10 +832,7 @@ func (m *Model) keepVisibleWrap(cursor int) (int, error) {
 				break
 			}
 		}
-		m.visibleOffset = lastOffset
-		m.lineOffset = lineOffset
-		cursor = len(m.listItems) - 1
-		return cursor, nil
+		return ViewPos{ItemOffset: lastOffset, LineOffset: lineOffset, Cursor: len(m.listItems) - 1}, nil
 	}
 
 	// infront upper border -> Move up
@@ -857,9 +846,7 @@ func (m *Model) keepVisibleWrap(cursor int) (int, error) {
 				break
 			}
 		}
-		m.visibleOffset = lastOffset
-		m.lineOffset = lineOffset
-		return cursor, nil
+		return ViewPos{ItemOffset: lastOffset, LineOffset: lineOffset, Cursor: target}, nil
 	}
 
 	// beyond lower border -> Moving Down
@@ -873,10 +860,8 @@ func (m *Model) keepVisibleWrap(cursor int) (int, error) {
 				break
 			}
 		}
-		m.visibleOffset = lastOffset
-		m.lineOffset = lineOffset
-		return cursor, nil
+		return ViewPos{ItemOffset: lastOffset, LineOffset: lineOffset, Cursor: target}, nil
 	}
 	// Within bounds
-	return cursor, nil
+	return ViewPos{ItemOffset: m.viewPos.ItemOffset, LineOffset: m.viewPos.LineOffset, Cursor: target}, nil
 }
