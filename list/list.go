@@ -783,7 +783,10 @@ func (m *Model) keepVisibleWrap(cursor int) (int, error) {
 		direction = -1
 	}
 
-	lineSum := 1 // Cursorline is not counted in the following loop, so do it here
+	var lineSum int
+	if direction >= 0 {
+		lineSum = 1 // Cursorline is not counted in the following loop, so do it here
+	}
 	// calculate how much space(lines) the items take
 	for c := cursor - 1; c >= 0 && c > cursor-m.Height; c-- {
 		lineAm := m.listItems[c].wrapedLenght
@@ -800,8 +803,7 @@ func (m *Model) keepVisibleWrap(cursor int) (int, error) {
 			upper = true
 		}
 		lowerBorder := m.Height-m.CursorOffset
-		if lineSum >= lowerBorder {
-			log.Println("setting lower border to true") //debug
+		if !lower && c >= m.CursorOffset && lineSum >= lowerBorder {
 			lower = true
 		}
 	}
@@ -828,12 +830,6 @@ func (m *Model) keepVisibleWrap(cursor int) (int, error) {
 		m.lineOffset = lineOffset
 		cursor = len(m.listItems) - 1
 		log.Println("after")
-		return cursor, nil
-	}
-
-	// Within bounds
-	if upper && !lower {
-		log.Println("middle")
 		return cursor, nil
 	}
 
@@ -870,7 +866,7 @@ func (m *Model) keepVisibleWrap(cursor int) (int, error) {
 		log.Println("down")
 		return cursor, nil
 	}
-	log.Printf("unhandelt case, direction: %d, lower: %t", direction, lower)
-	return cursor, fmt.Errorf("unhandelt case")
-
+	// Within bounds
+	log.Println("middle")
+	return cursor, nil
 }
