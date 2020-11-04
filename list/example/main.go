@@ -37,17 +37,14 @@ func main() {
 		"since one can not say what was a line break within an item or what is a new item",
 		"Use '+' or '-' to move the item under the curser up and down.",
 		"The key 'v' inverts the selected state of each item.",
-		"To toggle betwen only absolute itemnumbers and also relativ numbers, the 'r' key is your friend.",
+		//"To toggle betwen only absolute itemnumbers and also relativ numbers, the 'r' key is your friend.",
 	}
 	stringerList := list.MakeStringerList(itemList)
 
 	endResult := make(chan string, 1)
+	prefixFunc := list.AbsolutLinePrefix
 	list := list.NewModel()
 	list.AddItems(stringerList)
-	// uncomment the following lines for fancy check (selected) box :-)
-	// l.WrapPrefix = false
-	// l.SelectedPrefix = " [x]"
-	// l.UnSelectedPrefix = "[ ]"
 
 	// Since in this example we only use UNIQUE string items we can use a String Comparison for the equals methode
 	// but be aware that different items in your case can have the same string -> false-positiv
@@ -55,6 +52,7 @@ func main() {
 	list.SetEquals(func(first, second fmt.Stringer) bool { return first.String() == second.String() })
 	m := model{}
 	m.list = list
+	m.list.PrefixFunc = prefixFunc
 
 	m.endResult = endResult
 
@@ -84,7 +82,7 @@ func (m model) Init() tea.Cmd {
 	return nil
 }
 
-// View waits till the terminal sizes is knowen to the model and than,
+// View waits till the terminal sizes is known to the model and than,
 // pipes the model to the list View for rendering the list
 func (m model) View() string {
 	if !m.ready {
@@ -132,9 +130,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m.list.Move(-j)
 			return m, nil
-		case "r":
-			m.list.NumberRelative = !m.list.NumberRelative
-			return m, nil
+		//case "r":
+		//	m.list.NumberRelative = !m.list.NumberRelative
+		//	return m, nil
 		case "m":
 			j := 1
 			if m.jump != "" {
@@ -194,10 +192,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// here.
 			m.ready = true
 		}
-
 		return m, nil
-
 	}
-
 	return m, nil
 }
