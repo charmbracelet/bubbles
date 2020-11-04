@@ -173,7 +173,7 @@ func genDynamicModels() []testModel {
 	moveDown.Width = 80
 	moveDown.AddItems(MakeStringerList([]string{"", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""}))
 	moveDown.curIndex = 45 // set cursor next to line Offset Border so that the down move, should move the hole visible area.
-	moveDown.Down()
+	moveDown.Move(1)
 	return []testModel{
 		{model: moveBottom,
 			shouldBe:     "0 ╭ \n1 ╭ \n2 ╭ \n\x1b[7m3 ╭>\x1b[0m",

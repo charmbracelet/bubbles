@@ -10,14 +10,27 @@ import (
 	"strings"
 )
 
+// NotFound gets return if the search does not yield a result
+type NotFound error
+
+// OutOfBounds is return if and index is outside the list bounderys
+type OutOfBounds error
+
+// MultipleMatches gets return if the search yield more result
+type MultipleMatches error
+
+// ConfigError is return if there is a error with the configuration of the list Modul
+type ConfigError error
+
 // Model is a bubbletea List of strings
 type Model struct {
 	focus bool
 
 	listItems     []item
-	curIndex      int                    // cursor
-	visibleOffset int                    // begin of the visible lines
-	less          func(k, l string) bool // function used for sorting
+	curIndex      int                                   // cursor
+	visibleOffset int                                   // begin of the visible lines
+	less          func(string, string) bool             // function used for sorting
+	equals        func(fmt.Stringer, fmt.Stringer) bool // to be set from the user
 
 	CursorOffset int // offset or margin between the cursor and the viewport(visible) border
 
@@ -32,7 +45,7 @@ type Model struct {
 	SeperatorWrap    string
 	CurrentMarker    string
 
-	WrapPrefix bool
+	PrefixWrap bool
 
 	Number         bool
 	NumberRelative bool
@@ -124,9 +137,11 @@ func (m *Model) Lines() []string {
 	}
 	selected = strings.Repeat(" ", selectWidth-selWid) + selected
 
-	wrapPrePad := unselect
-	if !m.WrapPrefix {
-		wrapPrePad = strings.Repeat(" ", selectWidth)
+	wrapSelectPad := strings.Repeat(" ", selectWidth)
+	wrapUnSelePad := strings.Repeat(" ", selectWidth)
+	if m.PrefixWrap {
+		wrapSelectPad = strings.Repeat(" ", selectWidth-selWid) + selected
+		wrapUnSelePad = strings.Repeat(" ", selectWidth-tmpWid) + unselect
 	}
 
 	unselect = strings.Repeat(" ", selectWidth-tmpWid) + unselect
@@ -191,9 +206,11 @@ out:
 		selString := unselect
 		style := m.LineStyle
 
+		wrapPrePad := wrapUnSelePad
 		if item.selected {
 			style = m.SelectedStyle
 			selString = selected
+			wrapPrePad = wrapSelectPad
 		}
 
 		// Current: handle highlighting of current item/first-line
@@ -256,6 +273,7 @@ out:
 
 // lineNumber returns line number of the given index
 // and if relative is true the absolute difference to the cursor
+// or if on the cursor the absolute line number
 func lineNumber(relativ bool, curser, current int) int {
 	if !relativ || curser == current {
 		return current
@@ -292,7 +310,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		case " ":
 			m.ToggleSelect(1)
-			m.Down()
+			m.Move(1)
 			return m, nil
 		case "g":
 			m.Top()
@@ -330,10 +348,10 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.MouseMsg:
 		switch msg.Button {
 		case tea.MouseWheelUp:
-			m.Up()
+			m.Move(-1)
 
 		case tea.MouseWheelDown:
-			m.Down()
+			m.Move(1)
 		}
 	}
 	return m, nil
@@ -357,19 +375,19 @@ func (m *Model) AddItems(itemList []fmt.Stringer) {
 
 // Down moves the "cursor" or current line down.
 // If the end is already reached err is not nil.
-func (m *Model) Down() error {
-	return m.Move(1)
-}
+//func (m *Model) Down() error {
+//	return m.Move(1)
+//}
 
 // Up moves the "cursor" or current line up.
 // If the start is already reached, err is not nil.
-func (m *Model) Up() error {
-	return m.Move(-1)
-}
+//func (m *Model) Up() error {
+//	return m.Move(-1)
+//}
 
 // Move moves the cursor by amount, does nothing if amount is 0
-// and returns error != nil if amount go's beyond list borders
-// or if the CursorOffset is greater than half of the display height
+// and returns OutOfBounds error if amount go's beyond list borders
+// or if the CursorOffset is greater than half of the display height returns ConfigError
 func (m *Model) Move(amount int) error {
 	// do nothing
 	if amount == 0 {
@@ -381,12 +399,12 @@ func (m *Model) Move(amount int) error {
 	height := m.Height
 	if curOff >= height/2 {
 		curOff = 0
-		err = fmt.Errorf("cursor offset must be less than halfe of the display height: setting it to zero")
+		err = ConfigError(fmt.Errorf("cursor offset must be less than halfe of the display height: setting it to zero"))
 	}
 
 	target := m.curIndex + amount
 	if !m.CheckWithinBorder(target) {
-		return fmt.Errorf("Cant move outside the list: %d", target)
+		return OutOfBounds(fmt.Errorf("Cant move outside the list: %d", target))
 	}
 	// move visible part of list if Cursor is going beyond border.
 	lowerBorder := height + visOff - curOff
@@ -415,6 +433,7 @@ func (m *Model) Move(amount int) error {
 }
 
 // NewModel returns a Model with some save/sane defaults
+// design to transfer as much internal information to the user
 func NewModel() Model {
 	p := termenv.ColorProfile()
 	selStyle := termenv.Style{}.Background(p.Color("#ff0000"))
@@ -428,7 +447,8 @@ func NewModel() Model {
 		CursorOffset: 5,
 
 		// Wrap lines to have no loss of information
-		Wrap: true,
+		Wrap:       true,
+		PrefixWrap: true,
 
 		// Make clear where a item begins and where it ends
 		Seperator:     "╭",
@@ -468,7 +488,7 @@ func (m *Model) ToggleSelect(amount int) error {
 	cur := m.curIndex
 	target := cur + amount - direction
 	if !m.CheckWithinBorder(target) {
-		return fmt.Errorf("Cant go beyond list borders: %d", target)
+		return OutOfBounds(fmt.Errorf("Cant go beyond list borders: %d", target))
 	}
 	for c := 0; c < amount*direction; c++ {
 		m.listItems[cur+c].selected = !m.listItems[cur+c].selected
@@ -480,8 +500,8 @@ func (m *Model) ToggleSelect(amount int) error {
 
 // MarkSelected selects or unselects depending on 'mark'
 // amount = 0 changes the current item but does not move the cursor
-// if amount would be outside the list error is not nil
-// else all items till but excluding the end cursor position
+// if amount would be outside the list error is from type OutOfBounds
+// else all items till but excluding the end cursor position gets (un-)marked
 func (m *Model) MarkSelected(amount int, mark bool) error {
 	cur := m.curIndex
 	if amount == 0 {
@@ -495,7 +515,7 @@ func (m *Model) MarkSelected(amount int, mark bool) error {
 
 	target := cur + amount - direction
 	if !m.CheckWithinBorder(target) {
-		return fmt.Errorf("Cant go beyond list borders: %d", target)
+		return OutOfBounds(fmt.Errorf("Cant go beyond list borders: %d", target))
 	}
 	for c := 0; c < amount*direction; c++ {
 		m.listItems[cur+c].selected = mark
@@ -547,7 +567,6 @@ func (m *Model) GetSelected() []fmt.Stringer {
 }
 
 // Less is a Proxy to the less function, set from the user.
-// Swap is used to fulfill the Sort-interface
 func (m *Model) Less(i, j int) bool {
 	return m.less(m.listItems[i].value.String(), m.listItems[j].value.String())
 }
@@ -567,11 +586,26 @@ func (m *Model) SetLess(less func(string, string) bool) {
 	m.less = less
 }
 
-// Sort sorts the listitems according to the set less function
-// The current Item will maybe change!
+// Sort sorts the list items according to the set less-function
+// If there is no Equals-function set (with SetEquals), the current Item will maybe change!
 // Since the index of the current pointer does not change
 func (m *Model) Sort() {
+	equ := m.equals
+	var tmp item
+	if equ != nil {
+		tmp = m.listItems[m.curIndex]
+	}
 	sort.Sort(m)
+	if equ == nil {
+		return
+	}
+	for i, item := range m.listItems {
+		if is := equ(item.value, tmp.value); is {
+			m.curIndex = i
+			break // Stop when first (and hopefully only one) is found
+		}
+	}
+
 }
 
 // MoveItem moves the current item by amount to the end
@@ -586,7 +620,7 @@ func (m *Model) MoveItem(amount int) error {
 	cur := m.curIndex
 	target := cur + amount
 	if !m.CheckWithinBorder(target) {
-		return fmt.Errorf("Cant move outside the list: %d", target)
+		return OutOfBounds(fmt.Errorf("Cant move outside the list: %d", target))
 	}
 	m.Swap(cur, target)
 	m.curIndex = target
@@ -602,12 +636,6 @@ func (m *Model) CheckWithinBorder(index int) bool {
 	return true
 }
 
-// AddDataItem adds a Item with the given interface{} value added to the List item
-// So that when sorting, the connection between the string and the interfave{} value stays.
-//func (m *Model) AddDataItem(content string, data interface{}) {
-//	m.listItems = append(m.listItems, item{content: content, userValue: data})
-//}
-
 // Focus sets the list Model focus so it accepts key input and responds to them
 func (m *Model) Focus() {
 	m.focus = true
@@ -621,4 +649,48 @@ func (m *Model) UnFocus() {
 // Focused returns if the list Model is focused and accepts key presses
 func (m *Model) Focused() bool {
 	return m.focus
+}
+
+// SetEquals sets the internal equals methode used if provided to set the cursor again on the same item after sorting
+func (m *Model) SetEquals(equ func(first, second fmt.Stringer) bool) {
+	m.equals = equ
+}
+
+// GetEquals returns the internal equals methode
+// used to set the curser after sorting on the same item again
+func (m *Model) GetEquals() func(first, second fmt.Stringer) bool {
+	return m.equals
+}
+
+// GetIndex returns NotFound error if the Equals Methode is not set (SetEquals)
+// or multiple items match the returns MultipleMatches error
+// else it returns the index of the found found item
+func (m *Model) GetIndex(toSearch fmt.Stringer) (int, error) {
+	if m.equals == nil {
+		return -1, NotFound(fmt.Errorf("no equals function provided. Use SetEquals to set it"))
+	}
+	tmpList := m.listItems
+	matchList := make([]chan bool, len(tmpList))
+	equ := m.equals
+
+	for i, item := range tmpList {
+		resChan := make(chan bool)
+		matchList[i] = resChan
+		go func(f, s fmt.Stringer, equ func(fmt.Stringer, fmt.Stringer) bool, res chan<- bool) {
+			res <- equ(f, s)
+		}(item.value, toSearch, equ, resChan)
+	}
+
+	var c, lastIndex int
+	for i, resChan := range matchList {
+		if <-resChan {
+			c++
+			lastIndex = i
+		}
+	}
+	if c > 1 {
+		return -c, MultipleMatches(fmt.Errorf("The provided equals function yields multiple matches betwen one and other fmt.Stringer's"))
+	}
+	return lastIndex, nil
+
 }

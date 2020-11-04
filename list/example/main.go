@@ -61,9 +61,8 @@ func main() {
 	}
 
 	res := <-endResult
-	if res != "" {
-		fmt.Println(res)
-	}
+	// allways print a newline even on empty string result
+	fmt.Println(res)
 }
 
 // initialize sets up the model and returns it to the bubbletea runtime
@@ -71,9 +70,15 @@ func main() {
 func initialize(lineList []fmt.Stringer, endResult chan<- string) func() (tea.Model, tea.Cmd) {
 	l := list.NewModel()
 	l.AddItems(lineList)
-	// l.WrapPrefix = false // uncomment for fancy check (selected) box :-)
+	// uncomment the following lines for fancy check (selected) box :-)
+	// l.WrapPrefix = false
 	// l.SelectedPrefix = " [x]"
 	// l.UnSelectedPrefix = "[ ]"
+
+	// Since in this example we only use UNIQUE string items we can use a String Comparison for the equals methode
+	// but be aware that different items in your case can have the same string -> false-positiv
+	// Better: Assert back to your struct and test on something unique within it!
+	l.SetEquals(func(first, second fmt.Stringer) bool { return first.String() == second.String() })
 
 	return func() (tea.Model, tea.Cmd) { return model{list: l, endResult: endResult}, nil }
 }
@@ -127,10 +132,33 @@ func update(msg tea.Msg, mdl tea.Model) (tea.Model, tea.Cmd) {
 		case "r":
 			m.list.NumberRelative = !m.list.NumberRelative
 			return m, nil
-		}
-
-		// Enter prints the selected lines to StdOut
-		if msg.Type == tea.KeyEnter {
+		case "m":
+			j := 1
+			if m.jump != "" {
+				j, _ = strconv.Atoi(m.jump)
+				m.jump = ""
+			}
+			m.list.MarkSelected(j, true)
+			return m, nil
+		case "M":
+			j := 1
+			if m.jump != "" {
+				j, _ = strconv.Atoi(m.jump)
+				m.jump = ""
+			}
+			m.list.MarkSelected(j, false)
+			return m, nil
+		case " ":
+			j := 1
+			if m.jump != "" {
+				j, _ = strconv.Atoi(m.jump)
+				m.jump = ""
+			}
+			m.list.ToggleSelect(j)
+			m.list.Move(1)
+			return m, nil
+		case "enter":
+			// Enter prints the selected lines to StdOut
 			var result bytes.Buffer
 			for _, item := range m.list.GetSelected() {
 				result.WriteString(item.String())
@@ -138,13 +166,15 @@ func update(msg tea.Msg, mdl tea.Model) (tea.Model, tea.Cmd) {
 			}
 			m.endResult <- result.String()
 			return m, tea.Quit
+		default:
+			// resets jump buffer to prevent confusion
+			m.jump = ""
+
+			// pipe all other commands to the update from the list
+			list, newMsg := list.Update(msg, m.list)
+			m.list = list
+			return m, newMsg
 		}
-
-		// pipe all other commands to the update from the list
-		list, newMsg := list.Update(msg, m.list)
-		m.list = list
-
-		return m, newMsg
 
 	case tea.WindowSizeMsg:
 
@@ -152,7 +182,7 @@ func update(msg tea.Msg, mdl tea.Model) (tea.Model, tea.Cmd) {
 		m.list.Height = msg.Height
 
 		if !m.ready {
-			// Since this program is using the full size of the viewport we need
+			// Since this program can use the full size of the viewport we need
 			// to wait until we've received the window dimensions before we
 			// can initialize the viewport. The initial dimensions come in
 			// quickly, though asynchronously, which is why we wait for them
