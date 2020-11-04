@@ -193,19 +193,53 @@ out:
 
 // Update changes the Model of the List according to the messages recieved
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
+
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "down":
-			if m.jump > 0 {
-				m.curIndex -= m.jump
-				m.jump = 0
-			} else {
-				m.curIndex--
-			}
-		case " ":
-			m.listItems[m.curIndex].selected = !m.listItems[m.curIndex].selected
+		// Ctrl+c exits
+		if msg.Type == tea.KeyCtrlC {
+			return m, tea.Quit
 		}
+		switch msg.String() {
+		case "q":
+			return m, tea.Quit
+		case "down", "j":
+			m.Down()
+			return m, nil
+		case "up", "k":
+			m.Up()
+			return m, nil
+		case " ":
+			m.ToggleSelect()
+			m.Down()
+			return m, nil
+		case "g":
+			m.Top()
+			return m, nil
+		case "G":
+			m.Bottom()
+			return m, nil
+		case "s":
+			m.Sort()
+			return m, nil
+		}
+
+	case tea.WindowSizeMsg:
+
+		m.Viewport.Width = msg.Width
+		m.Viewport.Height = msg.Height
+
+		// Because we're using the viewport's default update function (with pager-
+		// style navigation) it's important that the viewport's update function:
+		//
+		// * Recieves messages from the Bubble Tea runtime
+		// * Returns commands to the Bubble Tea runtime
+		//
+
+		m.Viewport, cmd = viewport.Update(msg, m.Viewport)
+
+		return m, cmd
 	}
 	return m, nil
 }
@@ -292,12 +326,20 @@ func (m *Model) Top() {
 	m.curIndex = 0
 }
 
-// Bottom moves the cursor to the first line
+// Bottom moves the cursor to the last line
 func (m *Model) Bottom() {
-	visLines := m.Viewport.Height - m.lineCurserOffset
-	start := len(m.listItems) - visLines // FIXME acount for wraped lines
-	m.visibleOffset = start
-	m.curIndex = len(m.listItems) - 1
+	end := len(m.listItems) - 1
+	m.curIndex = end
+	maxVisItems := m.Viewport.Height - m.lineCurserOffset
+	var visLines, smallestVisIndex int
+	for c := end; visLines < maxVisItems; c-- {
+		if c < 0 {
+			break
+		}
+		visLines += m.listItems[c].wrapedLenght
+		smallestVisIndex = c
+	}
+	m.visibleOffset = smallestVisIndex
 }
 
 // maxRuneWidth returns the maximal lenght of occupied space

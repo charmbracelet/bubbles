@@ -24,11 +24,14 @@ type model struct {
 func main() {
 	items := []string{
 		"Welcome to the bubbles-list example!",
-		"You Can move the highlighted index up and down with the keys 'k' and 'j'",
+		"Use 'q' or 'ctrl-c' to quit!",
+		"You can move the highlighted index up and down with the keys 'k' and 'j'.",
+		"Move to the beginning with 'g' and to the end with 'G'.",
+		"Sort the entrys with 's', but be carefull you can't unsort it again.",
 		"The list can handel linebreaks,\nand has wordwrap enabled if the line gets to long.",
-		"You can Select items with the space key which will select the line and mark it as such.",
-		"Ones you finish this example with 'q' or 'ctrl-c' the selected lines will be printed to StdOut.",
-		"When you print the the items there will be a loss of information,",
+		"You can select items with the space key which will select the line and mark it as such.",
+		"Ones you hit 'enter', the selected lines will be printed to StdOut and the program exits.",
+		"When you print the items there will be a loss of information,",
 		"since one can not say what was a line break within an item or what is a new item",
 
 	}
@@ -37,17 +40,28 @@ func main() {
 	p := tea.NewProgram(initialize(items, endResult), update, view)
 
 	// Use the full size of the terminal in its "alternate screen buffer"
-	p.EnterAltScreen()
+	fullScreen := false // change to true if you want fullscreen
+
+	if fullScreen {
+		p.EnterAltScreen()
+	}
 
 	if err := p.Start(); err != nil {
 		fmt.Println("could not run program:", err)
 		os.Exit(1)
 	}
-	p.ExitAltScreen()
+	if fullScreen {
+		p.ExitAltScreen()
+	}
 
-	fmt.Println(<-endResult)
+	res := <-endResult
+	if res != "" {
+		fmt.Println(res)
+	}
 }
 
+// initialize sets up the model and returns it to the bubbletea runtime
+// as a function result, so it can later be handed over to the update and view functions.
 func initialize(lineList []string, endResult chan<- string) func() (tea.Model, tea.Cmd) {
 	l := list.NewModel()
 	l.AddItems(lineList)
@@ -55,17 +69,19 @@ func initialize(lineList []string, endResult chan<- string) func() (tea.Model, t
 	return func() (tea.Model, tea.Cmd) { return model{list: l, endResult: endResult}, nil }
 }
 
+// view waits till the terminal sizes is knowen to the model and than,
+// pipes the model to the list View for rendering the list
 func view(mdl tea.Model) string {
 	m, _ := mdl.(model)
 	if !m.ready {
-		return "\n  Initalizing..."
+		return "\n  Initalizing...\n\n  Waiting for info about window size."
 	}
 
 	return list.View(m.list)
 }
 
-type confirmation struct{}
 
+// update recives messages and the model and changes the model accordingly to the messages
 func update(msg tea.Msg, mdl tea.Model) (tea.Model, tea.Cmd) {
 	m, _ := mdl.(model)
 
@@ -75,35 +91,27 @@ func update(msg tea.Msg, mdl tea.Model) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		// Ctrl+c exits
 		if msg.Type == tea.KeyCtrlC {
-			result := strings.Join(m.list.GetSelected(), "\n")
-			m.endResult <- result
+			m.endResult <- ""
 			return m, tea.Quit
 		}
 		switch msg.String() {
 		case "q":
+			m.endResult <- ""
+			return m, tea.Quit
+		}
+
+		// Enter prints the selected lines to StdOut
+		if msg.Type == tea.KeyEnter {
 			result := strings.Join(m.list.GetSelected(), "\n")
 			m.endResult <- result
 			return m, tea.Quit
-		case "j":
-			m.list.Down()
-			return m, nil
-		case "k":
-			m.list.Up()
-			return m, nil
-		case " ":
-			m.list.ToggleSelect()
-			m.list.Down()
-			return m, nil
-		case "g":
-			m.list.Top()
-			return m, nil
-		case "G":
-			m.list.Bottom()
-			return m, nil
-		case "s":
-			m.list.Sort()
-			return m, nil
 		}
+
+		// pipe all other commands to the update from the list
+		list, newMsg := list.Update(msg, m.list)
+		m.list = list
+
+		return m, newMsg
 
 	case tea.WindowSizeMsg:
 
@@ -129,10 +137,7 @@ func update(msg tea.Msg, mdl tea.Model) (tea.Model, tea.Cmd) {
 		m.list.Viewport, cmd = viewport.Update(msg, m.list.Viewport)
 
 		return m, cmd
-	case confirmation:
-		if !m.finished {
-			return m, nil
-		}
+
 	}
 
 	return m, nil
