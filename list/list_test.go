@@ -166,7 +166,7 @@ func genDynamicModels() []testModel {
 	blankModel := Model{}
 	blankModel.Height = 10
 	blankModel.Width = 10
-	blankModel.AddItems(MakeStringerList([]string{"","","","","","","","","","","",""}))
+	blankModel.AddItems(MakeStringerList([]string{"", "", "", "", "", "", "", "", "", "", "", ""}))
 	blankModel.Move(0)
 	moveBottom := NewModel()
 	moveBottom.Width = 10
@@ -181,7 +181,7 @@ func genDynamicModels() []testModel {
 	moveDown.Move(1)
 	return []testModel{
 		{model: blankModel,
-			shouldBe: "\n\n\n\n\n\n\n\n",
+			shouldBe:     "\n\n\n\n\n\n\n\n",
 			afterMethode: "Move(0)",
 		},
 		{model: moveBottom,

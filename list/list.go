@@ -2,11 +2,11 @@ package list
 
 import (
 	"fmt"
-	"log"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/muesli/reflow/ansi"
 	"github.com/muesli/reflow/wordwrap"
 	"github.com/muesli/termenv"
+	"log"
 	"sort"
 	"strings"
 )
@@ -33,6 +33,7 @@ type Model struct {
 	listItems     []item
 	curIndex      int                                   // cursor
 	visibleOffset int                                   // begin of the visible lines
+	lineOffset    int                                   // if wrap is enabled start at line "lineOffset" from "visibleOffset"
 	less          func(string, string) bool             // function used for sorting
 	equals        func(fmt.Stringer, fmt.Stringer) bool // to be set from the user
 
@@ -393,63 +394,63 @@ func (m *Model) AddItems(itemList []fmt.Stringer) {
 // or if the CursorOffset is greater than half of the display height returns ConfigError
 // if amount is 0 the Curser is within the view bounds
 func (m *Model) Move(amount int) error {
-//	// do nothing
-//	if amount == 0 {
-//		return nil
-//	}
-//	var err error
-//	curOff := m.CursorOffset
-//	visOff := m.visibleOffset
-//	height := m.Height-1 // TODO find out why the windowsize massage reported 51 lines when there was only 50
-//	wrap := m.Wrap
-//	if curOff >= height/2 {
-//		curOff = 0
-//		err = ConfigError(fmt.Errorf("cursor offset must be less than halfe of the display height: setting it to zero"))
-//		// still do the movement and return the error at the end if here was any
-//	}
+	//	// do nothing
+	//	if amount == 0 {
+	//		return nil
+	//	}
+	//	var err error
+	//	curOff := m.CursorOffset
+	//	visOff := m.visibleOffset
+	//	height := m.Height-1 // TODO find out why the windowsize massage reported 51 lines when there was only 50
+	//	wrap := m.Wrap
+	//	if curOff >= height/2 {
+	//		curOff = 0
+	//		err = ConfigError(fmt.Errorf("cursor offset must be less than halfe of the display height: setting it to zero"))
+	//		// still do the movement and return the error at the end if here was any
+	//	}
 
 	target := m.curIndex + amount
 	newCursor, err := m.KeepVisible(target)
 	m.curIndex = newCursor // TODO
 	log.Printf("Requesting cursor position: %d, setting to: %d", target, newCursor)
 	return err
-//	if !m.CheckWithinBorder(target) {
-//		return OutOfBounds(fmt.Errorf("Cant move outside the list: %d", target))
-//	}
-//	// move visible part of list if Cursor is going beyond border.
-//	upperBorder := visOff + curOff
-//	lowerBorder := visOff + height - curOff
-//
-//	// visible Down movement
-//	if wrap && amount > 0 && target > lowerBorder {
-//		var sum int
-//		for _, item := range m.listItems[visOff: visOff+height] {
-//			if item.wrapedLenght > 1 {
-//				sum += item.wrapedLenght-1
-//			}
-//		}
-//		visOff = target - (height - curOff)
-//		log.Println("Visible down movement")
-//		visOff += sum
-//	} else if amount > 0 && target > lowerBorder {
-//		visOff = target - (height - curOff)
-//		log.Println("Visible down movement")
-//	}
-//	// visible Up movement
-//	if amount < 0 && target < upperBorder {
-//		visOff = target - curOff
-//		log.Println("Visible up movement")
-//	}
-//	// don't go in front of list begin
-//	if visOff < 0 {
-//		visOff = 0
-//		log.Println("Visible offset was infront of list begin")
-//	}
-//
-//	log.Println("setting cursor and visible offset after movement")
-//	m.curIndex = target
-//	m.visibleOffset = visOff
-//	return err
+	//	if !m.CheckWithinBorder(target) {
+	//		return OutOfBounds(fmt.Errorf("Cant move outside the list: %d", target))
+	//	}
+	//	// move visible part of list if Cursor is going beyond border.
+	//	upperBorder := visOff + curOff
+	//	lowerBorder := visOff + height - curOff
+	//
+	//	// visible Down movement
+	//	if wrap && amount > 0 && target > lowerBorder {
+	//		var sum int
+	//		for _, item := range m.listItems[visOff: visOff+height] {
+	//			if item.wrapedLenght > 1 {
+	//				sum += item.wrapedLenght-1
+	//			}
+	//		}
+	//		visOff = target - (height - curOff)
+	//		log.Println("Visible down movement")
+	//		visOff += sum
+	//	} else if amount > 0 && target > lowerBorder {
+	//		visOff = target - (height - curOff)
+	//		log.Println("Visible down movement")
+	//	}
+	//	// visible Up movement
+	//	if amount < 0 && target < upperBorder {
+	//		visOff = target - curOff
+	//		log.Println("Visible up movement")
+	//	}
+	//	// don't go in front of list begin
+	//	if visOff < 0 {
+	//		visOff = 0
+	//		log.Println("Visible offset was infront of list begin")
+	//	}
+	//
+	//	log.Println("setting cursor and visible offset after movement")
+	//	m.curIndex = target
+	//	m.visibleOffset = visOff
+	//	return err
 }
 
 // NewModel returns a Model with some save/sane defaults
@@ -751,7 +752,7 @@ func (m *Model) GetAllItems() []fmt.Stringer {
 }
 
 // UpdateSelectedItems updates all selected items within the list with given function
-func (m *Model)UpdateSelectedItems(updater func(fmt.Stringer) fmt.Stringer) {
+func (m *Model) UpdateSelectedItems(updater func(fmt.Stringer) fmt.Stringer) {
 	for i, item := range m.listItems {
 		if item.selected {
 			m.listItems[i].value = updater(item.value)
@@ -769,31 +770,10 @@ func (m *Model) KeepVisible(cursor int) (int, error) {
 	//defer func(m *Model, setTo *int) {
 	//	m.curIndex = *setTo
 	//}(m, &newCursor)
-
-	var visItemsBeforCursor int
-	beforCursor := cursor - m.visibleOffset
-
-	var lineCount[][2]int
-	// calculate how much Lines/Items are infront of the cursor
-	if m.Wrap {
-		var lineSum int
-		for c := m.curIndex; c > 0; c-- {
-
-			if lineSum > beforCursor {
-				visItemsBeforCursor = c
-				break
-			}
-			lineSum += m.listItems[c].wrapedLenght
-			lineCount = append(lineCount, [2]int{lineSum, c})
-		}
-	} else {
-		visItemsBeforCursor = cursor - m.visibleOffset
-	}
-
 	var err error
 	// Check if Cursor would be beyond list
 	if length := len(m.listItems); cursor >= length {
-		newCursor = length-1
+		newCursor = length - 1
 		m.curIndex = newCursor
 		err = OutOfBounds(fmt.Errorf("requested cursor position was behind of the list"))
 	}
@@ -805,6 +785,11 @@ func (m *Model) KeepVisible(cursor int) (int, error) {
 		err = OutOfBounds(fmt.Errorf("requested cursor position was infront of the list"))
 	}
 
+	if m.Wrap {
+		return m.keepVisibleWrap(newCursor)
+	}
+
+	visItemsBeforCursor := cursor - m.visibleOffset
 
 	// Visible Area and Cursor are at beginning of List -> cant move further up.
 	if visItemsBeforCursor <= m.CursorOffset && m.visibleOffset <= 0 {
@@ -826,4 +811,98 @@ func (m *Model) KeepVisible(cursor int) (int, error) {
 	// Cursor is beyond boundry -> move visibel Area down
 	m.visibleOffset = m.Height - m.CursorOffset - visItemsBeforCursor
 	return newCursor, err
+}
+
+func (m *Model) keepVisibleWrap(cursor int) (int, error) {
+
+	var lower, upper bool // Visible lower/upper
+	var lineSum int
+	var lineCount [][2]int
+
+	// Reset all Offsets
+	m.visibleOffset = 0
+	m.lineOffset = 0
+
+	// Nothing to do
+	if cursor == 0 {
+		return 0, nil
+	}
+
+	// calculate how much space(lines) the items take
+	for c := cursor - 1; c > 0 && c > cursor-m.Height; c-- {
+		lineSum += m.listItems[c].wrapedLenght
+		lineCount = append(lineCount, [2]int{lineSum, c})
+		if lineSum >= m.CursorOffset {
+			upper = true
+		}
+		if lineSum >= m.Height-m.CursorOffset {
+			lower = true
+		}
+	}
+
+	direction := 1
+	if m.curIndex-cursor < 0 {
+		direction = -1
+	}
+
+	// Can't Move infront of list begin
+	if direction < 0 && lineCount[len(lineCount)-1][0] < m.CursorOffset && m.visibleOffset <= 0 && m.lineOffset <= 0 {
+		m.visibleOffset = 0
+		m.lineOffset = 0
+		return cursor, nil
+	}
+	// can't Move beyond list end, setting offsets accordingly
+	if direction >= 0 && cursor >= len(m.listItems)-1 {
+		var lastOffset, lineOffset int
+		lowerBorder := m.Height - m.CursorOffset
+		for _, item := range lineCount {
+			lastOffset = item[1] // Visible Offset
+			if item[0] > lowerBorder {
+				lineOffset = item[0] - lowerBorder
+				break
+			}
+		}
+		m.visibleOffset = lastOffset
+		m.lineOffset = lineOffset
+		cursor = len(m.listItems) - 1
+		return cursor, nil
+	}
+
+	// Within bounds
+	if upper && !lower {
+		return cursor, nil
+	}
+
+	// infront upper border -> Move up
+	if direction < 0 && !upper {
+		var lastOffset, lineOffset int
+		upperBorder := m.CursorOffset
+		for _, item := range lineCount {
+			lastOffset = item[1] // Visible Offset
+			if item[0] > upperBorder {
+				lineOffset = item[0] - upperBorder
+				break
+			}
+		}
+		m.visibleOffset = lastOffset
+		m.lineOffset = lineOffset
+		return cursor, nil
+	}
+
+	// beyond lower border -> Moving Down
+	if direction >= 0 && lower {
+		var lastOffset, lineOffset int
+		lowerBorder := m.Height - m.CursorOffset
+		for _, item := range lineCount {
+			lastOffset = item[1] // Visible Offset
+			if item[0] > lowerBorder {
+				lineOffset = item[0] - lowerBorder
+				break
+			}
+		}
+		m.visibleOffset = lastOffset
+		m.lineOffset = lineOffset
+		return cursor, nil
+	}
+
 }
