@@ -17,18 +17,17 @@ type Model struct {
 
 	listItems        []item
 	curIndex         int
-	visibleItems     []item
 	visibleOffset    int
 	lineCurserOffset int
 
 	Viewport viewport.Model
-	wrap     bool
+	Wrap     bool
 
-	seperator        string
-	seperatorWrap    string
-	currentSeperator string
-	relativeNumber   bool
-	absoluteNumber   bool
+	Seperator        string
+	SeperatorWrap    string
+	CurrentSeperator string
+	RelativeNumber   bool
+	AbsoluteNumber   bool
 
 	jump int // maybe buffer for jumping multiple lines
 
@@ -41,49 +40,81 @@ type Model struct {
 // Item are Items used in the list Model
 // to hold the Content representat as a string
 type item struct {
-	selected bool
-	content  string
+	selected     bool
+	content      string
+	wrapedLines  []string
+	wrapedLenght int
+	wrapedto     int
+}
+
+// genVisLines renews the wrap of the content into wraplines
+func (i item) genVisLines(wrapTo int) item {
+	i.wrapedLines = strings.Split(wordwrap.String(i.content, wrapTo), "\n")
+	//TODO hardwrap lines/words
+	i.wrapedLenght = len(i.wrapedLines)
+	i.wrapedto = wrapTo
+	return i
 }
 
 // View renders the Lst to a (displayable) string
 func (m *Model) View() string {
 	width := m.Viewport.Width
 
-	// padding for the right amount of numbers
-	max := m.Viewport.Height                       // relativ
-	abs := m.visibleOffset + m.Viewport.Height - 1 // absolute
-	if abs > max {
-		max = abs
+	// check visible area
+	height := m.Viewport.Height
+	width := m.Viewport.Width
+	if height*width <= 0 {
+		panic("Can't display with zero width or hight of Viewport")
 	}
-	padTo := runewidth.StringWidth(fmt.Sprintf("%d", max))
-	sep := maxRuneWidth(m.seperator, m.seperatorWrap, m.currentSeperator)
+
+	// if there is something to pad
+	var relWidth, absWidth, padWidth int
+
+	if m.RelativeNumber {
+		relWidth = len(fmt.Sprintf("%d", height))
+	}
+
+	if m.AbsoluteNumber {
+		absWidth = len(fmt.Sprintf("%d", len(m.listItems)))
+	}
+
+	// get widest number to pad
+	padWidth = relWidth
+	if padWidth < absWidth {
+		padWidth = absWidth
+	}
+
+	// Get max seperator width
+	sepWidth := maxRuneWidth(m.Seperator, m.SeperatorWrap, m.CurrentSeperator)
+
+	// Get actual content width
+	contentWidth := width - (sepWidth + padWidth + 1)
 
 	// Check if there is space for the content left
-	contentWidth := m.Viewport.Width - (padTo + sep)
 	if contentWidth <= 0 {
 		panic("Can't display with zero width for content")
 	}
 
-	// Set Visible lines
-	begin := m.visibleOffset
-	if begin < 0 {
-		begin = 0
+	// renew wrap of all items TODO check if to slow
+	for i := range m.listItems {
+		m.listItems[i] = m.listItems[i].genVisLines(contentWidth)
+
 	}
-	end := m.visibleOffset + m.Viewport.Height
-	lenght := len(m.listItems)
-	if end > lenght {
-		end = len(m.listItems)
-	}
-	m.visibleItems = m.listItems[begin:end]
 
 	p := termenv.ColorProfile()
 
 	var visLines int
 	var holeString bytes.Buffer
 out:
-	// Handle list items
-	for index, item := range m.visibleItems {
-		sepString := m.seperator
+	// Handle list items, start at first visible and go till end of list or visible (break)
+	for index := m.visibleOffset; index < len(m.listItems); index++ {
+		if index >= len(m.listItems) || index < 0 {
+			break
+		}
+
+		item := m.listItems[index]
+
+		sepString := m.Seperator
 
 		// handel highlighting of selected lines
 		colored := termenv.String()
@@ -94,53 +125,55 @@ out:
 		// handel highlighting of current line
 		if index+m.visibleOffset == m.curIndex {
 			colored = colored.Reverse()
-			sepString = m.currentSeperator
+			sepString = m.CurrentSeperator
 		}
-
-		// Get wraplines
-		// NOTE Highlighting is not done here because wordwrap, while Ansi aware,
-		// does not ende and starts Ansi-sequenses at linebreak as of now
-		contentLines := strings.Split(wordwrap.String((item.content), contentWidth), "\n")
 
 		// if set prepend firstline with linenumber
 		var firstPad string
-		if m.absoluteNumber || m.relativeNumber {
-			firstPad = fmt.Sprintf("%"+fmt.Sprint(padTo)+"d%"+fmt.Sprint(sep)+"s", m.visibleOffset+index, sepString)
-		}
-
-		// Only handel lines that are visible
-		if visLines+len(contentLines) >= m.Viewport.Height {
-			break out
+		if m.AbsoluteNumber || m.RelativeNumber {
+			lineOffset := m.visibleOffset + index
+			firstPad = fmt.Sprintf("%"+fmt.Sprint(padWidth)+"d%"+fmt.Sprint(sepWidth)+"s", lineOffset, sepString)
 		}
 
 		// join pad and line content
+		if item.wrapedLenght == 0 {
+			panic("cant display item with no visible content")
+		}
+
+		lineContent := item.wrapedLines[0]
 		// NOTE linebreak is not added here because it would mess with the highlighting
-		line := fmt.Sprintf("%s%s", firstPad, contentLines[0])
+		line := fmt.Sprintf("%s%s", firstPad, lineContent)
 
 		// Highlight and write first line
-		holeString.WriteString(colored.Styled(line))
+		coloredLine := colored.Styled(line)
+		holeString.WriteString(coloredLine)
 		holeString.WriteString("\n")
+		visLines++
 
 		// Dont write wraped lines if not set
-		visLines++
-		if !m.wrap {
+		if !m.Wrap || item.wrapedLenght < 1 {
 			continue
 		}
 
+		// Only write lines that are visible
+		if visLines >= height {
+			break out
+		}
+
 		// Write wraped lines
-		for _, line := range contentLines[1:] {
+		for _, line := range item.wrapedLines[1:] {
 			// Pad left of line
-			pad := strings.Repeat(" ", padTo) + m.seperatorWrap
+			pad := strings.Repeat(" ", padWidth) + m.SeperatorWrap
 			// NOTE linebreak is not added here because it would mess with the highlighting
 			padLine := fmt.Sprintf("%s%s", pad, line)
 
 			// Highlight and write wraped line
 			holeString.WriteString(colored.Styled(padLine))
 			holeString.WriteString("\n")
+			visLines++
 
 			// Only write lines that are visible
-			visLines++
-			if visLines >= m.Viewport.Height {
+			if visLines >= height {
 				break out
 			}
 		}
@@ -181,17 +214,6 @@ func (m *Model) AddItems(itemList []string) {
 			content:  i},
 		)
 	}
-}
-
-// SetAbsNumber sets if absolute Linenumbers should be displayed
-func (m *Model) SetAbsNumber(setTo bool) {
-	m.absoluteNumber = setTo
-}
-
-// SetSeperator sets the seperator string
-// between left border and the content of the line
-func (m *Model) SetSeperator(sep string) {
-	m.seperator = sep
 }
 
 // Down moves the "cursor" or current line down.
@@ -237,12 +259,12 @@ func NewModel() Model {
 	return Model{
 		lineCurserOffset: 5,
 
-		wrap: true,
+		Wrap: true,
 
-		seperator:        " ╭ ",
-		seperatorWrap:    " │ ",
-		currentSeperator: " ╭>",
-		absoluteNumber:   true,
+		Seperator:        " ╭ ",
+		SeperatorWrap:    " │ ",
+		CurrentSeperator: " ╭>",
+		AbsoluteNumber:   true,
 
 		SelectedBackGroundColor: "#ff0000",
 	}
@@ -251,7 +273,6 @@ func NewModel() Model {
 // Top moves the cursor to the first line
 func (m *Model) Top() {
 	m.visibleOffset = 0
-	m.visibleItems = m.listItems[0:m.Viewport.Height]
 	m.curIndex = 0
 }
 
@@ -260,7 +281,6 @@ func (m *Model) Bottom() {
 	visLines := m.Viewport.Height - m.lineCurserOffset
 	start := len(m.listItems) - visLines // FIXME acount for wraped lines
 	m.visibleOffset = start
-	m.visibleItems = m.listItems[start : start+visLines]
 	m.curIndex = len(m.listItems) - 1
 }
 
