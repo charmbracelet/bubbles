@@ -2,10 +2,10 @@ package main
 
 import (
 	"bytes"
-	"log"
 	"fmt"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
+	"log"
 	"os"
 	"strconv"
 )
@@ -64,9 +64,7 @@ func main() {
 	m := model{}
 	m.list = list
 
-
 	m.endResult = endResult
-
 
 	p := tea.NewProgram(m)
 
@@ -89,7 +87,6 @@ func main() {
 	// allways print a newline even on empty string result
 	fmt.Println(res)
 }
-
 
 func (m model) Init() tea.Cmd {
 	return nil
@@ -116,7 +113,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.endResult <- ""
 			return m, tea.Quit
 		}
-		keyString := msg.String();
+		keyString := msg.String()
 		log.Printf("received key massage: %s", keyString)
 		switch keyString {
 		case "c":
