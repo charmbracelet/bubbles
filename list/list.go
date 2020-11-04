@@ -9,6 +9,7 @@ import (
 	"github.com/muesli/reflow/wordwrap"
 	"github.com/muesli/termenv"
 	"strings"
+	"sort"
 )
 
 // Model is a bubbletea List of strings
@@ -19,6 +20,7 @@ type Model struct {
 	curIndex         int
 	visibleOffset    int
 	lineCurserOffset int
+	less func (k, l string) bool
 
 	jump int // maybe buffer for jumping multiple lines
 
@@ -276,6 +278,11 @@ func NewModel() Model {
 		SeperatorCurrent: " ╭>",
 		SelectedPrefix:   "*",
 		AbsoluteNumber:   true,
+		less: func(k, l string) bool {
+			return k < l
+		},
+
+
 
 		SelectedBackGroundStyle: style,
 	}
@@ -318,4 +325,30 @@ func (m *Model) GetSelected() []string {
 		}
 	}
 	return selected
+}
+
+// Less is a Proxy to the less function, set from the user.
+// Swap is used to fullfill the Sort-interface
+func (m *Model) Less(i ,j int) bool {
+	return m.less(m.listItems[i].content, m.listItems[j].content)
+}
+
+// Swap is used to fullfill the Sort-interface
+func (m *Model) Swap(i, j int) {
+	m.listItems[i], m.listItems[j] = m.listItems[j], m.listItems[i]
+}
+
+// Len is used to fullfill the Sort-interface
+func (m *Model) Len() int {
+	return len(m.listItems)
+}
+
+// SetLess sets the internal less function used for sorting the list items
+func (m *Model) SetLess(less func(string, string) bool ) {
+	m.less = less
+}
+
+// Sort sorts the listitems acording to the set less function
+func (m *Model) Sort() {
+	sort.Sort(m)
 }
