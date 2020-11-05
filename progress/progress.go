@@ -18,8 +18,8 @@ type Model struct {
 	// Left side color of progress bar. By default, it's #fc00ff
 	EndColor colorful.Color
 
-	// Length of progress bar in symbols.
-	Length int
+	// Width of progress bar in symbols.
+	Width int
 
 	// Which part of bar need to visualise. Can be 0.0 < Progress < 1.0, if value is bigger or smaller, it'll
 	// be mapped to this values
@@ -43,7 +43,7 @@ func NewModel(size int) *Model {
 	return &Model{
 		StartColor:     startColor,
 		EndColor:       endColor,
-		Length:         size,
+		Width:         size,
 		FilamentSymbol: '█',
 		EmptySymbol:    '░',
 	}
@@ -70,9 +70,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *Model) View() string {
-	ramp := make([]string, int(float64(m.Length)*m.Progress))
+	ramp := make([]string, int(float64(m.Width)*m.Progress))
 	for i := 0; i < len(ramp); i++ {
-		gradientPart := float64(m.Length)
+		gradientPart := float64(m.Width)
 		if m.FullGradientMode {
 			gradientPart = float64(len(ramp))
 		}
@@ -86,6 +86,6 @@ func (m *Model) View() string {
 		fullCells += termenv.String(string(m.FilamentSymbol)).Foreground(termenv.ColorProfile().Color(ramp[i])).String()
 	}
 
-	fullCells += strings.Repeat(string(m.EmptySymbol), m.Length-len(ramp))
+	fullCells += strings.Repeat(string(m.EmptySymbol), m.Width-len(ramp))
 	return fullCells
 }
