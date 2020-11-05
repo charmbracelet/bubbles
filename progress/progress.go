@@ -8,7 +8,7 @@ import (
 	"github.com/muesli/termenv"
 )
 
-// Value is explicit type of, you know, progression. Can be 0.0 < x < 1.0
+// Value is explicit type of, you know, progression. Can be 0.0 < x < 1.0.
 type Value float64
 
 type Model struct {
@@ -43,7 +43,7 @@ func NewModel(size int) *Model {
 	return &Model{
 		StartColor:     startColor,
 		EndColor:       endColor,
-		Width:         size,
+		Width:          size,
 		FilamentSymbol: '█',
 		EmptySymbol:    '░',
 	}
