@@ -27,11 +27,11 @@ func TestViewBounds(t *testing.T) {
 	for _, testM := range genModels(genTestModels()) {
 		for i, line := range strings.Split(testM.model.View(), "\n") {
 			lineWidth := ansi.PrintableRuneWidth(line)
-			width := testM.model.Width
+			width := testM.model.Screen.Width
 			if lineWidth > width {
 				t.Errorf("The line:\n\n%s\n%s^\n\n is %d chars longer than the Viewport width.", line, strings.Repeat(" ", width-1), lineWidth-width)
 			}
-			if i > testM.model.Height {
+			if i > testM.model.Screen.Height {
 				t.Error("There are more lines produced from the View() than the Viewport height")
 			}
 		}
@@ -82,8 +82,8 @@ func genModels(rawLists []test) []testModel {
 	processedList := make([]testModel, len(rawLists))
 	for i, list := range rawLists {
 		m := NewModel()
-		m.Height = list.vHeight
-		m.Width = list.vWidth
+		m.Screen.Height = list.vHeight
+		m.Screen.Width = list.vWidth
 		m.AddItems(MakeStringerList(list.items))
 		newItem := testModel{model: m, shouldBe: list.shouldBe}
 		processedList[i] = newItem
@@ -164,18 +164,18 @@ func genPanicTests() []test {
 // genDynamicModels generats test cases for dynamic actions like movement, sorting, resizing
 func genDynamicModels() []testModel {
 	blankModel := Model{}
-	blankModel.Height = 10
-	blankModel.Width = 10
+	blankModel.Screen.Height = 10
+	blankModel.Screen.Width = 10
 	blankModel.AddItems(MakeStringerList([]string{"", "", "", "", "", "", "", "", "", "", "", ""}))
 	blankModel.Move(0)
 	moveBottom := NewModel()
-	moveBottom.Width = 10
-	moveBottom.Height = 10
+	moveBottom.Screen.Width = 10
+	moveBottom.Screen.Height = 10
 	moveBottom.AddItems(MakeStringerList([]string{"", "", "", ""}))
 	moveBottom.Bottom()
 	moveDown := NewModel()
-	moveDown.Height = 50
-	moveDown.Width = 80
+	moveDown.Screen.Height = 50
+	moveDown.Screen.Width = 80
 	moveDown.AddItems(MakeStringerList([]string{"", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""}))
 	moveDown.viewPos.Cursor = 45 // set cursor next to line Offset Border so that the down move, should move the hole visible area.
 	moveDown.Move(1)

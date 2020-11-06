@@ -61,16 +61,13 @@ type Model struct {
 
 	listItems []item
 
-	viewPos ViewPos
-
 	less   func(string, string) bool             // function used for sorting
 	equals func(fmt.Stringer, fmt.Stringer) bool // used after sorting, to be set from the user
 
 	CursorOffset int // offset or margin between the cursor and the viewport(visible) border
 
-	Width   int
-	Height  int
-	Profile termenv.Profile
+	Screen  ScreenInfo
+	viewPos ViewPos
 
 	Wrap bool
 
@@ -85,11 +82,26 @@ type Model struct {
 // Item are Items used in the list Model
 // to hold the Content represented as a string
 type item struct {
-	selected     bool
-	wrapedLines  []string
-	wrapedLenght int
-	wrapedto     int
-	value        fmt.Stringer
+	selected bool
+	value    fmt.Stringer
+}
+
+// itemString returns the lines of the item string value wrapped to the according content-width
+func (m *Model) itemString(i item) []string {
+	var preWidth, sufWidth int
+	if m.PrefixGen != nil {
+		preWidth = m.PrefixGen.InitPrefixer(m.viewPos, m.Screen)
+	}
+	if m.SuffixGen != nil {
+		sufWidth = m.SuffixGen.InitSuffixer(m.viewPos, m.Screen)
+	}
+	contentWith := m.Screen.Width - preWidth - sufWidth
+	// TODO hard limit the string length
+	lines := strings.Split(wordwrap.String(i.value.String(), contentWith), "\n")
+	if !m.Wrap {
+		return []string{lines[0]}
+	}
+	return lines
 }
 
 // StringItem is just a convenience to satisfy the fmt.Stringer interface with plain strings
@@ -108,15 +120,6 @@ func MakeStringerList(list []string) []fmt.Stringer {
 	return stringerList
 }
 
-// genVisLines renews the wrap of the content into wrapedLines
-func (i item) genVisLines(wrapTo int) item {
-	i.wrapedLines = strings.Split(wordwrap.String(i.value.String(), wrapTo), "\n")
-	//TODO hard wrap lines/words
-	i.wrapedLenght = len(i.wrapedLines)
-	i.wrapedto = wrapTo
-	return i
-}
-
 // View renders the List to a (displayable) string
 func (m Model) View() string {
 	return strings.Join(m.Lines(), "\n")
@@ -128,8 +131,8 @@ func (m *Model) Lines() []string {
 	// get public variables as locals so they can't change while using
 
 	// check visible area
-	height := m.Height
-	width := m.Width
+	height := m.Screen.Height
+	width := m.Screen.Width
 	if height*width <= 0 {
 		panic("Can't display with zero width or hight of Viewport")
 	}
@@ -137,10 +140,10 @@ func (m *Model) Lines() []string {
 	// Get the Width of each suf/prefix
 	var prefixWidth, suffixWidth int
 	if m.PrefixGen != nil {
-		prefixWidth = m.PrefixGen.InitPrefixer(m.viewPos, ScreenInfo{Height: m.Height, Width: m.Width, Profile: termenv.ColorProfile()})
+		prefixWidth = m.PrefixGen.InitPrefixer(m.viewPos, m.Screen)
 	}
 	if m.SuffixGen != nil {
-		suffixWidth = m.SuffixGen.InitSuffixer(m.viewPos, ScreenInfo{Height: m.Height, Width: m.Width, Profile: termenv.ColorProfile()})
+		suffixWidth = m.SuffixGen.InitSuffixer(m.viewPos, m.Screen)
 	}
 
 	// Get actual content width
@@ -151,19 +154,12 @@ func (m *Model) Lines() []string {
 		panic("Can't display with zero width for content")
 	}
 
-	wrap := m.Wrap
-	if wrap {
-		// renew wrap of all items
-		for i := range m.listItems {
-			m.listItems[i] = m.listItems[i].genVisLines(contentWidth)
-		}
-	}
-
 	lineOffset := m.viewPos.LineOffset
 	offset := m.viewPos.ItemOffset
 
 	var visLines int
 	stringLines := make([]string, 0, height)
+
 out:
 	// Handle list items, start at first visible and go till end of list or visible (break)
 	for index := offset; index < len(m.listItems); index++ {
@@ -172,80 +168,46 @@ out:
 			break
 		}
 
+		item := m.listItems[index]
+
+		lines := m.itemString(item)
+
 		var ignoreLines bool
-		if wrap && lineOffset > 0 && index == offset {
+		if len(lines) > 1 && lineOffset > 0 && index == offset {
 			ignoreLines = true
 		}
 
-		item := m.listItems[index]
-		if wrap && item.wrapedLenght <= 0 {
-			panic("cant display item with no visible content")
-		}
-
-		var content string
-		if wrap {
-			content = item.wrapedLines[0]
-		} else {
-			content = strings.Split(item.value.String(), "\n")[0] // TODO SplitN
-			// TODO hard limit the string length
-		}
-
-		// Surrounding content
-		var linePrefix, lineSuffix string
-		if m.PrefixGen != nil {
-			linePrefix = m.PrefixGen.Prefix(index, 0, item.selected)
-		}
-		if m.SuffixGen != nil {
-			lineSuffix = fmt.Sprintf("%s%s", strings.Repeat(" ", contentWidth-ansi.PrintableRuneWidth(content)), m.SuffixGen.Suffix(index, 0, item.selected))
-		}
-
-		// Join all
-		line := fmt.Sprintf("%s%s%s", linePrefix, content, lineSuffix)
-
-		// Highlighting of selected and current lines
-		style := m.LineStyle
-		if item.selected {
-			style = m.SelectedStyle
-		}
-		if index == m.viewPos.Cursor {
-			style = m.CurrentStyle
-		}
-
-		// skip lines only when line offset is activ
-		if !ignoreLines {
-			// Highlight and write first line
-			stringLines = append(stringLines, style.Styled(line))
-			visLines++
-		}
-
-		// Only write lines that are visible
-		if visLines >= height {
-			break out
-		}
-
-		// Don't write wrapped lines if not set
-		if !wrap || item.wrapedLenght <= 1 {
-			continue
-		}
-
-		// Write wrapped lines
-		for i, line := range item.wrapedLines[1:] {
+		// Write lines
+		for i, line := range lines {
 			// skip unvisible leading lines
 			if ignoreLines && lineOffset < 0 {
 				lineOffset--
 				continue
 			}
 
-			// Pad left of line
-			// NOTE line break is not added here because it would mess with the highlighting
-			var wrapPrefix string
+			// Surrounding content
+			var linePrefix, lineSuffix string
 			if m.PrefixGen != nil {
-				wrapPrefix = m.PrefixGen.Prefix(index, i+1, item.selected)
+				linePrefix = m.PrefixGen.Prefix(index, i, item.selected)
 			}
-			padLine := fmt.Sprintf("%s%s", wrapPrefix, line)
+			if m.SuffixGen != nil {
+				lineSuffix = fmt.Sprintf("%s%s", strings.Repeat(" ", contentWidth-ansi.PrintableRuneWidth(line)), m.SuffixGen.Suffix(index, i, item.selected))
+			}
+
+			// Join all
+			line := fmt.Sprintf("%s%s%s", linePrefix, line, lineSuffix)
+
+			// Highlighting of selected and current lines
+			style := m.LineStyle
+			if item.selected {
+				style = m.SelectedStyle
+			}
+			if index == m.viewPos.Cursor {
+				style = m.CurrentStyle
+			}
 
 			// Highlight and write wrapped line
-			stringLines = append(stringLines, style.Styled(padLine))
+			stringLines = append(stringLines, style.Styled(line))
 			visLines++
 
 			// Only write lines that are visible
@@ -255,8 +217,8 @@ out:
 		}
 	}
 	lenght := len(stringLines)
-	if lenght > m.Height {
-		panic(fmt.Sprintf("can't display %d lines when screen has %d lines.", lenght, m.Height))
+	if lenght > m.Screen.Height {
+		panic(fmt.Sprintf("can't display %d lines when screen has %d lines.", lenght, m.Screen.Height))
 	}
 	return stringLines
 }
@@ -322,8 +284,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.WindowSizeMsg:
 
-		m.Width = msg.Width
-		m.Height = msg.Height
+		m.Screen.Width = msg.Width
+		m.Screen.Height = msg.Height
+		m.Screen.Profile = termenv.ColorProfile()
 
 		return m, cmd
 
@@ -696,12 +659,12 @@ func (m *Model) KeepVisible(target int) (ViewPos, error) {
 	}
 
 	// Cursor Position is within bounds -> all good
-	if visItemsBeforCursor >= m.CursorOffset && visItemsBeforCursor < m.Height-m.CursorOffset {
+	if visItemsBeforCursor >= m.CursorOffset && visItemsBeforCursor < m.Screen.Height-m.CursorOffset {
 		return ViewPos{Cursor: target, ItemOffset: m.viewPos.ItemOffset}, err
 	}
 
 	// Cursor is beyond boundry -> move visibel Area down
-	lowerOffset := m.viewPos.ItemOffset - (m.Height - m.CursorOffset - visItemsBeforCursor - 1)
+	lowerOffset := m.viewPos.ItemOffset - (m.Screen.Height - m.CursorOffset - visItemsBeforCursor - 1)
 	return ViewPos{Cursor: target, ItemOffset: lowerOffset}, err
 }
 
@@ -732,9 +695,9 @@ func (m *Model) keepVisibleWrap(target int) (ViewPos, error) {
 	if direction >= 0 {
 		lineSum = 1 // Cursorline is not counted in the following loop, so do it here
 	}
-	// calculate how much space(lines) the items befor the requested cursor position occupy
-	for c := target - 1; c >= 0 && c > target-m.Height; c-- {
-		lineAm := m.listItems[c].wrapedLenght
+	// calculate how much space/lines the items befor the requested cursor position occupy
+	for c := target - 1; c >= 0 && c > target-m.Screen.Height; c-- {
+		lineAm := len(m.itemString(m.listItems[c]))
 		lineSum += lineAm
 		lineCount = append(lineCount, beforCursor{c, lineSum})
 
@@ -748,7 +711,7 @@ func (m *Model) keepVisibleWrap(target int) (ViewPos, error) {
 		if !upper && lineSum > upperBorder {
 			upper = true
 		}
-		lowerBorder := m.Height - m.CursorOffset
+		lowerBorder := m.Screen.Height - m.CursorOffset
 		if !lower && lineSum >= lowerBorder && c >= m.viewPos.ItemOffset {
 			lower = true
 		}
@@ -761,7 +724,7 @@ func (m *Model) keepVisibleWrap(target int) (ViewPos, error) {
 	// can't Move beyond list end, setting offsets accordingly
 	if direction >= 0 && target >= len(m.listItems)-1 {
 		var lastOffset, lineOffset int
-		lowerBorder := m.Height - m.CursorOffset
+		lowerBorder := m.Screen.Height - m.CursorOffset
 		for _, item := range lineCount {
 			lastOffset = item.listIndex // Visible Offset
 			if item.linesBefor > lowerBorder {
@@ -789,7 +752,7 @@ func (m *Model) keepVisibleWrap(target int) (ViewPos, error) {
 	// beyond lower border -> Moving Down
 	if direction >= 0 && lower {
 		var lastOffset, lineOffset int
-		lowerBorder := m.Height - m.CursorOffset
+		lowerBorder := m.Screen.Height - m.CursorOffset
 		for _, item := range lineCount {
 			if item.linesBefor >= lowerBorder {
 				lastOffset = item.listIndex // Visible Offset
