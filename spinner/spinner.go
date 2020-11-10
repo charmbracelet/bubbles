@@ -148,15 +148,11 @@ type TickMsg struct {
 	Time time.Time
 }
 
-type startTick struct{}
-
 // Update is the Tea update function. This will advance the spinner one frame
 // every time it's called, regardless the message passed, so be sure the logic
 // is setup so as not to call this Update needlessly.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	switch msg.(type) {
-	case startTick:
-		return m, m.tick()
 	case TickMsg:
 		m.frame++
 		if m.frame >= len(m.Frames) {
@@ -189,7 +185,7 @@ func (m Model) View() string {
 
 // Tick is the command used to advance the spinner one frame.
 func Tick() tea.Msg {
-	return startTick{}
+	return TickMsg{Time: time.Now()}
 }
 
 func (m Model) tick() tea.Cmd {
