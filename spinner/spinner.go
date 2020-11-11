@@ -25,6 +25,10 @@ var (
 		Frames: []string{"⣾ ", "⣽ ", "⣻ ", "⢿ ", "⡿ ", "⣟ ", "⣯ ", "⣷ "},
 		FPS:    time.Second / 10,
 	}
+	MiniDot = Spinner{
+		Frames: []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"},
+		FPS:    time.Second / 12,
+	}
 	Jump = Spinner{
 		Frames: []string{"⢄", "⢂", "⢁", "⡁", "⡈", "⡐", "⡠"},
 		FPS:    time.Second / 10,
