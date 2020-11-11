@@ -42,15 +42,15 @@ var (
 		FPS:    time.Second / 7,
 	}
 	Globe = Spinner{
-		Frames: []string{"🌍 ", "🌎 ", "🌏 "},
+		Frames: []string{"🌍", "🌎", "🌏"},
 		FPS:    time.Second / 4,
 	}
 	Moon = Spinner{
-		Frames: []string{"🌑 ", "🌒 ", "🌓 ", "🌔 ", "🌕 ", "🌖 ", "🌗 ", "🌘 "},
+		Frames: []string{"🌑", "🌒", "🌓", "🌔", "🌕", "🌖", "🌗", "🌘"},
 		FPS:    time.Second / 8,
 	}
 	Monkey = Spinner{
-		Frames: []string{"🙈 ", "🙉 ", "🙊 "},
+		Frames: []string{"🙈", "🙉", "🙊"},
 		FPS:    time.Second / 3,
 	}
 
