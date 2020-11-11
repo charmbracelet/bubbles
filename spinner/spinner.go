@@ -10,33 +10,58 @@ import (
 const defaultFPS = time.Second / 10
 
 // Spinner is a set of frames used in animating the spinner.
-type Spinner = []string
+type Spinner struct {
+	Frames []string
+	FPS    time.Duration
+}
 
 var (
 	// Some spinners to choose from. You could also make your own.
-	Line   = Spinner{"|", "/", "-", "\\"}
-	Dot    = Spinner{"⣾ ", "⣽ ", "⣻ ", "⢿ ", "⡿ ", "⣟ ", "⣯ ", "⣷ "}
-	Globe  = Spinner{"🌍 ", "🌎 ", "🌏 "}
-	Moon   = Spinner{"🌑 ", "🌒 ", "🌓 ", "🌔 ", "🌕 ", "🌖 ", "🌗 ", "🌘 "}
-	Monkey = Spinner{"🙈 ", "🙈 ", "🙉 ", "🙊 "}
-	Jump   = Spinner{"⢄", "⢂", "⢁", "⡁", "⡈", "⡐", "⡠"}
-	Bit8   = Spinner{
-		"⠀", "⠁", "⠂", "⠃", "⠄", "⠅", "⠆", "⠇", "⡀", "⡁", "⡂", "⡃", "⡄", "⡅", "⡆", "⡇",
-		"⠈", "⠉", "⠊", "⠋", "⠌", "⠍", "⠎", "⠏", "⡈", "⡉", "⡊", "⡋", "⡌", "⡍", "⡎", "⡏",
-		"⠐", "⠑", "⠒", "⠓", "⠔", "⠕", "⠖", "⠗", "⡐", "⡑", "⡒", "⡓", "⡔", "⡕", "⡖", "⡗",
-		"⠘", "⠙", "⠚", "⠛", "⠜", "⠝", "⠞", "⠟", "⡘", "⡙", "⡚", "⡛", "⡜", "⡝", "⡞", "⡟",
-		"⠠", "⠡", "⠢", "⠣", "⠤", "⠥", "⠦", "⠧", "⡠", "⡡", "⡢", "⡣", "⡤", "⡥", "⡦", "⡧",
-		"⠨", "⠩", "⠪", "⠫", "⠬", "⠭", "⠮", "⠯", "⡨", "⡩", "⡪", "⡫", "⡬", "⡭", "⡮", "⡯",
-		"⠰", "⠱", "⠲", "⠳", "⠴", "⠵", "⠶", "⠷", "⡰", "⡱", "⡲", "⡳", "⡴", "⡵", "⡶", "⡷",
-		"⠸", "⠹", "⠺", "⠻", "⠼", "⠽", "⠾", "⠿", "⡸", "⡹", "⡺", "⡻", "⡼", "⡽", "⡾", "⡿",
-		"⢀", "⢁", "⢂", "⢃", "⢄", "⢅", "⢆", "⢇", "⣀", "⣁", "⣂", "⣃", "⣄", "⣅", "⣆", "⣇",
-		"⢈", "⢉", "⢊", "⢋", "⢌", "⢍", "⢎", "⢏", "⣈", "⣉", "⣊", "⣋", "⣌", "⣍", "⣎", "⣏",
-		"⢐", "⢑", "⢒", "⢓", "⢔", "⢕", "⢖", "⢗", "⣐", "⣑", "⣒", "⣓", "⣔", "⣕", "⣖", "⣗",
-		"⢘", "⢙", "⢚", "⢛", "⢜", "⢝", "⢞", "⢟", "⣘", "⣙", "⣚", "⣛", "⣜", "⣝", "⣞", "⣟",
-		"⢠", "⢡", "⢢", "⢣", "⢤", "⢥", "⢦", "⢧", "⣠", "⣡", "⣢", "⣣", "⣤", "⣥", "⣦", "⣧",
-		"⢨", "⢩", "⢪", "⢫", "⢬", "⢭", "⢮", "⢯", "⣨", "⣩", "⣪", "⣫", "⣬", "⣭", "⣮", "⣯",
-		"⢰", "⢱", "⢲", "⢳", "⢴", "⢵", "⢶", "⢷", "⣰", "⣱", "⣲", "⣳", "⣴", "⣵", "⣶", "⣷",
-		"⢸", "⢹", "⢺", "⢻", "⢼", "⢽", "⢾", "⢿", "⣸", "⣹", "⣺", "⣻", "⣼", "⣽", "⣾", "⣿"}
+	Line = Spinner{
+		Frames: []string{"|", "/", "-", "\\"},
+		FPS:    time.Second / 10,
+	}
+	Dot = Spinner{
+		Frames: []string{"⣾ ", "⣽ ", "⣻ ", "⢿ ", "⡿ ", "⣟ ", "⣯ ", "⣷ "},
+		FPS:    time.Second / 10,
+	}
+	Jump = Spinner{
+		Frames: []string{"⢄", "⢂", "⢁", "⡁", "⡈", "⡐", "⡠"},
+		FPS:    time.Second / 10,
+	}
+	Bit8 = Spinner{
+		Frames: []string{
+			"⠀", "⠁", "⠂", "⠃", "⠄", "⠅", "⠆", "⠇", "⡀", "⡁", "⡂", "⡃", "⡄", "⡅", "⡆", "⡇",
+			"⠈", "⠉", "⠊", "⠋", "⠌", "⠍", "⠎", "⠏", "⡈", "⡉", "⡊", "⡋", "⡌", "⡍", "⡎", "⡏",
+			"⠐", "⠑", "⠒", "⠓", "⠔", "⠕", "⠖", "⠗", "⡐", "⡑", "⡒", "⡓", "⡔", "⡕", "⡖", "⡗",
+			"⠘", "⠙", "⠚", "⠛", "⠜", "⠝", "⠞", "⠟", "⡘", "⡙", "⡚", "⡛", "⡜", "⡝", "⡞", "⡟",
+			"⠠", "⠡", "⠢", "⠣", "⠤", "⠥", "⠦", "⠧", "⡠", "⡡", "⡢", "⡣", "⡤", "⡥", "⡦", "⡧",
+			"⠨", "⠩", "⠪", "⠫", "⠬", "⠭", "⠮", "⠯", "⡨", "⡩", "⡪", "⡫", "⡬", "⡭", "⡮", "⡯",
+			"⠰", "⠱", "⠲", "⠳", "⠴", "⠵", "⠶", "⠷", "⡰", "⡱", "⡲", "⡳", "⡴", "⡵", "⡶", "⡷",
+			"⠸", "⠹", "⠺", "⠻", "⠼", "⠽", "⠾", "⠿", "⡸", "⡹", "⡺", "⡻", "⡼", "⡽", "⡾", "⡿",
+			"⢀", "⢁", "⢂", "⢃", "⢄", "⢅", "⢆", "⢇", "⣀", "⣁", "⣂", "⣃", "⣄", "⣅", "⣆", "⣇",
+			"⢈", "⢉", "⢊", "⢋", "⢌", "⢍", "⢎", "⢏", "⣈", "⣉", "⣊", "⣋", "⣌", "⣍", "⣎", "⣏",
+			"⢐", "⢑", "⢒", "⢓", "⢔", "⢕", "⢖", "⢗", "⣐", "⣑", "⣒", "⣓", "⣔", "⣕", "⣖", "⣗",
+			"⢘", "⢙", "⢚", "⢛", "⢜", "⢝", "⢞", "⢟", "⣘", "⣙", "⣚", "⣛", "⣜", "⣝", "⣞", "⣟",
+			"⢠", "⢡", "⢢", "⢣", "⢤", "⢥", "⢦", "⢧", "⣠", "⣡", "⣢", "⣣", "⣤", "⣥", "⣦", "⣧",
+			"⢨", "⢩", "⢪", "⢫", "⢬", "⢭", "⢮", "⢯", "⣨", "⣩", "⣪", "⣫", "⣬", "⣭", "⣮", "⣯",
+			"⢰", "⢱", "⢲", "⢳", "⢴", "⢵", "⢶", "⢷", "⣰", "⣱", "⣲", "⣳", "⣴", "⣵", "⣶", "⣷",
+			"⢸", "⢹", "⢺", "⢻", "⢼", "⢽", "⢾", "⢿", "⣸", "⣹", "⣺", "⣻", "⣼", "⣽", "⣾", "⣿",
+		},
+		FPS: time.Second / 16,
+	}
+	Globe = Spinner{
+		Frames: []string{"🌍 ", "🌎 ", "🌏 "},
+		FPS:    time.Second / 4,
+	}
+	Moon = Spinner{
+		Frames: []string{"🌑 ", "🌒 ", "🌓 ", "🌔 ", "🌕 ", "🌖 ", "🌗 ", "🌘 "},
+		FPS:    time.Second / 8,
+	}
+	Monkey = Spinner{
+		Frames: []string{"🙈 ", "🙉 ", "🙊 "},
+		FPS:    time.Second / 3,
+	}
 
 	color = termenv.ColorProfile().Color
 )
@@ -45,22 +70,19 @@ var (
 // rather than using Model as a struct literal.
 type Model struct {
 
-	// Type is the set of frames to use. See Spinner.
-	Frames Spinner
+	// Spinner settings to use. See type Spinner.
+	Spinner Spinner
 
-	// FPS is the speed at which the ticker should tick.
-	FPS time.Duration
-
-	// ForegroundColor sets the background color of the spinner. It can be a
-	// hex code or one of the 256 ANSI colors. If the terminal emulator can't
-	// doesn't support the color specified it will automatically degrade
-	// (per github.com/muesli/termenv).
+	// ForegroundColor sets the background color of the spinner. It can be
+	// a hex code or one of the 256 ANSI colors. If the terminal emulator can't
+	// support the color specified it will automatically degrade (per
+	// github.com/muesli/termenv).
 	ForegroundColor string
 
-	// BackgroundColor sets the background color of the spinner. It can be a
-	// hex code or one of the 256 ANSI colors. If the terminal emulator can't
-	// doesn't support the color specified it will automatically degrade
-	// (per github.com/muesli/termenv).
+	// BackgroundColor sets the background color of the spinner. It can be
+	// a hex code or one of the 256 ANSI colors. If the terminal emulator can't
+	// support the color specified it will automatically degrade (per
+	// github.com/muesli/termenv).
 	BackgroundColor string
 
 	// MinimumLifetime is the minimum amount of time the spinner can run. Any
@@ -137,10 +159,7 @@ func (m Model) Visible() bool {
 
 // NewModel returns a model with default values.
 func NewModel() Model {
-	return Model{
-		Frames: Line,
-		FPS:    defaultFPS,
-	}
+	return Model{Spinner: Line}
 }
 
 // TickMsg indicates that the timer has ticked and we should render a frame.
@@ -155,7 +174,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	switch msg.(type) {
 	case TickMsg:
 		m.frame++
-		if m.frame >= len(m.Frames) {
+		if m.frame >= len(m.Spinner.Frames) {
 			m.frame = 0
 		}
 		return m, m.tick()
@@ -166,11 +185,11 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 // View renders the model's view.
 func (m Model) View() string {
-	if m.frame >= len(m.Frames) {
-		return "error"
+	if m.frame >= len(m.Spinner.Frames) {
+		return "(error)"
 	}
 
-	frame := m.Frames[m.frame]
+	frame := m.Spinner.Frames[m.frame]
 
 	if m.ForegroundColor != "" || m.BackgroundColor != "" {
 		return termenv.
@@ -189,7 +208,7 @@ func Tick() tea.Msg {
 }
 
 func (m Model) tick() tea.Cmd {
-	return tea.Tick(m.FPS, func(t time.Time) tea.Msg {
+	return tea.Tick(m.Spinner.FPS, func(t time.Time) tea.Msg {
 		return TickMsg{
 			Time: t,
 		}
