@@ -33,6 +33,10 @@ var (
 		Frames: []string{"⢄", "⢂", "⢁", "⡁", "⡈", "⡐", "⡠"},
 		FPS:    time.Second / 10,
 	}
+	Noise = Spinner{
+		Frames: []string{"█", "▓", "▒", "░"},
+		FPS:    time.Second / 8,
+	}
 	Bit8 = Spinner{
 		Frames: []string{
 			"⠀", "⠁", "⠂", "⠃", "⠄", "⠅", "⠆", "⠇", "⡀", "⡁", "⡂", "⡃", "⡄", "⡅", "⡆", "⡇",
