@@ -37,6 +37,10 @@ var (
 		Frames: []string{"█", "▓", "▒", "░"},
 		FPS:    time.Second / 8,
 	}
+	Points = Spinner{
+		Frames: []string{"∙∙∙", "●∙∙", "∙●∙", "∙∙●"},
+		FPS:    time.Second / 7,
+	}
 	Globe = Spinner{
 		Frames: []string{"🌍 ", "🌎 ", "🌏 "},
 		FPS:    time.Second / 4,
