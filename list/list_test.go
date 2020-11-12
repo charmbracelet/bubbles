@@ -25,7 +25,7 @@ type testModel struct {
 // NEVER leaves the bounds since then it could mess with the layout.
 func TestViewBounds(t *testing.T) {
 	for _, testM := range genModels(genTestModels()) {
-		testM.model.PrefixGen = NewDefault()
+		testM.model.PrefixGen = NewPrefixer()
 		for i, line := range strings.Split(testM.model.View(), "\n") {
 			lineWidth := ansi.PrintableRuneWidth(line)
 			width := testM.model.Screen.Width
@@ -43,7 +43,7 @@ func TestViewBounds(t *testing.T) {
 // Because there is no margin for diviations, if the test fails, lock also if the "golden sample" is sane.
 func TestGoldenSamples(t *testing.T) {
 	for _, testM := range genModels(genTestModels()) {
-		testM.model.PrefixGen = NewDefault()
+		testM.model.PrefixGen = NewPrefixer()
 		actual := testM.model.View()
 		expected := testM.shouldBe
 		if actual != expected {
@@ -71,7 +71,7 @@ func TestPanic(t *testing.T) {
 // TestDynamic tests the view output after a movement/view-changing method
 func TestDynamic(t *testing.T) {
 	for _, test := range genDynamicModels() {
-		test.model.PrefixGen = NewDefault()
+		test.model.PrefixGen = NewPrefixer()
 		actual := test.model.View()
 		expected := test.shouldBe
 		if actual != expected {
