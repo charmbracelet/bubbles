@@ -17,6 +17,7 @@ type model struct {
 	finished  bool
 	endResult chan<- string
 	jump      string
+	lastViews []string
 }
 
 type stringItem string
@@ -41,6 +42,7 @@ func main() {
 		"The key 'v' inverts the selected state of each item.",
 		"To toggle betwen only absolute item numbers and relativ numbers, the 'r' key is your friend.",
 	}
+
 	stringerList := list.MakeStringerList(itemList)
 
 	endResult := make(chan string, 1)
@@ -173,6 +175,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				result.WriteString("\n")
 			}
 			m.endResult <- result.String()
+			return m, tea.Quit
+		case "t":
+			m.lastViews = append(m.lastViews, m.View())
+			return m, nil
+		case "T":
+			f, _ := os.OpenFile("test_cases.txt", os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+			f.WriteString(strings.Join(m.lastViews, "\n##########################\n"))
 			return m, tea.Quit
 		default:
 			// resets jump buffer to prevent confusion

@@ -5,6 +5,7 @@ go 1.13
 require (
 	github.com/atotto/clipboard v0.1.2
 	github.com/charmbracelet/bubbletea v0.12.2
+	github.com/jinzhu/copier v0.0.0-20201025035756-632e723a6687
 	github.com/mattn/go-runewidth v0.0.9
 	github.com/muesli/reflow v0.1.1-0.20200715144030-a312cb5b2d8d
 	github.com/muesli/termenv v0.7.4

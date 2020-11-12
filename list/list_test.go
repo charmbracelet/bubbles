@@ -25,6 +25,7 @@ type testModel struct {
 // NEVER leaves the bounds since then it could mess with the layout.
 func TestViewBounds(t *testing.T) {
 	for _, testM := range genModels(genTestModels()) {
+		testM.model.PrefixGen = NewDefault()
 		for i, line := range strings.Split(testM.model.View(), "\n") {
 			lineWidth := ansi.PrintableRuneWidth(line)
 			width := testM.model.Screen.Width
@@ -42,6 +43,7 @@ func TestViewBounds(t *testing.T) {
 // Because there is no margin for diviations, if the test fails, lock also if the "golden sample" is sane.
 func TestGoldenSamples(t *testing.T) {
 	for _, testM := range genModels(genTestModels()) {
+		testM.model.PrefixGen = NewDefault()
 		actual := testM.model.View()
 		expected := testM.shouldBe
 		if actual != expected {
@@ -69,6 +71,7 @@ func TestPanic(t *testing.T) {
 // TestDynamic tests the view output after a movement/view-changing method
 func TestDynamic(t *testing.T) {
 	for _, test := range genDynamicModels() {
+		test.model.PrefixGen = NewDefault()
 		actual := test.model.View()
 		expected := test.shouldBe
 		if actual != expected {
@@ -104,7 +107,7 @@ func genTestModels() []test {
 			[]string{
 				"",
 			},
-			"\x1b[7m0 ╭>\x1b[0m",
+			"\x1b[7m 0 ╭>\x1b[0m",
 		},
 		// if exceding the boards and softwrap (at word bounderys are possible
 		// wrap there. Dont increment the item number because its still the same item.
@@ -117,9 +120,9 @@ func genTestModels() []test {
 			"\x1b[7m0 ╭>robert\x1b[0m\n\x1b[7m  │ frost\x1b[0m",
 		},
 		{
-			10,
-			10,
-			[]string{"", "", "", "", "", "", "", "", "", "", "", "", "", "", ""},
+			9,
+			9,
+			[]string{"", "", "", "", "", "", "", "", "", "", "", "", "", ""},
 			"\x1b[7m0 ╭>\x1b[0m\n" +
 				`1 ╭ 
 2 ╭ 
@@ -128,8 +131,7 @@ func genTestModels() []test {
 5 ╭ 
 6 ╭ 
 7 ╭ 
-8 ╭ 
-9 ╭ `,
+8 ╭ `,
 		},
 	}
 }
@@ -165,23 +167,40 @@ func genPanicTests() []test {
 func genDynamicModels() []testModel {
 	blankModel := Model{}
 	blankModel.Screen.Height = 10
-	blankModel.Screen.Width = 10
+	blankModel.Screen.Width = 9
 	blankModel.AddItems(MakeStringerList([]string{"", "", "", "", "", "", "", "", "", "", "", ""}))
 	blankModel.Move(0)
 	moveBottom := NewModel()
 	moveBottom.Screen.Width = 10
-	moveBottom.Screen.Height = 10
+	moveBottom.Screen.Height = 9
 	moveBottom.AddItems(MakeStringerList([]string{"", "", "", ""}))
 	moveBottom.Bottom()
 	moveDown := NewModel()
 	moveDown.Screen.Height = 50
 	moveDown.Screen.Width = 80
 	moveDown.AddItems(MakeStringerList([]string{"", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""}))
-	moveDown.viewPos.Cursor = 45 // set cursor next to line Offset Border so that the down move, should move the hole visible area.
+	moveDown.viewPos.Cursor = 49 // set cursor next to line Offset Border so that the down move, should move the hole visible area.
 	moveDown.Move(1)
+	moveLines := NewModel()
+	moveLines.Screen.Height = 50
+	moveLines.Screen.Width = 80
+	moveLines.AddItems(MakeStringerList([]string{"", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""}))
+	moveLines.viewPos.Cursor = 44 // set cursor next to line Offset Border so that the down move, should move the hole visible area.
+	moveLines.Move(1)
+	moveFurther := moveLines.Copy()
+	moveFurther.Move(1)
 	return []testModel{
 		{model: blankModel,
-			shouldBe:     "\n\n\n\n\n\n\n\n",
+			shouldBe: ` 0 ╭>
+ 1 ╭ 
+ 2 ╭ 
+ 3 ╭ 
+ 4 ╭ 
+ 5 ╭ 
+ 6 ╭ 
+ 7 ╭ 
+ 8 ╭ 
+ 9 ╭ `,
 			afterMethode: "Move(0)",
 		},
 		{model: moveBottom,
@@ -189,8 +208,7 @@ func genDynamicModels() []testModel {
 			afterMethode: "Bottom",
 		},
 		{model: moveDown,
-			shouldBe: ` 1 ╭ 
- 2 ╭ 
+			shouldBe: ` 2 ╭ 
  3 ╭ 
  4 ╭ 
  5 ╭ 
@@ -238,8 +256,66 @@ func genDynamicModels() []testModel {
 				`47 ╭ 
 48 ╭ 
 49 ╭ 
-50 ╭ `,
-			afterMethode: "Down",
+50 ╭ 
+51 ╭ `,
+			afterMethode: "Move(1)",
+		},
+		{model: moveLines,
+			shouldBe: `   │ 
+   │ 
+   │ 
+   │ 
+   │ 
+   │ 
+   │ 
+   │ 
+   │ 
+   │ 
+   │ 
+   │ 
+   │ 
+   │ 
+   │ 
+   │ 
+   │ 
+   │ 
+   │ 
+   │ 
+   │ 
+   │ 
+   │ 
+   │ 
+   │ 
+   │ 
+   │ 
+   │ 
+   │ 
+   │ 
+   │ 
+   │ 
+   │ 
+   │ 
+   │ 
+   │ 
+   │ 
+   │ 
+   │ 
+   │ 
+   │ 
+   │ 
+   │ 
+   │ 
+   │ ` +
+				"\n\x1b[7m45 ╭>\x1b[0m\n" +
+				`46 ╭ 
+47 ╭ 
+48 ╭ 
+49 ╭ `,
+			afterMethode: "Move(1)",
+		},
+		{model: *moveFurther,
+			shouldBe:     " ",
+			afterMethode: "Move(1)",
 		},
 	}
 }
@@ -258,5 +334,19 @@ func TestCheckBorder(t *testing.T) {
 	}
 	if m.CheckWithinBorder(len(m.listItems)) {
 		t.Errorf("len(list) is out of border")
+	}
+}
+
+func TestKeepVisible(t *testing.T) {
+	m := NewModel()
+	m.Screen = ScreenInfo{Height: 50, Width: 80}
+	// make more line breaks within the listitem, than the screen has lines
+	m.AddItems(MakeStringerList([]string{"", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n", "", "", ""}))
+	newView, err := m.keepVisibleWrap(47)
+	if err != nil {
+		t.Error(err)
+	}
+	if newView.ItemOffset != 2 && newView.LineOffset != 0 {
+		t.Errorf("wrong postion of the view: '%d' after moving beyond multi-linebreak-item", newView.ItemOffset)
 	}
 }

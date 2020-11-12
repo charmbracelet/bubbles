@@ -3,6 +3,7 @@ package list
 import (
 	"fmt"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/jinzhu/copier"
 	"github.com/muesli/reflow/ansi"
 	"github.com/muesli/reflow/wordwrap"
 	"github.com/muesli/termenv"
@@ -180,7 +181,7 @@ out:
 		// Write lines
 		for i, line := range lines {
 			// skip unvisible leading lines
-			if ignoreLines && lineOffset < 0 {
+			if ignoreLines && lineOffset > 0 {
 				lineOffset--
 				continue
 			}
@@ -644,6 +645,7 @@ func (m *Model) KeepVisible(target int) (ViewPos, error) {
 	if m.Wrap {
 		return m.keepVisibleWrap(target)
 	}
+
 	m.viewPos.LineOffset = 0
 
 	visItemsBeforCursor := target - m.viewPos.ItemOffset
@@ -669,7 +671,6 @@ func (m *Model) KeepVisible(target int) (ViewPos, error) {
 }
 
 func (m *Model) keepVisibleWrap(target int) (ViewPos, error) {
-	var lower, upper bool // Visible lower/upper
 
 	if !m.CheckWithinBorder(target) {
 		return ViewPos{}, OutOfBounds(fmt.Errorf("can't move beyond list bonderys, with requested cursor position: %d", target))
@@ -680,7 +681,8 @@ func (m *Model) keepVisibleWrap(target int) (ViewPos, error) {
 	}
 
 	direction := 1
-	if target-m.viewPos.Cursor < 0 {
+	diff := target - m.viewPos.Cursor
+	if diff < 0 {
 		direction = -1
 	}
 
@@ -689,82 +691,74 @@ func (m *Model) keepVisibleWrap(target int) (ViewPos, error) {
 		linesBefor int
 	}
 
-	var lineCount []beforCursor
+	lineCount := make([]beforCursor, 0, m.Screen.Height)
 
 	var lineSum int
 	if direction >= 0 {
 		lineSum = 1 // Cursorline is not counted in the following loop, so do it here
 	}
+
+	var lower, upper bool // Visible lower/upper
+	upperBorder := m.CursorOffset
+	lowerBorder := m.Screen.Height - m.CursorOffset
 	// calculate how much space/lines the items befor the requested cursor position occupy
 	for c := target - 1; c >= 0 && c > target-m.Screen.Height; c-- {
-		lineAm := len(m.itemString(m.listItems[c]))
-		lineSum += lineAm
+		lineSum += len(m.itemString(m.listItems[c]))
 		lineCount = append(lineCount, beforCursor{c, lineSum})
 
 		// if new target infront of old visible offset dont mark borders
+		// TODO here is a bug: when there is a list item with more than Screen.Height-m.CursorOffset lines
+		// the up movement below this item will move to the wrong position, no solution yet
 		if target-1 < m.viewPos.ItemOffset+m.CursorOffset {
 			continue
 		}
 
 		// mark the pass of a border
-		upperBorder := m.CursorOffset
 		if !upper && lineSum > upperBorder {
 			upper = true
 		}
-		lowerBorder := m.Screen.Height - m.CursorOffset
 		if !lower && lineSum >= lowerBorder && c >= m.viewPos.ItemOffset {
 			lower = true
 		}
 	}
 
 	// Can't Move visible infront of list begin
-	if direction < 0 && len(lineCount) > 0 && lineCount[len(lineCount)-1].linesBefor < m.CursorOffset && m.viewPos.ItemOffset <= 0 && m.viewPos.LineOffset <= 0 {
+	if direction < 0 && len(lineCount) > 0 && // possible upwards movement
+		lineCount[len(lineCount)-1].linesBefor < m.CursorOffset && // beyond upper border
+		m.viewPos.ItemOffset <= 0 && m.viewPos.LineOffset <= 0 { // but allready at beginning of list
+
 		return ViewPos{Cursor: target}, nil
 	}
-	// can't Move beyond list end, setting offsets accordingly
-	if direction >= 0 && target >= len(m.listItems)-1 {
-		var lastOffset, lineOffset int
-		lowerBorder := m.Screen.Height - m.CursorOffset
-		for _, item := range lineCount {
-			lastOffset = item.listIndex // Visible Offset
-			if item.linesBefor > lowerBorder {
-				lineOffset = item.linesBefor - lowerBorder
-				break
-			}
+
+	var lastOffset, lineOffset int
+	for _, count := range lineCount {
+		lastOffset = count.listIndex // Visible Offset
+		// can't Move beyond list end, setting offsets accordingly
+		if target >= len(m.listItems)-1 && count.linesBefor > lowerBorder {
+			lineOffset = count.linesBefor - lowerBorder
+			return ViewPos{ItemOffset: lastOffset, LineOffset: lineOffset, Cursor: len(m.listItems) - 1}, nil
 		}
-		return ViewPos{ItemOffset: lastOffset, LineOffset: lineOffset, Cursor: len(m.listItems) - 1}, nil
+		// infront upper border -> Move up
+		if direction < 0 && !upper && count.linesBefor > upperBorder {
+			lineOffset = count.linesBefor - upperBorder
+			return ViewPos{ItemOffset: lastOffset, LineOffset: lineOffset, Cursor: target}, nil
+		}
+		// beyond lower border -> Moving Down
+		if direction >= 0 && lower && count.linesBefor >= lowerBorder {
+			lastOffset = count.listIndex // Visible Offset
+			lineOffset = count.linesBefor - lowerBorder
+			return ViewPos{ItemOffset: lastOffset, LineOffset: lineOffset, Cursor: target}, nil
+		}
 	}
 
-	// infront upper border -> Move up
-	if direction < 0 && !upper {
-		var lastOffset, lineOffset int
-		upperBorder := m.CursorOffset
-		for _, item := range lineCount {
-			lastOffset = item.listIndex // Visible Offset
-			if item.linesBefor > upperBorder {
-				lineOffset = item.linesBefor - upperBorder - 1
-				break
-			}
-		}
-		return ViewPos{ItemOffset: lastOffset, LineOffset: lineOffset, Cursor: target}, nil
-	}
-
-	// beyond lower border -> Moving Down
-	if direction >= 0 && lower {
-		var lastOffset, lineOffset int
-		lowerBorder := m.Screen.Height - m.CursorOffset
-		for _, item := range lineCount {
-			if item.linesBefor >= lowerBorder {
-				lastOffset = item.listIndex // Visible Offset
-				lineOffset = item.linesBefor - lowerBorder
-				break
-			}
-		}
-		return ViewPos{ItemOffset: lastOffset, LineOffset: lineOffset, Cursor: target}, nil
-	}
-	// Within bounds
+	// Within bounds: only change cursor
 	return ViewPos{ItemOffset: m.viewPos.ItemOffset, LineOffset: m.viewPos.LineOffset, Cursor: target}, nil
 }
+
+// MoveByLine moves the Viewposition by one line
+// not by a item
+//func (m *Model) MoveByLine(amount) (ViewPos, error) {
+//}
 
 // DefaultPrefixer is the default struct used for Prefixing a line
 type DefaultPrefixer struct {
@@ -932,4 +926,11 @@ func lineNumber(relativ bool, curser, current int) int {
 		diff *= -1
 	}
 	return diff
+}
+
+// Copy returns a deep copy of the list-model
+func (m *Model) Copy() *Model {
+	copiedModel := Model{}
+	copier.Copy(&copiedModel, &m)
+	return &copiedModel
 }
