@@ -54,7 +54,7 @@ type DefaultPrefixer struct {
 // NewPrefixer returns a DefautPrefixer with default values
 func NewPrefixer() *DefaultPrefixer {
 	return &DefaultPrefixer{
-		PrefixWrap: false,
+		PrefixWrap: true,
 
 		// Make clear where a item begins and where it ends
 		Seperator:     "╭",

@@ -108,11 +108,6 @@ func (m *Model) Lines() []string {
 out:
 	// Handle list items, start at first visible and go till end of list or visible (break)
 	for index := offset; index < len(m.listItems); index++ {
-		if index >= len(m.listItems) || index < 0 {
-			// TODO log error
-			break
-		}
-
 		item := m.listItems[index]
 
 		lines := m.itemLines(item)
@@ -160,10 +155,6 @@ out:
 				break out
 			}
 		}
-	}
-	lenght := len(stringLines)
-	if lenght > m.Screen.Height {
-		panic(fmt.Sprintf("can't display %d lines when screen has %d lines.", lenght, m.Screen.Height))
 	}
 	return stringLines
 }
