@@ -7,7 +7,6 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"os"
 	"strconv"
-	"strings"
 )
 
 type model struct {
@@ -175,13 +174,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m.endResult <- result.String()
 			return m, tea.Quit
-		case "t":
-			m.lastViews = append(m.lastViews, m.View())
-			return m, nil
-		case "T":
-			f, _ := os.OpenFile("test_cases.txt", os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
-			f.WriteString(strings.Join(m.lastViews, "\n##########################\n"))
-			return m, tea.Quit
+			//		case "t":
+			//			m.lastViews = append(m.lastViews, m.View())
+			//			return m, nil
+			//		case "T":
+			//			f, _ := os.OpenFile("test_cases.txt", os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+			//			f.WriteString(strings.Join(m.lastViews, "\n##########################\n"))
+			//			return m, tea.Quit
 		default:
 			// resets jump buffer to prevent confusion
 			m.jump = ""
@@ -209,6 +208,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.ready = true
 		}
 		return m, nil
+
+	default:
+		// pipe all other commands to the update from the list
+		l, newMsg := m.list.Update(msg)
+		list, _ := l.(list.Model)
+		m.list = list
+		return m, newMsg
 	}
-	return m, nil
 }

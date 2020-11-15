@@ -166,3 +166,18 @@ func (d *DefaultPrefixer) Prefix(currentIndex int, wrapIndex int, selected bool)
 
 	return linePrefix
 }
+
+// lineNumber returns line number of the given index
+// and if relative is true the absolute difference to the cursor
+// or if on the cursor the absolute line number
+func lineNumber(relativ bool, curser, current int) int {
+	if !relativ || curser == current {
+		return current
+	}
+
+	diff := curser - current
+	if diff < 0 {
+		diff *= -1
+	}
+	return diff
+}
