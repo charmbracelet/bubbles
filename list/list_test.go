@@ -25,7 +25,7 @@ type testModel struct {
 // NEVER leaves the bounds since then it could mess with the layout.
 func TestViewBounds(t *testing.T) {
 	for _, testM := range genModels(genTestModels()) {
-		for i, line := range strings.Split(View(testM.model), "\n") {
+		for i, line := range strings.Split(testM.model.View(), "\n") {
 			lineWidth := ansi.PrintableRuneWidth(line)
 			width := testM.model.Width
 			if lineWidth > width {
@@ -42,7 +42,7 @@ func TestViewBounds(t *testing.T) {
 // Because there is no margin for diviations, if the test fails, lock also if the "golden sample" is sane.
 func TestGoldenSamples(t *testing.T) {
 	for _, testM := range genModels(genTestModels()) {
-		actual := View(testM.model)
+		actual := testM.model.View()
 		expected := testM.shouldBe
 		if actual != expected {
 			t.Errorf("expected Output:\n\n%s\n\nactual Output:\n\n%s\n\n", expected, actual)
@@ -56,7 +56,7 @@ func TestPanic(t *testing.T) {
 		panicRes := make(chan interface{})
 		go func(resChan chan<- interface{}) {
 			defer func() { resChan <- recover() }() // Why does this Yield "%!s(<nil>)"?
-			View(testM)                             // does this not Panic?
+			testM.model.View()
 		}(panicRes)
 		actual := <-panicRes
 		expected := testM.shouldBe
@@ -69,7 +69,7 @@ func TestPanic(t *testing.T) {
 // TestDynamic tests the view output after a movement/view-changing method
 func TestDynamic(t *testing.T) {
 	for _, test := range genDynamicModels() {
-		actual := View(test.model)
+		actual := test.model.View()
 		expected := test.shouldBe
 		if actual != expected {
 			t.Errorf("expected Output, after Methode '%s' called:\n\n%s\n\nactual Output:\n\n%s\n\n", test.afterMethode, expected, actual)

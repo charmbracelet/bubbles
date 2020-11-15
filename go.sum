@@ -10,10 +10,12 @@ github.com/lucasb-eyer/go-colorful v1.0.3 h1:QIbQXiugsb+q10B+MI+7DI1oQLdmnep86tW
 github.com/lucasb-eyer/go-colorful v1.0.3/go.mod h1:R4dSotOR9KMtayYi1e77YzuveK+i7ruzyGqttikkLy0=
 github.com/mattn/go-isatty v0.0.12 h1:wuysRhFDzyxgEmMf5xjvJ2M9dZoWAXNNr5LSBS7uHXY=
 github.com/mattn/go-isatty v0.0.12/go.mod h1:cbi8OIDigv2wuxKPP5vlRcQ1OAZbq2CE4Kysco4FUpU=
+github.com/mattn/go-runewidth v0.0.7/go.mod h1:H031xJmbD/WCDINGzjvQ9THkh0rPKHF+m2gUSrubnMI=
 github.com/mattn/go-runewidth v0.0.9 h1:Lm995f3rfxdpd6TSmuVCHVb/QhupuXlYr8sCI/QdE+0=
 github.com/mattn/go-runewidth v0.0.9/go.mod h1:H031xJmbD/WCDINGzjvQ9THkh0rPKHF+m2gUSrubnMI=
-github.com/muesli/reflow v0.2.0 h1:2o0UBJPHHH4fa2GCXU4Rg4DwOtWPMekCeyc5EWbAQp0=
-github.com/muesli/reflow v0.2.0/go.mod h1:qT22vjVmM9MIUeLgsVYe/Ye7eZlbv9dZjL3dVhUqLX8=
+github.com/muesli/reflow v0.1.1-0.20200715144030-a312cb5b2d8d h1:ok5jhmKQze1yERN73u46EZhUH4vgC1z4qfeFJ8iOwvg=
+github.com/muesli/reflow v0.1.1-0.20200715144030-a312cb5b2d8d/go.mod h1:I9bWAt7QTg/que/qmUCJBGlj7wEq8OAFBjPNjc6xK4I=
+github.com/muesli/termenv v0.7.0/go.mod h1:SohX91w6swWA4AYU+QmPx+aSgXhWO0juiyID9UZmbpA=
 github.com/muesli/termenv v0.7.2 h1:r1raklL3uKE7rOvWgSenmEm2px+dnc33OTisZ8YR1fw=
 github.com/muesli/termenv v0.7.2/go.mod h1:ct2L5N2lmix82RaY3bMWwVu/jUFc9Ule0KGDCiKYPh8=
 github.com/muesli/termenv v0.7.4 h1:/pBqvU5CpkY53tU0vVn+xgs2ZTX63aH5nY+SSps5Xa8=

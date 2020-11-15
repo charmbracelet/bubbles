@@ -38,12 +38,30 @@ func main() {
 		"Use '+' or '-' to move the item under the curser up and down.",
 		"The key 'v' inverts the selected state of each item.",
 		"To toggle betwen only absolute itemnumbers and also relativ numbers, the 'r' key is your friend.",
+		"","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","","",
 	}
 	stringerList := list.MakeStringerList(itemList)
 
 	endResult := make(chan string, 1)
+	list := list.NewModel()
+	list.AddItems(stringerList)
+	// uncomment the following lines for fancy check (selected) box :-)
+	// l.WrapPrefix = false
+	// l.SelectedPrefix = " [x]"
+	// l.UnSelectedPrefix = "[ ]"
 
-	p := tea.NewProgram(initialize(stringerList, endResult), update, view)
+	// Since in this example we only use UNIQUE string items we can use a String Comparison for the equals methode
+	// but be aware that different items in your case can have the same string -> false-positiv
+	// Better: Assert back to your struct and test on something unique within it!
+	list.SetEquals(func(first, second fmt.Stringer) bool { return first.String() == second.String() })
+	m := model{}
+	m.list = list
+
+
+	m.endResult = endResult
+
+
+	p := tea.NewProgram(m)
 
 	// Use the full size of the terminal in its "alternate screen buffer"
 	fullScreen := false // change to true if you want fullscreen
@@ -65,39 +83,24 @@ func main() {
 	fmt.Println(res)
 }
 
-// initialize sets up the model and returns it to the bubbletea runtime
-// as a function result, so it can later be handed over to the update and view functions.
-func initialize(lineList []fmt.Stringer, endResult chan<- string) func() (tea.Model, tea.Cmd) {
-	l := list.NewModel()
-	l.AddItems(lineList)
-	// uncomment the following lines for fancy check (selected) box :-)
-	// l.WrapPrefix = false
-	// l.SelectedPrefix = " [x]"
-	// l.UnSelectedPrefix = "[ ]"
 
-	// Since in this example we only use UNIQUE string items we can use a String Comparison for the equals methode
-	// but be aware that different items in your case can have the same string -> false-positiv
-	// Better: Assert back to your struct and test on something unique within it!
-	l.SetEquals(func(first, second fmt.Stringer) bool { return first.String() == second.String() })
-
-	return func() (tea.Model, tea.Cmd) { return model{list: l, endResult: endResult}, nil }
+func (m model) Init() tea.Cmd {
+	return nil
 }
 
-// view waits till the terminal sizes is knowen to the model and than,
+// View waits till the terminal sizes is knowen to the model and than,
 // pipes the model to the list View for rendering the list
-func view(mdl tea.Model) string {
-	m, _ := mdl.(model)
+func (m model) View() string {
 	if !m.ready {
-		return "\n  Initalizing...\n\n  Waiting for info about window size."
+		return "\n  Initalizing...\n\n  Waiting for info about window size.\n"
 	}
 
-	listString := list.View(m.list)
+	listString := m.list.View()
 	return listString
 }
 
 // update recives messages and the model and changes the model accordingly to the messages
-func update(msg tea.Msg, mdl tea.Model) (tea.Model, tea.Cmd) {
-	m, _ := mdl.(model)
+func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:

@@ -91,8 +91,8 @@ func (i item) genVisLines(wrapTo int) item {
 	return i
 }
 
-// View renders the Lst to a (displayable) string
-func (m *Model) View() string {
+// View renders the List to a (displayable) string
+func (m Model) View() string {
 	return strings.Join(m.Lines(), "\n")
 }
 
@@ -286,8 +286,8 @@ func lineNumber(relativ bool, curser, current int) int {
 	return diff
 }
 
-// Update changes the Model of the List according to the messages recieved
-func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+// Update changes the Model of the List according to the messages received
+func Update(msg tea.Msg, m Model) (Model, tea.Cmd) {
 	if !m.focus {
 		return m, nil
 	}
@@ -346,7 +346,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 
 	case tea.MouseMsg:
-		switch msg.Button {
+		switch msg.Type {
 		case tea.MouseWheelUp:
 			m.Move(-1)
 
@@ -355,11 +355,6 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 	return m, nil
-}
-
-// Init does nothing
-func (m Model) Init() tea.Cmd {
-	return nil
 }
 
 // AddItems adds the given Items to the list Model
