@@ -189,10 +189,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "up", "k":
 			m.Move(-1)
 			return m, nil
-		case "g":
+		case "t", "home":
 			m.Top()
 			return m, nil
-		case "G":
+		case "b", "end":
 			m.Bottom()
 			return m, nil
 		case "+":
@@ -213,8 +213,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "m": // mark
 			m.MarkSelected(1, true)
 			return m, nil
-		case "M": // mark False
+		case "M": // mark All
+			m.MarkAllSelected(true)
+			return m, nil
+		case "u": // unmark
 			m.MarkSelected(1, false)
+			return m, nil
+		case "U": // unmark All
+			m.MarkAllSelected(false)
 			return m, nil
 
 		// Order changing
@@ -519,6 +525,18 @@ func (m *Model) MarkSelected(amount int, mark bool) error {
 	return err
 }
 
+// MarkAllSelected marks all items of the list according to mark
+// or returns OutOfBounds if list has no Items
+func (m *Model) MarkAllSelected(mark bool) error {
+	if m.Len() == 0 {
+		return OutOfBounds(fmt.Errorf("No Items within list"))
+	}
+	for c := range m.listItems {
+		m.listItems[c].selected = mark
+	}
+	return nil
+}
+
 // ToggleAllSelected inverts the select state of ALL items
 func (m *Model) ToggleAllSelected() {
 	for i := range m.listItems {
@@ -572,13 +590,23 @@ func (m *Model) Sort() {
 }
 
 // Less is a Proxy to the less function, set from the user.
+// since the Sort-interface demands a Less Methode without a error return value
+// so we sadly have to returns silently if a index is out side the list, to not panic.
 func (m *Model) Less(i, j int) bool {
+	if !m.CheckWithinBorder(i) || !m.CheckWithinBorder(j) {
+		return false
+	}
 	return m.less(m.listItems[i].value, m.listItems[j].value)
 }
 
 // Swap swaps the items position within the list
 // and is used to fulfill the Sort-interface
+// since the Sort-interface demands a Swap Methode without a error return value
+// so we sadly have to returns silently if a index is out side the list, to not panic.
 func (m *Model) Swap(i, j int) {
+	if !m.CheckWithinBorder(i) || !m.CheckWithinBorder(j) {
+		return
+	}
 	m.listItems[i], m.listItems[j] = m.listItems[j], m.listItems[i]
 }
 
@@ -622,7 +650,14 @@ func (m *Model) MoveItem(amount int) error {
 	if err != nil {
 		return err
 	}
-	m.Swap(cur, target)
+	d := 1
+	if amount < 0 {
+		d = -1
+	}
+	for c := 0; c*d < amount*d; c += d {
+		m.Swap(cur+c, cur+c+d)
+	}
+	m.viewPos.Cursor = target
 	return nil
 }
 
@@ -682,6 +717,16 @@ func (m *Model) GetIndex(toSearch fmt.Stringer) (int, error) {
 	return lastIndex, nil
 }
 
+// UpdateItem takes a indes and updates the item at the index with the given function
+// or if index outside the list returns OutOfBounds error.
+func (m *Model) UpdateItem(index int, updater func(fmt.Stringer) fmt.Stringer) error {
+	if !m.CheckWithinBorder(index) {
+		return OutOfBounds(fmt.Errorf("index is outside the list"))
+	}
+	m.listItems[index].value = updater(m.listItems[index].value)
+	return nil
+}
+
 // UpdateAllItems takes a function and updates with it, all items in the list
 func (m *Model) UpdateAllItems(updater func(fmt.Stringer) fmt.Stringer) {
 	for i, item := range m.listItems {
@@ -708,6 +753,15 @@ func (m *Model) GetCursorIndex() (int, error) {
 		return m.viewPos.Cursor, NotFocused(fmt.Errorf("Model is not focused"))
 	}
 	return m.viewPos.Cursor, nil
+}
+
+// GetItem returns the item if the index exists
+// OutOfBounds otherwise
+func (m *Model) GetItem(index int) (fmt.Stringer, error) {
+	if !m.CheckWithinBorder(index) {
+		return nil, OutOfBounds(fmt.Errorf("requested index is outside the list"))
+	}
+	return m.listItems[index].value, nil
 }
 
 // GetAllItems returns all items in the list in current order

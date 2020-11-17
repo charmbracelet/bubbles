@@ -79,12 +79,12 @@ func TestBasicsLines(t *testing.T) {
 	// swap them again
 	m.MoveItem(1)
 	// should be the like the beginning
-	sorteditemList := m.GetAllItems()
+	sortedItemList := m.GetAllItems()
 
 	// make sure all itemList get processed
-	shorter, longer := sorteditemList, itemList
+	shorter, longer := sortedItemList, itemList
 	if len(itemList) > len(longer) {
-		shorter, longer = itemList, sorteditemList
+		shorter, longer = itemList, sortedItemList
 	}
 
 	// Process/check all itemList
@@ -104,7 +104,7 @@ func TestBasicsLines(t *testing.T) {
 	cur := ">"
 	for i, line := range out {
 		// Check Prefixes
-		num := fmt.Sprintf("%d", i)
+		num := fmt.Sprintf("%d", i+1)
 		prefix := light + strings.Repeat(" ", 2-len(num)) + num + " ╭" + cur
 		if !strings.HasPrefix(line, prefix) {
 			t.Errorf("The prefix of the line:\n%s\n with linenumber %d should be:\n%s\n", line, i, prefix)
@@ -128,7 +128,7 @@ func TestWrappedLines(t *testing.T) {
 	num := "\x1b[7m  "
 	for i, line := range out {
 		if i%2 == 1 {
-			num = fmt.Sprintf(" %1d", (i/2)+1)
+			num = fmt.Sprintf(" %1d", (i/2)+2)
 		}
 		prefix := fmt.Sprintf("%s %s %d", num, wrap, i)
 		if !strings.HasPrefix(line, prefix) {
@@ -148,7 +148,7 @@ func TestMultiLineBreaks(t *testing.T) {
 	m.AddItems(MakeStringerList([]string{"\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n"}))
 	m.MarkSelected(0, true)
 	out := m.Lines()
-	prefix := "\x1b[7m 0*╭>"
+	prefix := "\x1b[7m 1*╭>"
 	for i, line := range out {
 		if !strings.HasPrefix(line, prefix) {
 			t.Errorf("The prefix of the line:\n'%s'\n with linenumber %d should be:\n'%s'\n", line, i, prefix)
@@ -214,17 +214,17 @@ func TestMovementKeys(t *testing.T) {
 		t.Errorf("up movement should change the Item offset to '9' but got: %d", m.viewPos.ItemOffset)
 	}
 	finish = m.Len() - 1
-	newModel, cmd = m.Update(tea.KeyMsg(tea.Key{Type: tea.KeyRunes, Runes: []rune{'G'}}))
+	newModel, cmd = m.Update(tea.KeyMsg(tea.Key{Type: tea.KeyRunes, Runes: []rune{'b'}}))
 	m, _ = newModel.(Model)
 	if m.viewPos.Cursor != finish || cmd != nil {
-		t.Errorf("key 'G' should have nil command but got: '%#v' and move the Cursor to last index: '%d', but got: %d", cmd, m.Len()-1, m.viewPos.Cursor)
+		t.Errorf("key 'b' should have nil command but got: '%#v' and move the Cursor to last index: '%d', but got: %d", cmd, m.Len()-1, m.viewPos.Cursor)
 	}
 	finish = 0
 	m.viewPos.Cursor = start
-	newModel, cmd = m.Update(tea.KeyMsg(tea.Key{Type: tea.KeyRunes, Runes: []rune{'g'}}))
+	newModel, cmd = m.Update(tea.KeyMsg(tea.Key{Type: tea.KeyRunes, Runes: []rune{'t'}}))
 	m, _ = newModel.(Model)
 	if m.viewPos.Cursor != finish || cmd != nil {
-		t.Errorf("key 'g' should have nil command but got: '%#v' and move the Cursor to index '%d', but got: %d", cmd, finish, m.viewPos.Cursor)
+		t.Errorf("key 't' should have nil command but got: '%#v' and move the Cursor to index '%d', but got: %d", cmd, finish, m.viewPos.Cursor)
 	}
 	m.SetCursor(10)
 	if m.viewPos.Cursor != 10 {
@@ -292,7 +292,7 @@ func TestSelectKeys(t *testing.T) {
 	// Move back to top
 	m.Move(-1)
 	// Unmark previous marked item
-	newModel, cmd = m.Update(tea.KeyMsg(tea.Key{Type: tea.KeyRunes, Runes: []rune{'M'}}))
+	newModel, cmd = m.Update(tea.KeyMsg(tea.Key{Type: tea.KeyRunes, Runes: []rune{'u'}}))
 	m, _ = newModel.(Model)
 	if len(m.GetSelected()) != 0 {
 		t.Errorf("no selected items should be left, but '%d' are", len(m.GetSelected()))

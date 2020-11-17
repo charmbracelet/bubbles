@@ -172,7 +172,7 @@ func (d *DefaultPrefixer) Prefix(currentIndex int, wrapIndex int, selected bool)
 // or if on the cursor the absolute line number
 func lineNumber(relativ bool, curser, current int) int {
 	if !relativ || curser == current {
-		return current
+		return current + 1
 	}
 
 	diff := curser - current

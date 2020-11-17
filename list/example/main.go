@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/muesli/termenv"
 	"os"
 	"strconv"
 )
@@ -16,51 +17,134 @@ type model struct {
 	endResult chan<- string
 	jump      string
 	lastViews []string
+
+	requestID chan<- struct{}
+	resultID  <-chan int
 }
 
-type stringItem string
+// newModel returns a new example Model and starts the goroutine go generate the unique id
+func newModel() *model {
+	m := model{}
+
+	req := make(chan struct{})
+	res := make(chan int)
+
+	m.requestID = req
+	m.resultID = res
+
+	go func(requ <-chan struct{}, send chan<- int) {
+		for c := 0; true; c++ {
+			_ = <-requ
+			send <- c
+		}
+	}(req, res)
+
+	l := list.NewModel()
+	l.SuffixGen = list.NewSuffixer()
+
+	l.SetEquals(func(first, second fmt.Stringer) bool {
+		f := first.(stringItem)
+		s := second.(stringItem)
+		return f.id == s.id
+	})
+	l.SetLess(func(first, second fmt.Stringer) bool {
+		f := first.(stringItem)
+		s := second.(stringItem)
+		return f.id < s.id
+	})
+
+	m.list = l
+
+	return &m
+}
+
+// GetID returns a new for this list unique id
+func (m *model) GetID() (int, error) {
+	if m.requestID == nil || m.resultID == nil {
+		return 0, fmt.Errorf("no ID generator running")
+	}
+	var e struct{}
+	m.requestID <- e
+	return <-m.resultID, nil
+}
+
+func (m *model) AddStrings(items []string) error {
+	newList := make([]fmt.Stringer, 0, len(items))
+	for _, i := range items {
+		id, e := m.GetID()
+		if e != nil {
+			return e
+		}
+		newList = append(newList, stringItem{value: i, id: id})
+	}
+	m.list.AddItems(newList)
+	return nil
+}
+
+func (m *model) SetStyle(index int, style termenv.Style) error {
+	updater := func(toUp fmt.Stringer) fmt.Stringer {
+		i := toUp.(stringItem)
+		i.style = style
+		return i
+	}
+	return m.list.UpdateItem(index, updater)
+}
+
+type stringItem struct {
+	value string
+	id    int
+	style termenv.Style
+}
 
 func (s stringItem) String() string {
-	return string(s)
+	return s.style.Styled(string(s.value))
 }
 
 func main() {
+	m := newModel()
 	itemList := []string{
 		"Welcome to the bubbles-list example!",
+		"",
 		"Use 'q' or 'ctrl-c' to quit!",
-		"You can move the highlighted index up and down with the (arrow keys or 'k' and 'j'.)",
-		"Move to the beginning with 'g' and to the end with 'G'.",
-		"Sort the entrys with 's', but be carefull you can't restore the former order again.",
 		"The list can handel linebreaks,\nand has wordwrap enabled if the line gets to long.",
-		"You can select items with the space key which will select the line and mark it as such.",
-		"Ones you hit 'enter', the selected lines will be printed to StdOut and the program exits.",
-		"When you print the items there will be a loss of information,",
-		"since one can not say what was a line break within an item or what is a new item",
+		"",
+		"Movements:",
+		"You can move the highlighted index up and down with the arrow keys or 'k' and 'j'.",
+		"Move to the top with 't' and to the bottom with 'b'.",
+		"",
+		"Order:",
 		"Use '+' or '-' to move the item under the curser up and down.",
-		"The key 'v' inverts the selected state of each item.",
-		"To toggle betwen only absolute item numbers and relativ numbers, the 'r' key is your friend.",
+		"Sort the entrys with 's' depending on a costum less function, here the orginal order.",
+		"To toggle between only absolute item numbers and relativ numbers use the 'r' key.",
+		"",
+		"Select:",
+		"To select a item use 'm'\nor to select all items 'M'.",
+		"To unselect a item use 'u'\nor to unselect all items 'U'.",
+		"You can toggle the select state of the current item with the space key.",
+		"The key 'v' inverts the selected state of all items.",
+		"",
+		"Ones you hit 'enter', the selected lines will be printed to StdOut and the program exits.",
+		"When you print the items there will be a loss of information,\nsince one can not say what was a line break within an item or what is a new item",
+		"",
+		"Here are some more items for you to test the scrolling\nand the cursor-Offset which defaults to 5 lines from the screen border.",
+		"", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
+		"Be aware that items with more linebreaks than the screen height minus twice the scroll offset cause some display problems to the hole list, but the cursor will be on the right item, even if the cursor jumps relative to the screen.\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n",
+		"", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
+		"If you want to jump directly to me type '5' and than 'b',\nbecause i am the fifth item (not lines) from the bottom.", "", "", "",
+		"Hey i am the last item :) you can move directly to me with the 'b' key, which stands for bottom",
 	}
 
-	stringerList := list.MakeStringerList(itemList)
+	m.AddStrings(itemList)
+
+	m.SetStyle(0, termenv.Style{}.Foreground(termenv.ColorProfile().Color("#ffff00")))
 
 	endResult := make(chan string, 1)
-	l := list.NewModel()
-	l.AddItems(stringerList)
-	l.SuffixGen = list.NewSuffixer()
-
-	// Since in this example we only use UNIQUE string items we can use a String Comparison for the equals methode
-	// but be aware that different items in your case can have the same string -> false-positiv
-	// Better: Assert back to your struct and test on something unique within it!
-	l.SetEquals(func(first, second fmt.Stringer) bool { return first.String() == second.String() })
-	m := model{}
-	m.list = l
-
 	m.endResult = endResult
 
 	p := tea.NewProgram(m)
 
 	// Use the full size of the terminal in its "alternate screen buffer"
-	fullScreen := false // change to true if you want fullscreen
+	fullScreen := true // change to true if you want fullscreen
 
 	if fullScreen {
 		p.EnterAltScreen()
@@ -149,7 +233,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m.list.MarkSelected(j, true)
 			return m, nil
-		case "M":
+		case "u":
 			j := 1
 			if m.jump != "" {
 				j, _ = strconv.Atoi(m.jump)
@@ -165,6 +249,47 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m.list.ToggleSelect(j)
 			return m, nil
+		case "+":
+			j := 1
+			if m.jump != "" {
+				j, _ = strconv.Atoi(m.jump)
+				m.jump = ""
+			}
+			m.list.MoveItem(j)
+			return m, nil
+		case "-":
+			j := 1
+			if m.jump != "" {
+				j, _ = strconv.Atoi(m.jump)
+				m.jump = ""
+			}
+			m.list.MoveItem(-j)
+			return m, nil
+		case "t", "home":
+			j := 0
+			if m.jump != "" {
+				j, _ = strconv.Atoi(m.jump)
+				m.jump = ""
+			}
+			if j > 0 {
+				j--
+			}
+			m.list.Top()
+			m.list.Move(j)
+			return m, nil
+		case "b", "end":
+			j := 0
+			if m.jump != "" {
+				j, _ = strconv.Atoi(m.jump)
+				m.jump = ""
+			}
+			if j > 0 {
+				j--
+			}
+			m.list.Bottom()
+			m.list.Move(-j)
+			return m, nil
+
 		case "enter":
 			// Enter prints the selected lines to StdOut
 			var result bytes.Buffer
