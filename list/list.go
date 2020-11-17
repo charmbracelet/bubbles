@@ -130,7 +130,11 @@ out:
 				linePrefix = m.PrefixGen.Prefix(index, i, item.selected)
 			}
 			if m.SuffixGen != nil {
-				lineSuffix = fmt.Sprintf("%s%s", strings.Repeat(" ", contentWidth-ansi.PrintableRuneWidth(line)), m.SuffixGen.Suffix(index, i, item.selected))
+				free := contentWidth - ansi.PrintableRuneWidth(line)
+				if free < 0 {
+					free = 0 // TODO is this nessecary?
+				}
+				lineSuffix = fmt.Sprintf("%s%s", strings.Repeat(" ", free), m.SuffixGen.Suffix(index, i, item.selected))
 			}
 
 			// Join all
@@ -446,7 +450,6 @@ func (m *Model) keepVisibleWrap(target int) ViewPos {
 }
 
 // AddItems adds the given Items to the list Model
-// Without performing updating the View TODO
 func (m *Model) AddItems(itemList []fmt.Stringer) {
 	for _, i := range itemList {
 		m.listItems = append(m.listItems, item{
@@ -719,19 +722,24 @@ func (m *Model) GetIndex(toSearch fmt.Stringer) (int, error) {
 
 // UpdateItem takes a indes and updates the item at the index with the given function
 // or if index outside the list returns OutOfBounds error.
-func (m *Model) UpdateItem(index int, updater func(fmt.Stringer) fmt.Stringer) error {
+func (m *Model) UpdateItem(index int, updater func(fmt.Stringer) (fmt.Stringer, tea.Cmd)) (tea.Cmd, error) {
 	if !m.CheckWithinBorder(index) {
-		return OutOfBounds(fmt.Errorf("index is outside the list"))
+		return nil, OutOfBounds(fmt.Errorf("index is outside the list"))
 	}
-	m.listItems[index].value = updater(m.listItems[index].value)
-	return nil
+	v, cmd := updater(m.listItems[index].value)
+	m.listItems[index].value = v
+	return cmd, nil
 }
 
 // UpdateAllItems takes a function and updates with it, all items in the list
-func (m *Model) UpdateAllItems(updater func(fmt.Stringer) fmt.Stringer) {
+func (m *Model) UpdateAllItems(updater func(fmt.Stringer) (fmt.Stringer, tea.Cmd)) []tea.Cmd {
+	cmdList := make([]tea.Cmd, 0, m.Len())
 	for i, item := range m.listItems {
-		m.listItems[i].value = updater(item.value)
+		v, cmd := updater(item.value)
+		m.listItems[i].value = v
+		cmdList = append(cmdList, cmd)
 	}
+	return cmdList
 }
 
 // UpdateSelectedItems updates all selected items within the list with given function

@@ -343,7 +343,7 @@ func TestItemUpdater(t *testing.T) {
 	m := NewModel()
 	old := MakeStringerList([]string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"})
 	m.AddItems(old)
-	m.UpdateAllItems(func(in fmt.Stringer) fmt.Stringer { return StringItem("-") })
+	m.UpdateAllItems(func(in fmt.Stringer) (fmt.Stringer, tea.Cmd) { return StringItem("-"), nil })
 	for i, content := range m.GetAllItems() {
 		if content.String() != "-" {
 			t.Errorf("after Updating all items should result in string '-' but got '%s' form old item: '%s'", content.String(), old[i])

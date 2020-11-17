@@ -1,9 +1,9 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"github.com/charmbracelet/bubbles/list"
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/muesli/termenv"
 	"os"
@@ -14,7 +14,7 @@ type model struct {
 	ready     bool
 	list      list.Model
 	finished  bool
-	endResult chan<- string
+	edit      bool
 	jump      string
 	lastViews []string
 
@@ -82,21 +82,28 @@ func (m *model) AddStrings(items []string) error {
 }
 
 func (m *model) SetStyle(index int, style termenv.Style) error {
-	updater := func(toUp fmt.Stringer) fmt.Stringer {
+	updater := func(toUp fmt.Stringer) (fmt.Stringer, tea.Cmd) {
 		i := toUp.(stringItem)
 		i.style = style
-		return i
+		return i, nil
 	}
-	return m.list.UpdateItem(index, updater)
+	_, err := m.list.UpdateItem(index, updater)
+	return err
 }
 
 type stringItem struct {
 	value string
 	id    int
+	edit  bool
 	style termenv.Style
+	input textinput.Model
 }
 
 func (s stringItem) String() string {
+	if s.edit {
+		// prepend with ansi-escape sequence to end all hightlighting to not interfere with the textinput-hightlighting
+		return "\x1b[0m" + s.input.View()
+	}
 	return s.style.Styled(string(s.value))
 }
 
@@ -123,23 +130,23 @@ func main() {
 		"You can toggle the select state of the current item with the space key.",
 		"The key 'v' inverts the selected state of all items.",
 		"",
-		"Ones you hit 'enter', the selected lines will be printed to StdOut and the program exits.",
-		"When you print the items there will be a loss of information,\nsince one can not say what was a line break within an item or what is a new item",
+		"Edit:",
+		"With the key 'e' you can edit the string of the current item.",
+		"There you can make changes to the string and apply them with 'enter' or discard them with 'escape'",
+		"",
+		"All keys that change the cursor position can be preceded with the press of numbers and change the movemet to that amount.\nI.e.: the key press order '1','2' and 't' moves the cursor to the twelfth item from the top.",
 		"",
 		"Here are some more items for you to test the scrolling\nand the cursor-Offset which defaults to 5 lines from the screen border.",
 		"", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
-		"Be aware that items with more linebreaks than the screen height minus twice the scroll offset cause some display problems to the hole list, but the cursor will be on the right item, even if the cursor jumps relative to the screen.\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n",
+		"Be aware, that items with more linebreaks than the screen height minus twice the scroll offset, cause some display problems to the hole list, but the cursor will be on the right item, even if the cursor jumps relative to the screen.\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n",
 		"", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
-		"If you want to jump directly to me type '5' and than 'b',\nbecause i am the fifth item (not lines) from the bottom.", "", "", "",
-		"Hey i am the last item :) you can move directly to me with the 'b' key, which stands for bottom",
+		"If you want to jump directly to me type '5' and than 'b',\nbecause i am the fifth item (not line) from the bottom.", "", "", "",
+		"Hey, i am the last item :) you can move directly to me with the 'b' key, which stands for bottom.",
 	}
 
 	m.AddStrings(itemList)
 
 	m.SetStyle(0, termenv.Style{}.Foreground(termenv.ColorProfile().Color("#ffff00")))
-
-	endResult := make(chan string, 1)
-	m.endResult = endResult
 
 	p := tea.NewProgram(m)
 
@@ -157,10 +164,6 @@ func main() {
 	if fullScreen {
 		p.ExitAltScreen()
 	}
-
-	res := <-endResult
-	// allways print a newline even on empty string result
-	fmt.Println(res)
 }
 
 func (m model) Init() tea.Cmd {
@@ -185,20 +188,87 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.list.PrefixGen = list.NewPrefixer()
 	}
 
+	// if there is a item to be edit, pass the massage to the Update methode of the item.
+	if k, ok := msg.(tea.KeyMsg); m.edit && ok && k.Type != tea.KeyEscape && k.Type != tea.KeyEnter {
+		updater := func(toUp fmt.Stringer) (fmt.Stringer, tea.Cmd) {
+			item, _ := toUp.(stringItem)
+			if !item.edit {
+				return item, nil
+			}
+			newInput, cmd := item.input.Update(msg)
+			item.input = newInput
+			return item, cmd
+		}
+		i, _ := m.list.GetCursorIndex()
+		cmd, _ := m.list.UpdateItem(i, updater)
+		return m, cmd
+	}
+
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
+		if msg.Type == tea.KeyEscape {
+			if m.edit {
+				// make sure that all items edit-fields are false and discard the change
+				updater := func(toUp fmt.Stringer) (fmt.Stringer, tea.Cmd) {
+					item, _ := toUp.(stringItem)
+
+					item.edit = false
+					return item, nil
+				}
+				m.list.UpdateAllItems(updater)
+
+			}
+			m.edit = false
+			return m, nil
+		}
+
 		// Ctrl+c exits
 		if msg.Type == tea.KeyCtrlC {
-			m.endResult <- ""
 			return m, tea.Quit
 		}
 		keyString := msg.String()
 		switch keyString {
+		case "e":
+			m.edit = true
+			i, _ := m.list.GetCursorIndex()
+
+			updater := func(toUp fmt.Stringer) (fmt.Stringer, tea.Cmd) {
+				item, _ := toUp.(stringItem)
+				item.input = textinput.NewModel()
+				item.input.SetValue(item.value)
+				item.input.Focus()
+				item.edit = true
+
+				j, _ := strconv.Atoi(m.jump)
+				item.input.SetCursor(j)
+				m.jump = ""
+				return item, nil
+			}
+			m.list.UpdateItem(i, updater)
+			return m, nil
+
+		case "enter":
+			if m.edit {
+				// Update the value and make sure that all items edit-fields are false
+				updater := func(toUp fmt.Stringer) (fmt.Stringer, tea.Cmd) {
+					item, _ := toUp.(stringItem)
+					if item.edit {
+						item.value = item.input.Value()
+					}
+
+					item.edit = false
+					return item, nil
+				}
+				m.list.UpdateAllItems(updater)
+
+			}
+			m.edit = false
+			return m, nil
+
 		case "c":
 			m.list.Move(1)
 			return m, nil
 		case "q":
-			m.endResult <- ""
 			return m, tea.Quit
 		case "1", "2", "3", "4", "5", "6", "7", "8", "9", "0":
 			m.jump += keyString
@@ -290,15 +360,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.list.Move(-j)
 			return m, nil
 
-		case "enter":
-			// Enter prints the selected lines to StdOut
-			var result bytes.Buffer
-			for _, item := range m.list.GetSelected() {
-				result.WriteString(item.String())
-				result.WriteString("\n")
-			}
-			m.endResult <- result.String()
-			return m, tea.Quit
 			//		case "t":
 			//			m.lastViews = append(m.lastViews, m.View())
 			//			return m, nil
