@@ -9,6 +9,8 @@ import (
 	"github.com/muesli/termenv"
 )
 
+var color func(string) termenv.Color = termenv.ColorProfile().Color
+
 type Model struct {
 	// Left side color of progress bar. By default, it's #00dbde
 	StartColor colorful.Color
@@ -73,7 +75,7 @@ func (m Model) bar(percent float64, textWidth int) string {
 
 	var fullCells string
 	for i := 0; i < len(ramp); i++ {
-		fullCells += termenv.String(string(m.Full)).Foreground(termenv.ColorProfile().Color(ramp[i])).String()
+		fullCells += termenv.String(string(m.Full)).Foreground(color(ramp[i])).String()
 	}
 
 	fullCells += strings.Repeat(string(m.Empty), w-len(ramp))
