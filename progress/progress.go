@@ -26,20 +26,30 @@ func WithDefaultRamp() Option {
 
 // WithRamp sets a gradient fill blending between two colors.
 func WithRamp(colorA, colorB string) Option {
-	a, _ := colorful.Hex(colorA)
-	b, _ := colorful.Hex(colorB)
 	return func(m *Model) {
-		m.useRamp = true
-		m.rampColorA = a
-		m.rampColorB = b
+		m.setRamp(colorA, colorB, false)
 	}
+}
+
+// WithDefaultScaledRamp sets a gradient with default colors, and scales the
+// gradient to fit the filled portion of the ramp.
+func WithDefaultScaledRamp() Option {
+	return WithScaledRamp("#00dbde", "#fc00ff")
 }
 
 // WithScaledRamp scales the gradient to fit the width of the filled portion of
 // the progress bar.
-func WithScaledRamp() Option {
+func WithScaledRamp(colorA, colorB string) Option {
 	return func(m *Model) {
-		m.scaleRamp = true
+		m.setRamp(colorA, colorB, true)
+	}
+}
+
+// WithSoildFill sets the progress to use a solid fill with the given color.
+func WithSolidFill(color string) Option {
+	return func(m *Model) {
+		m.FullColor = color
+		m.useRamp = false
 	}
 }
 
@@ -139,4 +149,13 @@ func (m Model) bar(percent float64, textWidth int) string {
 	b.WriteString(strings.Repeat(e, tw-fw))
 
 	return b.String()
+}
+
+func (m *Model) setRamp(colorA, colorB string, scaled bool) {
+	a, _ := colorful.Hex(colorA)
+	b, _ := colorful.Hex(colorB)
+	m.useRamp = true
+	m.scaleRamp = scaled
+	m.rampColorA = a
+	m.rampColorB = b
 }
