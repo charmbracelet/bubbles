@@ -89,8 +89,9 @@ type Model struct {
 	EmptyColor string
 
 	// Settings for rendering the numeric percentage
-	ShowPercentage bool
-	PercentFormat  string // a fmt string for a float
+	ShowPercentage  bool
+	PercentFormat   string // a fmt string for a float
+	PercentageStyle *termenv.Style
 
 	useRamp    bool
 	rampColorA colorful.Color
@@ -127,9 +128,12 @@ func NewModel(opts ...Option) (*Model, error) {
 func (m Model) View(percent float64) string {
 	b := strings.Builder{}
 	if m.ShowPercentage {
-		s := fmt.Sprintf(m.PercentFormat, percent*100)
-		m.bar(&b, percent, ansi.PrintableRuneWidth(s))
-		b.WriteString(s)
+		percentage := fmt.Sprintf(m.PercentFormat, percent*100)
+		if m.PercentageStyle != nil {
+			percentage = m.PercentageStyle.Styled(percentage)
+		}
+		m.bar(&b, percent, ansi.PrintableRuneWidth(percentage))
+		b.WriteString(percentage)
 	} else {
 		m.bar(&b, percent, 0)
 	}
