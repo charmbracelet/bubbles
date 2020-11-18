@@ -60,6 +60,15 @@ func WithoutPercentage() Option {
 	}
 }
 
+// WithWidth sets the initial width of the progress bar. Note that you can also
+// set the width via the Width property, which can come in handy if you're
+// waiting for a tea.WindowSizeMsg.
+func WithWidth(w int) Option {
+	return func(m *Model) {
+		m.Width = w
+	}
+}
+
 // Model stores values we'll use when rendering the progress bar.
 type Model struct {
 
