@@ -18,6 +18,7 @@ type model struct {
 	jump      string
 	lastViews []string
 
+	// Channels to create unique ids for all added/new items
 	requestID chan<- struct{}
 	resultID  <-chan int
 }
@@ -42,11 +43,13 @@ func newModel() *model {
 	l := list.NewModel()
 	l.SuffixGen = list.NewSuffixer()
 
+	// only used if one wants to get the Index of a item.
 	l.SetEquals(func(first, second fmt.Stringer) bool {
 		f := first.(stringItem)
 		s := second.(stringItem)
 		return f.id == s.id
 	})
+	// used for custom sorting, if not set string comparison will be used.
 	l.SetLess(func(first, second fmt.Stringer) bool {
 		f := first.(stringItem)
 		s := second.(stringItem)

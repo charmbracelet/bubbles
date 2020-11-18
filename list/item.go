@@ -11,6 +11,7 @@ import (
 type item struct {
 	selected bool
 	value    fmt.Stringer
+	id       int
 }
 
 // itemLines returns the lines of the item string value wrapped to the according content-width

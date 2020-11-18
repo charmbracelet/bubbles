@@ -31,6 +31,10 @@ type Model struct {
 	LineStyle     termenv.Style
 	SelectedStyle termenv.Style
 	CurrentStyle  termenv.Style
+
+	// Channels to create unique ids for all added/new items
+	requestID chan<- struct{}
+	resultID  <-chan int
 }
 
 // NewModel returns a Model with some save/sane defaults
@@ -454,7 +458,9 @@ func (m *Model) AddItems(itemList []fmt.Stringer) {
 	for _, i := range itemList {
 		m.listItems = append(m.listItems, item{
 			selected: false,
-			value:    i},
+			value:    i,
+			id:       m.getID(),
+		},
 		)
 	}
 }
@@ -570,26 +576,26 @@ func (m *Model) GetSelected() []fmt.Stringer {
 }
 
 // Sort sorts the list items according to the set less-function
-// If there is no Equals-function set (with SetEquals), the current Item will maybe change!
-// Since the index of the current pointer does not change
+// If its not set than order after string.
 func (m *Model) Sort() {
-	equ := m.equals
-	var tmp item
-	if equ != nil {
-		tmp = m.listItems[m.viewPos.Cursor]
-	}
-	sort.Sort(m)
-	if equ == nil {
+	if m.Len() < 1 {
 		return
 	}
-	for i, item := range m.listItems {
-		if is := equ(item.value, tmp.value); is {
-			m.viewPos.Cursor = i
-			break // Stop when first (and hopefully only one) is found
+	old := m.listItems[m.viewPos.Cursor].id
+	sort.Sort(m)
+	if m.less == nil {
+		m.less = func(a, b fmt.Stringer) bool {
+			return a.String() < b.String()
 		}
 	}
+	for i, item := range m.listItems {
+		if item.id == old {
+			m.viewPos.Cursor = i
+			break
+		}
+	}
+	// move the visible
 	m.Move(0)
-
 }
 
 // Less is a Proxy to the less function, set from the user.
@@ -624,15 +630,14 @@ func (m *Model) SetLess(less func(a, b fmt.Stringer) bool) {
 	m.less = less
 }
 
-// SetEquals sets the internal equals methode used if provided to set the cursor again on the same item after sorting
+// SetEquals sets the internal equals methode used to get the index (GetIndex) of a provided fmt.Stringer value
 func (m *Model) SetEquals(equ func(first, second fmt.Stringer) bool) {
 	m.equals = equ
 }
 
 // GetEquals returns the internal equals methode
-// used to set the curser after sorting on the same item again
+// used to get the index (GetIndex) of a provided fmt.Stringer value
 func (m *Model) GetEquals() func(first, second fmt.Stringer) bool {
-	// TODO remove this function?
 	return m.equals
 }
 
@@ -792,4 +797,28 @@ func (m *Model) Copy() *Model {
 	copiedModel := &Model{}
 	*copiedModel = *m
 	return copiedModel
+}
+
+// GetID returns a new for this list unique id
+func (m *Model) getID() int {
+	if m.requestID == nil || m.resultID == nil {
+		req := make(chan struct{})
+		res := make(chan int)
+
+		m.requestID = req
+		m.resultID = res
+
+		// the id '0' is skiped to be able to distinguish zero-value and proper id TODO is this a valid/good way to go?
+		go func(requ <-chan struct{}, send chan<- int) {
+			for c := 2; true; c++ {
+				_ = <-requ
+				send <- c
+			}
+		}(req, res)
+
+		return 1
+	}
+	var e struct{}
+	m.requestID <- e
+	return <-m.resultID
 }
