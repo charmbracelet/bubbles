@@ -18,9 +18,11 @@ const (
 )
 
 func main() {
-	progress := progress.NewModel(
-		progress.WithDefaultRamp(),
-	)
+	progress, err := progress.NewModel(progress.WithDefaultRamp())
+	if err != nil {
+		fmt.Println("Could not initialize progress model:", err)
+		os.Exit(1)
+	}
 
 	if err := tea.NewProgram(example{progress: progress}).Start(); err != nil {
 		fmt.Println("Oh no!", err)
