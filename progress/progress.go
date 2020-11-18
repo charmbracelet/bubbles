@@ -29,13 +29,13 @@ type Model struct {
 }
 
 // NewModel returns a model with default values.
-func NewModel(size int) *Model {
+func NewModel() Model {
 	startColor, _ := colorful.Hex("#00dbde")
 	endColor, _ := colorful.Hex("#fc00ff")
-	return &Model{
+	return Model{
 		StartColor:     startColor,
 		EndColor:       endColor,
-		Width:          size,
+		Width:          40,
 		FilamentSymbol: '█',
 		EmptySymbol:    '░',
 	}
