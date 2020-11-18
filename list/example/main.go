@@ -118,11 +118,16 @@ func main() {
 		"Movements:",
 		"You can move the highlighted index up and down with the arrow keys or 'k' and 'j'.",
 		"Move to the top with 't' and to the bottom with 'b'.",
+		"All keys that change the cursor position can be preceded with the press of numbers and change the movemet to that amount.\nI.e.: the key press order '1','2' and 't' moves the cursor to the twelfth item from the top.",
 		"",
 		"Order:",
-		"Use '+' or '-' to move the item under the curser up and down.",
-		"Sort the entrys with 's' depending on a costum less function, here the orginal order.",
+		"Use 'K' or 'J' to move the item under the curser up and down.",
+		"Sort the entrys with 's' depending on a costum less function, in this case string sorting.",
+		"Or bring them back into the original order with the 'o' key.",
+		"",
+		"Settings:",
 		"To toggle between only absolute item numbers and relativ numbers use the 'r' key.",
+		"To toggle between showing the wrapped lines of a item use the 'w' key.",
 		"",
 		"Select:",
 		"To select a item use 'm'\nor to select all items 'M'.",
@@ -134,11 +139,9 @@ func main() {
 		"With the key 'e' you can edit the string of the current item.",
 		"There you can make changes to the string and apply them with 'enter' or discard them with 'escape'",
 		"",
-		"All keys that change the cursor position can be preceded with the press of numbers and change the movemet to that amount.\nI.e.: the key press order '1','2' and 't' moves the cursor to the twelfth item from the top.",
-		"",
 		"Here are some more items for you to test the scrolling\nand the cursor-Offset which defaults to 5 lines from the screen border.",
 		"", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
-		"Be aware, that items with more linebreaks than the screen height minus twice the scroll offset, cause some display problems to the hole list, but the cursor will be on the right item, even if the cursor jumps relative to the screen.\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n",
+		//"Be aware, that items with more linebreaks than the screen height minus twice the scroll offset, cause some display problems to the hole list, but the cursor will be on the right item, even if the cursor jumps relative to the screen.\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nBut you can avoid this ,by toggeling wrap to be off, with the 'w' key.",
 		"", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
 		"If you want to jump directly to me type '5' and than 'b',\nbecause i am the fifth item (not line) from the bottom.", "", "", "",
 		"Hey, i am the last item :) you can move directly to me with the 'b' key, which stands for bottom.",
@@ -319,7 +322,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m.list.ToggleSelect(j)
 			return m, nil
-		case "+":
+		case "J":
 			j := 1
 			if m.jump != "" {
 				j, _ = strconv.Atoi(m.jump)
@@ -327,7 +330,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m.list.MoveItem(j)
 			return m, nil
-		case "-":
+		case "K":
 			j := 1
 			if m.jump != "" {
 				j, _ = strconv.Atoi(m.jump)
@@ -367,6 +370,24 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			//			f, _ := os.OpenFile("test_cases.txt", os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 			//			f.WriteString(strings.Join(m.lastViews, "\n##########################\n"))
 			//			return m, tea.Quit
+		case "w":
+			m.list.Wrap = !m.list.Wrap
+			return m, nil
+		case "s":
+			less := func(a, b fmt.Stringer) bool { return a.String() < b.String() }
+			m.list.SetLess(less)
+			m.list.Sort()
+			return m, nil
+		case "o":
+			less := func(a, b fmt.Stringer) bool {
+				d, _ := a.(stringItem)
+				e, _ := b.(stringItem)
+				return d.id < e.id
+			}
+			m.list.SetLess(less)
+			m.list.Sort()
+			return m, nil
+
 		default:
 			// resets jump buffer to prevent confusion
 			m.jump = ""
