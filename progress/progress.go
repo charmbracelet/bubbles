@@ -15,6 +15,7 @@ var color func(string) termenv.Color = termenv.ColorProfile().Color
 //
 //     progress := NewModel(
 //	       WithRamp("#ff0000", "#0000ff"),
+//	       WithoutPercentage(),
 //     )
 type Option func(*Model)
 
@@ -29,45 +30,63 @@ func WithRamp(colorA, colorB string) Option {
 	b, _ := colorful.Hex(colorB)
 	return func(m *Model) {
 		m.useRamp = true
-		m.colorA = a
-		m.colorB = b
+		m.rampColorA = a
+		m.rampColorB = b
+	}
+}
+
+// WithScaledRamp scales the gradient to fit the width of the filled portion of
+// the progress bar.
+func WithScaledRamp() Option {
+	return func(m *Model) {
+		m.scaleRamp = true
+	}
+}
+
+// WithoutPercentage hides the numeric percentage.
+func WithoutPercentage() Option {
+	return func(m *Model) {
+		m.ShowPercentage = false
 	}
 }
 
 type Model struct {
-	// Left side color of progress bar. By default, it's #00dbde
-	colorA colorful.Color
-
-	// Left side color of progress bar. By default, it's #fc00ff
-	colorB colorful.Color
 
 	// Total width of the progress bar, including percentage, if set.
 	Width int
 
-	// Rune for "filled" sections of the progress bar.
-	Full rune
+	// "Filled" sections of the progress bar
+	Full      rune
+	FullColor string
 
-	// Rune for "empty" sections of progress bar.
-	Empty rune
+	// "Empty" sections of progress bar
+	Empty      rune
+	EmptyColor string
 
-	// if true, gradient will be setted from start to end of filled part. Instead, it'll work
-	// on all proggress bar length
-	FullGradientMode bool
+	// Settings for rendering the numeric percentage
+	ShowPercentage bool
+	PercentFormat  string // a fmt string for a float
 
-	ShowPercent   bool
-	PercentFormat string
+	useRamp    bool
+	rampColorA colorful.Color
+	rampColorB colorful.Color
 
-	useRamp bool
+	// When true, we scale the gradient to fit the width of the filled section
+	// of the progress bar. When false, the width of the gradient will be set
+	// to the full width of the progress bar.
+	scaleRamp bool
 }
 
 // NewModel returns a model with default values.
 func NewModel(opts ...Option) *Model {
 	m := &Model{
-		Width:         40,
-		Full:          '█',
-		Empty:         '░',
-		ShowPercent:   true,
-		PercentFormat: " %3.0f%%",
+		Width:          40,
+		Full:           '█',
+		FullColor:      "#7571F9",
+		Empty:          '░',
+		EmptyColor:     "#606060",
+		ShowPercentage: true,
+		PercentFormat:  " %3.0f%%",
 	}
 
 	for _, opt := range opts {
@@ -78,7 +97,7 @@ func NewModel(opts ...Option) *Model {
 }
 
 func (m Model) View(percent float64) string {
-	if m.ShowPercent {
+	if m.ShowPercentage {
 		s := fmt.Sprintf(m.PercentFormat, percent*100)
 		w := ansi.PrintableRuneWidth(s)
 		return m.bar(percent, w) + s
@@ -87,24 +106,37 @@ func (m Model) View(percent float64) string {
 }
 
 func (m Model) bar(percent float64, textWidth int) string {
-	w := m.Width - textWidth
+	var (
+		b  = strings.Builder{}
+		tw = m.Width - textWidth        // total width
+		fw = int(float64(tw) * percent) // filled width
+		p  float64
+	)
 
-	ramp := make([]string, int(float64(w)*percent))
-	for i := 0; i < len(ramp); i++ {
-		gradientPart := float64(w)
-		if m.FullGradientMode {
-			gradientPart = float64(len(ramp))
+	if m.useRamp {
+		// Gradient fill
+		for i := 0; i < fw; i++ {
+			if m.scaleRamp {
+				p = float64(i) / float64(fw)
+			} else {
+				p = float64(i) / float64(tw)
+			}
+			c := m.rampColorA.BlendLuv(m.rampColorB, p).Hex()
+			b.WriteString(termenv.
+				String(string(m.Full)).
+				Foreground(color(c)).
+				String(),
+			)
 		}
-		percent := float64(i) / gradientPart
-		c := m.colorA.BlendLuv(m.colorB, percent)
-		ramp[i] = c.Hex()
+	} else {
+		// Solid fill
+		s := termenv.String(string(m.Full)).Foreground(color(m.FullColor)).String()
+		b.WriteString(strings.Repeat(s, fw))
 	}
 
-	var fullCells string
-	for i := 0; i < len(ramp); i++ {
-		fullCells += termenv.String(string(m.Full)).Foreground(color(ramp[i])).String()
-	}
+	// Empty fill
+	e := termenv.String(string(m.Empty)).Foreground(color(m.EmptyColor)).String()
+	b.WriteString(strings.Repeat(e, tw-fw))
 
-	fullCells += strings.Repeat(string(m.Empty), w-len(ramp))
-	return fullCells
+	return b.String()
 }
