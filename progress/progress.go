@@ -9,6 +9,8 @@ import (
 	"github.com/muesli/termenv"
 )
 
+const defaultWidth = 40
+
 var color func(string) termenv.Color = termenv.ColorProfile().Color
 
 // Option is used to set options in NewModel. For example:
@@ -45,7 +47,7 @@ func WithScaledRamp(colorA, colorB string) Option {
 	}
 }
 
-// WithSoildFill sets the progress to use a solid fill with the given color.
+// WithSolidFill sets the progress to use a solid fill with the given color.
 func WithSolidFill(color string) Option {
 	return func(m *Model) error {
 		m.FullColor = color
@@ -103,7 +105,7 @@ type Model struct {
 // NewModel returns a model with default values.
 func NewModel(opts ...Option) (*Model, error) {
 	m := &Model{
-		Width:          40,
+		Width:          defaultWidth,
 		Full:           '█',
 		FullColor:      "#7571F9",
 		Empty:          '░',
@@ -121,7 +123,7 @@ func NewModel(opts ...Option) (*Model, error) {
 	return m, nil
 }
 
-// view renders the progress bar as a given percentage.
+// View renders the progress bar as a given percentage.
 func (m Model) View(percent float64) string {
 	b := strings.Builder{}
 	if m.ShowPercentage {
