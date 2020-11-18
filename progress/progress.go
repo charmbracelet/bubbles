@@ -60,6 +60,7 @@ func WithoutPercentage() Option {
 	}
 }
 
+// Model stores values we'll use when rendering the progress bar.
 type Model struct {
 
 	// Total width of the progress bar, including percentage, if set.
@@ -106,18 +107,22 @@ func NewModel(opts ...Option) *Model {
 	return m
 }
 
+// view renders the progress bar as a given percentage.
 func (m Model) View(percent float64) string {
+	b := strings.Builder{}
 	if m.ShowPercentage {
 		s := fmt.Sprintf(m.PercentFormat, percent*100)
 		w := ansi.PrintableRuneWidth(s)
-		return m.bar(percent, w) + s
+		m.bar(&b, percent, w)
+		b.WriteString(s)
+	} else {
+		m.bar(&b, percent, 0)
 	}
-	return m.bar(percent, 0)
+	return b.String()
 }
 
-func (m Model) bar(percent float64, textWidth int) string {
+func (m Model) bar(b *strings.Builder, percent float64, textWidth int) {
 	var (
-		b  = strings.Builder{}
 		tw = m.Width - textWidth        // total width
 		fw = int(float64(tw) * percent) // filled width
 		p  float64
@@ -147,8 +152,6 @@ func (m Model) bar(percent float64, textWidth int) string {
 	// Empty fill
 	e := termenv.String(string(m.Empty)).Foreground(color(m.EmptyColor)).String()
 	b.WriteString(strings.Repeat(e, tw-fw))
-
-	return b.String()
 }
 
 func (m *Model) setRamp(colorA, colorB string, scaled bool) {

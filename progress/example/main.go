@@ -11,7 +11,8 @@ import (
 )
 
 const (
-	stepSize float64 = 1.0 / (60.0 * 2.0)
+	fps              = 60
+	stepSize float64 = 1.0 / (float64(fps) * 2.0)
 	padding          = 2
 	maxWidth         = 80
 )
@@ -75,7 +76,7 @@ func (e example) View() string {
 }
 
 func tickCmd() tea.Cmd {
-	return tea.Tick(time.Second/60, func(t time.Time) tea.Msg {
+	return tea.Tick(time.Second/fps, func(t time.Time) tea.Msg {
 		return tickMsg(t)
 	})
 }
