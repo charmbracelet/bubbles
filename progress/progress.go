@@ -17,7 +17,7 @@ var color func(string) termenv.Color = termenv.ColorProfile().Color
 //	       WithRamp("#ff0000", "#0000ff"),
 //	       WithoutPercentage(),
 //     )
-type Option func(*Model)
+type Option func(*Model) error
 
 // WithDefaultRamp sets a gradient fill with default colors.
 func WithDefaultRamp() Option {
@@ -26,8 +26,8 @@ func WithDefaultRamp() Option {
 
 // WithRamp sets a gradient fill blending between two colors.
 func WithRamp(colorA, colorB string) Option {
-	return func(m *Model) {
-		m.setRamp(colorA, colorB, false)
+	return func(m *Model) error {
+		return m.setRamp(colorA, colorB, false)
 	}
 }
 
@@ -40,23 +40,25 @@ func WithDefaultScaledRamp() Option {
 // WithScaledRamp scales the gradient to fit the width of the filled portion of
 // the progress bar.
 func WithScaledRamp(colorA, colorB string) Option {
-	return func(m *Model) {
-		m.setRamp(colorA, colorB, true)
+	return func(m *Model) error {
+		return m.setRamp(colorA, colorB, true)
 	}
 }
 
 // WithSoildFill sets the progress to use a solid fill with the given color.
 func WithSolidFill(color string) Option {
-	return func(m *Model) {
+	return func(m *Model) error {
 		m.FullColor = color
 		m.useRamp = false
+		return nil
 	}
 }
 
 // WithoutPercentage hides the numeric percentage.
 func WithoutPercentage() Option {
-	return func(m *Model) {
+	return func(m *Model) error {
 		m.ShowPercentage = false
+		return nil
 	}
 }
 
@@ -64,8 +66,9 @@ func WithoutPercentage() Option {
 // set the width via the Width property, which can come in handy if you're
 // waiting for a tea.WindowSizeMsg.
 func WithWidth(w int) Option {
-	return func(m *Model) {
+	return func(m *Model) error {
 		m.Width = w
+		return nil
 	}
 }
 
@@ -98,7 +101,7 @@ type Model struct {
 }
 
 // NewModel returns a model with default values.
-func NewModel(opts ...Option) *Model {
+func NewModel(opts ...Option) (*Model, error) {
 	m := &Model{
 		Width:          40,
 		Full:           '█',
@@ -110,10 +113,12 @@ func NewModel(opts ...Option) *Model {
 	}
 
 	for _, opt := range opts {
-		opt(m)
+		if err := opt(m); err != nil {
+			return nil, err
+		}
 	}
 
-	return m
+	return m, nil
 }
 
 // view renders the progress bar as a given percentage.
@@ -121,8 +126,7 @@ func (m Model) View(percent float64) string {
 	b := strings.Builder{}
 	if m.ShowPercentage {
 		s := fmt.Sprintf(m.PercentFormat, percent*100)
-		w := ansi.PrintableRuneWidth(s)
-		m.bar(&b, percent, w)
+		m.bar(&b, percent, ansi.PrintableRuneWidth(s))
 		b.WriteString(s)
 	} else {
 		m.bar(&b, percent, 0)
@@ -163,11 +167,20 @@ func (m Model) bar(b *strings.Builder, percent float64, textWidth int) {
 	b.WriteString(strings.Repeat(e, tw-fw))
 }
 
-func (m *Model) setRamp(colorA, colorB string, scaled bool) {
-	a, _ := colorful.Hex(colorA)
-	b, _ := colorful.Hex(colorB)
+func (m *Model) setRamp(colorA, colorB string, scaled bool) error {
+	a, err := colorful.Hex(colorA)
+	if err != nil {
+		return err
+	}
+
+	b, err := colorful.Hex(colorB)
+	if err != nil {
+		return err
+	}
+
 	m.useRamp = true
 	m.scaleRamp = scaled
 	m.rampColorA = a
 	m.rampColorB = b
+	return nil
 }
