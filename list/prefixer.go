@@ -75,7 +75,7 @@ func NewPrefixer() *DefaultPrefixer {
 func (d *DefaultPrefixer) InitPrefixer(position ViewPos, screen ScreenInfo) int {
 	d.viewPos = position
 
-	offset := position.ItemOffset
+	offset := position.Cursor - position.LineOffset
 
 	// Get separators width
 	widthItem := ansi.PrintableRuneWidth(d.Seperator)
@@ -88,6 +88,7 @@ func (d *DefaultPrefixer) InitPrefixer(position ViewPos, screen ScreenInfo) int 
 	}
 
 	// get widest possible number, for padding
+	// TODO handle wrap, cause only correct when wrap off:
 	d.numWidth = len(fmt.Sprintf("%d", offset+screen.Height))
 
 	// pad all prefixes to the same width for easy exchange
@@ -137,7 +138,12 @@ func (d *DefaultPrefixer) Prefix(currentIndex int, wrapIndex int, selected bool)
 	}
 	number := fmt.Sprintf("%d", lineNum)
 	// since digits are only single bytes, len is sufficient:
-	firstPad = strings.Repeat(" ", d.numWidth-len(number)) + number
+	padTo := d.numWidth - len(number)
+	if padTo < 0 {
+		// TODO log error
+		padTo = 0
+	}
+	firstPad = strings.Repeat(" ", padTo) + number
 	// pad wrapped lines
 	wrapPad = strings.Repeat(" ", d.numWidth)
 	// Selecting: handle highlighting and prefixing of selected lines

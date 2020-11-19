@@ -68,11 +68,10 @@ func TestBasicsLines(t *testing.T) {
 	}
 
 	// first two swaped
-	itemList := MakeStringerList([]string{"2", "1", "3", "4", "5", "6", "7", "8", "9"})
-	m.AddItems(itemList)
+	orgList := MakeStringerList([]string{"2", "1", "3", "4", "5", "6", "7", "8", "9"})
+	m.AddItems(orgList)
 
 	m.Move(1)
-	m.SetEquals(func(a, b fmt.Stringer) bool { return a.String() == b.String() })
 	// Sort them
 	newModel, _ := m.Update(tea.KeyMsg(tea.Key{Type: tea.KeyRunes, Runes: []rune{'s'}}))
 	m, _ = newModel.(Model)
@@ -81,16 +80,14 @@ func TestBasicsLines(t *testing.T) {
 	// should be the like the beginning
 	sortedItemList := m.GetAllItems()
 
-	// make sure all itemList get processed
-	shorter, longer := sortedItemList, itemList
-	if len(itemList) > len(longer) {
-		shorter, longer = itemList, sortedItemList
+	if len(orgList) != len(sortedItemList) {
+		t.Errorf("the list should not change size")
 	}
 
-	// Process/check all itemList
-	for c, item := range longer {
-		if item.String() != shorter[c].String() {
-			t.Errorf("this strings should match but dont: %q, %q", item.String(), shorter[c].String())
+	// Process/check all orgList
+	for c, item := range orgList {
+		if item.String() != sortedItemList[c].String() {
+			t.Errorf("the old strings should match the new, but dont: %q, %q", item.String(), sortedItemList[c].String())
 		}
 	}
 
@@ -121,16 +118,16 @@ func TestWrappedLines(t *testing.T) {
 	m.SuffixGen = NewSuffixer()
 	m.Screen = ScreenInfo{Height: 50, Width: 80}
 	m.AddItems(MakeStringerList([]string{"\n0", "1\n2", "3\n4", "5\n6", "7\n8"}))
-	m.viewPos = ViewPos{LineOffset: 1}
 
 	out := m.Lines()
 	wrap, sep := "│", "╭"
 	num := "\x1b[7m  "
-	for i, line := range out {
-		if i%2 == 1 {
-			num = fmt.Sprintf(" %1d", (i/2)+2)
+	for i := 1; i < len(out); i++ {
+		line := out[i]
+		if i%2 == 0 {
+			num = fmt.Sprintf(" %1d", (i/2)+1)
 		}
-		prefix := fmt.Sprintf("%s %s %d", num, wrap, i)
+		prefix := fmt.Sprintf("%s %s %d", num, wrap, i-1)
 		if !strings.HasPrefix(line, prefix) {
 			t.Errorf("The prefix of the line:\n'%s'\n with linenumber %d should be:\n'%s'\n", line, i, prefix)
 		}
@@ -197,21 +194,21 @@ func TestMovementKeys(t *testing.T) {
 
 	start, finish = 55, 56
 	m.viewPos.Cursor = start
-	newModel, cmd = m.Update(tea.KeyMsg(tea.Key{Type: tea.KeyRunes, Runes: []rune{'-'}}))
+	newModel, cmd = m.Update(tea.KeyMsg(tea.Key{Type: tea.KeyRunes, Runes: []rune{'J'}}))
 	m, _ = newModel.(Model)
 	if m.viewPos.Cursor != finish || cmd != nil {
-		t.Errorf("key '-' should have nil command but got: '%#v' and move the Cursor to index '%d', but got: %d", cmd, finish, m.viewPos.Cursor)
+		t.Errorf("key 'J' should have nil command but got: '%#v' and move the Cursor to index '%d', but got: %d", cmd, finish, m.viewPos.Cursor)
 	}
-	m.viewPos.ItemOffset = 10
+	m.viewPos.LineOffset = 15
 	start, finish = 15, 14
 	m.viewPos.Cursor = start
-	newModel, cmd = m.Update(tea.KeyMsg(tea.Key{Type: tea.KeyRunes, Runes: []rune{'+'}}))
+	newModel, cmd = m.Update(tea.KeyMsg(tea.Key{Type: tea.KeyRunes, Runes: []rune{'K'}}))
 	m, _ = newModel.(Model)
 	if m.viewPos.Cursor != finish || cmd != nil {
-		t.Errorf("key '+' should have nil command but got: '%#v' and move the Cursor to index '%d', but got: %d", cmd, finish, m.viewPos.Cursor)
+		t.Errorf("key 'K' should have nil command but got: '%#v' and move the Cursor to index '%d', but got: %d", cmd, finish, m.viewPos.Cursor)
 	}
-	if m.viewPos.ItemOffset != 9 {
-		t.Errorf("up movement should change the Item offset to '9' but got: %d", m.viewPos.ItemOffset)
+	if m.viewPos.LineOffset != 14 {
+		t.Errorf("up movement should change the Item offset to '14' but got: %d", m.viewPos.LineOffset)
 	}
 	finish = m.Len() - 1
 	newModel, cmd = m.Update(tea.KeyMsg(tea.Key{Type: tea.KeyRunes, Runes: []rune{'b'}}))
@@ -363,8 +360,9 @@ func TestItemUpdater(t *testing.T) {
 // TestWithinBorder test if indexes are within the listborders
 func TestWithinBorder(t *testing.T) {
 	m := NewModel()
-	if m.CheckWithinBorder(0) {
-		t.Error("a empty list has no item '0', should return 'false'")
+	_, err := m.ValidIndex(0)
+	if _, ok := err.(NoItems); !ok {
+		t.Errorf("a empty list has no item '0', should return a NoItems error, but got: %#v", err)
 	}
 }
 
@@ -404,29 +402,39 @@ func TestCopy(t *testing.T) {
 	}
 }
 
-// TestKeepVisibleWrap test the private helper function of KeepVisible
-func TestKeepVisibleWrap(t *testing.T) {
+// TestSetCursor tests if the LineOffset and Cursor positions are correct
+func TestSetCursor(t *testing.T) {
 	m := NewModel()
 	m.Screen = ScreenInfo{Height: 50, Width: 80}
-	m.AddItems(MakeStringerList([]string{"\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n"}))
+	m.AddItems(MakeStringerList([]string{"\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n", ""}))
 	type test struct {
 		oldView ViewPos
 		target  int
 		newView ViewPos
 	}
 	toTest := []test{
-		{ViewPos{0, 0, 3}, -2, ViewPos{0, 0, 0}},     // infront of list
-		{ViewPos{0, 0, 3}, 2, ViewPos{0, 0, 2}},      // begin of list and upper border
-		{ViewPos{4, 0, 12}, 8, ViewPos{5, 1, 8}},     // Middel of list and upper border
-		{ViewPos{5, 0, 15}, 0, ViewPos{0, 0, 0}},     // beginning
-		{ViewPos{15, 1, 14}, 19, ViewPos{15, 1, 19}}, // Middel
-		{ViewPos{0, 0, 0}, 25, ViewPos{3, 0, 25}},    // pass of lower border
-		{ViewPos{0, 0, 0}, 100, ViewPos{49, 0, 71}},  // pass of lower border
+		// forwards
+		{ViewPos{0, 0}, -2, ViewPos{5, 0}},
+		{ViewPos{0, 0}, 2, ViewPos{5, 2}},
+		{ViewPos{0, 4}, 8, ViewPos{8, 8}},
+		{ViewPos{0, 5}, 0, ViewPos{5, 0}},
+		{ViewPos{0, 0}, 19, ViewPos{38, 19}},
+		{ViewPos{0, 0}, 25, ViewPos{44, 25}},
+		{ViewPos{0, 0}, 100, ViewPos{44, 72}},
+		// backwards
+		{ViewPos{45, m.Len() - 1}, -2, ViewPos{5, 0}},
+		{ViewPos{45, m.Len() - 1}, 2, ViewPos{5, 2}},
+		{ViewPos{45, m.Len() - 1}, 8, ViewPos{5, 8}},
+		{ViewPos{45, m.Len() - 1}, 0, ViewPos{5, 0}},
+		{ViewPos{45, m.Len() - 1}, 19, ViewPos{5, 19}},
+		{ViewPos{45, m.Len() - 1}, 25, ViewPos{5, 25}},
+		{ViewPos{45, m.Len() - 1}, 100, ViewPos{45, 72}},
 	}
 	for i, tCase := range toTest {
 		m.viewPos = tCase.oldView
-		if g := m.keepVisibleWrap(tCase.target); g != tCase.newView {
-			t.Errorf("In Test number: %d, the returned ViewPos is wrong:\n'%#v' and should be:\n'%#v' after requesting target: %d", i, g, tCase.newView, tCase.target)
+		m.SetCursor(tCase.target)
+		if m.viewPos != tCase.newView {
+			t.Errorf("In Test number: %d, the returned ViewPos is wrong:\n'%#v' and should be:\n'%#v' after requesting target: %d", i, m.viewPos, tCase.newView, tCase.target)
 		}
 	}
 }
