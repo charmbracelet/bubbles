@@ -18,7 +18,7 @@ const (
 )
 
 func main() {
-	progress, err := progress.NewModel(progress.WithDefaultRamp())
+	progress, err := progress.NewModel(progress.WithDefaultGradient())
 	if err != nil {
 		fmt.Println("Could not initialize progress model:", err)
 		os.Exit(1)
