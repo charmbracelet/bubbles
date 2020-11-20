@@ -21,27 +21,27 @@ var color func(string) termenv.Color = termenv.ColorProfile().Color
 //     )
 type Option func(*Model) error
 
-// WithDefaultRamp sets a gradient fill with default colors.
-func WithDefaultRamp() Option {
-	return WithRamp("#00dbde", "#fc00ff")
+// WithDefaultGradient sets a gradient fill with default colors.
+func WithDefaultGradient() Option {
+	return WithGradient("#00dbde", "#fc00ff")
 }
 
-// WithRamp sets a gradient fill blending between two colors.
-func WithRamp(colorA, colorB string) Option {
+// WithGradient sets a gradient fill blending between two colors.
+func WithGradient(colorA, colorB string) Option {
 	return func(m *Model) error {
 		return m.setRamp(colorA, colorB, false)
 	}
 }
 
-// WithDefaultScaledRamp sets a gradient with default colors, and scales the
+// WithDefaultScaledGradient sets a gradient with default colors, and scales the
 // gradient to fit the filled portion of the ramp.
-func WithDefaultScaledRamp() Option {
-	return WithScaledRamp("#00dbde", "#fc00ff")
+func WithDefaultScaledGradient() Option {
+	return WithScaledGradient("#00dbde", "#fc00ff")
 }
 
-// WithScaledRamp scales the gradient to fit the width of the filled portion of
+// WithScaledGradient scales the gradient to fit the width of the filled portion of
 // the progress bar.
-func WithScaledRamp(colorA, colorB string) Option {
+func WithScaledGradient(colorA, colorB string) Option {
 	return func(m *Model) error {
 		return m.setRamp(colorA, colorB, true)
 	}
