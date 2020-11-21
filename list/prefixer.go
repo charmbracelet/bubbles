@@ -76,6 +76,9 @@ func (d *DefaultPrefixer) InitPrefixer(position ViewPos, screen ScreenInfo) int 
 	d.viewPos = position
 
 	offset := position.Cursor - position.LineOffset
+	if offset < 0 {
+		offset = 0
+	}
 
 	// Get separators width
 	widthItem := ansi.PrintableRuneWidth(d.Seperator)

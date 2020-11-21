@@ -124,7 +124,8 @@ func main() {
 		"Welcome to the bubbles-list example!",
 		"",
 		"Use 'q' or 'ctrl-c' to quit!",
-		"The list can handle linebreaks,\nand has wordwrap enabled if the line gets to long.",
+		"This example serves the purpose to show what one can do with this list, not what is this list.",
+		"A Item of the list is one struct value that was added to this list, that satisfies the fmt.Stringer interface (has a String() string methode),\nsince a string can have linebreaks so does a item of this list.",
 		"",
 		"Movements:",
 		"You can move the highlighted index up and down with the arrow keys or 'k' and 'j'.",
@@ -148,12 +149,14 @@ func main() {
 		"The key 'v' inverts the selected state of all items.",
 		"",
 		"Edit:",
-		"With the key 'e' you can edit the string of the current item.",
+		"With the key 'e' you can edit the string of the current item. Which shows that you can embed other bubbles into the list items.",
 		"There you can make changes to the string and apply them with 'enter' or discard them with 'escape'",
+		"While you can add new empty Items with the 'a' key.",
+		"You can permanently delete an item, with the key 'd'.",
 		"",
 		"Here are some more items for you to test the scrolling\nand the cursor offset, which defaults to 5 lines relative to the screen border.",
 		"", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
-		"Multi-line items are not a problem, either.\nBut you may have the problem that you cant see all of the lines of the items, because movement is currently only possible by item and not by line.\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nCan you see me?\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n",
+		"Multi-line items are not a problem, either.\nBut you may have the problem that you cant see all of the lines of the items, because movement is by design only possible by item and not by line. But since it is possible to embed other bubble-widgets, you could embed a paginator to overcome this problem.\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nCan you see me?\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n",
 		"", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
 		"If you want to jump directly to me type '5' and than 'b',\nbecause I am the fifth item (not line) from the bottom.", "", "", "",
 		"Hey, i am the last item :) you can move to me directly with the 'b' key, which stands for bottom.",
@@ -230,7 +233,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					item.edit = false
 					return item, nil
 				}
-				m.list.UpdateAllItems(updater)
+				for c := 0; c < m.list.Len(); c++ {
+					m.list.UpdateItem(c, updater)
+				}
 
 			}
 			m.edit = false
@@ -274,7 +279,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					item.edit = false
 					return item, nil
 				}
-				m.list.UpdateAllItems(updater)
+				for c := 0; c < m.list.Len(); c++ {
+					m.list.UpdateItem(c, updater)
+				}
 				m.edit = false
 				return m, nil
 
@@ -289,7 +296,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 
 		case "c":
-			m.list.Move(1)
+			m.list.MoveCursor(1)
 			return m, nil
 		case "q":
 			return m, tea.Quit
@@ -302,7 +309,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				j, _ = strconv.Atoi(m.jump)
 				m.jump = ""
 			}
-			m.list.Move(j)
+			m.list.MoveCursor(j)
 			return m, nil
 		case "up", "k":
 			j := 1
@@ -310,7 +317,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				j, _ = strconv.Atoi(m.jump)
 				m.jump = ""
 			}
-			m.list.Move(-j)
+			m.list.MoveCursor(-j)
 			return m, nil
 		case "r":
 			d, ok := m.list.PrefixGen.(*list.DefaultPrefixer)
@@ -368,7 +375,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				j--
 			}
 			m.list.Top()
-			m.list.Move(j)
+			m.list.MoveCursor(j)
 			return m, nil
 		case "b", "end":
 			j := 0
@@ -380,7 +387,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				j--
 			}
 			m.list.Bottom()
-			m.list.Move(-j)
+			m.list.MoveCursor(-j)
 			return m, nil
 
 			//		case "t":
@@ -406,6 +413,27 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m.list.SetLess(less)
 			m.list.Sort()
+			return m, nil
+		case "a":
+			j := 1
+			if m.jump != "" {
+				j, _ = strconv.Atoi(m.jump)
+				m.jump = ""
+			}
+			m.AddStrings(make([]string, j))
+			return m, nil
+		case "d":
+			j := 1
+			if m.jump != "" {
+				j, _ = strconv.Atoi(m.jump)
+				m.jump = ""
+			}
+			var err error
+			var i int
+			for c := 0; c < j && err == nil; c++ {
+				i, _ = m.list.GetCursorIndex()
+				_, err = m.list.RemoveIndex(i)
+			}
 			return m, nil
 
 		default:

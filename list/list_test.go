@@ -71,7 +71,7 @@ func TestBasicsLines(t *testing.T) {
 	orgList := MakeStringerList([]string{"2", "1", "3", "4", "5", "6", "7", "8", "9"})
 	m.AddItems(orgList)
 
-	m.Move(1)
+	m.MoveCursor(1)
 	// Sort them
 	newModel, _ := m.Update(tea.KeyMsg(tea.Key{Type: tea.KeyRunes, Runes: []rune{'s'}}))
 	m, _ = newModel.(Model)
@@ -287,7 +287,7 @@ func TestSelectKeys(t *testing.T) {
 	}
 
 	// Move back to top
-	m.Move(-1)
+	m.MoveCursor(-1)
 	// Unmark previous marked item
 	newModel, cmd = m.Update(tea.KeyMsg(tea.Key{Type: tea.KeyRunes, Runes: []rune{'u'}}))
 	m, _ = newModel.(Model)
@@ -332,28 +332,6 @@ func TestGetIndex(t *testing.T) {
 	}
 	if index != m.Len()-1 {
 		t.Errorf("GetIndex returns wrong index: '%d' instead of '%d'", index, m.Len()-1)
-	}
-}
-
-// TestItemUpdater test if items get updated
-func TestItemUpdater(t *testing.T) {
-	m := NewModel()
-	old := MakeStringerList([]string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"})
-	m.AddItems(old)
-	m.UpdateAllItems(func(in fmt.Stringer) (fmt.Stringer, tea.Cmd) { return StringItem("-"), nil })
-	for i, content := range m.GetAllItems() {
-		if content.String() != "-" {
-			t.Errorf("after Updating all items should result in string '-' but got '%s' form old item: '%s'", content.String(), old[i])
-		}
-	}
-	m.Bottom()
-	m.ToggleSelect(-26)
-	m.UpdateSelectedItems(func(in fmt.Stringer) fmt.Stringer { return StringItem("_") })
-
-	for i, content := range m.GetAllItems() {
-		if content.String() != "_" {
-			t.Errorf("after Updating selected (all) items should result in string '_' but got '%s' form old item: '%s'", content.String(), old[i])
-		}
 	}
 }
 

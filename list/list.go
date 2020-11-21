@@ -66,18 +66,23 @@ func (m Model) Init() tea.Cmd {
 }
 
 // View renders the List to a (displayable) string
+// since a empty string gets not displayed return something to overwrite the last removed item
 func (m Model) View() string {
-	return strings.Join(m.Lines(), "\n")
+	lines := strings.Join(m.Lines(), "\n")
+	if lines == "" {
+		// TODO make empty string handling better, custom empty function?
+		return "empty"
+	}
+	return lines
 }
 
 // Lines returns the Visible lines of the list items
 // used to display the current user interface
 func (m *Model) Lines() []string {
 	// get public variables as locals so they can't change while using
-
-	// check visible area
 	height := m.Screen.Height
 	width := m.Screen.Width
+	// check visible area
 	if height*width <= 0 {
 		panic("Can't display with zero width or hight of Viewport")
 	}
@@ -146,7 +151,7 @@ func (m *Model) Lines() []string {
 
 	var visLines int
 	// Handle list items, start at cursor and go till end of list or visible (break)
-	for index := m.viewPos.Cursor; index < len(m.listItems); index++ {
+	for index := m.viewPos.Cursor; index < m.Len(); index++ {
 		item := m.listItems[index]
 
 		lines := m.itemLines(item)
@@ -213,10 +218,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		// Move
 		case "down", "j":
-			m.Move(1)
+			m.MoveCursor(1)
 			return m, nil
 		case "up", "k":
-			m.Move(-1)
+			m.MoveCursor(-1)
 			return m, nil
 		case "t", "home":
 			m.Top()
@@ -234,7 +239,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Select
 		case " ":
 			m.ToggleSelect(1)
-			m.Move(1)
+			m.MoveCursor(1)
 			return m, nil
 		case "v": // inVert
 			m.ToggleAllSelected()
@@ -269,11 +274,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.MouseMsg:
 		switch msg.Type {
 		case tea.MouseWheelUp:
-			m.Move(-1)
+			m.MoveCursor(-1)
 			return m, nil
 
 		case tea.MouseWheelDown:
-			m.Move(1)
+			m.MoveCursor(1)
 			return m, nil
 		}
 	}
@@ -297,6 +302,9 @@ type ConfigError error
 
 // NotFocused is a error return if the action can only be applied to a focused list.
 type NotFocused error
+
+// NilValue is returned if there was a request to set nil as value of a list item.
+type NilValue error
 
 // ValidIndex returns a error when the list has no items, is not focused, the index is out of bounds.
 // And the nearest valid index in case of OutOfBounds error, else the index it self.
@@ -373,9 +381,9 @@ type ScreenInfo struct {
 	Profile termenv.Profile
 }
 
-// Move moves the cursor by amount and returns OutOfBounds error if amount go's beyond list borders
+// MoveCursor moves the cursor by amount and returns OutOfBounds error if amount go's beyond list borders
 // or if the CursorOffset is greater than half of the display height returns ConfigError
-func (m *Model) Move(amount int) (int, error) {
+func (m *Model) MoveCursor(amount int) (int, error) {
 	target := m.viewPos.Cursor + amount
 
 	newOffset, err := m.validOffset(target)
@@ -406,25 +414,55 @@ func (m *Model) Top() {
 func (m *Model) Bottom() {
 	end := len(m.listItems) - 1
 	m.viewPos.LineOffset = m.Screen.Height - m.CursorOffset
-	m.Move(end)
+	m.MoveCursor(end)
 }
 
 // AddItems adds the given Items to the list Model
 // and if a costum less function is provided, they get sorted.
-func (m *Model) AddItems(itemList []fmt.Stringer) {
+// if a entry of itemList is nil it will get skiped
+func (m *Model) AddItems(itemList []fmt.Stringer) error {
+	oldLenght := m.Len()
 	for _, i := range itemList {
-		m.listItems = append(m.listItems, item{
-			selected: false,
-			value:    i,
-			id:       m.getID(),
-		},
-		)
+		if i != nil {
+			m.listItems = append(m.listItems, item{
+				selected: false,
+				value:    i,
+				id:       m.getID(),
+			},
+			)
+		}
 	}
 	// only sort if user set less function
 	if m.less != nil {
 		// Sort will take care of the correct position of Cursor and Offset
 		m.Sort()
 	}
+	var err error
+	if m.Len() < oldLenght+len(itemList) {
+		err = NilValue(fmt.Errorf("there where '%d' nil values which where not added", m.Len()-oldLenght+len(itemList)))
+	}
+	return err
+}
+
+// RemoveIndex returns a error if the index is not valid,
+// and if valid, returns the item while removing it from the list.
+func (m *Model) RemoveIndex(index int) (fmt.Stringer, error) {
+	index, err := m.ValidIndex(index)
+	if m.Len() == 0 {
+		m.viewPos.Cursor = 0
+		return nil, err
+	}
+	var rest []item
+	itemValue, _ := m.GetItem(index)
+	if index+1 < m.Len() {
+		rest = m.listItems[index+1:]
+	}
+	m.listItems = append(m.listItems[:index], rest...)
+	newCursor, _ := m.ValidIndex(index)
+	newOffset, _ := m.validOffset(newCursor)
+	m.viewPos.Cursor = newCursor
+	m.viewPos.LineOffset = newOffset
+	return itemValue, err
 }
 
 // ToggleSelect toggles the selected status
@@ -447,7 +485,7 @@ func (m *Model) ToggleSelect(amount int) error {
 
 	cur := m.viewPos.Cursor
 
-	target, err := m.Move(amount)
+	target, err := m.MoveCursor(amount)
 	start, end := cur, target
 	if direction < 0 {
 		start, end = target+1, cur+1
@@ -493,7 +531,7 @@ func (m *Model) MarkSelected(amount int, mark bool) error {
 		m.listItems[cur+c].selected = mark
 	}
 	m.viewPos.Cursor = target
-	_, errSec := m.Move(direction)
+	_, errSec := m.MoveCursor(direction)
 	if err == nil {
 		err = errSec
 	}
@@ -695,34 +733,20 @@ func (m *Model) GetIndex(toSearch fmt.Stringer) (int, error) {
 
 // UpdateItem takes a indes and updates the item at the index with the given function
 // or if index outside the list returns OutOfBounds error.
+// If the returned fmt.Stringer value is nil, then the item gets removed from the list and a NilValue error is returned.
 func (m *Model) UpdateItem(index int, updater func(fmt.Stringer) (fmt.Stringer, tea.Cmd)) (tea.Cmd, error) {
 	index, err := m.ValidIndex(index)
 	if m.Len() == 0 {
 		return nil, err
 	}
 	v, cmd := updater(m.listItems[index].value)
+	// remove item when value equals nil
+	if v == nil {
+		m.RemoveIndex(index)
+		return cmd, NilValue(fmt.Errorf("cant add nil value to list"))
+	}
 	m.listItems[index].value = v
 	return cmd, err
-}
-
-// UpdateAllItems takes a function and updates with it, all items in the list
-func (m *Model) UpdateAllItems(updater func(fmt.Stringer) (fmt.Stringer, tea.Cmd)) []tea.Cmd {
-	cmdList := make([]tea.Cmd, 0, m.Len())
-	for i, item := range m.listItems {
-		v, cmd := updater(item.value)
-		m.listItems[i].value = v
-		cmdList = append(cmdList, cmd)
-	}
-	return cmdList
-}
-
-// UpdateSelectedItems updates all selected items within the list with given function
-func (m *Model) UpdateSelectedItems(updater func(fmt.Stringer) fmt.Stringer) {
-	for i, item := range m.listItems {
-		if item.selected {
-			m.listItems[i].value = updater(item.value)
-		}
-	}
 }
 
 // GetCursorIndex returns current cursor position within the List
@@ -756,11 +780,6 @@ func (m *Model) GetAllItems() []fmt.Stringer {
 	}
 	return stringerList
 }
-
-// MoveByLine moves the Viewposition by one line
-// not by a item
-//func (m *Model) MoveByLine(amount) (ViewPos, error) {
-//}
 
 // Copy returns a deep copy of the list-model
 func (m *Model) Copy() *Model {
