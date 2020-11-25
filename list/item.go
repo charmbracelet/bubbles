@@ -26,8 +26,8 @@ func (m *Model) itemLines(i item) []string {
 	contentWith := m.Screen.Width - preWidth - sufWidth
 	// TODO hard limit the string length
 	lines := strings.Split(wordwrap.String(i.value.String(), contentWith), "\n")
-	if !m.Wrap {
-		return []string{lines[0]}
+	if m.Wrap != 0 && len(lines) > m.Wrap {
+		return lines[:m.Wrap]
 	}
 	return lines
 }

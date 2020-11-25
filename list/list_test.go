@@ -60,7 +60,7 @@ func TestBasicsLines(t *testing.T) {
 	m.PrefixGen = NewPrefixer()
 	m.SuffixGen = NewSuffixer()
 
-	m.Wrap = false
+	m.Wrap = 1
 
 	// Check Cursor position
 	if i, err := m.GetCursorIndex(); i != 0 || err == nil {
@@ -174,7 +174,7 @@ func TestUpdateKeys(t *testing.T) {
 // Movements
 func TestMovementKeys(t *testing.T) {
 	m := NewModel()
-	m.Wrap = false
+	m.Wrap = 1
 	m.Screen = ScreenInfo{Height: 50, Width: 80}
 	m.AddItems(MakeStringerList([]string{"\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n"}))
 

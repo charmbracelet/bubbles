@@ -140,7 +140,7 @@ func main() {
 		"",
 		"Settings:",
 		"To toggle between only absolute item numbers and relative numbers use the 'r' key.",
-		"To toggle the line wrapping of items with more lines, use the 'w' key.",
+		"To limit the amount of lines displayed per item, type the limit and press 'w' or just press 'w' without any numbers to unlimit again.",
 		"",
 		"Select:",
 		"To select a item use 'm'\nor to select all items 'M'.",
@@ -398,7 +398,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			//			f.WriteString(strings.Join(m.lastViews, "\n##########################\n"))
 			//			return m, tea.Quit
 		case "w":
-			m.list.Wrap = !m.list.Wrap
+			if m.jump != "" {
+				j, _ := strconv.Atoi(m.jump)
+				m.jump = ""
+				m.list.Wrap = j
+				return m, nil
+			}
+			m.list.Wrap = 0
 			return m, nil
 		case "s":
 			less := func(a, b fmt.Stringer) bool { return a.String() < b.String() }

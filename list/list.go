@@ -23,7 +23,8 @@ type Model struct {
 	Screen  ScreenInfo
 	viewPos ViewPos
 
-	Wrap bool
+	// Wrap changes the number of lines which get displayed. 0 means unlimited lines.
+	Wrap int
 
 	PrefixGen Prefixer
 	SuffixGen Suffixer
@@ -52,8 +53,8 @@ func NewModel() Model {
 		CursorOffset: 5,
 		viewPos:      ViewPos{LineOffset: 5},
 
-		// Wrap lines to have no loss of information
-		Wrap: true,
+		// show all lines
+		Wrap: 0,
 
 		SelectedStyle: selStyle,
 		CurrentStyle:  curStyle,
@@ -121,11 +122,14 @@ func (m *Model) Lines() []string {
 				linePrefix = m.PrefixGen.Prefix(index, c, item.selected)
 			}
 			if m.SuffixGen != nil {
-				free := contentWidth - ansi.PrintableRuneWidth(lineContent)
-				if free < 0 {
-					free = 0 // TODO is this nessecary after adding hardwrap?
+				lineSuffix = m.SuffixGen.Suffix(index, c, item.selected)
+				if lineSuffix != "" {
+					free := contentWidth - ansi.PrintableRuneWidth(lineContent)
+					if free < 0 {
+						free = 0 // TODO is this nessecary after adding hardwrap?
+					}
+					lineSuffix = fmt.Sprintf("%s%s", strings.Repeat(" ", free), lineSuffix)
 				}
-				lineSuffix = fmt.Sprintf("%s%s", strings.Repeat(" ", free), m.SuffixGen.Suffix(index, c, item.selected))
 			}
 
 			// Join all
@@ -341,7 +345,7 @@ func (m *Model) validOffset(newCursor int) (int, error) {
 	}
 	newOffset := m.viewPos.LineOffset + amount
 
-	if m.Wrap {
+	if m.Wrap == 0 || m.Wrap > 1 {
 		// assume down (positiv) movement
 		start := 0
 		stop := amount - 1 // exclude target item (-lines)
