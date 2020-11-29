@@ -89,18 +89,22 @@ type Model struct {
 	// the selection prompt.
 	Err error
 
-	filterInput      textinput.Model
-	currentChoices   []*Choice
+	filterInput textinput.Model
+	// currently displayed choices, after filtering and pagination
+	currentChoices []*Choice
+	// number of available choices after filtering
 	availableChoices int
-	currentIdx       int
-	scrollOffset     int
-	width            int
-	tmpl             *template.Template
+	// index of current selection in currentChoices slice
+	currentIdx   int
+	scrollOffset int
+	width        int
+	tmpl         *template.Template
 }
 
 // ensure that the Model interface is implemented.
 var _ tea.Model = &Model{}
 
+// NewModel returns a new selection prompt model.
 func NewModel() Model {
 	return Model{
 		Template:          DefaultTemplate,
@@ -140,6 +144,10 @@ func (m *Model) Init() tea.Cmd {
 
 	m.reindexChoices()
 
+	if m.Template == "" {
+		m.Template = DefaultTemplate
+	}
+
 	m.tmpl = template.New("")
 	m.tmpl.Funcs(termenv.TemplateFuncs(termenv.ColorProfile()))
 	m.tmpl.Funcs(template.FuncMap{
@@ -160,7 +168,7 @@ func (m *Model) Init() tea.Cmd {
 	m.filterInput.Placeholder = m.FilterPlaceholder
 	m.filterInput.Prompt = ""
 	m.filterInput.Focus()
-	m.width = 70
+	m.width = 80
 	m.currentChoices, m.availableChoices = m.filteredAndPagedChoices()
 
 	return textinput.Blink
@@ -202,7 +210,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			return m, tea.Quit
 		case keyMatches(key, m.KeyMap.ClearFilter):
-			m.filterInput.SetValue("")
+			m.filterInput.Reset()
+			m.currentChoices, m.availableChoices = m.filteredAndPagedChoices()
 
 			return m, nil
 		case keyMatches(key, m.KeyMap.Select):
