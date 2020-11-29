@@ -14,7 +14,24 @@ import (
 
 const (
 	// DefaultTemplate defines the appearance of the selection and
-	// can be copied as a starting point for a custom template.
+	// can be copied as a starting point for a custom template. The
+	// following variables and functions are available:
+	//
+	//  * Label string: The configured label (see Model)
+	//  * Filter bool: Whether or not filtering is enabled
+	//  * FilterInput string: The view of the filter input model
+	//  * Choices []*Choice: The choices on the current page
+	//  * NChoices int: The number of choices on the current page,
+	//  * SelectedIndex int: The index that is currently selected
+	//  * PageSize int: The configured page size (see Model)
+	//  * IsPaged bool: Whether pagination is currently active
+	//  * AllChoices []*Choice: All configured choices (see Model)
+	//  * NAllChoices int: The number of configured choices
+	//  * IsScrollDownHintPosition(idx int) bool: Returns whether
+	//    the scroll down hint shoud be displayed at the given index
+	//  * IsScrollUpHintPosition(idx int) bool: Returns whether the
+	//    scroll up hint shoud be displayed at the given index)
+	//  * termenv TemplateFuncs (see https://github.com/muesli/termenv)
 	DefaultTemplate = `
 {{- if .Label -}}
   {{ Bold .Label }}
