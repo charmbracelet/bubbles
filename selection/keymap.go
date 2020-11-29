@@ -32,3 +32,22 @@ func keyMatches(key string, mapping []string) bool {
 
 	return false
 }
+
+// validateKeyMap returns true if the given key map contains at
+// least the bare minimum set of key bindings for the functional
+// prompt and false otherwise.
+func validateKeyMap(km KeyMap) bool {
+	if len(km.Up) == 0 {
+		return false
+	}
+
+	if len(km.Down) == 0 {
+		return false
+	}
+
+	if len(km.Select) == 0 {
+		return false
+	}
+
+	return true
+}

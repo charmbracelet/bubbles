@@ -132,6 +132,12 @@ func (m *Model) Init() tea.Cmd {
 		return tea.Quit
 	}
 
+	if !validateKeyMap(m.KeyMap) {
+		m.Err = fmt.Errorf("insufficient key map")
+
+		return tea.Quit
+	}
+
 	m.reindexChoices()
 
 	m.tmpl = template.New("")
@@ -249,6 +255,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // View renders the selection prompt.
 func (m *Model) View() string {
+	// avoid panics if Quit is sent during Init
+	if m.tmpl == nil {
+		return ""
+	}
+
 	viewBuffer := &bytes.Buffer{}
 
 	err := m.tmpl.Execute(viewBuffer, map[string]interface{}{
