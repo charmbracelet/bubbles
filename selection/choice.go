@@ -39,31 +39,9 @@ func NewChoice(item interface{}) *Choice {
 	return choice
 }
 
-// StringChoices converts a string slice to a slice of choices.
-func StringChoices(choiceStrings []string) []*Choice {
-	choices := make([]*Choice, 0, len(choiceStrings))
-
-	for _, c := range choiceStrings {
-		choices = append(choices, NewChoice(c))
-	}
-
-	return choices
-}
-
-// StringerChoices converts a slice of Stringers to a slice of choices.
-func StringerChoices(choiceStrings []fmt.Stringer) []*Choice {
-	choices := make([]*Choice, 0, len(choiceStrings))
-
-	for _, c := range choiceStrings {
-		choices = append(choices, NewChoice(c))
-	}
-
-	return choices
-}
-
-// SliceChoices converts a slice of anything to a slice of choices.
-// SliceChoices panics if the input is not a slice.
-func SliceChoices(sliceChoices interface{}) []*Choice {
+// Choices converts a slice of anything to a slice of choices.
+// Choices panics if the input is not a slice.
+func Choices(sliceChoices interface{}) []*Choice {
 	switch reflect.TypeOf(sliceChoices).Kind() {
 	case reflect.Slice:
 		slice := reflect.ValueOf(sliceChoices)
