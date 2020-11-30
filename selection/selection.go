@@ -121,9 +121,11 @@ type Model struct {
 // ensure that the Model interface is implemented.
 var _ tea.Model = &Model{}
 
-// NewModel returns a new selection prompt model.
-func NewModel() Model {
+// NewModel returns a new selection prompt model for the
+// provided choices.
+func NewModel(choices []*Choice) Model {
 	return Model{
+		Choices:           choices,
 		Template:          DefaultTemplate,
 		FilterPlaceholder: DefaultFilterPlaceholder,
 		KeyMap:            DefaultKeyMap,
