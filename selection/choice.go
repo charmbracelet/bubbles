@@ -33,7 +33,7 @@ func NewChoice(item interface{}) *Choice {
 	case fmt.Stringer:
 		choice.String = i.String()
 	default:
-		choice.String = fmt.Sprintf("%#v", i)
+		choice.String = fmt.Sprintf("%+v", i)
 	}
 
 	return choice
@@ -50,9 +50,7 @@ func Choices(sliceChoices interface{}) []*Choice {
 
 		for i := 0; i < slice.Len(); i++ {
 			value := slice.Index(i).Interface()
-			choice := NewChoice(value)
-
-			choices = append(choices, choice)
+			choices = append(choices, NewChoice(value))
 		}
 
 		return choices
