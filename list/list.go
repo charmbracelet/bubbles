@@ -18,7 +18,8 @@ type Model struct {
 	less   func(fmt.Stringer, fmt.Stringer) bool // function used for sorting
 	equals func(fmt.Stringer, fmt.Stringer) bool // used after sorting, to be set from the user
 
-	CursorOffset int // offset or margin between the cursor and the viewport(visible) border
+	// offset or margin between the cursor and the viewport(visible) border
+	CursorOffset int
 
 	Screen  ScreenInfo
 	viewPos ViewPos
@@ -36,6 +37,10 @@ type Model struct {
 	// Channels to create unique ids for all added/new items
 	requestID chan<- struct{}
 	resultID  <-chan int
+
+	// if view output should be extended to fit the according space
+	FillHeight bool
+	FillWidth  bool
 }
 
 // NewModel returns a Model with some save/sane defaults
@@ -69,12 +74,15 @@ func (m Model) Init() tea.Cmd {
 // View renders the List to a (displayable) string
 // since a empty string gets not displayed return something to overwrite the last removed item
 func (m Model) View() string {
-	lines := strings.Join(m.Lines(), "\n")
-	if lines == "" {
+
+	lines := m.Lines()
+
+	if m.Len() == 0 {
 		// TODO make empty string handling better, custom empty function?
-		return "empty"
+		lines[0] = "empty"
 	}
-	return lines
+
+	return strings.Join(lines, "\n")
 }
 
 // Lines returns the Visible lines of the list items
@@ -193,6 +201,34 @@ func (m *Model) Lines() []string {
 			visLines++
 		}
 	}
+	// If set, fill up the remaining space
+	var rest []string
+	var lineFill string
+
+	if m.FillWidth {
+		for i, ln := range allLines {
+			free := m.Screen.Width - ansi.PrintableRuneWidth(ln)
+			if free < 0 {
+				free = 0 // TODO log error
+			}
+			allLines[i] = ln + strings.Repeat(" ", free)
+		}
+		lineFill = strings.Repeat(" ", m.Screen.Width)
+	}
+	if m.FillHeight && len(allLines) < m.Screen.Height {
+		free := m.Screen.Height - len(allLines)
+		if free < 0 {
+			free = 0 // TODO log error
+		}
+		rest = make([]string, free)
+		if lineFill != "" {
+			for i := range rest {
+				rest[i] = lineFill
+			}
+		}
+		return append(allLines, rest...)
+	}
+
 	return allLines
 }
 
@@ -345,7 +381,7 @@ func (m *Model) validOffset(newCursor int) (int, error) {
 	}
 	newOffset := m.viewPos.LineOffset + amount
 
-	if m.Wrap == 0 || m.Wrap > 1 {
+	if m.Wrap != 1 {
 		// assume down (positiv) movement
 		start := 0
 		stop := amount - 1 // exclude target item (-lines)
@@ -359,7 +395,7 @@ func (m *Model) validOffset(newCursor int) (int, error) {
 
 		var lineSum int
 		for i := start; i <= stop; i++ {
-			lineSum += strings.Count(m.listItems[m.viewPos.Cursor+i*d].value.String(), "\n") + 1
+			lineSum += len(m.itemLines(m.listItems[m.viewPos.Cursor+i*d]))
 		}
 		newOffset = m.viewPos.LineOffset + lineSum*d
 	}
