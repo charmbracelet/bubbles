@@ -23,7 +23,7 @@ type Option func(*Model) error
 
 // WithDefaultGradient sets a gradient fill with default colors.
 func WithDefaultGradient() Option {
-	return WithGradient("#00dbde", "#fc00ff")
+	return WithGradient("#5A56E0", "#EE6FF8")
 }
 
 // WithGradient sets a gradient fill blending between two colors.
@@ -36,7 +36,7 @@ func WithGradient(colorA, colorB string) Option {
 // WithDefaultScaledGradient sets a gradient with default colors, and scales the
 // gradient to fit the filled portion of the ramp.
 func WithDefaultScaledGradient() Option {
-	return WithScaledGradient("#00dbde", "#fc00ff")
+	return WithScaledGradient("#5A56E0", "#EE6FF8")
 }
 
 // WithScaledGradient scales the gradient to fit the width of the filled portion of
