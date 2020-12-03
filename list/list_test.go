@@ -143,7 +143,7 @@ func TestMultiLineBreaks(t *testing.T) {
 	m.SuffixGen = NewSuffixer()
 	m.Screen = ScreenInfo{Height: 50, Width: 80}
 	m.AddItems(MakeStringerList([]string{"\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n"}))
-	m.MarkSelected(0, true)
+	m.MarkSelectCursor(0, true)
 	out := m.Lines()
 	prefix := "\x1b[7m 1*╭>"
 	for i, line := range out {
@@ -259,8 +259,8 @@ func TestSelectKeys(t *testing.T) {
 	// Mark one and move one down
 	newModel, cmd := m.Update(tea.KeyMsg(tea.Key{Type: tea.KeyRunes, Runes: []rune{' '}}))
 	m, _ = newModel.(Model)
-	if len(m.GetSelected()) != 1 {
-		t.Errorf("key ' ' should mark exactly one items as marked not: '%d'", len(m.GetSelected()))
+	if len(m.GetAllSelected()) != 1 {
+		t.Errorf("key ' ' should mark exactly one items as marked not: '%d'", len(m.GetAllSelected()))
 	}
 	if sel, _ := m.IsSelected(0); !sel || cmd != nil {
 		t.Errorf("key ' ' should mark the current Index, but did not or command was not nil: %#v", cmd)
@@ -269,8 +269,8 @@ func TestSelectKeys(t *testing.T) {
 	// invert all mark stats
 	newModel, cmd = m.Update(tea.KeyMsg(tea.Key{Type: tea.KeyRunes, Runes: []rune{'v'}}))
 	m, _ = newModel.(Model)
-	if len(m.GetSelected()) != m.Len()-1 {
-		t.Errorf("All items but one should be marked but '%d' from '%d' are marked", len(m.GetSelected()), m.Len())
+	if len(m.GetAllSelected()) != m.Len()-1 {
+		t.Errorf("All items but one should be marked but '%d' from '%d' are marked", len(m.GetAllSelected()), m.Len())
 	}
 
 	// deselect all and move to top
@@ -279,8 +279,8 @@ func TestSelectKeys(t *testing.T) {
 	// mark the first item
 	newModel, cmd = m.Update(tea.KeyMsg(tea.Key{Type: tea.KeyRunes, Runes: []rune{'m'}}))
 	m, _ = newModel.(Model)
-	if len(m.GetSelected()) != 1 {
-		t.Errorf("key 'm' should mark exactly one items as marked not: '%d'", len(m.GetSelected()))
+	if len(m.GetAllSelected()) != 1 {
+		t.Errorf("key 'm' should mark exactly one items as marked not: '%d'", len(m.GetAllSelected()))
 	}
 	if sel, _ := m.IsSelected(0); !sel || cmd != nil {
 		t.Errorf("key 'm' should mark the current Index, but did not or command was not nil: %#v", cmd)
@@ -291,8 +291,8 @@ func TestSelectKeys(t *testing.T) {
 	// Unmark previous marked item
 	newModel, cmd = m.Update(tea.KeyMsg(tea.Key{Type: tea.KeyRunes, Runes: []rune{'u'}}))
 	m, _ = newModel.(Model)
-	if len(m.GetSelected()) != 0 {
-		t.Errorf("no selected items should be left, but '%d' are", len(m.GetSelected()))
+	if len(m.GetAllSelected()) != 0 {
+		t.Errorf("no selected items should be left, but '%d' are", len(m.GetAllSelected()))
 	}
 }
 
@@ -420,31 +420,31 @@ func TestSetCursor(t *testing.T) {
 // TestSelectFunctions test if the function that handel the selected state of items work proper
 func TestSelectFunctions(t *testing.T) {
 	m := NewModel()
-	err1 := m.ToggleSelect(-1)
-	err2 := m.MarkSelected(-1, true)
+	err1 := m.ToggleSelectCursor(-1)
+	err2 := m.MarkSelectCursor(-1, true)
 	if err1 == nil || err2 == nil {
 		t.Error("cant toggle no items")
 	}
 	m.AddItems(MakeStringerList([]string{""}))
-	err3 := m.ToggleSelect(0)
+	err3 := m.ToggleSelectCursor(0)
 	if ok, err4 := m.IsSelected(0); !ok || err3 != nil || err4 != nil {
 		t.Errorf("Item should be selected after toggle or no error should be returned: '%#v' or '%#v'", err3, err4)
 	}
-	err5 := m.MarkSelected(-1, false)
+	err5 := m.MarkSelectCursor(-1, false)
 	sel, err6 := m.IsSelected(0)
 	if err5 == nil || err6 != nil || sel {
 		t.Errorf("Item should not be selected after marking it false, error should be not nil: '%#v' and other error should be be nil '%#v'", err5, err6)
 	}
-	err7 := m.MarkSelected(m.Len()+1, false)
+	err7 := m.MarkSelectCursor(m.Len()+1, false)
 	if err7 == nil {
-		t.Error("MarkSelected should fail if position is beyond list end")
+		t.Error("MarkSelectCursor should fail if position is beyond list end")
 	}
 	_, err8 := m.IsSelected(m.Len())
 	if err8 == nil {
 		t.Error("error Should not be nil after trying to check selected state beyond list end")
 	}
 	m.viewPos.Cursor = m.Len() - 1
-	err9 := m.ToggleSelect(1)
+	err9 := m.ToggleSelectCursor(1)
 	sel, _ = m.IsSelected(m.Len() - 1)
 	if _, ok := err9.(OutOfBounds); !ok || !sel {
 		t.Errorf("marking the last item should give a OutOfBounds error, but got: '%s'\nand after it, it should be marked: '%t'", err9, sel)

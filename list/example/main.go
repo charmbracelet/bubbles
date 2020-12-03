@@ -295,9 +295,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 
-		case "c":
-			m.list.MoveCursor(1)
-			return m, nil
 		case "q":
 			return m, tea.Quit
 		case "1", "2", "3", "4", "5", "6", "7", "8", "9", "0":
@@ -331,7 +328,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				j, _ = strconv.Atoi(m.jump)
 				m.jump = ""
 			}
-			m.list.MarkSelected(j, true)
+			m.list.MarkSelectCursor(j, true)
 			return m, nil
 		case "u":
 			j := 1
@@ -339,7 +336,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				j, _ = strconv.Atoi(m.jump)
 				m.jump = ""
 			}
-			m.list.MarkSelected(j, false)
+			m.list.MarkSelectCursor(j, false)
 			return m, nil
 		case " ":
 			j := 1
@@ -347,7 +344,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				j, _ = strconv.Atoi(m.jump)
 				m.jump = ""
 			}
-			m.list.ToggleSelect(j)
+			m.list.ToggleSelectCursor(j)
 			return m, nil
 		case "J":
 			j := 1

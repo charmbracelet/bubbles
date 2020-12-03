@@ -278,23 +278,23 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		// Select
 		case " ":
-			m.ToggleSelect(1)
+			m.ToggleSelectCursor(1)
 			m.MoveCursor(1)
 			return m, nil
 		case "v": // inVert
 			m.ToggleAllSelected()
 			return m, nil
 		case "m": // mark
-			m.MarkSelected(1, true)
+			m.MarkSelectCursor(1, true)
 			return m, nil
 		case "M": // mark All
-			m.MarkAllSelected(true)
+			m.MarkSelectAll(true)
 			return m, nil
 		case "u": // unmark
-			m.MarkSelected(1, false)
+			m.MarkSelectCursor(1, false)
 			return m, nil
 		case "U": // unmark All
-			m.MarkAllSelected(false)
+			m.MarkSelectAll(false)
 			return m, nil
 
 		// Order changing
@@ -505,12 +505,12 @@ func (m *Model) RemoveIndex(index int) (fmt.Stringer, error) {
 	return itemValue, err
 }
 
-// ToggleSelect toggles the selected status
+// ToggleSelectCursor toggles the selected status
 // of the current Index if amount is 0
 // returns err != nil when amount lands outside list and safely does nothing
 // else if amount is not 0 toggles selected amount items
 // excluding the item on which the cursor would land
-func (m *Model) ToggleSelect(amount int) error {
+func (m *Model) ToggleSelectCursor(amount int) error {
 	if m.Len() == 0 {
 		return OutOfBounds(fmt.Errorf("No Items"))
 	}
@@ -544,11 +544,22 @@ func (m *Model) ToggleSelect(amount int) error {
 	return err
 }
 
-// MarkSelected selects or unselects depending on 'mark'
+// ToggleSelect swaps the selected state of the item at the given index
+// or returns a error if index is OutOfBounds.
+func (m *Model) ToggleSelect(index int) error {
+	i, err := m.ValidIndex(index)
+	if err != nil {
+		return err
+	}
+	m.listItems[i].selected = !m.listItems[i].selected
+	return nil
+}
+
+// MarkSelectCursor selects or unselects depending on 'mark'
 // amount = 0 changes the current item but does not move the cursor
 // if amount would be outside the list error is from type OutOfBounds
 // else all items till but excluding the end cursor position gets (un-)marked
-func (m *Model) MarkSelected(amount int, mark bool) error {
+func (m *Model) MarkSelectCursor(amount int, mark bool) error {
 	cur := m.viewPos.Cursor
 	direction := 1
 	if amount < 0 {
@@ -578,9 +589,20 @@ func (m *Model) MarkSelected(amount int, mark bool) error {
 	return err
 }
 
-// MarkAllSelected marks all items of the list according to mark
+// MarkSelect sets the selected state of the item at the given index to true
+// or returns a error if index is OutOfBounds.
+func (m *Model) MarkSelect(index int, mark bool) error {
+	i, err := m.ValidIndex(index)
+	if err != nil {
+		return err
+	}
+	m.listItems[i].selected = mark
+	return nil
+}
+
+// MarkSelectAll marks all items of the list according to mark
 // or returns OutOfBounds if list has no Items
-func (m *Model) MarkAllSelected(mark bool) error {
+func (m *Model) MarkSelectAll(mark bool) error {
 	_, err := m.ValidIndex(0)
 	if m.Len() == 0 {
 		return err
@@ -614,9 +636,9 @@ func (m *Model) IsSelected(index int) (bool, error) {
 	return m.listItems[index].selected, err
 }
 
-// GetSelected returns you a list of all items
+// GetAllSelected returns you a list of all items
 // that are selected in current (displayed) order
-func (m *Model) GetSelected() []fmt.Stringer {
+func (m *Model) GetAllSelected() []fmt.Stringer {
 	var selected []fmt.Stringer
 	for _, item := range m.listItems {
 		if item.selected {
@@ -789,16 +811,30 @@ func (m *Model) UpdateItem(index int, updater func(fmt.Stringer) (fmt.Stringer, 
 	return cmd, err
 }
 
-// GetCursorIndex returns current cursor position within the List
-// and also NotFocused error if the Model is not focused
+// GetCursorIndex returns the current cursor position
+// within the List and also NotFocused error if the Model is not focused
+// or a NoItems error if the list has no items on which the cursor could be.
 func (m *Model) GetCursorIndex() (int, error) {
 	if m.Len() == 0 {
-		return 0, OutOfBounds(fmt.Errorf("No Items"))
+		return 0, NoItems(fmt.Errorf("the list has no items on which the cursor could be"))
 	}
 	if !m.focus {
 		return m.viewPos.Cursor, NotFocused(fmt.Errorf("Model is not focused"))
 	}
 	return m.viewPos.Cursor, nil
+}
+
+// GetCursorItem returns the item at the current cursor position
+// within the List and also NotFocused error if the Model is not focused
+// or a NoItems error if the list has no items on which the cursor could be.
+func (m *Model) GetCursorItem() (fmt.Stringer, error) {
+	if m.Len() == 0 {
+		return nil, NoItems(fmt.Errorf("the list has no items on which the cursor could be"))
+	}
+	if !m.focus {
+		return m.listItems[m.viewPos.Cursor].value, NotFocused(fmt.Errorf("Model is not focused"))
+	}
+	return m.listItems[m.viewPos.Cursor].value, nil
 }
 
 // GetItem returns the item if the index exists
