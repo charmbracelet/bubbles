@@ -1,6 +1,7 @@
 package list
 
 import (
+	"fmt"
 	"github.com/muesli/reflow/ansi"
 )
 
@@ -9,7 +10,7 @@ import (
 // and then Suffix ones, per line to draw, to generate according suffixes.
 type Suffixer interface {
 	InitSuffixer(ViewPos, ScreenInfo) int
-	Suffix(currentItem, currentLine int, selected bool) string
+	Suffix(currentItem, currentLine int, item fmt.Stringer) string
 }
 
 // DefaultSuffixer is more a example than a default but still it highlights
@@ -34,7 +35,7 @@ func (e *DefaultSuffixer) InitSuffixer(viewPos ViewPos, screen ScreenInfo) int {
 }
 
 // Suffix returns a suffix string for the given line
-func (e *DefaultSuffixer) Suffix(item, line int, selected bool) string {
+func (e *DefaultSuffixer) Suffix(item, line int, value fmt.Stringer) string {
 	if item == e.viewPos.Cursor && line == 0 {
 		return e.currentMarker
 	}

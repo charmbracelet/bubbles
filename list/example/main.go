@@ -142,12 +142,6 @@ func main() {
 		"To toggle between only absolute item numbers and relative numbers use the 'r' key.",
 		"To limit the amount of lines displayed per item, type the limit and press 'w' or just press 'w' without any numbers to unlimit again.",
 		"",
-		"Select:",
-		"To select a item use 'm'\nor to select all items 'M'.",
-		"To unselect a item use 'u'\nor to unselect all items 'U'.",
-		"You can toggle the select state of the current item with the space key.",
-		"The key 'v' inverts the selected state of all items.",
-		"",
 		"Edit:",
 		"With the key 'e' you can edit the string of the current item. Which shows that you can embed other bubbles into the list items.",
 		"There you can make changes to the string and apply them with 'enter' or discard them with 'escape'",
@@ -321,30 +315,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if ok {
 				d.NumberRelative = !d.NumberRelative
 			}
-			return m, nil
-		case "m":
-			j := 1
-			if m.jump != "" {
-				j, _ = strconv.Atoi(m.jump)
-				m.jump = ""
-			}
-			m.list.MarkSelectCursor(j, true)
-			return m, nil
-		case "u":
-			j := 1
-			if m.jump != "" {
-				j, _ = strconv.Atoi(m.jump)
-				m.jump = ""
-			}
-			m.list.MarkSelectCursor(j, false)
-			return m, nil
-		case " ":
-			j := 1
-			if m.jump != "" {
-				j, _ = strconv.Atoi(m.jump)
-				m.jump = ""
-			}
-			m.list.ToggleSelectCursor(j)
 			return m, nil
 		case "J":
 			j := 1

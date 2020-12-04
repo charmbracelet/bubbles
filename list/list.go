@@ -30,9 +30,8 @@ type Model struct {
 	PrefixGen Prefixer
 	SuffixGen Suffixer
 
-	LineStyle     termenv.Style
-	SelectedStyle termenv.Style
-	CurrentStyle  termenv.Style
+	LineStyle    termenv.Style
+	CurrentStyle termenv.Style
 
 	// Channels to create unique ids for all added/new items
 	requestID chan<- struct{}
@@ -46,8 +45,6 @@ type Model struct {
 // NewModel returns a Model with some save/sane defaults
 // design to transfer as much internal information to the user
 func NewModel() Model {
-	p := termenv.ColorProfile()
-	selStyle := termenv.Style{}.Background(p.Color("#ff0000"))
 	// just reverse colors to keep there information
 	curStyle := termenv.Style{}.Reverse()
 	return Model{
@@ -61,8 +58,7 @@ func NewModel() Model {
 		// show all lines
 		Wrap: 0,
 
-		SelectedStyle: selStyle,
-		CurrentStyle:  curStyle,
+		CurrentStyle: curStyle,
 	}
 }
 
@@ -131,10 +127,10 @@ func (m *Model) Lines() []string {
 			// Surrounding lineContent
 			var linePrefix, lineSuffix string
 			if m.PrefixGen != nil {
-				linePrefix = m.PrefixGen.Prefix(index, c, item.selected)
+				linePrefix = m.PrefixGen.Prefix(index, c, item.value)
 			}
 			if m.SuffixGen != nil {
-				lineSuffix = m.SuffixGen.Suffix(index, c, item.selected)
+				lineSuffix = m.SuffixGen.Suffix(index, c, item.value)
 				if lineSuffix != "" {
 					free := contentWidth - ansi.PrintableRuneWidth(lineContent)
 					if free < 0 {
@@ -147,14 +143,8 @@ func (m *Model) Lines() []string {
 			// Join all
 			line := fmt.Sprintf("%s%s%s", linePrefix, lineContent, lineSuffix)
 
-			// Highlighting of selected lines
-			style := m.LineStyle
-			if item.selected {
-				style = m.SelectedStyle
-			}
-
-			// Highlight and write wrapped line
-			linesBefor = append(linesBefor, style.Styled(line))
+			// Write wrapped line
+			linesBefor = append(linesBefor, line)
 		}
 
 	}
@@ -178,14 +168,14 @@ func (m *Model) Lines() []string {
 			// Surrounding content
 			var linePrefix, lineSuffix string
 			if m.PrefixGen != nil {
-				linePrefix = m.PrefixGen.Prefix(index, c, item.selected)
+				linePrefix = m.PrefixGen.Prefix(index, c, item.value)
 			}
 			if m.SuffixGen != nil {
 				free := contentWidth - ansi.PrintableRuneWidth(lineContent)
 				if free < 0 {
 					free = 0 // TODO is this nessecary?
 				}
-				lineSuffix = fmt.Sprintf("%s%s", strings.Repeat(" ", free), m.SuffixGen.Suffix(index, c, item.selected))
+				lineSuffix = fmt.Sprintf("%s%s", strings.Repeat(" ", free), m.SuffixGen.Suffix(index, c, item.value))
 			}
 
 			// Join all
@@ -193,9 +183,6 @@ func (m *Model) Lines() []string {
 
 			// Highlighting of selected and current lines
 			style := m.LineStyle
-			if item.selected {
-				style = m.SelectedStyle
-			}
 			if index == m.viewPos.Cursor {
 				style = m.CurrentStyle
 			}
@@ -444,9 +431,8 @@ func (m *Model) AddItems(itemList []fmt.Stringer) error {
 	for _, i := range itemList {
 		if i != nil {
 			m.listItems = append(m.listItems, item{
-				selected: false,
-				value:    i,
-				id:       m.getID(),
+				value: i,
+				id:    m.getID(),
 			},
 			)
 		}

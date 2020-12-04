@@ -101,7 +101,7 @@ func TestBasicsLines(t *testing.T) {
 	for i, line := range out {
 		// Check Prefixes
 		num := fmt.Sprintf("%d", i+1)
-		prefix := light + strings.Repeat(" ", 2-len(num)) + num + " ╭" + cur
+		prefix := light + strings.Repeat(" ", 2-len(num)) + num + "╭" + cur
 		if !strings.HasPrefix(line, prefix) {
 			t.Errorf("The prefix of the line:\n%s\n with linenumber %d should be:\n%s\n", line, i, prefix)
 		}
@@ -126,7 +126,7 @@ func TestWrappedLines(t *testing.T) {
 		if i%2 == 0 {
 			num = fmt.Sprintf(" %1d", (i/2)+1)
 		}
-		prefix := fmt.Sprintf("%s %s %d", num, wrap, i-1)
+		prefix := fmt.Sprintf("%s%s %d", num, wrap, i-1)
 		if !strings.HasPrefix(line, prefix) {
 			t.Errorf("The prefix of the line:\n'%s'\n with linenumber %d should be:\n'%s'\n", line, i, prefix)
 		}
@@ -142,14 +142,13 @@ func TestMultiLineBreaks(t *testing.T) {
 	m.SuffixGen = NewSuffixer()
 	m.Screen = ScreenInfo{Height: 50, Width: 80}
 	m.AddItems(MakeStringerList([]string{"\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n"}))
-	m.MarkSelectCursor(0, true)
 	out := m.Lines()
-	prefix := "\x1b[7m 1*╭>"
+	prefix := "\x1b[7m 1╭>"
 	for i, line := range out {
 		if !strings.HasPrefix(line, prefix) {
 			t.Errorf("The prefix of the line:\n'%s'\n with linenumber %d should be:\n'%s'\n", line, i, prefix)
 		}
-		prefix = "\x1b[7m  *│ "
+		prefix = "\x1b[7m  │ "
 	}
 }
 
@@ -238,48 +237,6 @@ func TestWindowMsg(t *testing.T) {
 
 }
 
-// TestSelectKeys test the keys that change the select status of an item(s).
-func TestSelectKeys(t *testing.T) {
-	m := NewModel()
-	m.Screen = ScreenInfo{Height: 50, Width: 80}
-	m.AddItems(MakeStringerList([]string{"\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n"}))
-
-	// Mark one and move one down
-	err := m.ToggleSelectCursor(1)
-	if len(m.GetAllSelected()) != 1 {
-		t.Errorf("ToggleSelectCursor(1) should mark exactly one items as marked not: '%d'", len(m.GetAllSelected()))
-	}
-	if sel, _ := m.IsSelected(0); !sel || err != nil {
-		t.Errorf("ToggleSelectCursor(1) should mark the current Index, but did not or command was not nil: %#v", err)
-	}
-
-	// invert all mark stats
-	m.ToggleAllSelected()
-	if len(m.GetAllSelected()) != m.Len()-1 {
-		t.Errorf("All items but one should be marked but '%d' from '%d' are marked", len(m.GetAllSelected()), m.Len())
-	}
-
-	// deselect all and move to top
-	m.ToggleAllSelected()
-	m.Top()
-	// mark the first item
-	err = m.MarkSelectCursor(1, true)
-	if len(m.GetAllSelected()) != 1 {
-		t.Errorf("MarkSelectCursor(1, true) should mark exactly one items as marked not: '%d'", len(m.GetAllSelected()))
-	}
-	if sel, _ := m.IsSelected(0); !sel || err != nil {
-		t.Errorf("MarkSelectCursor(1, true) should mark the current Index, but did not or error was not nil: %#v", err)
-	}
-
-	// Move back to top
-	m.MoveCursor(-1)
-	// Unmark previous marked item
-	m.MarkSelectCursor(1, false)
-	if len(m.GetAllSelected()) != 0 {
-		t.Errorf("no selected items should be left, but '%d' are", len(m.GetAllSelected()))
-	}
-}
-
 // TestUnfocused should make sure that the update does not change anything if model is not focused
 func TestUnfocused(t *testing.T) {
 	m := NewModel()
@@ -357,7 +314,6 @@ func TestCopy(t *testing.T) {
 		fmt.Sprintf("%#v", org.SuffixGen) != fmt.Sprintf("%#v", sec.SuffixGen) ||
 
 		fmt.Sprintf("%#v", org.LineStyle) != fmt.Sprintf("%#v", sec.LineStyle) ||
-		fmt.Sprintf("%#v", org.SelectedStyle) != fmt.Sprintf("%#v", sec.SelectedStyle) ||
 		fmt.Sprintf("%#v", org.CurrentStyle) != fmt.Sprintf("%#v", sec.CurrentStyle) {
 
 		t.Errorf("Copy should have same string repesentation except different less function pointer:\n orginal: '%#v'\n    copy: '%#v'", org, sec)
@@ -398,40 +354,6 @@ func TestSetCursor(t *testing.T) {
 		if m.viewPos != tCase.newView {
 			t.Errorf("In Test number: %d, the returned ViewPos is wrong:\n'%#v' and should be:\n'%#v' after requesting target: %d", i, m.viewPos, tCase.newView, tCase.target)
 		}
-	}
-}
-
-// TestSelectFunctions test if the function that handel the selected state of items work proper
-func TestSelectFunctions(t *testing.T) {
-	m := NewModel()
-	err1 := m.ToggleSelectCursor(-1)
-	err2 := m.MarkSelectCursor(-1, true)
-	if err1 == nil || err2 == nil {
-		t.Error("cant toggle no items")
-	}
-	m.AddItems(MakeStringerList([]string{""}))
-	err3 := m.ToggleSelectCursor(0)
-	if ok, err4 := m.IsSelected(0); !ok || err3 != nil || err4 != nil {
-		t.Errorf("Item should be selected after toggle or no error should be returned: '%#v' or '%#v'", err3, err4)
-	}
-	err5 := m.MarkSelectCursor(-1, false)
-	sel, err6 := m.IsSelected(0)
-	if err5 == nil || err6 != nil || sel {
-		t.Errorf("Item should not be selected after marking it false, error should be not nil: '%#v' and other error should be be nil '%#v'", err5, err6)
-	}
-	err7 := m.MarkSelectCursor(m.Len()+1, false)
-	if err7 == nil {
-		t.Error("MarkSelectCursor should fail if position is beyond list end")
-	}
-	_, err8 := m.IsSelected(m.Len())
-	if err8 == nil {
-		t.Error("error Should not be nil after trying to check selected state beyond list end")
-	}
-	m.viewPos.Cursor = m.Len() - 1
-	err9 := m.ToggleSelectCursor(1)
-	sel, _ = m.IsSelected(m.Len() - 1)
-	if _, ok := err9.(OutOfBounds); !ok || !sel {
-		t.Errorf("marking the last item should give a OutOfBounds error, but got: '%s'\nand after it, it should be marked: '%t'", err9, sel)
 	}
 }
 

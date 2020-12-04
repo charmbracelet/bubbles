@@ -11,7 +11,7 @@ import (
 // and then Prefix ones, per line to draw, to generate according prefixes.
 type Prefixer interface {
 	InitPrefixer(ViewPos, ScreenInfo) int
-	Prefix(currentItem, currentLine int, selected bool) string
+	Prefix(currentItem, currentLine int, item fmt.Stringer) string
 }
 
 // DefaultPrefixer is the default struct used for Prefixing a line
@@ -23,14 +23,11 @@ type DefaultPrefixer struct {
 	SeperatorWrap string
 
 	// Mark it so that even without color support all is explicit
-	CurrentMarker  string
-	SelectedPrefix string
+	CurrentMarker string
 
 	// enable Linenumber
 	Number         bool
 	NumberRelative bool
-
-	UnSelectedPrefix string
 
 	prefixWidth int
 	viewPos     ViewPos
@@ -40,12 +37,6 @@ type DefaultPrefixer struct {
 
 	unmark string
 	mark   string
-
-	selectedString string
-	unselect       string
-
-	wrapSelectPad string
-	wrapUnSelePad string
 
 	sepItem string
 	sepWrap string
@@ -61,9 +52,7 @@ func NewPrefixer() *DefaultPrefixer {
 		SeperatorWrap: "│",
 
 		// Mark it so that even without color support all is explicit
-		CurrentMarker:    ">",
-		SelectedPrefix:   "*",
-		UnSelectedPrefix: "",
+		CurrentMarker: ">",
 
 		// enable Linenumber
 		Number:         true,
@@ -95,26 +84,6 @@ func (d *DefaultPrefixer) InitPrefixer(position ViewPos, screen ScreenInfo) int 
 	d.numWidth = len(fmt.Sprintf("%d", offset+screen.Height))
 
 	// pad all prefixes to the same width for easy exchange
-	d.selectedString = d.SelectedPrefix
-	d.unselect = d.UnSelectedPrefix
-	selWid := ansi.PrintableRuneWidth(d.selectedString)
-	tmpWid := ansi.PrintableRuneWidth(d.unselect)
-
-	selectWidth := selWid
-	if tmpWid > selectWidth {
-		selectWidth = tmpWid
-	}
-	d.selectedString = strings.Repeat(" ", selectWidth-selWid) + d.selectedString
-
-	d.wrapSelectPad = strings.Repeat(" ", selectWidth)
-	d.wrapUnSelePad = strings.Repeat(" ", selectWidth)
-	if d.PrefixWrap {
-		d.wrapSelectPad = strings.Repeat(" ", selectWidth-selWid) + d.selectedString
-		d.wrapUnSelePad = strings.Repeat(" ", selectWidth-tmpWid) + d.unselect
-	}
-
-	d.unselect = strings.Repeat(" ", selectWidth-tmpWid) + d.unselect
-
 	// pad all separators to the same width for easy exchange
 	d.sepItem = strings.Repeat(" ", sepWidth-widthItem) + d.Seperator
 	d.sepWrap = strings.Repeat(" ", sepWidth-widthWrap) + d.SeperatorWrap
@@ -125,13 +94,13 @@ func (d *DefaultPrefixer) InitPrefixer(position ViewPos, screen ScreenInfo) int 
 	d.unmark = strings.Repeat(" ", d.markWidth)
 
 	// Get the hole prefix width
-	d.prefixWidth = d.numWidth + selectWidth + sepWidth + d.markWidth
+	d.prefixWidth = d.numWidth + sepWidth + d.markWidth
 
 	return d.prefixWidth
 }
 
 // Prefix prefixes a given line
-func (d *DefaultPrefixer) Prefix(currentIndex int, wrapIndex int, selected bool) string {
+func (d *DefaultPrefixer) Prefix(currentIndex int, wrapIndex int, value fmt.Stringer) string {
 	// if a number is set, prepend first line with number and both with enough spaces
 	firstPad := strings.Repeat(" ", d.numWidth)
 	var wrapPad string
@@ -149,14 +118,6 @@ func (d *DefaultPrefixer) Prefix(currentIndex int, wrapIndex int, selected bool)
 	firstPad = strings.Repeat(" ", padTo) + number
 	// pad wrapped lines
 	wrapPad = strings.Repeat(" ", d.numWidth)
-	// Selecting: handle highlighting and prefixing of selected lines
-	selString := d.unselect
-
-	wrapPrePad := d.wrapUnSelePad
-	if selected {
-		selString = d.selectedString
-		wrapPrePad = d.wrapSelectPad
-	}
 
 	// Current: handle highlighting of current item/first-line
 	curPad := d.unmark
@@ -167,9 +128,9 @@ func (d *DefaultPrefixer) Prefix(currentIndex int, wrapIndex int, selected bool)
 	// join all prefixes
 	var wrapPrefix, linePrefix string
 
-	linePrefix = strings.Join([]string{firstPad, selString, d.sepItem, curPad}, "")
+	linePrefix = strings.Join([]string{firstPad, d.sepItem, curPad}, "")
 	if wrapIndex > 0 {
-		wrapPrefix = strings.Join([]string{wrapPad, wrapPrePad, d.sepWrap, d.unmark}, "") // don't prefix wrap lines with CurrentMarker (unmark)
+		wrapPrefix = strings.Join([]string{wrapPad, d.sepWrap, d.unmark}, "") // don't prefix wrap lines with CurrentMarker (unmark)
 		return wrapPrefix
 	}
 
