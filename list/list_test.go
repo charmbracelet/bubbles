@@ -73,8 +73,7 @@ func TestBasicsLines(t *testing.T) {
 
 	m.MoveCursor(1)
 	// Sort them
-	newModel, _ := m.Update(tea.KeyMsg(tea.Key{Type: tea.KeyRunes, Runes: []rune{'s'}}))
-	m, _ = newModel.(Model)
+	m.Sort()
 	// swap them again
 	m.MoveItem(1)
 	// should be the like the beginning
@@ -154,7 +153,7 @@ func TestMultiLineBreaks(t *testing.T) {
 	}
 }
 
-// TestUpdateKeys test if the key send to the Update function work properly
+// TestUpdateKeys test if the ctrl-c key send to the Update function work properly
 func TestUpdateKeys(t *testing.T) {
 	m := NewModel()
 	m.Screen = ScreenInfo{Height: 50, Width: 80}
@@ -163,11 +162,6 @@ func TestUpdateKeys(t *testing.T) {
 	_, cmd := m.Update(tea.KeyMsg(tea.Key{Type: tea.KeyCtrlC}))
 	if cmd() != tea.Quit() {
 		t.Errorf("ctrl-c should result in Quit message, not into: %#v", cmd)
-	}
-
-	_, cmd = m.Update(tea.KeyMsg(tea.Key{Type: tea.KeyRunes, Runes: []rune{'q'}}))
-	if cmd() != tea.Quit() {
-		t.Errorf("'q' should result in Quit message, not into: %#v", cmd)
 	}
 }
 
@@ -179,53 +173,47 @@ func TestMovementKeys(t *testing.T) {
 	m.AddItems(MakeStringerList([]string{"\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n"}))
 
 	start, finish := 0, 1
-	newModel, cmd := m.Update(tea.KeyMsg(tea.Key{Type: tea.KeyRunes, Runes: []rune{'j'}}))
-	m, _ = newModel.(Model)
-	if m.viewPos.Cursor != finish || cmd != nil {
-		t.Errorf("key 'j' should have nil command but got: '%#v' and move the Cursor to index '%d', but got: %d", cmd, finish, m.viewPos.Cursor)
+	_, err := m.MoveCursor(1)
+	if m.viewPos.Cursor != finish || err != nil {
+		t.Errorf("'MoveCursor(1)' should have nil error but got: '%#v' and move the Cursor to index '%d', but got: %d", err, finish, m.viewPos.Cursor)
 	}
 	start, finish = 15, 14
 	m.viewPos.Cursor = start
-	newModel, cmd = m.Update(tea.KeyMsg(tea.Key{Type: tea.KeyRunes, Runes: []rune{'k'}}))
-	m, _ = newModel.(Model)
-	if m.viewPos.Cursor != finish || cmd != nil {
-		t.Errorf("key 'k' should have nil command but got: '%#v' and move the Cursor to index '%d', but got: %d", cmd, finish, m.viewPos.Cursor)
+	_, err = m.MoveCursor(-1)
+	if m.viewPos.Cursor != finish || err != nil {
+		t.Errorf("'MoveCursor(-1)' should have nil error but got: '%#v' and move the Cursor to index '%d', but got: %d", err, finish, m.viewPos.Cursor)
 	}
 
 	start, finish = 55, 56
 	m.viewPos.Cursor = start
-	newModel, cmd = m.Update(tea.KeyMsg(tea.Key{Type: tea.KeyRunes, Runes: []rune{'J'}}))
-	m, _ = newModel.(Model)
-	if m.viewPos.Cursor != finish || cmd != nil {
-		t.Errorf("key 'J' should have nil command but got: '%#v' and move the Cursor to index '%d', but got: %d", cmd, finish, m.viewPos.Cursor)
+	err = m.MoveItem(1)
+	if m.viewPos.Cursor != finish || err != nil {
+		t.Errorf("'MoveItem(1)' should have nil error but got: '%#v' and move the Cursor to index '%d', but got: %d", err, finish, m.viewPos.Cursor)
 	}
 	m.viewPos.LineOffset = 15
 	start, finish = 15, 14
 	m.viewPos.Cursor = start
-	newModel, cmd = m.Update(tea.KeyMsg(tea.Key{Type: tea.KeyRunes, Runes: []rune{'K'}}))
-	m, _ = newModel.(Model)
-	if m.viewPos.Cursor != finish || cmd != nil {
-		t.Errorf("key 'K' should have nil command but got: '%#v' and move the Cursor to index '%d', but got: %d", cmd, finish, m.viewPos.Cursor)
+	err = m.MoveItem(-1)
+	if m.viewPos.Cursor != finish || err != nil {
+		t.Errorf("'MoveItem(-1)' should have nil error but got: '%#v' and move the Cursor to index '%d', but got: %d", err, finish, m.viewPos.Cursor)
 	}
 	if m.viewPos.LineOffset != 14 {
 		t.Errorf("up movement should change the Item offset to '14' but got: %d", m.viewPos.LineOffset)
 	}
 	finish = m.Len() - 1
-	newModel, cmd = m.Update(tea.KeyMsg(tea.Key{Type: tea.KeyRunes, Runes: []rune{'b'}}))
-	m, _ = newModel.(Model)
-	if m.viewPos.Cursor != finish || cmd != nil {
-		t.Errorf("key 'b' should have nil command but got: '%#v' and move the Cursor to last index: '%d', but got: %d", cmd, m.Len()-1, m.viewPos.Cursor)
+	err = m.Bottom()
+	if m.viewPos.Cursor != finish || err != nil {
+		t.Errorf("'Bottom()' should have nil error but got: '%#v' and move the Cursor to last index: '%d', but got: %d", err, m.Len()-1, m.viewPos.Cursor)
 	}
 	finish = 0
 	m.viewPos.Cursor = start
-	newModel, cmd = m.Update(tea.KeyMsg(tea.Key{Type: tea.KeyRunes, Runes: []rune{'t'}}))
-	m, _ = newModel.(Model)
-	if m.viewPos.Cursor != finish || cmd != nil {
-		t.Errorf("key 't' should have nil command but got: '%#v' and move the Cursor to index '%d', but got: %d", cmd, finish, m.viewPos.Cursor)
+	err = m.Top()
+	if m.viewPos.Cursor != finish || err != nil {
+		t.Errorf("'Top()' should have nil error but got: '%#v' and move the Cursor to index '%d', but got: %d", err, finish, m.viewPos.Cursor)
 	}
-	m.SetCursor(10)
-	if m.viewPos.Cursor != 10 {
-		t.Errorf("SetCursor should set the cursor to index '10' but gut '%d'", m.viewPos.Cursor)
+	_, err = m.SetCursor(10)
+	if m.viewPos.Cursor != 10 || err != nil {
+		t.Errorf("SetCursor should set the cursor to index '10' but gut '%d' and err should be nil but got '%s'", m.viewPos.Cursor, err)
 	}
 }
 
@@ -257,18 +245,16 @@ func TestSelectKeys(t *testing.T) {
 	m.AddItems(MakeStringerList([]string{"\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n"}))
 
 	// Mark one and move one down
-	newModel, cmd := m.Update(tea.KeyMsg(tea.Key{Type: tea.KeyRunes, Runes: []rune{' '}}))
-	m, _ = newModel.(Model)
+	err := m.ToggleSelectCursor(1)
 	if len(m.GetAllSelected()) != 1 {
-		t.Errorf("key ' ' should mark exactly one items as marked not: '%d'", len(m.GetAllSelected()))
+		t.Errorf("ToggleSelectCursor(1) should mark exactly one items as marked not: '%d'", len(m.GetAllSelected()))
 	}
-	if sel, _ := m.IsSelected(0); !sel || cmd != nil {
-		t.Errorf("key ' ' should mark the current Index, but did not or command was not nil: %#v", cmd)
+	if sel, _ := m.IsSelected(0); !sel || err != nil {
+		t.Errorf("ToggleSelectCursor(1) should mark the current Index, but did not or command was not nil: %#v", err)
 	}
 
 	// invert all mark stats
-	newModel, cmd = m.Update(tea.KeyMsg(tea.Key{Type: tea.KeyRunes, Runes: []rune{'v'}}))
-	m, _ = newModel.(Model)
+	m.ToggleAllSelected()
 	if len(m.GetAllSelected()) != m.Len()-1 {
 		t.Errorf("All items but one should be marked but '%d' from '%d' are marked", len(m.GetAllSelected()), m.Len())
 	}
@@ -277,20 +263,18 @@ func TestSelectKeys(t *testing.T) {
 	m.ToggleAllSelected()
 	m.Top()
 	// mark the first item
-	newModel, cmd = m.Update(tea.KeyMsg(tea.Key{Type: tea.KeyRunes, Runes: []rune{'m'}}))
-	m, _ = newModel.(Model)
+	err = m.MarkSelectCursor(1, true)
 	if len(m.GetAllSelected()) != 1 {
-		t.Errorf("key 'm' should mark exactly one items as marked not: '%d'", len(m.GetAllSelected()))
+		t.Errorf("MarkSelectCursor(1, true) should mark exactly one items as marked not: '%d'", len(m.GetAllSelected()))
 	}
-	if sel, _ := m.IsSelected(0); !sel || cmd != nil {
-		t.Errorf("key 'm' should mark the current Index, but did not or command was not nil: %#v", cmd)
+	if sel, _ := m.IsSelected(0); !sel || err != nil {
+		t.Errorf("MarkSelectCursor(1, true) should mark the current Index, but did not or error was not nil: %#v", err)
 	}
 
 	// Move back to top
 	m.MoveCursor(-1)
 	// Unmark previous marked item
-	newModel, cmd = m.Update(tea.KeyMsg(tea.Key{Type: tea.KeyRunes, Runes: []rune{'u'}}))
-	m, _ = newModel.(Model)
+	m.MarkSelectCursor(1, false)
 	if len(m.GetAllSelected()) != 0 {
 		t.Errorf("no selected items should be left, but '%d' are", len(m.GetAllSelected()))
 	}
@@ -299,17 +283,17 @@ func TestSelectKeys(t *testing.T) {
 // TestUnfocused should make sure that the update does not change anything if model is not focused
 func TestUnfocused(t *testing.T) {
 	m := NewModel()
-	m.Focus()
+	m.Focus(true)
 	if !m.Focused() {
 		t.Error("model should be focused but isn't")
 	}
-	m.UnFocus()
+	m.Focus(false)
 	// Check Cursor position
 	if i, err := m.GetCursorIndex(); i != 0 || err == nil {
 		t.Errorf("the cursor index of a new Model should be '0' and not: '%d' and there should be a NotFocused error: %#v", i, err)
 	}
 
-	newModel, cmd := m.Update(tea.KeyMsg(tea.Key{Type: tea.KeyRunes, Runes: []rune{' '}}))
+	newModel, cmd := m.Update(tea.KeyMsg(tea.Key{Type: tea.KeyRunes, Runes: []rune{'j'}}))
 	oldM := fmt.Sprintf("%#v", newModel)
 	newM := fmt.Sprintf("%#v", m)
 	if oldM != newM || cmd != nil {

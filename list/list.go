@@ -72,14 +72,18 @@ func (m Model) Init() tea.Cmd {
 }
 
 // View renders the List to a (displayable) string
-// since a empty string gets not displayed return something to overwrite the last removed item
+// since a empty string gets not displayed, return something to overwrite the last removed item
 func (m Model) View() string {
 
 	lines := m.Lines()
 
 	if m.Len() == 0 {
 		// TODO make empty string handling better, custom empty function?
-		lines[0] = "empty"
+		if len(lines) > 0 {
+			lines[0] = "empty"
+		} else {
+			lines = []string{"empty"}
+		}
 	}
 
 	return strings.Join(lines, "\n")
@@ -253,53 +257,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		}
 		switch msg.String() {
-		case "q":
-			return m, tea.Quit
-
 		// Move
-		case "down", "j":
+		case "down":
 			m.MoveCursor(1)
 			return m, nil
-		case "up", "k":
+		case "up":
 			m.MoveCursor(-1)
 			return m, nil
-		case "t", "home":
+		case "home":
 			m.Top()
 			return m, nil
-		case "b", "end":
+		case "end":
 			m.Bottom()
-			return m, nil
-		case "K":
-			m.MoveItem(-1)
-			return m, nil
-		case "J":
-			m.MoveItem(1)
-			return m, nil
-
-		// Select
-		case " ":
-			m.ToggleSelectCursor(1)
-			m.MoveCursor(1)
-			return m, nil
-		case "v": // inVert
-			m.ToggleAllSelected()
-			return m, nil
-		case "m": // mark
-			m.MarkSelectCursor(1, true)
-			return m, nil
-		case "M": // mark All
-			m.MarkSelectAll(true)
-			return m, nil
-		case "u": // unmark
-			m.MarkSelectCursor(1, false)
-			return m, nil
-		case "U": // unmark All
-			m.MarkSelectAll(false)
-			return m, nil
-
-		// Order changing
-		case "s":
-			m.Sort()
 			return m, nil
 		}
 
@@ -445,16 +414,26 @@ func (m *Model) SetCursor(target int) (int, error) {
 }
 
 // Top moves the cursor to the first line
-func (m *Model) Top() {
+func (m *Model) Top() error {
+	_, err := m.ValidIndex(0)
+	if err != nil {
+		return err
+	}
 	m.viewPos.Cursor = 0
 	m.viewPos.LineOffset = m.CursorOffset
+	return nil
 }
 
 // Bottom moves the cursor to the last line
-func (m *Model) Bottom() {
+func (m *Model) Bottom() error {
 	end := len(m.listItems) - 1
+	_, err := m.ValidIndex(end)
+	if err != nil {
+		return err
+	}
 	m.viewPos.LineOffset = m.Screen.Height - m.CursorOffset
 	m.MoveCursor(end)
+	return nil
 }
 
 // AddItems adds the given Items to the list Model
@@ -484,6 +463,30 @@ func (m *Model) AddItems(itemList []fmt.Stringer) error {
 	return err
 }
 
+// ResetItems replaces all list items with the new items,
+// if equals function is set and a new item yields true
+// cursor is set on this item.
+func (m *Model) ResetItems(newStringers []fmt.Stringer) error {
+	oldCursorItem, err := m.GetCursorItem()
+	// Reset Cursor
+	m.viewPos.Cursor = 0
+
+	newItems := make([]item, len(newStringers))
+	for i, newValue := range newStringers {
+		newItems[i].value = newValue
+		newItems[i].id = m.getID()
+
+		if m.equals != nil && err != nil && m.equals(oldCursorItem, newValue) {
+			m.viewPos.Cursor = i
+		}
+	}
+	// reset LineOffset if Cursor was not set by matching through equals
+	if m.viewPos.Cursor == 0 {
+		m.viewPos.LineOffset = m.CursorOffset
+	}
+	return nil
+}
+
 // RemoveIndex returns a error if the index is not valid,
 // and if valid, returns the item while removing it from the list.
 func (m *Model) RemoveIndex(index int) (fmt.Stringer, error) {
@@ -503,149 +506,6 @@ func (m *Model) RemoveIndex(index int) (fmt.Stringer, error) {
 	m.viewPos.Cursor = newCursor
 	m.viewPos.LineOffset = newOffset
 	return itemValue, err
-}
-
-// ToggleSelectCursor toggles the selected status
-// of the current Index if amount is 0
-// returns err != nil when amount lands outside list and safely does nothing
-// else if amount is not 0 toggles selected amount items
-// excluding the item on which the cursor would land
-func (m *Model) ToggleSelectCursor(amount int) error {
-	if m.Len() == 0 {
-		return OutOfBounds(fmt.Errorf("No Items"))
-	}
-	if amount == 0 {
-		m.listItems[m.viewPos.Cursor].selected = !m.listItems[m.viewPos.Cursor].selected
-	}
-
-	direction := 1
-	if amount < 0 {
-		direction = -1
-	}
-
-	cur := m.viewPos.Cursor
-
-	target, err := m.MoveCursor(amount)
-	start, end := cur, target
-	if direction < 0 {
-		start, end = target+1, cur+1
-	}
-	// mark/start at first item
-	if cur+amount < 0 {
-		start = 0
-	}
-	// mark last item when trying to go beyond list
-	if cur+amount >= m.Len() {
-		end++
-	}
-	for c := start; c < end; c++ {
-		m.listItems[c].selected = !m.listItems[c].selected
-	}
-	return err
-}
-
-// ToggleSelect swaps the selected state of the item at the given index
-// or returns a error if index is OutOfBounds.
-func (m *Model) ToggleSelect(index int) error {
-	i, err := m.ValidIndex(index)
-	if err != nil {
-		return err
-	}
-	m.listItems[i].selected = !m.listItems[i].selected
-	return nil
-}
-
-// MarkSelectCursor selects or unselects depending on 'mark'
-// amount = 0 changes the current item but does not move the cursor
-// if amount would be outside the list error is from type OutOfBounds
-// else all items till but excluding the end cursor position gets (un-)marked
-func (m *Model) MarkSelectCursor(amount int, mark bool) error {
-	cur := m.viewPos.Cursor
-	direction := 1
-	if amount < 0 {
-		direction = -1
-	}
-	target := cur + amount - direction
-
-	target, err := m.ValidIndex(target)
-	if m.Len() == 0 {
-		return err
-	}
-	// correct amount in case target has changed
-	amount = target - cur + direction
-
-	if amount == 0 {
-		m.listItems[cur].selected = mark
-		return nil
-	}
-	for c := 0; c < amount*direction; c++ {
-		m.listItems[cur+c].selected = mark
-	}
-	m.viewPos.Cursor = target
-	_, errSec := m.MoveCursor(direction)
-	if err == nil {
-		err = errSec
-	}
-	return err
-}
-
-// MarkSelect sets the selected state of the item at the given index to true
-// or returns a error if index is OutOfBounds.
-func (m *Model) MarkSelect(index int, mark bool) error {
-	i, err := m.ValidIndex(index)
-	if err != nil {
-		return err
-	}
-	m.listItems[i].selected = mark
-	return nil
-}
-
-// MarkSelectAll marks all items of the list according to mark
-// or returns OutOfBounds if list has no Items
-func (m *Model) MarkSelectAll(mark bool) error {
-	_, err := m.ValidIndex(0)
-	if m.Len() == 0 {
-		return err
-	}
-	for c := range m.listItems {
-		m.listItems[c].selected = mark
-	}
-	return err
-}
-
-// ToggleAllSelected inverts the select state of ALL items
-func (m *Model) ToggleAllSelected() error {
-	_, err := m.ValidIndex(0)
-	if m.Len() == 0 {
-		return err
-	}
-	for i := range m.listItems {
-		m.listItems[i].selected = !m.listItems[i].selected
-	}
-	return err
-}
-
-// IsSelected returns true if the given Item is selected
-// false otherwise. If the requested index is outside the list
-// error is not nil.
-func (m *Model) IsSelected(index int) (bool, error) {
-	index, err := m.ValidIndex(index)
-	if m.Len() == 0 {
-		return false, err
-	}
-	return m.listItems[index].selected, err
-}
-
-// GetAllSelected returns you a list of all items
-// that are selected in current (displayed) order
-func (m *Model) GetAllSelected() []fmt.Stringer {
-	var selected []fmt.Stringer
-	for _, item := range m.listItems {
-		if item.selected {
-			selected = append(selected, item.value)
-		}
-	}
-	return selected
 }
 
 // Sort sorts the list items according to the set less-function
@@ -746,14 +606,10 @@ func (m *Model) MoveItem(amount int) error {
 	return nil
 }
 
-// Focus sets the list Model focus so it accepts key input and responds to them
-func (m *Model) Focus() {
-	m.focus = true
-}
-
-// UnFocus removes the focus so that the list Model does NOT respond to key presses
-func (m *Model) UnFocus() {
-	m.focus = false
+// Focus sets the list Model according to focus.
+// If true the model accepts keypresses
+func (m *Model) Focus(focus bool) {
+	m.focus = focus
 }
 
 // Focused returns if the list Model is focused and accepts key presses
@@ -793,7 +649,7 @@ func (m *Model) GetIndex(toSearch fmt.Stringer) (int, error) {
 	return lastIndex, nil
 }
 
-// UpdateItem takes a indes and updates the item at the index with the given function
+// UpdateItem takes a index and updates the item at the index with the given function
 // or if index outside the list returns OutOfBounds error.
 // If the returned fmt.Stringer value is nil, then the item gets removed from the list and a NilValue error is returned.
 func (m *Model) UpdateItem(index int, updater func(fmt.Stringer) (fmt.Stringer, tea.Cmd)) (tea.Cmd, error) {
@@ -838,7 +694,7 @@ func (m *Model) GetCursorItem() (fmt.Stringer, error) {
 }
 
 // GetItem returns the item if the index exists
-// OutOfBounds otherwise
+// a error otherwise.
 func (m *Model) GetItem(index int) (fmt.Stringer, error) {
 	index, err := m.ValidIndex(index)
 	if m.Len() == 0 {
@@ -865,6 +721,7 @@ func (m *Model) Copy() *Model {
 }
 
 // GetID returns a new for this list unique id
+// to identify the items and set the cursor after sorting correctly.
 func (m *Model) getID() int {
 	if m.requestID == nil || m.resultID == nil {
 		req := make(chan struct{})
