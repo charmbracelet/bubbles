@@ -58,6 +58,9 @@ func NewModel() Model {
 		// show all lines
 		Wrap: 0,
 
+		// show line number
+		PrefixGen: NewPrefixer(),
+
 		CurrentStyle: curStyle,
 	}
 }
@@ -85,17 +88,64 @@ func (m Model) View() string {
 	return strings.Join(lines, "\n")
 }
 
+// Update changes the Model of the List according to the messages received
+// if the list is focused, else does nothing.
+func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	// handel Window resizes even if the model is not focused
+	if msg, ok := msg.(tea.WindowSizeMsg); ok {
+		m.Screen.Width = msg.Width
+		m.Screen.Height = msg.Height
+		m.Screen.Profile = termenv.ColorProfile()
+		return m, nil
+	}
+
+	if !m.focus {
+		return m, nil
+	}
+
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		// Quit
+		if msg.Type == tea.KeyCtrlC {
+			return m, tea.Quit
+		}
+		switch msg.String() {
+		// Move
+		case "down":
+			m.MoveCursor(1)
+			return m, nil
+		case "up":
+			m.MoveCursor(-1)
+			return m, nil
+		case "home":
+			m.Top()
+			return m, nil
+		case "end":
+			m.Bottom()
+			return m, nil
+		}
+
+	case tea.MouseMsg:
+		switch msg.Type {
+		case tea.MouseWheelUp:
+			m.MoveCursor(-1)
+			return m, nil
+
+		case tea.MouseWheelDown:
+			m.MoveCursor(1)
+			return m, nil
+		}
+	}
+	return m, nil
+}
+
 // Lines returns the Visible lines of the list items
 // used to display the current user interface
 func (m *Model) Lines() []string {
-	// get public variables as locals so they can't change while using
-	height := m.Screen.Height
-	width := m.Screen.Width
 	// check visible area
-	if height*width <= 0 {
+	if m.Screen.Height*m.Screen.Width <= 0 {
 		panic("Can't display with zero width or hight of Viewport")
 	}
-
 	// Get the Width of each suf/prefix
 	var prefixWidth, suffixWidth int
 	if m.PrefixGen != nil {
@@ -104,92 +154,38 @@ func (m *Model) Lines() []string {
 	if m.SuffixGen != nil {
 		suffixWidth = m.SuffixGen.InitSuffixer(m.viewPos, m.Screen)
 	}
-
 	// Get actual content width
-	contentWidth := width - prefixWidth - suffixWidth
+	contentWidth := m.Screen.Width - prefixWidth - suffixWidth
 
 	// Check if there is space for the content left
 	if contentWidth <= 0 {
 		panic("Can't display with zero width for content")
 	}
 
-	linesBefor := make([]string, 0, height)
+	linesBefor := make([]string, 0, m.viewPos.LineOffset)
 	// loop to add the item(-lines) befor the cursor to the return lines
-	for c := 1; // dont add cursor item
-	m.viewPos.Cursor-c >= 0; c++ {
+	// dont add cursor item
+	for c := 1; m.viewPos.Cursor-c >= 0; c++ {
 		index := m.viewPos.Cursor - c
-		item := m.listItems[index]
-
-		contentLines := m.itemLines(item)
-		// append the lines in reverse, to add them in correct order later
-		for c := len(contentLines) - 1; c >= 0 && len(linesBefor) < m.viewPos.LineOffset; c-- {
-			lineContent := contentLines[c]
-			// Surrounding lineContent
-			var linePrefix, lineSuffix string
-			if m.PrefixGen != nil {
-				linePrefix = m.PrefixGen.Prefix(index, c, item.value)
-			}
-			if m.SuffixGen != nil {
-				lineSuffix = m.SuffixGen.Suffix(index, c, item.value)
-				if lineSuffix != "" {
-					free := contentWidth - ansi.PrintableRuneWidth(lineContent)
-					if free < 0 {
-						free = 0 // TODO is this nessecary after adding hardwrap?
-					}
-					lineSuffix = fmt.Sprintf("%s%s", strings.Repeat(" ", free), lineSuffix)
-				}
-			}
-
-			// Join all
-			line := fmt.Sprintf("%s%s%s", linePrefix, lineContent, lineSuffix)
-
-			// Write wrapped line
-			linesBefor = append(linesBefor, line)
+		itemLines, _ := m.getItemLines(index, contentWidth)
+		// append lines in revers order
+		for i := len(itemLines) - 1; i >= 0 && len(linesBefor) < m.viewPos.LineOffset; i-- {
+			linesBefor = append(linesBefor, itemLines[i])
 		}
-
 	}
 
 	// append lines (befor cursor) in correct order to allLines
-	allLines := make([]string, 0, height)
+	allLines := make([]string, 0, m.Screen.Height)
 	for c := len(linesBefor) - 1; c >= 0; c-- {
 		allLines = append(allLines, linesBefor[c])
 	}
 
-	var visLines int
 	// Handle list items, start at cursor and go till end of list or visible (break)
 	for index := m.viewPos.Cursor; index < m.Len(); index++ {
-		item := m.listItems[index]
-
-		lines := m.itemLines(item)
-
-		// append all visibles lines since the cursor
-		for c := 0; c < len(lines) && len(allLines) < height; c++ {
-			lineContent := lines[c]
-			// Surrounding content
-			var linePrefix, lineSuffix string
-			if m.PrefixGen != nil {
-				linePrefix = m.PrefixGen.Prefix(index, c, item.value)
-			}
-			if m.SuffixGen != nil {
-				free := contentWidth - ansi.PrintableRuneWidth(lineContent)
-				if free < 0 {
-					free = 0 // TODO is this nessecary?
-				}
-				lineSuffix = fmt.Sprintf("%s%s", strings.Repeat(" ", free), m.SuffixGen.Suffix(index, c, item.value))
-			}
-
-			// Join all
-			line := fmt.Sprintf("%s%s%s", linePrefix, lineContent, lineSuffix)
-
-			// Highlighting of selected and current lines
-			style := m.LineStyle
-			if index == m.viewPos.Cursor {
-				style = m.CurrentStyle
-			}
-
-			// Highlight and write wrapped line
-			allLines = append(allLines, style.Styled(line))
-			visLines++
+		itemLines, _ := m.getItemLines(index, contentWidth)
+		// append lines in correct order
+		for i := 0; i < len(itemLines) && len(allLines) < m.Screen.Height; i++ {
+			allLines = append(allLines, itemLines[i])
 		}
 	}
 	// If set, fill up the remaining space
@@ -221,64 +217,6 @@ func (m *Model) Lines() []string {
 	}
 
 	return allLines
-}
-
-// Update changes the Model of the List according to the messages received
-// if the list is focused, else does nothing.
-func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if !m.focus {
-		return m, nil
-	}
-
-	if m.PrefixGen == nil {
-		// use default
-		m.PrefixGen = NewPrefixer()
-	}
-
-	var cmd tea.Cmd
-
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		// Quit
-		if msg.Type == tea.KeyCtrlC {
-			return m, tea.Quit
-		}
-		switch msg.String() {
-		// Move
-		case "down":
-			m.MoveCursor(1)
-			return m, nil
-		case "up":
-			m.MoveCursor(-1)
-			return m, nil
-		case "home":
-			m.Top()
-			return m, nil
-		case "end":
-			m.Bottom()
-			return m, nil
-		}
-
-	case tea.WindowSizeMsg:
-
-		m.Screen.Width = msg.Width
-		m.Screen.Height = msg.Height
-		m.Screen.Profile = termenv.ColorProfile()
-
-		return m, cmd
-
-	case tea.MouseMsg:
-		switch msg.Type {
-		case tea.MouseWheelUp:
-			m.MoveCursor(-1)
-			return m, nil
-
-		case tea.MouseWheelDown:
-			m.MoveCursor(1)
-			return m, nil
-		}
-	}
-	return m, nil
 }
 
 // NoItems is a error returned when the list is empty
@@ -400,7 +338,7 @@ func (m *Model) SetCursor(target int) (int, error) {
 	return target, err
 }
 
-// Top moves the cursor to the first line
+// Top moves the cursor to the first item
 func (m *Model) Top() error {
 	_, err := m.ValidIndex(0)
 	if err != nil {
@@ -411,7 +349,7 @@ func (m *Model) Top() error {
 	return nil
 }
 
-// Bottom moves the cursor to the last line
+// Bottom moves the cursor to the last item
 func (m *Model) Bottom() error {
 	end := len(m.listItems) - 1
 	_, err := m.ValidIndex(end)

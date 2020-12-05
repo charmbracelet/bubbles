@@ -2,6 +2,7 @@ package list
 
 import (
 	"fmt"
+	"github.com/muesli/reflow/ansi"
 	"github.com/muesli/reflow/wordwrap"
 	"strings"
 )
@@ -14,6 +15,7 @@ type item struct {
 }
 
 // itemLines returns the lines of the item string value wrapped to the according content-width
+// and the write amount of lines accoring to m.Wrap
 func (m *Model) itemLines(i item) []string {
 	var preWidth, sufWidth int
 	if m.PrefixGen != nil {
@@ -29,6 +31,49 @@ func (m *Model) itemLines(i item) []string {
 		return lines[:m.Wrap]
 	}
 	return lines
+}
+
+// getItemLines surrounds the line content with the according prefix and suffix
+func (m *Model) getItemLines(index, contentWidth int) ([]string, error) {
+	_, err := m.ValidIndex(index)
+	if err != nil {
+		return nil, err
+	}
+	item := m.listItems[index]
+	lines := m.itemLines(item)
+	completLines := make([]string, len(lines))
+
+	for c := 0; c < len(lines); c++ {
+		lineContent := lines[c]
+		// Surrounding content
+		var linePrefix, lineSuffix string
+		if m.PrefixGen != nil {
+			linePrefix = m.PrefixGen.Prefix(index, c, item.value)
+		}
+		if m.SuffixGen != nil {
+			free := contentWidth - ansi.PrintableRuneWidth(lineContent)
+			if free < 0 {
+				free = 0 // TODO is this nessecary?
+			}
+			suffix := m.SuffixGen.Suffix(index, c, item.value)
+			if suffix != "" {
+				lineSuffix = fmt.Sprintf("%s%s", strings.Repeat(" ", free), suffix)
+			}
+		}
+
+		// Join all
+		line := fmt.Sprintf("%s%s%s", linePrefix, lineContent, lineSuffix)
+
+		// Highlighting of current item lines
+		style := m.LineStyle
+		if index == m.viewPos.Cursor {
+			style = m.CurrentStyle
+		}
+
+		// Highlight and write line
+		completLines[c] = style.Styled(line)
+	}
+	return completLines, nil
 }
 
 // StringItem is just a convenience to satisfy the fmt.Stringer interface with plain strings
