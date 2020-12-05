@@ -144,7 +144,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m *Model) Lines() []string {
 	// check visible area
 	if m.Screen.Height*m.Screen.Width <= 0 {
-		panic("Can't display with zero width or hight of Viewport")
+		return []string{"Can't display with zero width or hight of Viewport"}
 	}
 	// Get the Width of each suf/prefix
 	var prefixWidth, suffixWidth int
@@ -159,7 +159,7 @@ func (m *Model) Lines() []string {
 
 	// Check if there is space for the content left
 	if contentWidth <= 0 {
-		panic("Can't display with zero width for content")
+		return []string{"no space for content left"}
 	}
 
 	linesBefor := make([]string, 0, m.viewPos.LineOffset)
