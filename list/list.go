@@ -3,7 +3,6 @@ package list
 import (
 	"fmt"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/muesli/reflow/ansi"
 	"github.com/muesli/termenv"
 	"sort"
 	"strings"
@@ -36,10 +35,6 @@ type Model struct {
 	// Channels to create unique ids for all added/new items
 	requestID chan<- struct{}
 	resultID  <-chan int
-
-	// if view output should be extended to fit the according space
-	FillHeight bool
-	FillWidth  bool
 }
 
 // NewModel returns a Model with some save/sane defaults
@@ -70,8 +65,8 @@ func (m Model) Init() tea.Cmd {
 	return nil
 }
 
-// View renders the List to a (displayable) string
-// since a empty string gets not displayed, return something to overwrite the last removed item
+// View renders the List output according to the current model
+// and returns "empty" if the list has no items. This might change in the future.
 func (m Model) View() string {
 
 	lines := m.Lines()
@@ -89,7 +84,7 @@ func (m Model) View() string {
 }
 
 // Update changes the Model of the List according to the messages received
-// if the list is focused, else does nothing.
+// if the list is focused, only WindowSizeMsg are handeled.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// handel Window resizes even if the model is not focused
 	if msg, ok := msg.(tea.WindowSizeMsg); ok {
@@ -139,9 +134,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// Lines returns the Visible lines of the list items
-// used to display the current user interface
+// Lines renders the visible lines of the list
+// by calling the String Methodes of the items
+// and if present the pre- and suffix function.
+// It fails silently (with a string message),
+// if there is not enough space for the content left.
 func (m *Model) Lines() []string {
+	//TODO add error return value
 	// check visible area
 	if m.Screen.Height*m.Screen.Width <= 0 {
 		return []string{"Can't display with zero width or hight of Viewport"}
@@ -188,33 +187,6 @@ func (m *Model) Lines() []string {
 			allLines = append(allLines, itemLines[i])
 		}
 	}
-	// If set, fill up the remaining space
-	var rest []string
-	var lineFill string
-
-	if m.FillWidth {
-		for i, ln := range allLines {
-			free := m.Screen.Width - ansi.PrintableRuneWidth(ln)
-			if free < 0 {
-				free = 0 // TODO log error
-			}
-			allLines[i] = ln + strings.Repeat(" ", free)
-		}
-		lineFill = strings.Repeat(" ", m.Screen.Width)
-	}
-	if m.FillHeight && len(allLines) < m.Screen.Height {
-		free := m.Screen.Height - len(allLines)
-		if free < 0 {
-			free = 0 // TODO log error
-		}
-		rest = make([]string, free)
-		if lineFill != "" {
-			for i := range rest {
-				rest[i] = lineFill
-			}
-		}
-		return append(allLines, rest...)
-	}
 
 	return allLines
 }
@@ -225,13 +197,13 @@ type NoItems error
 // NotFound gets return if the search does not yield a result
 type NotFound error
 
-// OutOfBounds is return if and index is outside the list bounderys
+// OutOfBounds is return if and index is outside the list boundary's
 type OutOfBounds error
 
 // MultipleMatches gets return if the search yield more result
 type MultipleMatches error
 
-// ConfigError is return if there is a error with the configuration of the list Modul
+// ConfigError is return if there is a error with the configuration of the list Model
 type ConfigError error
 
 // NotFocused is a error return if the action can only be applied to a focused list.
@@ -240,17 +212,30 @@ type NotFocused error
 // NilValue is returned if there was a request to set nil as value of a list item.
 type NilValue error
 
+// CursorIndexChange is used to signal the numeric change of the Cursor index
+type CursorIndexChange int
+
+// CursorItemChange signals the change of the cursor item.
+// Maybe caused by updating the item, changing the cursor position or deletion of the cursor item
+type CursorItemChange struct{}
+
+// ItemChange signals the change of the order of the items
+// or the adding, changing (updating) or deletion of items within the list
+type ItemChange struct{}
+
 // ValidIndex returns a error when the list has no items, is not focused, the index is out of bounds.
-// And the nearest valid index in case of OutOfBounds error, else the index it self.
+// And the nearest valid index in case of OutOfBounds error, else the index it self and no error.
 func (m *Model) ValidIndex(index int) (int, error) {
 	if m.Len() <= 0 {
 		return 0, NoItems(fmt.Errorf("the list has no items"))
 	}
 	if !m.focus {
+		// TODO remove focus state of the list model because user should handel the flow of the messages
+		// and thus no unintended messages or function calls should reach the list objekt.
 		return 0, NotFocused(fmt.Errorf("the list is not focused"))
 	}
 	if index < 0 {
-		return 0, OutOfBounds(fmt.Errorf("the requested index (%d) is infront the list begin (%d)", index, 0))
+		return 0, OutOfBounds(fmt.Errorf("the requested index (%d) is in front the list begin (%d)", index, 0))
 	}
 	if index > m.Len()-1 {
 		return m.Len() - 1, OutOfBounds(fmt.Errorf("the requested index (%d) is beyond the list end (%d)", index, m.Len()-1))
@@ -276,7 +261,7 @@ func (m *Model) validOffset(newCursor int) (int, error) {
 	newOffset := m.viewPos.LineOffset + amount
 
 	if m.Wrap != 1 {
-		// assume down (positiv) movement
+		// assume down (positive) movement
 		start := 0
 		stop := amount - 1 // exclude target item (-lines)
 
@@ -315,56 +300,84 @@ type ScreenInfo struct {
 	Profile termenv.Profile
 }
 
-// MoveCursor moves the cursor by amount and returns OutOfBounds error if amount go's beyond list borders
-// or if the CursorOffset is greater than half of the display height returns ConfigError
-func (m *Model) MoveCursor(amount int) (int, error) {
+// MoveCursor moves the cursor by amount and returns the absolut index of the cursor after the movement.
+// If any error occurs the cursor is not moved and the returning tea.Cmd while yield the according error.
+// If all goes well and the cursor has changed tea.Cmd while yield a CursorItemChange and a CursorIndexChange.
+func (m *Model) MoveCursor(amount int) (int, tea.Cmd) {
 	target := m.viewPos.Cursor + amount
 
-	newOffset, err := m.validOffset(target)
-	target, err = m.ValidIndex(target)
+	target, err1 := m.ValidIndex(target)
+	newOffset, err2 := m.validOffset(target)
+	if amount == 0 {
+		return target, nil
+	}
+	if err1 != nil || err2 != nil {
+		return target, tea.Batch(func() tea.Msg { return err1 }, func() tea.Msg { return err2 })
+	}
 
 	m.viewPos.Cursor = target
 	m.viewPos.LineOffset = newOffset
-	return target, err
+	return target, tea.Batch(func() tea.Msg { return CursorItemChange{} }, func() tea.Msg { return CursorIndexChange(target) })
 }
 
-// SetCursor set the cursor to the specified index if possible,
-// if not the nearest end of the list, will be used and OutOfBounds error is returned
-func (m *Model) SetCursor(target int) (int, error) {
-	newOffset, err := m.validOffset(target)
-	target, err = m.ValidIndex(target)
+// SetCursor set the cursor to the specified index if possible, but If any error occurs
+// the cursor is not moved and the returning tea.Cmd while yield the according error.
+// If all goes well and the cursor has changed tea.Cmd while yield a CursorItemChange and a CursorIndexChange.
+func (m *Model) SetCursor(target int) (int, tea.Cmd) {
+	target, err1 := m.ValidIndex(target)
+	newOffset, err2 := m.validOffset(target)
+	if err1 != nil || err2 != nil {
+		return target, tea.Batch(func() tea.Msg { return err1 }, func() tea.Msg { return err2 })
+	}
+	if target == m.viewPos.Cursor {
+		return target, nil
+	}
+
 	m.viewPos.Cursor = target
 	m.viewPos.LineOffset = newOffset
-	return target, err
+	return target, tea.Batch(func() tea.Msg { return CursorItemChange{} }, func() tea.Msg { return CursorIndexChange(target) })
 }
 
-// Top moves the cursor to the first item
-func (m *Model) Top() error {
+// Top moves the cursor to the first item if the list is not empty, else the cursor
+// is not moved and the returning tea.Cmd while yield the according error.
+// If all goes well and the cursor has changed tea.Cmd while yield a CursorItemChange and a CursorIndexChange.
+func (m *Model) Top() tea.Cmd {
 	_, err := m.ValidIndex(0)
 	if err != nil {
-		return err
+		return func() tea.Msg { return err }
+	}
+	if m.viewPos.Cursor == 0 {
+		return nil
 	}
 	m.viewPos.Cursor = 0
 	m.viewPos.LineOffset = m.CursorOffset
-	return nil
+	return tea.Batch(func() tea.Msg { return CursorItemChange{} }, func() tea.Msg { return CursorIndexChange(0) })
 }
 
-// Bottom moves the cursor to the last item
-func (m *Model) Bottom() error {
+// Bottom moves the cursor to the last item if the list is not empty, else the cursor
+// is not moved and the returning tea.Cmd while yield the according error.
+// If all goes well and the cursor has changed tea.Cmd while yield a CursorItemChange and a CursorIndexChange.
+func (m *Model) Bottom() tea.Cmd {
 	end := len(m.listItems) - 1
 	_, err := m.ValidIndex(end)
 	if err != nil {
-		return err
+		return func() tea.Msg { return err }
+	}
+	if m.viewPos.Cursor == end {
+		return nil
 	}
 	m.viewPos.LineOffset = m.Screen.Height - m.CursorOffset
-	m.MoveCursor(end)
-	return nil
+	m.SetCursor(end)
+	return tea.Batch(func() tea.Msg { return CursorItemChange{} }, func() tea.Msg { return CursorIndexChange(end) })
 }
 
-// AddItems adds the given Items to the list Model
-// and if a costum less function is provided, they get sorted.
-// if a entry of itemList is nil it will get skiped
-func (m *Model) AddItems(itemList []fmt.Stringer) error {
+// AddItems adds the given Items to the list Model. Run Sort() afterwards, if you want to keep the list sorted.
+// If entrys of itemList are nil they will not be added, and a NilValue error is returned through tea.Cmd.
+// Neither the cursor item nor its index will change, but if items where added, tea.Cmd will yield a ItemChange Msg.
+func (m *Model) AddItems(itemList []fmt.Stringer) tea.Cmd {
+	if len(itemList) == 0 {
+		return nil
+	}
 	oldLenght := m.Len()
 	for _, i := range itemList {
 		if i != nil {
@@ -375,49 +388,67 @@ func (m *Model) AddItems(itemList []fmt.Stringer) error {
 			)
 		}
 	}
-	// only sort if user set less function
-	if m.less != nil {
-		// Sort will take care of the correct position of Cursor and Offset
-		m.Sort()
-	}
 	var err error
+	var cmd tea.Cmd
+	if oldLenght != m.Len() {
+		cmd = func() tea.Msg { return ItemChange{} }
+	}
 	if m.Len() < oldLenght+len(itemList) {
 		err = NilValue(fmt.Errorf("there where '%d' nil values which where not added", m.Len()-oldLenght+len(itemList)))
+		return tea.Batch(func() tea.Msg { return err }, cmd)
 	}
-	return err
+	return cmd
 }
 
-// ResetItems replaces all list items with the new items,
-// if equals function is set and a new item yields true
-// cursor is set on this item.
-func (m *Model) ResetItems(newStringers []fmt.Stringer) error {
+// ResetItems replaces all list items with the new items, if a entry is nil its not added.
+// If equals function is set and a new item yields true in comparison to the old cursor item
+// the cursor is set on this (or if equals-func is bad the last-)item.
+// If the Cursor Index or Item has changed the corrisponding tea.Cmd is returned,
+// but in any case a ItemChange is returned through the tea.Cmd.
+func (m *Model) ResetItems(newStringers []fmt.Stringer) tea.Cmd {
 	oldCursorItem, err := m.GetCursorItem()
 	// Reset Cursor
 	m.viewPos.Cursor = 0
 
+	//TODO handel len(newStringers) == 0 && m.Len() == 0
+
+	cmd := func() tea.Msg { return CursorItemChange{} }
+
 	newItems := make([]item, len(newStringers))
 	for i, newValue := range newStringers {
+		if newValue == nil {
+			continue
+		}
 		newItems[i].value = newValue
 		newItems[i].id = m.getID()
 
 		if m.equals != nil && err != nil && m.equals(oldCursorItem, newValue) {
 			m.viewPos.Cursor = i
+			cmd = func() tea.Msg { return CursorIndexChange(i) }
 		}
 	}
+
+	m.listItems = newItems
+
 	// reset LineOffset if Cursor was not set by matching through equals
 	if m.viewPos.Cursor == 0 {
 		m.viewPos.LineOffset = m.CursorOffset
 	}
-	return nil
+	// only sort if user set less function
+	if m.less != nil {
+		// Sort will take care of the correct position of Cursor and Offset
+		cmd = m.Sort()
+	}
+	return tea.Batch(cmd, func() tea.Msg { return ItemChange{} })
 }
 
-// RemoveIndex returns a error if the index is not valid,
-// and if valid, returns the item while removing it from the list.
-func (m *Model) RemoveIndex(index int) (fmt.Stringer, error) {
+// RemoveIndex removes and returns the item at the given index if it exists,
+// else a error is returned through the tea.Cmd.
+// If the cursor index or item has changed tea.Cmd while yield a CursorItemChange or a CursorIndexChange.
+func (m *Model) RemoveIndex(index int) (fmt.Stringer, tea.Cmd) {
 	index, err := m.ValidIndex(index)
-	if m.Len() == 0 {
-		m.viewPos.Cursor = 0
-		return nil, err
+	if err != nil {
+		return nil, func() tea.Msg { return err }
 	}
 	var rest []item
 	itemValue, _ := m.GetItem(index)
@@ -425,109 +456,94 @@ func (m *Model) RemoveIndex(index int) (fmt.Stringer, error) {
 		rest = m.listItems[index+1:]
 	}
 	m.listItems = append(m.listItems[:index], rest...)
-	newCursor, _ := m.ValidIndex(index)
+	cmd := func() tea.Msg { return ItemChange{} }
+	oldCursor := m.viewPos.Cursor
+	newCursor, err := m.ValidIndex(index)
 	newOffset, _ := m.validOffset(newCursor)
 	m.viewPos.Cursor = newCursor
 	m.viewPos.LineOffset = newOffset
-	return itemValue, err
+
+	if err != nil {
+		cmd = tea.Batch(func() tea.Msg { return CursorItemChange{} }, cmd)
+	}
+	if oldCursor != newCursor {
+		cmd = tea.Batch(cmd, func() tea.Msg { return CursorIndexChange(newCursor) })
+	}
+	return itemValue, cmd
 }
 
 // Sort sorts the list items according to the set less-function
 // If its not set than order after string.
-func (m *Model) Sort() {
+// Internally the Sort method uses the sort.Sort interface, so this is not guaranteed to be a stable sort.
+// If you need stable sorting, sort the items your self and reset the list with them.
+// While sorting the cursor item can not change, but the cursor index can.
+// So a CursorIndexChange Msg through tea.Cmd is returned in this case.
+func (m *Model) Sort() tea.Cmd {
 	if m.Len() < 1 {
-		return
+		return nil
 	}
+	var cmd tea.Cmd
 	old := m.listItems[m.viewPos.Cursor].id
-	sort.Sort(m)
+	sort.Sort(&itemList{&(m.listItems), &(m.less)})
 	for i, item := range m.listItems {
 		if item.id == old {
+			if i != m.viewPos.Cursor {
+				cmd = func() tea.Msg { return CursorIndexChange(i) }
+			}
 			m.viewPos.Cursor = i
 			break
 		}
 	}
+	return cmd
 }
 
-// Less is a Proxy to the less function, set from the user.
-// since the Sort-interface demands a Less Methode without a error return value
-// so we sadly have to returns silently if a index is out side the list, to not panic.
-func (m *Model) Less(i, j int) bool {
-	_, errI := m.ValidIndex(i)
-	_, errJ := m.ValidIndex(j)
-	if errI != nil || errJ != nil {
-		return false
-	}
-	// If User does not provide less function use string comparison, but dont change m.less, to be able to see when user set one.
-	if m.less == nil {
-		return m.listItems[i].value.String() < m.listItems[j].value.String()
-	}
-	return m.less(m.listItems[i].value, m.listItems[j].value)
-}
-
-// Swap swaps the items position within the list
-// and is used to fulfill the Sort-interface
-// since the Sort-interface demands a Swap Methode without a error return value
-// so we sadly have to returns silently if a index is out side the list, to not panic.
-func (m *Model) Swap(i, j int) {
-	_, errI := m.ValidIndex(i)
-	_, errJ := m.ValidIndex(j)
-	if errI != nil || errJ != nil {
-		return
-	}
-	m.listItems[i], m.listItems[j] = m.listItems[j], m.listItems[i]
-}
-
-// Len returns the amount of list-items
-// and is used to fulfill the Sort-interface
+// Len returns the amount of list-items.
 func (m *Model) Len() int {
 	return len(m.listItems)
 }
 
-// SetLess sets the internal less function used for sorting the list items
+// SetLess sets the internal less function only used for the Sort method of the list Model.
+// If you want to keep the list sorted, you have to Sort it yourself after adding Items or Updating Items.
 func (m *Model) SetLess(less func(a, b fmt.Stringer) bool) {
 	m.less = less
 }
 
-// SetEquals sets the internal equals methode used to get the index (GetIndex) of a provided fmt.Stringer value
+// SetEquals sets the internal equals method used to get the index (GetIndex) of a provided fmt.Stringer value,
+// or to set the cursor on the right item when reseting the list items.
 func (m *Model) SetEquals(equ func(first, second fmt.Stringer) bool) {
 	m.equals = equ
 }
 
-// GetEquals returns the internal equals methode
+// GetEquals returns the internal equals method
 // used to get the index (GetIndex) of a provided fmt.Stringer value
 func (m *Model) GetEquals() func(first, second fmt.Stringer) bool {
+	// TODO remove?
 	return m.equals
 }
 
-// MoveItem moves the current item by amount to the end
-// So: MoveItem(1) Moves the Item towards the end by one
-// and MoveItem(-1) Moves the Item towards the beginning
-// MoveItem(0) safely does nothing
-// and a amount that would result outside the list returns a error != nil
-func (m *Model) MoveItem(amount int) error {
+// MoveItem moves the current item by amount to the end of the list.
+// If the target does not exist a error is returned through tea.Cmd.
+// Else a ItemChange and a CursorIndexChange is returned.
+func (m *Model) MoveItem(amount int) tea.Cmd {
 	cur := m.viewPos.Cursor
 	target, err := m.ValidIndex(cur + amount)
-	if m.Len() == 0 {
-		return err
-	}
-	if amount == 0 {
-		return nil
-	}
 	if err != nil {
-		return err
+		return func() tea.Msg { return err }
 	}
+
 	d := 1
 	if amount < 0 {
 		d = -1
 	}
 	// TODO change to not O(n)
 	for c := 0; c*d < amount*d; c += d {
-		m.Swap(cur+c, cur+c+d)
+		m.listItems[cur+c], m.listItems[cur+c+d] = m.listItems[cur+c+d], m.listItems[cur+c]
 	}
 	linOff, _ := m.validOffset(target)
 	m.viewPos.LineOffset = linOff
 	m.viewPos.Cursor = target
-	return nil
+
+	return tea.Batch(func() tea.Msg { return ItemChange{} }, func() tea.Msg { return CursorIndexChange(target) })
 }
 
 // Focus sets the list Model according to focus.
@@ -541,11 +557,11 @@ func (m *Model) Focused() bool {
 	return m.focus
 }
 
-// GetIndex returns NotFound error if the Equals Methode is not set (SetEquals)
-// else it returns the index of the first found item
-func (m *Model) GetIndex(toSearch fmt.Stringer) (int, error) {
+// GetIndex returns NotFound error if the Equals Method is not set (SetEquals)
+// else it returns the index of the found item
+func (m *Model) GetIndex(toSearch fmt.Stringer) (int, tea.Cmd) {
 	if m.equals == nil {
-		return -1, NotFound(fmt.Errorf("no equals function provided. Use SetEquals to set it"))
+		return -1, func() tea.Msg { return NotFound(fmt.Errorf("no equals function provided. Use SetEquals to set it")) }
 	}
 	tmpList := m.listItems
 	matchList := make([]chan bool, len(tmpList))
@@ -568,61 +584,70 @@ func (m *Model) GetIndex(toSearch fmt.Stringer) (int, error) {
 	}
 	if c > 1 {
 		// TODO performance: trust User and remove check for multiple matches?
-		return -c, MultipleMatches(fmt.Errorf("The provided equals function yields multiple matches betwen one and other fmt.Stringer's"))
+		return -c, func() tea.Msg {
+			return MultipleMatches(fmt.Errorf("The provided equals function yields multiple matches betwen one and other fmt.Stringer's"))
+		}
 	}
 	return lastIndex, nil
 }
 
 // UpdateItem takes a index and updates the item at the index with the given function
 // or if index outside the list returns OutOfBounds error.
-// If the returned fmt.Stringer value is nil, then the item gets removed from the list and a NilValue error is returned.
-func (m *Model) UpdateItem(index int, updater func(fmt.Stringer) (fmt.Stringer, tea.Cmd)) (tea.Cmd, error) {
+// If the returned fmt.Stringer value is nil, then the item gets removed from the list.
+// If you want to keep the list sorted run Sort() after updating a item.
+// tea.Cmd contains the cmd returned by the updater and possible ItemChange or CursorItemChange through tea.Cmd.
+func (m *Model) UpdateItem(index int, updater func(fmt.Stringer) (fmt.Stringer, tea.Cmd)) tea.Cmd {
 	index, err := m.ValidIndex(index)
-	if m.Len() == 0 {
-		return nil, err
+	if err != nil {
+		return func() tea.Msg { return err }
 	}
 	v, cmd := updater(m.listItems[index].value)
+
+	cmd = tea.Batch(func() tea.Msg { return ItemChange{} }, cmd)
+	if index == m.viewPos.Cursor {
+		cmd = tea.Batch(func() tea.Msg { return CursorItemChange{} }, cmd)
+	}
 	// remove item when value equals nil
 	if v == nil {
 		m.RemoveIndex(index)
-		return cmd, NilValue(fmt.Errorf("cant add nil value to list"))
+		return cmd
 	}
 	m.listItems[index].value = v
-	return cmd, err
+	return cmd
 }
 
-// GetCursorIndex returns the current cursor position
-// within the List and also NotFocused error if the Model is not focused
+// GetCursorIndex returns the current cursor position within the List,
+// and also NotFocused error through tea.Cmd if the Model is not focused,
 // or a NoItems error if the list has no items on which the cursor could be.
-func (m *Model) GetCursorIndex() (int, error) {
+func (m *Model) GetCursorIndex() (int, tea.Cmd) {
 	if m.Len() == 0 {
-		return 0, NoItems(fmt.Errorf("the list has no items on which the cursor could be"))
+		return 0, func() tea.Msg { return NoItems(fmt.Errorf("the list has no items on which the cursor could be")) }
 	}
 	if !m.focus {
-		return m.viewPos.Cursor, NotFocused(fmt.Errorf("Model is not focused"))
+		return m.viewPos.Cursor, func() tea.Msg { return NotFocused(fmt.Errorf("Model is not focused")) }
 	}
 	return m.viewPos.Cursor, nil
 }
 
-// GetCursorItem returns the item at the current cursor position
-// within the List and also NotFocused error if the Model is not focused
+// GetCursorItem returns the item at the current cursor position within the List
+// and also NotFocused error through tea.Cmd if the Model is not focused
 // or a NoItems error if the list has no items on which the cursor could be.
-func (m *Model) GetCursorItem() (fmt.Stringer, error) {
+func (m *Model) GetCursorItem() (fmt.Stringer, tea.Cmd) {
 	if m.Len() == 0 {
-		return nil, NoItems(fmt.Errorf("the list has no items on which the cursor could be"))
+		return nil, func() tea.Msg { return NoItems(fmt.Errorf("the list has no items on which the cursor could be")) }
 	}
 	if !m.focus {
-		return m.listItems[m.viewPos.Cursor].value, NotFocused(fmt.Errorf("Model is not focused"))
+		return m.listItems[m.viewPos.Cursor].value, func() tea.Msg { return NotFocused(fmt.Errorf("Model is not focused")) }
 	}
 	return m.listItems[m.viewPos.Cursor].value, nil
 }
 
 // GetItem returns the item if the index exists
-// a error otherwise.
-func (m *Model) GetItem(index int) (fmt.Stringer, error) {
+// a error through tea.Cmd otherwise.
+func (m *Model) GetItem(index int) (fmt.Stringer, tea.Cmd) {
 	index, err := m.ValidIndex(index)
-	if m.Len() == 0 {
-		return nil, err
+	if err != nil {
+		return nil, func() tea.Msg { return err }
 	}
 	return m.listItems[index].value, nil
 }
@@ -644,7 +669,7 @@ func (m *Model) Copy() *Model {
 	return copiedModel
 }
 
-// GetID returns a new for this list unique id
+// getID returns a new for this list unique id
 // to identify the items and set the cursor after sorting correctly.
 func (m *Model) getID() int {
 	if m.requestID == nil || m.resultID == nil {

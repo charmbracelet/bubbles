@@ -91,3 +91,36 @@ func MakeStringerList(list []string) []fmt.Stringer {
 	}
 	return stringerList
 }
+
+type itemList struct {
+	list *[]item
+	less *func(fmt.Stringer, fmt.Stringer) bool
+}
+
+// Less is a Proxy to the less function, set from the user.
+// since the Sort-interface demands a Less Methode without a error return value
+// so we sadly have to returns silently if a index is out side the list, to not panic.
+
+func (m *itemList) Less(i, j int) bool {
+	// If User does not provide less function use string comparison, but dont change m.less, to be able to see when user set one.
+	if *m.less == nil {
+		return (*m.list)[i].value.String() < (*m.list)[j].value.String()
+	}
+	return (*m.less)((*m.list)[i].value, (*m.list)[j].value)
+}
+
+// Swap swaps the items position within the list
+// and is used to fulfill the Sort-interface
+// since the Sort-interface demands a Swap Methode without a error return value
+// so we sadly have to returns silently if a index is out side the list, to not panic.
+
+func (m *itemList) Swap(i, j int) {
+	(*m.list)[i], (*m.list)[j] = (*m.list)[j], (*m.list)[i]
+}
+
+// Len returns the amount of list-items
+// and is used to fulfill the Sort-interface
+
+func (m *itemList) Len() int {
+	return len(*m.list)
+}

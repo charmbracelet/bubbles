@@ -91,8 +91,12 @@ func (m *model) SetStyle(index int, style termenv.Style) error {
 		i.style = style
 		return i, nil
 	}
-	_, err := m.list.UpdateItem(index, updater)
-	return err
+	_, err := m.list.ValidIndex(index)
+	if err != nil {
+		return err
+	}
+	m.list.UpdateItem(index, updater)
+	return nil
 }
 
 type stringItem struct {
@@ -212,7 +216,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return item, cmd
 		}
 		i, _ := m.list.GetCursorIndex()
-		cmd, _ := m.list.UpdateItem(i, updater)
+		cmd := m.list.UpdateItem(i, updater)
 		return m, cmd
 	}
 
@@ -401,11 +405,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				j, _ = strconv.Atoi(m.jump)
 				m.jump = ""
 			}
-			var err error
+			var ok bool
 			var i int
-			for c := 0; c < j && err == nil; c++ {
+			for c := 0; c < j && !ok; c++ {
 				i, _ = m.list.GetCursorIndex()
-				_, err = m.list.RemoveIndex(i)
+				_, cmd := m.list.RemoveIndex(i)
+				_, ok = cmd().(error)
 			}
 			return m, nil
 

@@ -7,35 +7,6 @@ import (
 	"testing"
 )
 
-// TestViewPanic runs the View on various model list model states that should yield a panic
-func TestNoAreaPanic(t *testing.T) {
-	m := NewModel()
-	var panicMsg interface{}
-	defer func() {
-		panicMsg, _ = recover().(string)
-		if panicMsg != "Can't display with zero width or hight of Viewport" {
-			t.Errorf("No Panic or wrong panic message: %s", panicMsg)
-		}
-	}()
-	m.View()
-}
-
-// TestNoContentSpacePanic Fails if after the Prefixer Width is subtracted there is still spaces left for contnent when there shouldent be
-func TestNoContentSpacePanic(t *testing.T) {
-	m := NewModel()
-	m.Screen = ScreenInfo{Width: 1, Height: 50}
-	m.PrefixGen = NewPrefixer()
-	m.SuffixGen = NewSuffixer()
-	var panicMsg interface{}
-	defer func() {
-		panicMsg, _ = recover().(string)
-		if panicMsg != "Can't display with zero width for content" {
-			t.Errorf("No Panic or wrong panic message: %s", panicMsg)
-		}
-	}()
-	m.View()
-}
-
 // TestLines test if the models Lines methode returns the write amount of lines
 func TestEmptyLines(t *testing.T) {
 	m := NewModel()
@@ -172,27 +143,31 @@ func TestMovementKeys(t *testing.T) {
 	m.AddItems(MakeStringerList([]string{"\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n", "\n"}))
 
 	start, finish := 0, 1
-	_, err := m.MoveCursor(1)
+	_, cmd := m.MoveCursor(1)
+	err, ok := cmd().(error)
 	if m.viewPos.Cursor != finish || err != nil {
 		t.Errorf("'MoveCursor(1)' should have nil error but got: '%#v' and move the Cursor to index '%d', but got: %d", err, finish, m.viewPos.Cursor)
 	}
 	start, finish = 15, 14
 	m.viewPos.Cursor = start
-	_, err = m.MoveCursor(-1)
+	_, cmd = m.MoveCursor(-1)
+	err, ok = cmd().(error)
 	if m.viewPos.Cursor != finish || err != nil {
 		t.Errorf("'MoveCursor(-1)' should have nil error but got: '%#v' and move the Cursor to index '%d', but got: %d", err, finish, m.viewPos.Cursor)
 	}
 
 	start, finish = 55, 56
 	m.viewPos.Cursor = start
-	err = m.MoveItem(1)
+	cmd = m.MoveItem(1)
+	err, ok = cmd().(error)
 	if m.viewPos.Cursor != finish || err != nil {
 		t.Errorf("'MoveItem(1)' should have nil error but got: '%#v' and move the Cursor to index '%d', but got: %d", err, finish, m.viewPos.Cursor)
 	}
 	m.viewPos.LineOffset = 15
 	start, finish = 15, 14
 	m.viewPos.Cursor = start
-	err = m.MoveItem(-1)
+	cmd = m.MoveItem(-1)
+	err, ok = cmd().(error)
 	if m.viewPos.Cursor != finish || err != nil {
 		t.Errorf("'MoveItem(-1)' should have nil error but got: '%#v' and move the Cursor to index '%d', but got: %d", err, finish, m.viewPos.Cursor)
 	}
@@ -200,18 +175,21 @@ func TestMovementKeys(t *testing.T) {
 		t.Errorf("up movement should change the Item offset to '14' but got: %d", m.viewPos.LineOffset)
 	}
 	finish = m.Len() - 1
-	err = m.Bottom()
+	cmd = m.Bottom()
+	err, ok = cmd().(error)
 	if m.viewPos.Cursor != finish || err != nil {
 		t.Errorf("'Bottom()' should have nil error but got: '%#v' and move the Cursor to last index: '%d', but got: %d", err, m.Len()-1, m.viewPos.Cursor)
 	}
 	finish = 0
 	m.viewPos.Cursor = start
-	err = m.Top()
+	cmd = m.Top()
+	err, ok = cmd().(error)
 	if m.viewPos.Cursor != finish || err != nil {
 		t.Errorf("'Top()' should have nil error but got: '%#v' and move the Cursor to index '%d', but got: %d", err, finish, m.viewPos.Cursor)
 	}
-	_, err = m.SetCursor(10)
-	if m.viewPos.Cursor != 10 || err != nil {
+	_, cmd = m.SetCursor(10)
+	err, ok = cmd().(error)
+	if m.viewPos.Cursor != 10 || ok && err != nil {
 		t.Errorf("SetCursor should set the cursor to index '10' but gut '%d' and err should be nil but got '%s'", m.viewPos.Cursor, err)
 	}
 }
@@ -261,15 +239,16 @@ func TestUnfocused(t *testing.T) {
 // TestGetIndex sets a equals function and searches After the index of a specific item with GetIndex
 func TestGetIndex(t *testing.T) {
 	m := NewModel()
-	_, err := m.GetIndex(StringItem("z"))
-	if err == nil {
+	_, cmd := m.GetIndex(StringItem("z"))
+	err, ok := cmd().(error)
+	if !ok || err == nil {
 		t.Errorf("Get Index should return a error but got nil")
 	}
 	m.AddItems(MakeStringerList([]string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"}))
 	m.SetEquals(func(a, b fmt.Stringer) bool { return a.String() == b.String() })
-	index, err := m.GetIndex(StringItem("z"))
-	if err != nil {
-		t.Errorf("GetIndex should not return error: %s", err)
+	index, cmd := m.GetIndex(StringItem("z"))
+	if cmd != nil {
+		t.Errorf("GetIndex should not return a command: %s", err)
 	}
 	if index != m.Len()-1 {
 		t.Errorf("GetIndex returns wrong index: '%d' instead of '%d'", index, m.Len()-1)
@@ -332,21 +311,21 @@ func TestSetCursor(t *testing.T) {
 	}
 	toTest := []test{
 		// forwards
-		{ViewPos{0, 0}, -2, ViewPos{5, 0}},
+		{ViewPos{0, 0}, -2, ViewPos{0, 0}}, // wrong request -> no change
 		{ViewPos{0, 0}, 2, ViewPos{5, 2}},
 		{ViewPos{0, 4}, 8, ViewPos{8, 8}},
 		{ViewPos{0, 5}, 0, ViewPos{5, 0}},
 		{ViewPos{0, 0}, 19, ViewPos{38, 19}},
 		{ViewPos{0, 0}, 25, ViewPos{44, 25}},
-		{ViewPos{0, 0}, 100, ViewPos{44, 72}},
+		{ViewPos{0, 0}, 100, ViewPos{0, 0}}, // wrong request -> no change
 		// backwards
-		{ViewPos{45, m.Len() - 1}, -2, ViewPos{5, 0}},
+		{ViewPos{45, m.Len() - 1}, -2, ViewPos{45, m.Len() - 1}}, // wrong request -> no change
 		{ViewPos{45, m.Len() - 1}, 2, ViewPos{5, 2}},
 		{ViewPos{45, m.Len() - 1}, 8, ViewPos{5, 8}},
 		{ViewPos{45, m.Len() - 1}, 0, ViewPos{5, 0}},
 		{ViewPos{45, m.Len() - 1}, 19, ViewPos{5, 19}},
 		{ViewPos{45, m.Len() - 1}, 25, ViewPos{5, 25}},
-		{ViewPos{45, m.Len() - 1}, 100, ViewPos{45, 72}},
+		{ViewPos{45, m.Len() - 1}, 100, ViewPos{45, m.Len() - 1}}, // wrong request -> no change
 	}
 	for i, tCase := range toTest {
 		m.viewPos = tCase.oldView
@@ -360,18 +339,19 @@ func TestSetCursor(t *testing.T) {
 // TestMoveItem test wrong arguments
 func TestMoveItem(t *testing.T) {
 	m := NewModel()
-	err := m.MoveItem(0)
-	_, ok := err.(OutOfBounds)
+	cmd := m.MoveItem(0)
+	err, ok := cmd().(OutOfBounds)
 	if !ok {
 		t.Errorf("MoveItem called on a empty list should return a OutOfBounds error, but got: %s", err)
 	}
 	m.AddItems(MakeStringerList([]string{""}))
-	err = m.MoveItem(0)
-	if err != nil {
-		t.Errorf("MoveItem(0) should not not return a error on a not empty list")
+	cmd = m.MoveItem(0)
+	err, ok = cmd().(error)
+	if ok && err != nil {
+		t.Errorf("MoveItem(0) should not return a error on a not empty list, but got '%s'", err)
 	}
-	err = m.MoveItem(1)
-	_, ok = err.(OutOfBounds)
+	cmd = m.MoveItem(1)
+	err, ok = cmd().(OutOfBounds)
 	if !ok {
 		t.Errorf("MoveItem should return a OutOfBounds error if traget is beyond list border, but got: '%s'", err)
 	}
