@@ -134,7 +134,7 @@ func (m Model) finished() bool {
 
 // Visible returns whether or not the view should be rendered. Works in
 // conjunction with Model.HideFor and Model.MinimumLifetimeReached. You should
-// use this message directly to determine whether or not to render this view in
+// use this method directly to determine whether or not to render this view in
 // the parent view and whether to continue sending spin messaging in the
 // parent update function.
 //
