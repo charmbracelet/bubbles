@@ -1,9 +1,11 @@
 package spinner
 
 import (
+	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/muesli/reflow/ansi"
 	"github.com/muesli/termenv"
 )
 
@@ -105,10 +107,41 @@ type Model struct {
 // Start resets resets the spinner start time. For use with MinimumLifetime and
 // MinimumStartTime. Optional.
 //
+// This function is optional and generally considered for advanced use only.
+// Most of the time your application logic will obviate the need for this
+// method.
+//
 // This is considered experimental and may not appear in future versions of
 // this library.
 func (m *Model) Start() {
 	m.startTime = time.Now()
+}
+
+// Finish sets the internal timer to a completed state so long as the spinner
+// isn't flagged to be showing. If it is showing, finish has no effect. The
+// idea here is that you call Finish if your operation has completed and, if
+// the spinner isn't showing yet (by virtue of HideFor) then Visible() doesn't
+// show the spinner at all.
+//
+// This is intended to work in conjunction with MinimumLifetime and
+// MinimumStartTime, is completely optional.
+//
+// This function is optional and generally considered for advanced use only.
+// Most of the time your application logic will obviate the need for this
+// method.
+//
+// This is considered experimental and may not appear in future versions of
+// this library.
+func (m *Model) Finish() {
+	if m.hidden() {
+		m.startTime = time.Time{}
+	}
+}
+
+// advancedMode returns whether or not the user is making use of HideFor and
+// MinimumLifetime properties.
+func (m Model) advancedMode() bool {
+	return m.HideFor > 0 && m.MinimumLifetime > 0
 }
 
 // hidden returns whether or not Model.HideFor is in effect.
@@ -125,10 +158,7 @@ func (m Model) hidden() bool {
 // finished returns whether the minimum lifetime of this spinner has been
 // exceeded.
 func (m Model) finished() bool {
-	if m.startTime.IsZero() {
-		return true
-	}
-	if m.MinimumLifetime == 0 {
+	if m.startTime.IsZero() || m.MinimumLifetime == 0 {
 		return true
 	}
 	return m.startTime.Add(m.HideFor).Add(m.MinimumLifetime).Before(time.Now())
@@ -140,9 +170,9 @@ func (m Model) finished() bool {
 // the parent view and whether to continue sending spin messaging in the
 // parent update function.
 //
-// Also note that using this function is optional and generally considered for
-// advanced use only. Most of the time your application logic will determine
-// whether or not this view should be used.
+// This function is optional and generally considered for advanced use only.
+// Most of the time your application logic will obviate the need for this
+// method.
 //
 // This is considered experimental and may not appear in future versions of
 // this library.
@@ -194,6 +224,13 @@ func (m Model) View() string {
 	}
 
 	frame := m.Spinner.Frames[m.frame]
+
+	// If we're using the fine-grained hide/show spinner rules and those rules
+	// deem that the spinner should be hidden, draw an empty space in place of
+	// the spinner.
+	if m.advancedMode() && !m.Visible() {
+		frame = strings.Repeat(" ", ansi.PrintableRuneWidth(frame))
+	}
 
 	if m.ForegroundColor != "" || m.BackgroundColor != "" {
 		return termenv.
