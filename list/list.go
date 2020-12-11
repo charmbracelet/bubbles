@@ -69,15 +69,9 @@ func (m Model) Init() tea.Cmd {
 // and returns "empty" if the list has no items. This might change in the future.
 func (m Model) View() string {
 
-	lines := m.Lines()
-
-	if m.Len() == 0 {
-		// TODO make empty string handling better, custom empty function?
-		if len(lines) > 0 {
-			lines[0] = "empty"
-		} else {
-			lines = []string{"empty"}
-		}
+	lines, err := m.lines()
+	if err != nil {
+		return err.Error()
 	}
 
 	return strings.Join(lines, "\n")
@@ -137,13 +131,24 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // Lines renders the visible lines of the list
 // by calling the String Methodes of the items
 // and if present the pre- and suffix function.
-// It fails silently (with a string message),
-// if there is not enough space for the content left.
-func (m *Model) Lines() []string {
-	//TODO add error return value
+// If there is not enough space, or there a no
+// item within the list, nil and a error is returned.
+func (m Model) Lines() ([]string, error) {
+	return m.lines()
+}
+
+// lines is a method which gets called by View and Lines,
+// because the are functions and if the View would call the Lines function directly,
+// the model would be copied twice, once for the View call and ones for the Lines call.
+// But since they both (Lines and View) can call this method,
+// its only one copy of the model when caling either View or Lines.
+func (m *Model) lines() ([]string, error) {
+	if m.Len() == 0 {
+		return nil, NoItems(fmt.Errorf("no items within the list"))
+	}
 	// check visible area
 	if m.Screen.Height*m.Screen.Width <= 0 {
-		return []string{"Can't display with zero width or hight of Viewport"}
+		return nil, fmt.Errorf("Can't display with zero width or hight of Viewport")
 	}
 	// Get the Width of each suf/prefix
 	var prefixWidth, suffixWidth int
@@ -158,7 +163,7 @@ func (m *Model) Lines() []string {
 
 	// Check if there is space for the content left
 	if contentWidth <= 0 {
-		return []string{"no space for content left"}
+		return nil, fmt.Errorf("Can't display with zero width or hight of Viewport")
 	}
 
 	linesBefor := make([]string, 0, m.viewPos.LineOffset)
@@ -187,8 +192,11 @@ func (m *Model) Lines() []string {
 			allLines = append(allLines, itemLines[i])
 		}
 	}
+	if len(allLines) == 0 {
+		return nil, fmt.Errorf("no visible lines")
+	}
 
-	return allLines
+	return allLines, nil
 }
 
 // NoItems is a error returned when the list is empty
@@ -374,6 +382,8 @@ func (m *Model) Bottom() tea.Cmd {
 // AddItems adds the given Items to the list Model. Run Sort() afterwards, if you want to keep the list sorted.
 // If entrys of itemList are nil they will not be added, and a NilValue error is returned through tea.Cmd.
 // Neither the cursor item nor its index will change, but if items where added, tea.Cmd will yield a ItemChange Msg.
+// If you add very many Items, the program will get slower, since bubbletea is a elm architektur,
+// Update and View are functions and are call with a copy of the list-Model which takes more time if the Model/List is bigger.
 func (m *Model) AddItems(itemList []fmt.Stringer) tea.Cmd {
 	if len(itemList) == 0 {
 		return nil

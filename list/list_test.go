@@ -15,12 +15,14 @@ func TestEmptyLines(t *testing.T) {
 		t.Error("Init should do nothing") // yet
 	}
 	m.Screen = ScreenInfo{Height: 50, Width: 80}
-	if len(m.Lines()) != 0 {
-		t.Error("A list with no entrys should return no lines.")
+	_, err := m.Lines()
+	if err == nil {
+		t.Error("A list with no entrys should return a error.")
 	}
 	m.Sort()
-	if len(m.Lines()) != 0 {
-		t.Error("A list with no entrys should return no lines.")
+	_, err = m.Lines()
+	if err == nil {
+		t.Error("A list with no entrys should return a error.")
 	}
 }
 
@@ -62,7 +64,7 @@ func TestBasicsLines(t *testing.T) {
 	}
 
 	m.Top()
-	out := m.Lines()
+	out, _ := m.Lines()
 	if len(out) > 50 {
 		t.Errorf("Lines should never have more (%d) lines than Screen has lines: %d", len(out), m.Screen.Height)
 	}
@@ -89,7 +91,7 @@ func TestWrappedLines(t *testing.T) {
 	m.Screen = ScreenInfo{Height: 50, Width: 80}
 	m.AddItems(MakeStringerList([]string{"\n0", "1\n2", "3\n4", "5\n6", "7\n8"}))
 
-	out := m.Lines()
+	out, _ := m.Lines()
 	wrap, sep := "│", "╭"
 	num := "\x1b[7m  "
 	for i := 1; i < len(out); i++ {
@@ -113,7 +115,7 @@ func TestMultiLineBreaks(t *testing.T) {
 	m.SuffixGen = NewSuffixer()
 	m.Screen = ScreenInfo{Height: 50, Width: 80}
 	m.AddItems(MakeStringerList([]string{"\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n"}))
-	out := m.Lines()
+	out, _ := m.Lines()
 	prefix := "\x1b[7m 1╭>"
 	for i, line := range out {
 		if !strings.HasPrefix(line, prefix) {
