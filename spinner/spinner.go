@@ -99,6 +99,7 @@ type Model struct {
 
 	frame     int
 	startTime time.Time
+	tag       int
 }
 
 // Start resets resets the spinner start time. For use with MinimumLifetime and
@@ -121,7 +122,8 @@ func (m Model) hidden() bool {
 	return m.startTime.Add(m.HideFor).After(time.Now())
 }
 
-// finished returns whether Model.MinimumLifetimeReached has been met.
+// finished returns whether the minimum lifetime of this spinner has been
+// exceeded.
 func (m Model) finished() bool {
 	if m.startTime.IsZero() {
 		return true
@@ -156,19 +158,30 @@ func NewModel() Model {
 // TickMsg indicates that the timer has ticked and we should render a frame.
 type TickMsg struct {
 	Time time.Time
+	tag  int
 }
 
 // Update is the Tea update function. This will advance the spinner one frame
 // every time it's called, regardless the message passed, so be sure the logic
 // is setup so as not to call this Update needlessly.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
-	switch msg.(type) {
+	switch msg := msg.(type) {
 	case TickMsg:
+
+		// If a tag is set, and it's not the one we expect, reject the message.
+		// This prevents the spinner from receiving too many messages and
+		// this spinning too fast.
+		if msg.tag > 0 && msg.tag != m.tag {
+			return m, nil
+		}
+
 		m.frame++
 		if m.frame >= len(m.Spinner.Frames) {
 			m.frame = 0
 		}
-		return m, m.tick()
+
+		m.tag++
+		return m, m.tick(m.tag)
 	default:
 		return m, nil
 	}
@@ -193,15 +206,17 @@ func (m Model) View() string {
 	return frame
 }
 
-// Tick is the command used to advance the spinner one frame.
+// Tick is the command used to advance the spinner one frame. Use this command
+// to effectively start the spinner.
 func Tick() tea.Msg {
 	return TickMsg{Time: time.Now()}
 }
 
-func (m Model) tick() tea.Cmd {
+func (m Model) tick(tag int) tea.Cmd {
 	return tea.Tick(m.Spinner.FPS, func(t time.Time) tea.Msg {
 		return TickMsg{
 			Time: t,
+			tag:  tag,
 		}
 	})
 }
