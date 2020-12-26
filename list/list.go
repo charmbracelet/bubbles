@@ -455,9 +455,9 @@ func (m *Model) ResetItems(newStringers []fmt.Stringer) tea.Cmd {
 // RemoveIndex removes and returns the item at the given index if it exists,
 // else a error is returned through the tea.Cmd.
 // If the cursor index or item has changed tea.Cmd while yield a CursorItemChange or a CursorIndexChange.
+// The cursor will hold its numeric position except the list gets to short one which case its on the end of the list.
 func (m *Model) RemoveIndex(index int) (fmt.Stringer, tea.Cmd) {
-	index, err := m.ValidIndex(index)
-	if err != nil {
+	if _, err := m.ValidIndex(index); err != nil {
 		return nil, func() tea.Msg { return err }
 	}
 	var rest []item
@@ -467,8 +467,9 @@ func (m *Model) RemoveIndex(index int) (fmt.Stringer, tea.Cmd) {
 	}
 	m.listItems = append(m.listItems[:index], rest...)
 	cmd := func() tea.Msg { return ItemChange{} }
+
 	oldCursor := m.viewPos.Cursor
-	newCursor, err := m.ValidIndex(index)
+	newCursor, err := m.ValidIndex(oldCursor)
 	newOffset, _ := m.validOffset(newCursor)
 	m.viewPos.Cursor = newCursor
 	m.viewPos.LineOffset = newOffset
@@ -607,6 +608,7 @@ func (m *Model) GetIndex(toSearch fmt.Stringer) (int, tea.Cmd) {
 // If you want to keep the list sorted run Sort() after updating a item.
 // tea.Cmd contains the cmd returned by the updater and possible ItemChange or CursorItemChange through tea.Cmd.
 func (m *Model) UpdateItem(index int, updater func(fmt.Stringer) (fmt.Stringer, tea.Cmd)) tea.Cmd {
+	// TODO should UpdateItem accept a function which also returns a error, so that no new item is accepted? Returning the same item, if something goes wrong does not feel right...
 	index, err := m.ValidIndex(index)
 	if err != nil {
 		return func() tea.Msg { return err }
