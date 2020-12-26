@@ -16,13 +16,13 @@ type item struct {
 
 // itemLines returns the lines of the item string value wrapped to the according content-width
 // and the write amount of lines accoring to m.Wrap
-func (m *Model) itemLines(i item) []string {
+func (m *Model) itemLines(i item, index int) []string {
 	var preWidth, sufWidth int
 	if m.PrefixGen != nil {
-		preWidth = m.PrefixGen.InitPrefixer(m.viewPos, m.Screen)
+		preWidth = m.PrefixGen.InitPrefixer(i.value, index, m.viewPos, m.Screen)
 	}
 	if m.SuffixGen != nil {
-		sufWidth = m.SuffixGen.InitSuffixer(m.viewPos, m.Screen)
+		sufWidth = m.SuffixGen.InitSuffixer(i.value, index, m.viewPos, m.Screen)
 	}
 	contentWith := m.Screen.Width - preWidth - sufWidth
 	// TODO hard limit the string length
@@ -40,7 +40,7 @@ func (m *Model) getItemLines(index, contentWidth int) ([]string, error) {
 		return nil, err
 	}
 	item := m.listItems[index]
-	lines := m.itemLines(item)
+	lines := m.itemLines(item, index)
 	completLines := make([]string, len(lines))
 
 	for c := 0; c < len(lines); c++ {
@@ -48,14 +48,14 @@ func (m *Model) getItemLines(index, contentWidth int) ([]string, error) {
 		// Surrounding content
 		var linePrefix, lineSuffix string
 		if m.PrefixGen != nil {
-			linePrefix = m.PrefixGen.Prefix(index, c, item.value)
+			linePrefix = m.PrefixGen.Prefix(c)
 		}
 		if m.SuffixGen != nil {
 			free := contentWidth - ansi.PrintableRuneWidth(lineContent)
 			if free < 0 {
 				free = 0 // TODO is this nessecary?
 			}
-			suffix := m.SuffixGen.Suffix(index, c, item.value)
+			suffix := m.SuffixGen.Suffix(c)
 			if suffix != "" {
 				lineSuffix = fmt.Sprintf("%s%s", strings.Repeat(" ", free), suffix)
 			}

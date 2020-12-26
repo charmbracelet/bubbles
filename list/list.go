@@ -150,27 +150,27 @@ func (m *Model) lines() ([]string, error) {
 	if m.Screen.Height*m.Screen.Width <= 0 {
 		return nil, fmt.Errorf("Can't display with zero width or hight of Viewport")
 	}
-	// Get the Width of each suf/prefix
-	var prefixWidth, suffixWidth int
-	if m.PrefixGen != nil {
-		prefixWidth = m.PrefixGen.InitPrefixer(m.viewPos, m.Screen)
-	}
-	if m.SuffixGen != nil {
-		suffixWidth = m.SuffixGen.InitSuffixer(m.viewPos, m.Screen)
-	}
-	// Get actual content width
-	contentWidth := m.Screen.Width - prefixWidth - suffixWidth
-
-	// Check if there is space for the content left
-	if contentWidth <= 0 {
-		return nil, fmt.Errorf("Can't display with zero width or hight of Viewport")
-	}
 
 	linesBefor := make([]string, 0, m.viewPos.LineOffset)
 	// loop to add the item(-lines) befor the cursor to the return lines
 	// dont add cursor item
 	for c := 1; m.viewPos.Cursor-c >= 0; c++ {
 		index := m.viewPos.Cursor - c
+		// Get the Width of each suf/prefix
+		var prefixWidth, suffixWidth int
+		if m.PrefixGen != nil {
+			prefixWidth = m.PrefixGen.InitPrefixer(m.listItems[index].value, c, m.viewPos, m.Screen)
+		}
+		if m.SuffixGen != nil {
+			suffixWidth = m.SuffixGen.InitSuffixer(m.listItems[index].value, c, m.viewPos, m.Screen)
+		}
+		// Get actual content width
+		contentWidth := m.Screen.Width - prefixWidth - suffixWidth
+
+		// Check if there is space for the content left
+		if contentWidth <= 0 {
+			return nil, fmt.Errorf("Can't display with zero width or hight of Viewport")
+		}
 		itemLines, _ := m.getItemLines(index, contentWidth)
 		// append lines in revers order
 		for i := len(itemLines) - 1; i >= 0 && len(linesBefor) < m.viewPos.LineOffset; i-- {
@@ -186,6 +186,21 @@ func (m *Model) lines() ([]string, error) {
 
 	// Handle list items, start at cursor and go till end of list or visible (break)
 	for index := m.viewPos.Cursor; index < m.Len(); index++ {
+		// Get the Width of each suf/prefix
+		var prefixWidth, suffixWidth int
+		if m.PrefixGen != nil {
+			prefixWidth = m.PrefixGen.InitPrefixer(m.listItems[index].value, index, m.viewPos, m.Screen)
+		}
+		if m.SuffixGen != nil {
+			suffixWidth = m.SuffixGen.InitSuffixer(m.listItems[index].value, index, m.viewPos, m.Screen)
+		}
+		// Get actual content width
+		contentWidth := m.Screen.Width - prefixWidth - suffixWidth
+
+		// Check if there is space for the content left
+		if contentWidth <= 0 {
+			return nil, fmt.Errorf("Can't display with zero width or hight of Viewport")
+		}
 		itemLines, _ := m.getItemLines(index, contentWidth)
 		// append lines in correct order
 		for i := 0; i < len(itemLines) && len(allLines) < m.Screen.Height; i++ {
@@ -282,7 +297,7 @@ func (m *Model) validOffset(newCursor int) (int, error) {
 
 		var lineSum int
 		for i := start; i <= stop; i++ {
-			lineSum += len(m.itemLines(m.listItems[m.viewPos.Cursor+i*d]))
+			lineSum += len(m.itemLines(m.listItems[m.viewPos.Cursor+i*d], m.viewPos.Cursor+i*d))
 		}
 		newOffset = m.viewPos.LineOffset + lineSum*d
 	}
@@ -493,7 +508,7 @@ func (m *Model) Sort() tea.Cmd {
 	if m.Len() < 1 {
 		return nil
 	}
-	var cmd tea.Cmd
+	var cmd tea.Cmd // TODO send a ItemChange cmd?
 	old := m.listItems[m.viewPos.Cursor].id
 	sort.Sort(&itemList{&(m.listItems), &(m.less)})
 	for i, item := range m.listItems {

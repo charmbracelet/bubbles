@@ -10,8 +10,8 @@ import (
 // Init gets called ones on the beginning of the Lines methode
 // and then Prefix ones, per line to draw, to generate according prefixes.
 type Prefixer interface {
-	InitPrefixer(ViewPos, ScreenInfo) int
-	Prefix(currentItem, currentLine int, item fmt.Stringer) string
+	InitPrefixer(currentItem fmt.Stringer, currentItemIndex int, viewPos ViewPos, screenInfo ScreenInfo) int
+	Prefix(currentLine int) string
 }
 
 // DefaultPrefixer is the default struct used for Prefixing a line
@@ -40,6 +40,8 @@ type DefaultPrefixer struct {
 
 	sepItem string
 	sepWrap string
+
+	currentIndex int
 }
 
 // NewPrefixer returns a DefautPrefixer with default values
@@ -61,7 +63,8 @@ func NewPrefixer() *DefaultPrefixer {
 }
 
 // InitPrefixer sets up all strings used to prefix a given line later by Prefix()
-func (d *DefaultPrefixer) InitPrefixer(position ViewPos, screen ScreenInfo) int {
+func (d *DefaultPrefixer) InitPrefixer(value fmt.Stringer, currentItemIndex int, position ViewPos, screen ScreenInfo) int {
+	d.currentIndex = currentItemIndex
 	d.viewPos = position
 
 	offset := position.Cursor - position.LineOffset
@@ -100,13 +103,13 @@ func (d *DefaultPrefixer) InitPrefixer(position ViewPos, screen ScreenInfo) int 
 }
 
 // Prefix prefixes a given line
-func (d *DefaultPrefixer) Prefix(currentIndex int, wrapIndex int, value fmt.Stringer) string {
+func (d *DefaultPrefixer) Prefix(lineIndex int) string {
 	// if a number is set, prepend first line with number and both with enough spaces
 	firstPad := strings.Repeat(" ", d.numWidth)
 	var wrapPad string
 	var lineNum int
 	if d.Number {
-		lineNum = lineNumber(d.NumberRelative, d.viewPos.Cursor, currentIndex)
+		lineNum = lineNumber(d.NumberRelative, d.viewPos.Cursor, d.currentIndex)
 	}
 	number := fmt.Sprintf("%d", lineNum)
 	// since digits are only single bytes, len is sufficient:
@@ -121,17 +124,14 @@ func (d *DefaultPrefixer) Prefix(currentIndex int, wrapIndex int, value fmt.Stri
 
 	// Current: handle highlighting of current item/first-line
 	curPad := d.unmark
-	if currentIndex == d.viewPos.Cursor {
+	if d.currentIndex == d.viewPos.Cursor {
 		curPad = d.mark
 	}
 
 	// join all prefixes
-	var wrapPrefix, linePrefix string
-
-	linePrefix = strings.Join([]string{firstPad, d.sepItem, curPad}, "")
-	if wrapIndex > 0 {
-		wrapPrefix = strings.Join([]string{wrapPad, d.sepWrap, d.unmark}, "") // don't prefix wrap lines with CurrentMarker (unmark)
-		return wrapPrefix
+	linePrefix := strings.Join([]string{firstPad, d.sepItem, curPad}, "")
+	if lineIndex > 0 {
+		linePrefix = strings.Join([]string{wrapPad, d.sepWrap, d.unmark}, "") // don't prefix wrap lines with CurrentMarker (unmark)
 	}
 
 	return linePrefix
