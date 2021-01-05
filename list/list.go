@@ -242,9 +242,10 @@ type CursorIndexChange int
 // Maybe caused by updating the item, changing the cursor position or deletion of the cursor item
 type CursorItemChange struct{}
 
-// ItemChange signals the change of the order of the items
-// or the adding, changing (updating) or deletion of items within the list
-type ItemChange struct{}
+// ListChange signals the adding, changing (updating), deletion or the change of order of items within the list
+type ListChange struct{}
+
+//TODO make New functions for errors and Messages
 
 // ValidIndex returns a error when the list has no items, is not focused, the index is out of bounds.
 // And the nearest valid index in case of OutOfBounds error, else the index it self and no error.
@@ -347,10 +348,10 @@ func (m *Model) MoveCursor(amount int) (int, tea.Cmd) {
 // the cursor is not moved and the returning tea.Cmd while yield the according error.
 // If all goes well and the cursor has changed tea.Cmd while yield a CursorItemChange and a CursorIndexChange.
 func (m *Model) SetCursor(target int) (int, tea.Cmd) {
-	target, err1 := m.ValidIndex(target)
-	newOffset, err2 := m.validOffset(target)
-	if err1 != nil || err2 != nil {
-		return target, tea.Batch(func() tea.Msg { return err1 }, func() tea.Msg { return err2 })
+	target, err := m.ValidIndex(target)
+	newOffset, _ := m.validOffset(target)
+	if err != nil {
+		return target, func() tea.Msg { return err }
 	}
 	if target == m.viewPos.Cursor {
 		return target, nil
@@ -396,7 +397,7 @@ func (m *Model) Bottom() tea.Cmd {
 
 // AddItems adds the given Items to the list Model. Run Sort() afterwards, if you want to keep the list sorted.
 // If entrys of itemList are nil they will not be added, and a NilValue error is returned through tea.Cmd.
-// Neither the cursor item nor its index will change, but if items where added, tea.Cmd will yield a ItemChange Msg.
+// Neither the cursor item nor its index will change, but if items where added, tea.Cmd will yield a ListChange Msg.
 // If you add very many Items, the program will get slower, since bubbletea is a elm architektur,
 // Update and View are functions and are call with a copy of the list-Model which takes more time if the Model/List is bigger.
 func (m *Model) AddItems(itemList []fmt.Stringer) tea.Cmd {
@@ -416,7 +417,7 @@ func (m *Model) AddItems(itemList []fmt.Stringer) tea.Cmd {
 	var err error
 	var cmd tea.Cmd
 	if oldLenght != m.Len() {
-		cmd = func() tea.Msg { return ItemChange{} }
+		cmd = func() tea.Msg { return ListChange{} }
 	}
 	if m.Len() < oldLenght+len(itemList) {
 		err = NilValue(fmt.Errorf("there where '%d' nil values which where not added", m.Len()-oldLenght+len(itemList)))
@@ -429,7 +430,7 @@ func (m *Model) AddItems(itemList []fmt.Stringer) tea.Cmd {
 // If equals function is set and a new item yields true in comparison to the old cursor item
 // the cursor is set on this (or if equals-func is bad the last-)item.
 // If the Cursor Index or Item has changed the corrisponding tea.Cmd is returned,
-// but in any case a ItemChange is returned through the tea.Cmd.
+// but in any case a ListChange is returned through the tea.Cmd.
 func (m *Model) ResetItems(newStringers []fmt.Stringer) tea.Cmd {
 	oldCursorItem, err := m.GetCursorItem()
 	// Reset Cursor
@@ -464,7 +465,7 @@ func (m *Model) ResetItems(newStringers []fmt.Stringer) tea.Cmd {
 		// Sort will take care of the correct position of Cursor and Offset
 		cmd = m.Sort()
 	}
-	return tea.Batch(cmd, func() tea.Msg { return ItemChange{} })
+	return tea.Batch(cmd, func() tea.Msg { return ListChange{} })
 }
 
 // RemoveIndex removes and returns the item at the given index if it exists,
@@ -481,7 +482,7 @@ func (m *Model) RemoveIndex(index int) (fmt.Stringer, tea.Cmd) {
 		rest = m.listItems[index+1:]
 	}
 	m.listItems = append(m.listItems[:index], rest...)
-	cmd := func() tea.Msg { return ItemChange{} }
+	cmd := func() tea.Msg { return ListChange{} }
 
 	oldCursor := m.viewPos.Cursor
 	newCursor, err := m.ValidIndex(oldCursor)
@@ -498,23 +499,25 @@ func (m *Model) RemoveIndex(index int) (fmt.Stringer, tea.Cmd) {
 	return itemValue, cmd
 }
 
-// Sort sorts the list items according to the set less-function
-// If its not set than order after string.
-// Internally the Sort method uses the sort.Sort interface, so this is not guaranteed to be a stable sort.
+// Sort sorts the list items according to the set less-function or, if not set, after String comparison.
+// Internally the sort.Sort interface is used, so this is not guaranteed to be a stable sort.
 // If you need stable sorting, sort the items your self and reset the list with them.
-// While sorting the cursor item can not change, but the cursor index can.
-// So a CursorIndexChange Msg through tea.Cmd is returned in this case.
+// While sorting the cursor item can not change, but the cursor index can,
+// so a CursorIndexChange Msg through tea.Cmd is returned in this case.
+// A ListChange Cmd is returned, if the list was not empty.
 func (m *Model) Sort() tea.Cmd {
 	if m.Len() < 1 {
 		return nil
 	}
-	var cmd tea.Cmd // TODO send a ItemChange cmd?
+	cmd := func() tea.Msg { return ListChange{} }
 	old := m.listItems[m.viewPos.Cursor].id
+	// to be able to satisfy the sort.Interface without exposing a Methode which could change the List silently,
+	// a private struct (itemList) was created to fullfill it indirectly.
 	sort.Sort(&itemList{&(m.listItems), &(m.less)})
 	for i, item := range m.listItems {
 		if item.id == old {
 			if i != m.viewPos.Cursor {
-				cmd = func() tea.Msg { return CursorIndexChange(i) }
+				cmd = tea.Batch(cmd, func() tea.Msg { return CursorIndexChange(i) })
 			}
 			m.viewPos.Cursor = i
 			break
@@ -549,7 +552,7 @@ func (m *Model) GetEquals() func(first, second fmt.Stringer) bool {
 
 // MoveItem moves the current item by amount to the end of the list.
 // If the target does not exist a error is returned through tea.Cmd.
-// Else a ItemChange and a CursorIndexChange is returned.
+// Else a ListChange and a CursorIndexChange is returned.
 func (m *Model) MoveItem(amount int) tea.Cmd {
 	cur := m.viewPos.Cursor
 	target, err := m.ValidIndex(cur + amount)
@@ -569,7 +572,7 @@ func (m *Model) MoveItem(amount int) tea.Cmd {
 	m.viewPos.LineOffset = linOff
 	m.viewPos.Cursor = target
 
-	return tea.Batch(func() tea.Msg { return ItemChange{} }, func() tea.Msg { return CursorIndexChange(target) })
+	return tea.Batch(func() tea.Msg { return ListChange{} }, func() tea.Msg { return CursorIndexChange(target) })
 }
 
 // Focus sets the list Model according to focus.
@@ -621,7 +624,7 @@ func (m *Model) GetIndex(toSearch fmt.Stringer) (int, tea.Cmd) {
 // or if index outside the list returns OutOfBounds error.
 // If the returned fmt.Stringer value is nil, then the item gets removed from the list.
 // If you want to keep the list sorted run Sort() after updating a item.
-// tea.Cmd contains the cmd returned by the updater and possible ItemChange or CursorItemChange through tea.Cmd.
+// tea.Cmd contains the cmd returned by the updater and possible ListChange or CursorItemChange through tea.Cmd.
 func (m *Model) UpdateItem(index int, updater func(fmt.Stringer) (fmt.Stringer, tea.Cmd)) tea.Cmd {
 	// TODO should UpdateItem accept a function which also returns a error, so that no new item is accepted? Returning the same item, if something goes wrong does not feel right...
 	index, err := m.ValidIndex(index)
@@ -630,7 +633,7 @@ func (m *Model) UpdateItem(index int, updater func(fmt.Stringer) (fmt.Stringer, 
 	}
 	v, cmd := updater(m.listItems[index].value)
 
-	cmd = tea.Batch(func() tea.Msg { return ItemChange{} }, cmd)
+	cmd = tea.Batch(func() tea.Msg { return ListChange{} }, cmd)
 	if index == m.viewPos.Cursor {
 		cmd = tea.Batch(func() tea.Msg { return CursorItemChange{} }, cmd)
 	}
