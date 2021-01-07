@@ -91,7 +91,7 @@ func (d *TreePrefixer) InitPrefixer(value fmt.Stringer, currentItemIndex int, po
 }
 
 // Prefix prefixes a given line
-func (d *TreePrefixer) Prefix(lineIndex int) string {
+func (d *TreePrefixer) Prefix(lineIndex, allLines int) string {
 	// pad all separators to the same width for easy exchange
 	sepItem := strings.Repeat(" ", d.sepWidth-ansi.PrintableRuneWidth(d.Seperator)) + d.Seperator
 	sepWrap := strings.Repeat(" ", d.sepWidth-ansi.PrintableRuneWidth(d.SeperatorWrap)) + d.SeperatorWrap

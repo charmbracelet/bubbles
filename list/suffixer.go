@@ -10,7 +10,7 @@ import (
 // and then Suffix ones, per line to draw, to generate according suffixes.
 type Suffixer interface {
 	InitSuffixer(item fmt.Stringer, currentIndex int, viewPos ViewPos, screenInfo ScreenInfo) int
-	Suffix(currentLine int) string
+	Suffix(currentLine, allLines int) string
 }
 
 // DefaultSuffixer is more a example than a default but still it highlights
@@ -37,7 +37,7 @@ func (e *DefaultSuffixer) InitSuffixer(_ fmt.Stringer, currentItemIndex int, vie
 }
 
 // Suffix returns a suffix string for the given line
-func (e *DefaultSuffixer) Suffix(line int) string {
+func (e *DefaultSuffixer) Suffix(line, allLines int) string {
 	if e.item == e.viewPos.Cursor && line == 0 {
 		return e.currentMarker
 	}

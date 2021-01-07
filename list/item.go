@@ -41,21 +41,22 @@ func (m *Model) getItemLines(index, contentWidth int) ([]string, error) {
 	}
 	item := m.listItems[index]
 	lines := m.itemLines(item, index)
-	completLines := make([]string, len(lines))
+	lenLines := len(lines)
+	completLines := make([]string, lenLines)
 
-	for c := 0; c < len(lines); c++ {
+	for c := 0; c < lenLines; c++ {
 		lineContent := lines[c]
 		// Surrounding content
 		var linePrefix, lineSuffix string
 		if m.PrefixGen != nil {
-			linePrefix = m.PrefixGen.Prefix(c)
+			linePrefix = m.PrefixGen.Prefix(c, lenLines)
 		}
 		if m.SuffixGen != nil {
 			free := contentWidth - ansi.PrintableRuneWidth(lineContent)
 			if free < 0 {
 				free = 0 // TODO is this nessecary?
 			}
-			suffix := m.SuffixGen.Suffix(c)
+			suffix := m.SuffixGen.Suffix(c, lenLines)
 			if suffix != "" {
 				lineSuffix = fmt.Sprintf("%s%s", strings.Repeat(" ", free), suffix)
 			}

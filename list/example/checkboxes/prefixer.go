@@ -123,7 +123,7 @@ func (s *SelectPrefixer) InitPrefixer(value fmt.Stringer, currentItemIndex int, 
 }
 
 // Prefix prefixes a given line
-func (s *SelectPrefixer) Prefix(lineIndex int) string {
+func (s *SelectPrefixer) Prefix(lineIndex, allLines int) string {
 	// if a number is set, prepend first line with number and both with enough spaces
 	firstPad := strings.Repeat(" ", s.numWidth)
 	var wrapPad string

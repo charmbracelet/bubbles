@@ -11,7 +11,7 @@ import (
 // and then Prefix ones, per line to draw, to generate according prefixes.
 type Prefixer interface {
 	InitPrefixer(currentItem fmt.Stringer, currentItemIndex int, viewPos ViewPos, screenInfo ScreenInfo) int
-	Prefix(currentLine int) string
+	Prefix(currentLine, allLines int) string
 }
 
 // DefaultPrefixer is the default struct used for Prefixing a line
@@ -110,7 +110,7 @@ func (d *DefaultPrefixer) InitPrefixer(value fmt.Stringer, currentItemIndex int,
 }
 
 // Prefix prefixes a given line
-func (d *DefaultPrefixer) Prefix(lineIndex int) string {
+func (d *DefaultPrefixer) Prefix(lineIndex, allLines int) string {
 	// if a number is set, prepend first line with number and both with enough spaces
 	firstPad := strings.Repeat(" ", d.numWidth)
 	var wrapPad string
