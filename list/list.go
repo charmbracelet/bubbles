@@ -112,6 +112,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "end":
 			m.Bottom()
 			return m, nil
+		default:
+			return m, func() tea.Msg { return UnhandledKey(fmt.Errorf("no binding for the key: '%s'", msg.String())) }
 		}
 
 	case tea.MouseMsg:
@@ -234,6 +236,9 @@ type NotFocused error
 
 // NilValue is returned if there was a request to set nil as value of a list item.
 type NilValue error
+
+// UnhandledKey is returned when there is no binding for this key press.
+type UnhandledKey error
 
 // CursorIndexChange is used to signal the numeric change of the Cursor index
 type CursorIndexChange int

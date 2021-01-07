@@ -1,8 +1,10 @@
-package list
+package main
 
 import (
 	"fmt"
+	"github.com/charmbracelet/bubbles/list"
 	"github.com/muesli/reflow/ansi"
+	"github.com/muesli/termenv"
 	"strings"
 )
 
@@ -10,16 +12,15 @@ import (
 // Init gets called ones on the beginning of the Lines methode
 // and then Prefix ones, per line to draw, to generate according prefixes.
 type Prefixer interface {
-	InitPrefixer(currentItem fmt.Stringer, currentItemIndex int, viewPos ViewPos, screenInfo ScreenInfo) int
+	InitPrefixer(currentItem fmt.Stringer, currentItemIndex int, viewPos list.ViewPos, screenInfo list.ScreenInfo) int
 	Prefix(currentLine int) string
 }
 
-// DefaultPrefixer is the default struct used for Prefixing a line
-type DefaultPrefixer struct {
+// TreePrefixer is the default struct used for Prefixing a line
+type TreePrefixer struct {
 	PrefixWrap bool
 
 	// Make clear where a item begins and where it ends
-	FirstSep      string
 	Seperator     string
 	SeperatorWrap string
 
@@ -31,28 +32,25 @@ type DefaultPrefixer struct {
 	NumberRelative bool
 
 	prefixWidth int
-	viewPos     ViewPos
+	viewPos     list.ViewPos
 
+	sepWidth  int
 	markWidth int
 	numWidth  int
 
-	unmark string
-	mark   string
-
-	sepItem string
-	sepWrap string
-
 	currentIndex int
+
+	level       int
+	LevelPadder func(int) string
 }
 
 // NewPrefixer returns a DefautPrefixer with default values
-func NewPrefixer() *DefaultPrefixer {
-	return &DefaultPrefixer{
+func NewPrefixer() *TreePrefixer {
+	return &TreePrefixer{
 		PrefixWrap: true,
 
 		// Make clear where a item begins and where it ends
-		FirstSep:      "╭",
-		Seperator:     "├",
+		Seperator:     "╭",
 		SeperatorWrap: "│",
 
 		// Mark it so that even without color support all is explicit
@@ -61,12 +59,12 @@ func NewPrefixer() *DefaultPrefixer {
 		// enable Linenumber
 		Number:         true,
 		NumberRelative: false,
+		LevelPadder:    padLevel,
 	}
 }
 
 // InitPrefixer sets up all strings used to prefix a given line later by Prefix()
-func (d *DefaultPrefixer) InitPrefixer(value fmt.Stringer, currentItemIndex int, position ViewPos, screen ScreenInfo) int {
-	// TODO adapt to per item call
+func (d *TreePrefixer) InitPrefixer(value fmt.Stringer, currentItemIndex int, position list.ViewPos, screen list.ScreenInfo) int {
 	d.currentIndex = currentItemIndex
 	d.viewPos = position
 
@@ -74,46 +72,40 @@ func (d *DefaultPrefixer) InitPrefixer(value fmt.Stringer, currentItemIndex int,
 	if offset < 0 {
 		offset = 0
 	}
-	seperator := d.Seperator
-	if currentItemIndex == 0 {
-		seperator = d.FirstSep
-	}
 
-	// Get separators width
-	widthItem := ansi.PrintableRuneWidth(seperator)
-	widthWrap := ansi.PrintableRuneWidth(d.SeperatorWrap)
-
-	// Find max width
-	sepWidth := widthItem
-	if widthWrap > sepWidth {
-		sepWidth = widthWrap
+	// Get max separators width
+	d.sepWidth = ansi.PrintableRuneWidth(d.Seperator)
+	if widthWrap := ansi.PrintableRuneWidth(d.SeperatorWrap); widthWrap > d.sepWidth {
+		d.sepWidth = widthWrap
 	}
 
 	// get widest possible number, for padding
 	// TODO handle wrap, cause only correct when wrap off:
 	d.numWidth = len(fmt.Sprintf("%d", offset+screen.Height))
 
-	// pad all prefixes to the same width for easy exchange
-	// pad all separators to the same width for easy exchange
-	d.sepItem = strings.Repeat(" ", sepWidth-widthItem) + seperator
-	d.sepWrap = strings.Repeat(" ", sepWidth-widthWrap) + d.SeperatorWrap
-
 	// pad right of prefix, with length of current pointer
-	d.mark = d.CurrentMarker
-	d.markWidth = ansi.PrintableRuneWidth(d.mark)
-	d.unmark = strings.Repeat(" ", d.markWidth)
+
+	d.markWidth = ansi.PrintableRuneWidth(d.CurrentMarker)
+
+	n, ok := value.(node)
+	if ok {
+		d.level = len(n.parentIDs) - 1
+	}
 
 	// Get the hole prefix width
-	d.prefixWidth = d.numWidth + sepWidth + d.markWidth
+	d.prefixWidth = d.numWidth + d.sepWidth + d.markWidth
 
 	return d.prefixWidth
 }
 
 // Prefix prefixes a given line
-func (d *DefaultPrefixer) Prefix(lineIndex int) string {
+func (d *TreePrefixer) Prefix(lineIndex int) string {
+	// pad all separators to the same width for easy exchange
+	sepItem := strings.Repeat(" ", d.sepWidth-ansi.PrintableRuneWidth(d.Seperator)) + d.Seperator
+	sepWrap := strings.Repeat(" ", d.sepWidth-ansi.PrintableRuneWidth(d.SeperatorWrap)) + d.SeperatorWrap
+
 	// if a number is set, prepend first line with number and both with enough spaces
 	firstPad := strings.Repeat(" ", d.numWidth)
-	var wrapPad string
 	var lineNum int
 	if d.Number {
 		lineNum = lineNumber(d.NumberRelative, d.viewPos.Cursor, d.currentIndex)
@@ -127,18 +119,21 @@ func (d *DefaultPrefixer) Prefix(lineIndex int) string {
 	}
 	firstPad = strings.Repeat(" ", padTo) + number
 	// pad wrapped lines
-	wrapPad = strings.Repeat(" ", d.numWidth)
+	wrapPad := strings.Repeat(" ", d.numWidth)
 
 	// Current: handle highlighting of current item/first-line
-	curPad := d.unmark
+	curPad := strings.Repeat(" ", d.markWidth)
 	if d.currentIndex == d.viewPos.Cursor {
-		curPad = d.mark
+		curPad = d.CurrentMarker
 	}
 
 	// join all prefixes
-	linePrefix := strings.Join([]string{firstPad, d.sepItem, curPad}, "")
+	linePrefix := strings.Join([]string{firstPad, sepItem, curPad}, "")
 	if lineIndex > 0 {
-		linePrefix = strings.Join([]string{wrapPad, d.sepWrap, d.unmark}, "") // don't prefix wrap lines with CurrentMarker (unmark)
+		linePrefix = strings.Join([]string{wrapPad, sepWrap, strings.Repeat(" ", ansi.PrintableRuneWidth(curPad))}, "") // don't prefix wrap lines with CurrentMarker (unmark)
+	}
+	if d.LevelPadder != nil {
+		linePrefix += d.LevelPadder(d.level)
 	}
 
 	return linePrefix
@@ -157,4 +152,15 @@ func lineNumber(relativ bool, curser, current int) int {
 		diff *= -1
 	}
 	return diff
+}
+
+func padLevel(level int) string {
+	if level > 0 {
+		color := termenv.ColorProfile().Color("#0000ff")
+		sty := termenv.Style{}
+		sty = sty.Foreground(color)
+		sty = sty.Background(color)
+		return fmt.Sprintf("%s %s", strings.Repeat("  ", level-1), sty.Styled(" "))
+	}
+	return ""
 }

@@ -116,12 +116,6 @@ func (s stringItem) String() string {
 }
 
 func main() {
-	//f, err := os.OpenFile("list.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	//if err != nil {
-	//	log.Fatal(err)
-	//}
-	//defer f.Close()
-	//log.SetOutput(f)
 
 	m := newModel()
 	itemList := []string{
@@ -167,7 +161,7 @@ func main() {
 	p := tea.NewProgram(m)
 
 	// Use the full size of the terminal in its "alternate screen buffer"
-	fullScreen := true // change to true if you want fullscreen
+	fullScreen := true // change to false if you dont want fullscreen
 
 	if fullScreen {
 		p.EnterAltScreen()
@@ -253,6 +247,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			updater := func(toUp fmt.Stringer) (fmt.Stringer, tea.Cmd) {
 				item, _ := toUp.(stringItem)
 				item.input = textinput.NewModel()
+				item.input.Prompt = ""
 				item.input.SetValue(item.value)
 				item.input.Focus()
 				item.edit = true
@@ -361,13 +356,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.list.MoveCursor(-j)
 			return m, nil
 
-			//		case "t":
-			//			m.lastViews = append(m.lastViews, m.View())
-			//			return m, nil
-			//		case "T":
-			//			f, _ := os.OpenFile("test_cases.txt", os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
-			//			f.WriteString(strings.Join(m.lastViews, "\n##########################\n"))
-			//			return m, tea.Quit
 		case "w":
 			if m.jump != "" {
 				j, _ := strconv.Atoi(m.jump)
