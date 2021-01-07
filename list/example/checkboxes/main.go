@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"strconv"
 
 	"github.com/charmbracelet/bubbles/list"
@@ -25,8 +26,10 @@ func main() {
 	})
 	m.tail = "============================================\nuse ' ' to change the done state of a item\nuse 'q' or 'ctrl+c' to exit"
 	p := tea.NewProgram(m)
-	p.Start()
-
+	if err := p.Start(); err != nil {
+		fmt.Println("could not run program:", err)
+		os.Exit(1)
+	}
 }
 
 type item struct {

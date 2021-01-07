@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
+	"os"
 	"strings"
 )
 
@@ -57,7 +58,10 @@ func main() {
 	m.visible.PrefixGen = NewPrefixer()
 
 	p := tea.NewProgram(m)
-	p.Start()
+	if err := p.Start(); err != nil {
+		fmt.Println("could not run program:", err)
+		os.Exit(1)
+	}
 }
 
 type model struct {

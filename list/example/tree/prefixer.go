@@ -8,14 +8,6 @@ import (
 	"strings"
 )
 
-// Prefixer is used to prefix all visible Lines.
-// Init gets called ones on the beginning of the Lines methode
-// and then Prefix ones, per line to draw, to generate according prefixes.
-type Prefixer interface {
-	InitPrefixer(currentItem fmt.Stringer, currentItemIndex int, viewPos list.ViewPos, screenInfo list.ScreenInfo) int
-	Prefix(currentLine int) string
-}
-
 // TreePrefixer is the default struct used for Prefixing a line
 type TreePrefixer struct {
 	PrefixWrap bool
