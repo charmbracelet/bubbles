@@ -71,14 +71,16 @@ func TestBasicsLines(t *testing.T) {
 
 	light := "\x1b[7m"
 	cur := ">"
+	sep := "╭"
 	for i, line := range out {
 		// Check Prefixes
 		num := fmt.Sprintf("%d", i+1)
-		prefix := light + strings.Repeat(" ", 2-len(num)) + num + "╭" + cur
+		prefix := light + strings.Repeat(" ", 2-len(num)) + num + sep + cur
 		if !strings.HasPrefix(line, prefix) {
 			t.Errorf("The prefix of the line:\n%s\n with linenumber %d should be:\n%s\n", line, i, prefix)
 		}
 		cur = " "
+		sep = "├"
 		light = ""
 	}
 }
@@ -92,19 +94,22 @@ func TestWrappedLines(t *testing.T) {
 	m.AddItems(MakeStringerList([]string{"\n0", "1\n2", "3\n4", "5\n6", "7\n8"}))
 
 	out, _ := m.Lines()
-	wrap, sep := "│", "╭"
+	wrap, sep := "│", "├"
 	num := "\x1b[7m  "
 	for i := 1; i < len(out); i++ {
 		line := out[i]
 		if i%2 == 0 {
 			num = fmt.Sprintf(" %1d", (i/2)+1)
 		}
-		prefix := fmt.Sprintf("%s%s %d", num, wrap, i-1)
+		if i%2 == 1 {
+			sep = wrap
+		}
+		prefix := fmt.Sprintf("%s%s %d", num, sep, i-1)
 		if !strings.HasPrefix(line, prefix) {
 			t.Errorf("The prefix of the line:\n'%s'\n with linenumber %d should be:\n'%s'\n", line, i, prefix)
 		}
-		wrap, sep = sep, wrap
 		num = "  "
+		sep = "├"
 	}
 }
 
@@ -356,5 +361,71 @@ func TestMoveItem(t *testing.T) {
 	err, ok = cmd().(OutOfBounds)
 	if !ok {
 		t.Errorf("MoveItem should return a OutOfBounds error if traget is beyond list border, but got: '%s'", err)
+	}
+}
+
+// TestView tests if View returns a String (of a returned lines)
+func TestView(t *testing.T) {
+	m := NewModel()
+	if m.View() == "" {
+		t.Error("View should never return a empty string since this does not update the screen") // TODO changed this in bubbletea
+	}
+	if _, err := m.Lines(); err != nil && m.View() != err.Error() {
+		t.Error("if Lines returnes a error View should return the error string")
+	}
+	testStr := "test"
+	m.AddItems(MakeStringerList([]string{testStr, testStr}))
+	m.SetCursor(1)
+	if _, err := m.Lines(); err == nil {
+		t.Error("a none empty list should return a error when the screen is to small to displax anything")
+	}
+	m.Screen.Height = 10
+	m.Screen.Width = 100
+	if _, err := m.Lines(); err != nil || !strings.Contains(m.View(), testStr) {
+		t.Errorf("a none empty list should not return a error but got:\n%sand the content should be within the returned string from View:\n%s", err, m.View())
+	}
+}
+
+// TestRemoveIndex test if the item at the index was removed
+func TestRemoveIndex(t *testing.T) {
+	m := NewModel()
+	item, cmd := m.RemoveIndex(0)
+	if _, ok := cmd().(error); item != nil && ok {
+		t.Error("RemoveIndex should return a error and a nil value when the index is not valid")
+	}
+	testStr := "test"
+	m.AddItems(MakeStringerList([]string{testStr}))
+	item, cmd = m.RemoveIndex(0)
+	if _, ok := cmd().(error); item.String() != testStr && !ok && m.Len() != 0 {
+		t.Error("RemoveIndex should return no error and the corresponding string value when the index is valid")
+	}
+}
+
+// TestResetItems test if list is replaced
+func TestResetItems(t *testing.T) {
+	m := NewModel()
+	testStr := "test"
+	m.AddItems(MakeStringerList([]string{testStr}))
+	secondStr := "replaced"
+	m.ResetItems(MakeStringerList([]string{secondStr}))
+	if item, cmd := m.RemoveIndex(0); item.String() != secondStr || cmd == nil || m.Len() > 1 {
+		t.Error("ResetItems should return a command and the list should be replaced")
+	}
+}
+
+// TestUpdateItem
+func TestUpdateItem(t *testing.T) {
+	m := NewModel()
+	testStr := "test"
+	m.AddItems(MakeStringerList([]string{testStr}))
+	m.UpdateItem(0, func(fmt.Stringer) (fmt.Stringer, tea.Cmd) { return nil, nil })
+	if item, cmd := m.RemoveIndex(0); item != nil || cmd == nil {
+		t.Error("UpdateItem should return a command and the item should be deleted if the returned Stringer is nil")
+	}
+	m.AddItems(MakeStringerList([]string{testStr}))
+	secondStr := "replaced"
+	m.UpdateItem(0, func(fmt.Stringer) (fmt.Stringer, tea.Cmd) { return StringItem(secondStr), nil })
+	if item, cmd := m.RemoveIndex(0); item.String() != secondStr || cmd == nil {
+		t.Error("UpdateItem should return a command and the item should be replaced")
 	}
 }
