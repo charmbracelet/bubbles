@@ -44,9 +44,9 @@ the common, and many customization options.
 
 <img src="https://stuff.charm.sh/bubbles-examples/progress.gif" width="800" alt="Progressbar Example">
 
-A progressbar example. Supports solid and gradient fills. The empty and filled
-runes can be set to whatever you'd like. The percentage readout is customizable
-and can also be omitted entirely.
+A simple, customizable progress meter. Supports solid and gradient fills. The 
+empty and filled runes can be set to whatever you'd like. The percentage readout
+is customizable and can also be omitted entirely.
 
 ## Paginator
 
@@ -86,7 +86,6 @@ indenting and text wrapping.
 
 Part of [Charm](https://charm.sh).
 
-<a href="https://charm.sh/"><img alt="the Charm logo" src="https://stuff.charm.sh/charm-badge.jpg" width="400"></a>
+<a href="https://charm.sh/"><img alt="The Charm logo" src="https://stuff.charm.sh/charm-badge-unrounded.jpg" width="400"></a>
 
 Charm热爱开源! / Charm loves open source!
-
