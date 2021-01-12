@@ -44,9 +44,12 @@ the common, and many customization options.
 
 <img src="https://stuff.charm.sh/bubbles-examples/progress.gif" width="800" alt="Progressbar Example">
 
-A simple, customizable progress meter. Supports solid and gradient fills. The 
+A simple, customizable progress meter. Supports solid and gradient fills. The
 empty and filled runes can be set to whatever you'd like. The percentage readout
 is customizable and can also be omitted entirely.
+
+* [Example code](https://github.com/charmbracelet/bubbletea/blob/master/examples/progress/main.go)
+
 
 ## Paginator
 
