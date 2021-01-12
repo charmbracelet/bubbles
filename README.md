@@ -40,6 +40,14 @@ the common, and many customization options.
 * [Example code, many fields](https://github.com/charmbracelet/tea/tree/master/examples/textinputs/main.go)
 
 
+## Progress
+
+<img src="https://stuff.charm.sh/bubbles-examples/progress.gif" width="800" alt="Progressbar Example">
+
+A progressbar example. Supports solid and gradient fills. The empty and filled
+runes can be set to whatever you'd like. The percentage readout is customizable
+and can also be omitted entirely.
+
 ## Paginator
 
 <img src="https://stuff.charm.sh/bubbles-examples/pagination.gif" width="200" alt="Paginator Example">
