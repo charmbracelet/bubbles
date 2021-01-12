@@ -70,7 +70,7 @@ browse SSH keys.
 
 A viewport for vertically scrolling content. Optionally includes standard
 pager keybindings and mouse wheel support. A high performance mode is available
-for applications which make use of the alterate screen buffer.
+for applications which make use of the alternate screen buffer.
 
 * [Example code](https://github.com/charmbracelet/tea/tree/master/examples/pager/main.go)
 
