@@ -560,11 +560,6 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 // View renders the textinput in its current state.
 func (m Model) View() string {
-	// Placeholder text
-	if len(m.value) == 0 && m.Placeholder != "" {
-		return m.placeholderView()
-	}
-
 	value := m.value[m.offset:m.offsetRight]
 	pos := max(0, m.pos-m.offset)
 	v := m.colorText(m.echoTransform(string(value[:pos])))
@@ -572,6 +567,16 @@ func (m Model) View() string {
 	if pos < len(value) {
 		v += m.cursorView(m.echoTransform(string(value[pos])))   // cursor and text under it
 		v += m.colorText(m.echoTransform(string(value[pos+1:]))) // text after cursor
+
+		// if placeholder available, render remain placeholder text
+		if strings.HasPrefix(m.Placeholder,string(m.value)) && m.Placeholder != "" {
+			v += m.colorText(m.echoTransform(
+				m.colorPlaceholder(
+					m.Placeholder[len(string(m.value))+1:],
+				),
+			))
+		}
+
 	} else {
 		v += m.cursorView(" ")
 	}
@@ -589,26 +594,6 @@ func (m Model) View() string {
 			padding,
 		)
 	}
-
-	return m.Prompt + v
-}
-
-// placeholderView returns the prompt and placeholder view, if any.
-func (m Model) placeholderView() string {
-	var (
-		v string
-		p = m.Placeholder
-	)
-
-	// Cursor
-	if m.blink && m.PlaceholderColor != "" {
-		v += m.cursorView(m.colorPlaceholder(p[:1]))
-	} else {
-		v += m.cursorView(p[:1])
-	}
-
-	// The rest of the placeholder text
-	v += m.colorPlaceholder(p[1:])
 
 	return m.Prompt + v
 }
