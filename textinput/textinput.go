@@ -564,21 +564,46 @@ func (m Model) View() string {
 	pos := max(0, m.pos-m.offset)
 	v := m.colorText(m.echoTransform(string(value[:pos])))
 
+	// cursor inside value
 	if pos < len(value) {
-		v += m.cursorView(m.echoTransform(string(value[pos])))   // cursor and text under it
-		v += m.colorText(m.echoTransform(string(value[pos+1:]))) // text after cursor
-
-		// if placeholder available, render remain placeholder text
-		if strings.HasPrefix(m.Placeholder,string(m.value)) && m.Placeholder != "" {
-			v += m.colorText(m.echoTransform(
-				m.colorPlaceholder(
-					m.Placeholder[len(string(m.value))+1:],
-				),
-			))
+		// check if pos match placeholder
+		// render cursor
+		if strings.HasPrefix(m.Placeholder, string(m.value)) && m.Placeholder != "" {
+			// Cursor
+			if m.blink && m.PlaceholderColor != "" {
+				v += m.cursorView(m.colorPlaceholder(m.Placeholder[:1]))
+			} else {
+				v += m.cursorView(m.Placeholder[:1])
+			}
+		} else {
+			v += m.cursorView(m.echoTransform(string(value[pos])))
 		}
 
+		// text after cursor
+		v += m.colorText(m.echoTransform(string(value[pos+1:])))
 	} else {
-		v += m.cursorView(" ")
+		// check if pos match placeholder
+		// render cursor
+		if strings.HasPrefix(m.Placeholder, string(m.value)) && m.Placeholder != "" && len(m.Placeholder) >= pos+1 {
+			// Cursor
+			if m.blink && m.PlaceholderColor != "" {
+				v += m.cursorView(m.colorPlaceholder(m.Placeholder[pos : pos+1]))
+			} else {
+				v += m.cursorView(m.Placeholder[pos : pos+1])
+			}
+		} else {
+			v += m.cursorView(" ")
+		}
+
+	}
+
+	// if placeholder available, render remain placeholder text
+	if strings.HasPrefix(m.Placeholder, string(m.value)) && m.Placeholder != "" && len(m.Placeholder) > len(string(m.value)) {
+		v += m.colorText(m.echoTransform(
+			m.colorPlaceholder(
+				m.Placeholder[len(string(m.value))+1:],
+			),
+		))
 	}
 
 	// If a max width and background color were set fill the empty spaces with
