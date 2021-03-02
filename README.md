@@ -10,12 +10,13 @@ Bubbles
 [![Build Status](https://github.com/charmbracelet/bubbles/workflows/build/badge.svg)](https://github.com/charmbracelet/bubbles/actions)
 [![Go ReportCard](https://goreportcard.com/badge/charmbracelet/bubbles)](https://goreportcard.com/report/charmbracelet/bubbles)
 
-Some components for [Bubble Tea](https://github.com/charmbracelet/bubbletea) applications.
-
-These components are used in production in [Glow][glow] and [Charm][charm].
+Some components for [Bubble Tea](https://github.com/charmbracelet/bubbletea)
+applications. These components are used in production in [Glow][glow],
+[Charm][charm] and [many other applications][otherstuff].
 
 [glow]: https://github.com/charmbracelet/glow
 [charm]: https://github.com/charmbracelet/charm
+[otherstuff]: https://github.com/charmbracelet/bubbletea/#bubble-tea-in-the-wild
 
 
 ## Spinner
@@ -25,7 +26,8 @@ These components are used in production in [Glow][glow] and [Charm][charm].
 A spinner, useful for indicating that some kind an operation is happening.
 There are a couple default ones, but you can also pass your own ”frames.”
 
-* [Example code](https://github.com/charmbracelet/tea/tree/master/examples/spinner/main.go)
+* [Example code, basic spinner](https://github.com/charmbracelet/tea/tree/master/examples/spinner/main.go)
+* [Example code, various spinners](https://github.com/charmbracelet/tea/tree/master/examples/spinners/main.go)
 
 
 ## Text Input
@@ -60,8 +62,7 @@ Supports "dot-style" pagination (similar to what you might see on iOS) and
 numeric page numbering, but you could also just use this component for the
 logic and visualize pagination however you like.
 
-This component is used in [Glow][glow] to browse documents and [Charm][charm] to
-browse SSH keys.
+* [Example code](https://github.com/charmbracelet/bubbletea/blob/master/examples/pager/main.go)
 
 
 ## Viewport
@@ -78,6 +79,20 @@ This component is well complimented with [Reflow][reflow] for ANSI-aware
 indenting and text wrapping.
 
 [reflow]: https://github.com/muesli/reflow
+
+
+## List
+
+<img src="https://stuff.charm.sh/bubbles-examples/list.gif" width="600" alt="List Example">
+
+A customizable, batteries-included component for browsing a set of items.
+Features pagination, fuzzy filtering, auto-generated help, an activity spinner,
+and status messages, all of which and be enabled and disabled as needed.
+Extrapolated from [Glow][glow].
+
+* [Example code, default list](https://github.com/charmbracelet/tea/tree/master/examples/list-default/main.go)
+* [Example code, simple list](https://github.com/charmbracelet/tea/tree/master/examples/list-simple/main.go)
+* [Example code, all features](https://github.com/charmbracelet/tea/tree/master/examples/list-fancy/main.go)
 
 
 ## Help

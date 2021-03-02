@@ -35,7 +35,7 @@ type Model struct {
 	UseJKKeys         bool
 }
 
-// SetTotalPages is a helper function for calculatng the total number of pages
+// SetTotalPages is a helper function for calculating the total number of pages
 // from a given number of items. It's use is optional since this pager can be
 // used for other things beyond navigating sets. Note that it both returns the
 // number of total pages and alters the model.
