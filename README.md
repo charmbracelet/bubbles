@@ -80,6 +80,52 @@ indenting and text wrapping.
 [reflow]: https://github.com/muesli/reflow
 
 
+## Help
+
+A customizable horizontal mini help view that automatically generates itself
+from your keybindings. It features single and multi-line modes, which the user
+can optionally toggle between. It will truncate gracefully if the terminal is
+too wide for the content.
+
+
+## Key
+
+A non-visual component for managing keybindings. It’s useful for allowing users
+to remap keybindings as well as generating help views corresponding to your
+keybindings.
+
+```go
+type KeyMap struct {
+    Up key.Binding
+    Down key.Binding
+}
+
+var DefaultKeyMap = KeyMap{
+    Up: key.NewBinding(
+        key.WithKeys("k", "up"),
+        key.WithHelp("↑/k", "move up"),
+    ),
+    Down: key.Binding{
+        WithKeys("j", "down"),
+        WithHelp("↓/j", "move down"),
+    },
+}
+
+func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+    switch msg := msg.(type) {
+    case tea.KeyMsg:
+        switch {
+        case key.Matches(msg, DefaultKeyMap.Up):
+            // The user pressed up
+        case key.Matches(msg, DefaultKeyMap.Down):
+            // The user pressed down
+        }
+    }
+    return m, nil
+}
+```
+
+
 ## Additional Bubbles
 
 * [promptkit](https://github.com/erikgeiser/promptkit): A collection of common
