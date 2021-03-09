@@ -139,7 +139,7 @@ func (m *Model) SetValue(s string) {
 	} else {
 		m.value = runes
 	}
-	if m.pos > len(m.value) {
+	if m.pos == 0 || m.pos > len(m.value) {
 		m.SetCursor(len(m.value))
 	}
 	m.handleOverflow()
