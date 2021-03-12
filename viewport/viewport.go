@@ -7,7 +7,10 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-const spacebar = " "
+const (
+	spacebar        = " "
+	mouseWheelDelta = 3
+)
 
 // MODEL
 
@@ -333,13 +336,13 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	case tea.MouseMsg:
 		switch msg.Type {
 		case tea.MouseWheelUp:
-			lines := m.LineUp(3)
+			lines := m.LineUp(mouseWheelDelta)
 			if m.HighPerformanceRendering {
 				cmd = ViewUp(m, lines)
 			}
 
 		case tea.MouseWheelDown:
-			lines := m.LineDown(3)
+			lines := m.LineDown(mouseWheelDelta)
 			if m.HighPerformanceRendering {
 				cmd = ViewDown(m, lines)
 			}
