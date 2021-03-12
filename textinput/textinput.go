@@ -202,7 +202,7 @@ func (m *Model) Reset() bool {
 
 // handle a clipboard paste event, if supported. Returns whether or not the
 // cursor blink should be reset.
-func (m *Model) handlePaste(v string) (blink bool) {
+func (m *Model) handlePaste(v string) bool {
 	paste := []rune(v)
 
 	var availSpace int
@@ -212,7 +212,7 @@ func (m *Model) handlePaste(v string) (blink bool) {
 
 	// If the char limit's been reached cancel
 	if m.CharLimit > 0 && availSpace <= 0 {
-		return
+		return false
 	}
 
 	// If there's not enough space to paste the whole thing cut the pasted
@@ -313,13 +313,13 @@ func (m *Model) colorPlaceholder(s string) string {
 
 // deleteWordLeft deletes the word left to the cursor. Returns whether or not
 // the cursor blink should be reset.
-func (m *Model) deleteWordLeft() (blink bool) {
+func (m *Model) deleteWordLeft() bool {
 	if m.pos == 0 || len(m.value) == 0 {
-		return
+		return false
 	}
 
 	i := m.pos
-	blink = m.SetCursor(m.pos - 1)
+	blink := m.SetCursor(m.pos - 1)
 	for unicode.IsSpace(m.value[m.pos]) {
 		// ignore series of whitespace before cursor
 		blink = m.SetCursor(m.pos - 1)
@@ -343,26 +343,26 @@ func (m *Model) deleteWordLeft() (blink bool) {
 		m.value = append(m.value[:m.pos], m.value[i:]...)
 	}
 
-	return
+	return blink
 }
 
 // deleteWordRight deletes the word right to the cursor. Returns whether or not
 // the cursor blink should be reset.
-func (m *Model) deleteWordRight() (blink bool) {
+func (m *Model) deleteWordRight() bool {
 	if m.pos >= len(m.value) || len(m.value) == 0 {
-		return
+		return false
 	}
 
 	i := m.pos
-	blink = m.SetCursor(m.pos + 1)
+	m.SetCursor(m.pos + 1)
 	for unicode.IsSpace(m.value[m.pos]) {
 		// ignore series of whitespace after cursor
-		blink = m.SetCursor(m.pos + 1)
+		m.SetCursor(m.pos + 1)
 	}
 
 	for m.pos < len(m.value) {
 		if !unicode.IsSpace(m.value[m.pos]) {
-			blink = m.SetCursor(m.pos + 1)
+			m.SetCursor(m.pos + 1)
 		} else {
 			break
 		}
@@ -373,20 +373,19 @@ func (m *Model) deleteWordRight() (blink bool) {
 	} else {
 		m.value = append(m.value[:i], m.value[m.pos:]...)
 	}
-	blink = m.SetCursor(i)
 
-	return
+	return m.SetCursor(i)
 }
 
 // wordLeft moves the cursor one word to the left. Returns whether or not the
 // cursor blink should be reset.
-func (m *Model) wordLeft() (blink bool) {
+func (m *Model) wordLeft() bool {
 	if m.pos == 0 || len(m.value) == 0 {
-		return
+		return false
 	}
 
+	blink := false
 	i := m.pos - 1
-
 	for i >= 0 {
 		if unicode.IsSpace(m.value[i]) {
 			blink = m.SetCursor(m.pos - 1)
@@ -405,18 +404,18 @@ func (m *Model) wordLeft() (blink bool) {
 		}
 	}
 
-	return
+	return blink
 }
 
 // wordRight moves the cursor one word to the right. Returns whether or not the
 // cursor blink should be reset.
-func (m *Model) wordRight() (blink bool) {
+func (m *Model) wordRight() bool {
 	if m.pos >= len(m.value) || len(m.value) == 0 {
-		return
+		return false
 	}
 
+	blink := false
 	i := m.pos
-
 	for i < len(m.value) {
 		if unicode.IsSpace(m.value[i]) {
 			blink = m.SetCursor(m.pos + 1)
@@ -435,7 +434,7 @@ func (m *Model) wordRight() (blink bool) {
 		}
 	}
 
-	return
+	return blink
 }
 
 func (m Model) echoTransform(v string) string {
