@@ -1,4 +1,4 @@
-// package paginator provides a Bubble Tea package for calulating pagination
+// Package paginator provides a Bubble Tea package for calulating pagination
 // and rendering pagination info. Note that this package does not render actual
 // pages: it's purely for handling keystrokes related to pagination, and
 // rendering pagination status.
@@ -91,7 +91,7 @@ func (m *Model) NextPage() {
 	}
 }
 
-// LastPage returns whether or not we're on the last page.
+// OnLastPage returns whether or not we're on the last page.
 func (m Model) OnLastPage() bool {
 	return m.Page == m.TotalPages-1
 }
