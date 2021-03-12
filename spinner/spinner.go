@@ -9,8 +9,6 @@ import (
 	"github.com/muesli/termenv"
 )
 
-const defaultFPS = time.Second / 10
-
 // Spinner is a set of frames used in animating the spinner.
 type Spinner struct {
 	Frames []string
@@ -21,39 +19,39 @@ var (
 	// Some spinners to choose from. You could also make your own.
 	Line = Spinner{
 		Frames: []string{"|", "/", "-", "\\"},
-		FPS:    time.Second / 10,
+		FPS:    time.Second / 10, //nolint:gomnd
 	}
 	Dot = Spinner{
 		Frames: []string{"⣾ ", "⣽ ", "⣻ ", "⢿ ", "⡿ ", "⣟ ", "⣯ ", "⣷ "},
-		FPS:    time.Second / 10,
+		FPS:    time.Second / 10, //nolint:gomnd
 	}
 	MiniDot = Spinner{
 		Frames: []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"},
-		FPS:    time.Second / 12,
+		FPS:    time.Second / 12, //nolint:gomnd
 	}
 	Jump = Spinner{
 		Frames: []string{"⢄", "⢂", "⢁", "⡁", "⡈", "⡐", "⡠"},
-		FPS:    time.Second / 10,
+		FPS:    time.Second / 10, //nolint:gomnd
 	}
 	Pulse = Spinner{
 		Frames: []string{"█", "▓", "▒", "░"},
-		FPS:    time.Second / 8,
+		FPS:    time.Second / 8, //nolint:gomnd
 	}
 	Points = Spinner{
 		Frames: []string{"∙∙∙", "●∙∙", "∙●∙", "∙∙●"},
-		FPS:    time.Second / 7,
+		FPS:    time.Second / 7, //nolint:gomnd
 	}
 	Globe = Spinner{
 		Frames: []string{"🌍", "🌎", "🌏"},
-		FPS:    time.Second / 4,
+		FPS:    time.Second / 4, //nolint:gomnd
 	}
 	Moon = Spinner{
 		Frames: []string{"🌑", "🌒", "🌓", "🌔", "🌕", "🌖", "🌗", "🌘"},
-		FPS:    time.Second / 8,
+		FPS:    time.Second / 8, //nolint:gomnd
 	}
 	Monkey = Spinner{
 		Frames: []string{"🙈", "🙉", "🙊"},
-		FPS:    time.Second / 3,
+		FPS:    time.Second / 3, //nolint:gomnd
 	}
 
 	color = termenv.ColorProfile().Color

@@ -128,7 +128,7 @@ func NewModel(opts ...Option) (*Model, error) {
 func (m Model) View(percent float64) string {
 	b := strings.Builder{}
 	if m.ShowPercentage {
-		percentage := fmt.Sprintf(m.PercentFormat, percent*100)
+		percentage := fmt.Sprintf(m.PercentFormat, percent*100) //nolint:gomnd
 		if m.PercentageStyle != nil {
 			percentage = m.PercentageStyle.Styled(percentage)
 		}
