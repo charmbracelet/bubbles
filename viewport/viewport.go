@@ -12,8 +12,7 @@ const (
 	mouseWheelDelta = 3
 )
 
-// MODEL
-
+// Model is the Bubble Tea model for this viewport element.
 type Model struct {
 	Width  int
 	Height int
@@ -55,7 +54,7 @@ func (m Model) PastBottom() bool {
 	return m.YOffset > len(m.lines)-1-m.Height
 }
 
-// Scrollpercent returns the amount scrolled as a float between 0 and 1.
+// ScrollPercent returns the amount scrolled as a float between 0 and 1.
 func (m Model) ScrollPercent() float64 {
 	if m.Height >= len(m.lines) {
 		return 1.0
@@ -218,7 +217,7 @@ func (m *Model) GotoTop() (lines []string) {
 	return lines
 }
 
-// GotoTop sets the viewport to the bottom position.
+// GotoBottom sets the viewport to the bottom position.
 func (m *Model) GotoBottom() (lines []string) {
 	m.YOffset = max(len(m.lines)-1-m.Height, 0)
 
