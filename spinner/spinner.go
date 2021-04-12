@@ -5,6 +5,7 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/muesli/reflow/ansi"
 	"github.com/muesli/termenv"
 )
@@ -64,17 +65,12 @@ type Model struct {
 	// Spinner settings to use. See type Spinner.
 	Spinner Spinner
 
-	// ForegroundColor sets the background color of the spinner. It can be
-	// a hex code or one of the 256 ANSI colors. If the terminal emulator can't
-	// support the color specified it will automatically degrade (per
-	// github.com/muesli/termenv).
-	ForegroundColor string
-
-	// BackgroundColor sets the background color of the spinner. It can be
-	// a hex code or one of the 256 ANSI colors. If the terminal emulator can't
-	// support the color specified it will automatically degrade (per
-	// github.com/muesli/termenv).
-	BackgroundColor string
+	// Style sets the styling for the spinner. Most of the time you'll just
+	// want foreground and background coloring, and potentially some padding.
+	//
+	// For an introduction to styling with Lip Gloss see:
+	// https://github.com/charmbracelet/lipgloss
+	Style lipgloss.Style
 
 	// MinimumLifetime is the minimum amount of time the spinner can run. Any
 	// logic around this can be implemented in view that implements this
@@ -230,15 +226,7 @@ func (m Model) View() string {
 		frame = strings.Repeat(" ", ansi.PrintableRuneWidth(frame))
 	}
 
-	if m.ForegroundColor != "" || m.BackgroundColor != "" {
-		return termenv.
-			String(frame).
-			Foreground(color(m.ForegroundColor)).
-			Background(color(m.BackgroundColor)).
-			String()
-	}
-
-	return frame
+	return m.Style.Render(frame)
 }
 
 // Tick is the command used to advance the spinner one frame. Use this command
