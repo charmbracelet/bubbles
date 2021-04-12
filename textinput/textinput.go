@@ -8,14 +8,11 @@ import (
 
 	"github.com/atotto/clipboard"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	rw "github.com/mattn/go-runewidth"
-	"github.com/muesli/termenv"
 )
 
 const defaultBlinkSpeed = time.Millisecond * 530
-
-// color is a helper for returning colors.
-var color func(s string) termenv.Color = termenv.ColorProfile().Color
 
 // blinkMsg and blinkCanceled are used to manage cursor blinking.
 type blinkMsg struct{}
@@ -61,17 +58,20 @@ const (
 type Model struct {
 	Err error
 
-	// General settings
-	Prompt           string
-	Placeholder      string
-	Cursor           string
-	BlinkSpeed       time.Duration
-	TextColor        string
-	BackgroundColor  string
-	PlaceholderColor string
-	CursorColor      string
-	EchoMode         EchoMode
-	EchoCharacter    rune
+	// General settings.
+	Prompt        string
+	Placeholder   string
+	Cursor        string
+	BlinkSpeed    time.Duration
+	EchoMode      EchoMode
+	EchoCharacter rune
+
+	// Styles.
+	PromptStyle      lipgloss.Style
+	TextStyle        lipgloss.Style
+	BackgroundStyle  lipgloss.Style
+	PlaceholderStyle lipgloss.Style
+	CursorStyle      lipgloss.Style
 
 	// CharLimit is the maximum amount of characters this input element will
 	// accept. If 0 or less, there's no limit.
@@ -111,13 +111,10 @@ type Model struct {
 func NewModel() Model {
 	return Model{
 		Prompt:           "> ",
-		Placeholder:      "",
 		BlinkSpeed:       defaultBlinkSpeed,
-		TextColor:        "",
-		PlaceholderColor: "240",
-		CursorColor:      "",
 		EchoCharacter:    '*',
 		CharLimit:        0,
+		PlaceholderStyle: lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
 
 		value:      nil,
 		focus:      false,
@@ -289,26 +286,6 @@ func (m *Model) handleOverflow() {
 
 		m.offset = m.offsetRight - (len(runes) - 1 - i)
 	}
-}
-
-// colorText colorizes a given string according to the TextColor value of the
-// model.
-func (m *Model) colorText(s string) string {
-	return termenv.
-		String(s).
-		Foreground(color(m.TextColor)).
-		Background(color(m.BackgroundColor)).
-		String()
-}
-
-// colorPlaceholder colorizes a given string according to the TextColor value
-// of the model.
-func (m *Model) colorPlaceholder(s string) string {
-	return termenv.
-		String(s).
-		Foreground(color(m.PlaceholderColor)).
-		Background(color(m.BackgroundColor)).
-		String()
 }
 
 // deleteWordLeft deletes the word left to the cursor. Returns whether or not
@@ -564,13 +541,15 @@ func (m Model) View() string {
 		return m.placeholderView()
 	}
 
+	styleText := m.TextStyle.Inline(true).Render
+
 	value := m.value[m.offset:m.offsetRight]
 	pos := max(0, m.pos-m.offset)
-	v := m.colorText(m.echoTransform(string(value[:pos])))
+	v := styleText(m.echoTransform(string(value[:pos])))
 
 	if pos < len(value) {
-		v += m.cursorView(m.echoTransform(string(value[pos])))   // cursor and text under it
-		v += m.colorText(m.echoTransform(string(value[pos+1:]))) // text after cursor
+		v += m.cursorView(m.echoTransform(string(value[pos]))) // cursor and text under it
+		v += styleText(m.echoTransform(string(value[pos+1:]))) // text after cursor
 	} else {
 		v += m.cursorView(" ")
 	}
@@ -578,56 +557,44 @@ func (m Model) View() string {
 	// If a max width and background color were set fill the empty spaces with
 	// the background color.
 	valWidth := rw.StringWidth(string(value))
-	if m.Width > 0 && len(m.BackgroundColor) > 0 && valWidth <= m.Width {
+	if m.Width > 0 && valWidth <= m.Width {
 		padding := max(0, m.Width-valWidth)
 		if valWidth+padding <= m.Width && pos < len(value) {
 			padding++
 		}
-		v += strings.Repeat(
-			termenv.String(" ").Background(color(m.BackgroundColor)).String(),
-			padding,
-		)
+		v += styleText(strings.Repeat(" ", padding))
 	}
 
-	return m.Prompt + v
+	return m.PromptStyle.Render(m.Prompt) + v
 }
 
 // placeholderView returns the prompt and placeholder view, if any.
 func (m Model) placeholderView() string {
 	var (
-		v string
-		p = m.Placeholder
+		v     string
+		p     = m.Placeholder
+		style = m.PlaceholderStyle.Inline(true).Render
 	)
 
 	// Cursor
-	if m.blink && m.PlaceholderColor != "" {
-		v += m.cursorView(m.colorPlaceholder(p[:1]))
+	if m.blink {
+		v += m.cursorView(style(p[:1]))
 	} else {
 		v += m.cursorView(p[:1])
 	}
 
 	// The rest of the placeholder text
-	v += m.colorPlaceholder(p[1:])
+	v += style(p[1:])
 
-	return m.Prompt + v
+	return m.PromptStyle.Render(m.Prompt) + v
 }
 
 // cursorView styles the cursor.
 func (m Model) cursorView(v string) string {
 	if m.blink {
-		if m.TextColor != "" || m.BackgroundColor != "" {
-			return termenv.String(v).
-				Foreground(color(m.TextColor)).
-				Background(color(m.BackgroundColor)).
-				String()
-		}
-		return v
+		return m.TextStyle.Render(v)
 	}
-	return termenv.String(v).
-		Foreground(color(m.CursorColor)).
-		Background(color(m.BackgroundColor)).
-		Reverse().
-		String()
+	return m.CursorStyle.Inline(true).Reverse(true).Render(v)
 }
 
 // blinkCmd is an internal command used to manage cursor blinking.
