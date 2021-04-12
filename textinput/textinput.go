@@ -66,7 +66,10 @@ type Model struct {
 	EchoMode      EchoMode
 	EchoCharacter rune
 
-	// Styles.
+	// Styles. These will be applied as inline styles.
+	//
+	// For an introduction to styling with Lip Gloss see:
+	// https://github.com/charmbracelet/lipgloss
 	PromptStyle      lipgloss.Style
 	TextStyle        lipgloss.Style
 	BackgroundStyle  lipgloss.Style

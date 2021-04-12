@@ -7,7 +7,6 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/muesli/reflow/ansi"
-	"github.com/muesli/termenv"
 )
 
 // Spinner is a set of frames used in animating the spinner.
@@ -16,8 +15,8 @@ type Spinner struct {
 	FPS    time.Duration
 }
 
+// Some spinners to choose from. You could also make your own.
 var (
-	// Some spinners to choose from. You could also make your own.
 	Line = Spinner{
 		Frames: []string{"|", "/", "-", "\\"},
 		FPS:    time.Second / 10, //nolint:gomnd
@@ -54,8 +53,6 @@ var (
 		Frames: []string{"🙈", "🙉", "🙊"},
 		FPS:    time.Second / 3, //nolint:gomnd
 	}
-
-	color = termenv.ColorProfile().Color
 )
 
 // Model contains the state for the spinner. Use NewModel to create new models
