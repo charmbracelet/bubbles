@@ -71,6 +71,10 @@ func (m Model) ScrollPercent() float64 {
 func (m *Model) SetContent(s string) {
 	s = strings.Replace(s, "\r\n", "\n", -1) // normalize line endings
 	m.lines = strings.Split(s, "\n")
+
+	if m.YOffset > len(m.lines)-1 {
+		m.GotoBottom()
+	}
 }
 
 // Return the lines that should currently be visible in the viewport.
