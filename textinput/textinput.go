@@ -61,7 +61,6 @@ type Model struct {
 	// General settings.
 	Prompt        string
 	Placeholder   string
-	Cursor        string
 	BlinkSpeed    time.Duration
 	EchoMode      EchoMode
 	EchoCharacter rune
@@ -148,6 +147,11 @@ func (m *Model) SetValue(s string) {
 // Value returns the value of the text input.
 func (m Model) Value() string {
 	return string(m.value)
+}
+
+// Cursor returns the cursor position.
+func (m Model) Cursor() int {
+	return m.pos
 }
 
 // SetCursor moves the cursor to the given position. If the position is
