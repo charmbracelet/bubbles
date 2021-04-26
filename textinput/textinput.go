@@ -378,10 +378,15 @@ func (m *Model) deleteWordRight() bool {
 }
 
 // wordLeft moves the cursor one word to the left. Returns whether or not the
-// cursor blink should be reset.
+// cursor blink should be reset. If input is masked, move input to the start
+// so as not to reveal word breaks in the masked input.
 func (m *Model) wordLeft() bool {
 	if m.pos == 0 || len(m.value) == 0 {
 		return false
+	}
+
+	if m.EchoMode != EchoNormal {
+		return m.cursorStart()
 	}
 
 	blink := false
@@ -408,10 +413,15 @@ func (m *Model) wordLeft() bool {
 }
 
 // wordRight moves the cursor one word to the right. Returns whether or not the
-// cursor blink should be reset.
+// cursor blink should be reset. If the input is masked, move input to the end
+// so as not to reveal word breaks in the masked input.
 func (m *Model) wordRight() bool {
 	if m.pos >= len(m.value) || len(m.value) == 0 {
 		return false
+	}
+
+	if m.EchoMode != EchoNormal {
+		return m.cursorEnd()
 	}
 
 	blink := false
@@ -485,7 +495,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				resetBlink = m.wordRight()
 				break
 			}
-			if m.pos < len(m.value) { // right arrow, ^F, forward one word
+			if m.pos < len(m.value) { // right arrow, ^F, forward one character
 				resetBlink = m.setCursor(m.pos + 1)
 			}
 		case tea.KeyCtrlW: // ^W, delete word left of cursor
