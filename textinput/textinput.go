@@ -311,11 +311,31 @@ func (m *Model) handleOverflow() {
 	}
 }
 
+// deleteBeforeCursor deletes all text before the cursor. Returns whether or
+// not the cursor blink should be reset.
+func (m *Model) deleteBeforeCursor() bool {
+	m.value = m.value[m.pos:]
+	m.offset = 0
+	return m.setCursor(0)
+}
+
+// deleteAfterCursor deletes all text after the cursor. Returns whether or not
+// the cursor blink should be reset. If input is masked delete everything after
+// the cursor so as not to reveal word breaks in the masked input.
+func (m *Model) deleteAfterCursor() bool {
+	m.value = m.value[:m.pos]
+	return m.setCursor(len(m.value))
+}
+
 // deleteWordLeft deletes the word left to the cursor. Returns whether or not
 // the cursor blink should be reset.
 func (m *Model) deleteWordLeft() bool {
 	if m.pos == 0 || len(m.value) == 0 {
 		return false
+	}
+
+	if m.EchoMode != EchoNormal {
+		return m.deleteBeforeCursor()
 	}
 
 	i := m.pos
@@ -347,10 +367,15 @@ func (m *Model) deleteWordLeft() bool {
 }
 
 // deleteWordRight deletes the word right to the cursor. Returns whether or not
-// the cursor blink should be reset.
+// the cursor blink should be reset. If input is masked delete everything after
+// the cursor so as not to reveal word breaks in the masked input.
 func (m *Model) deleteWordRight() bool {
 	if m.pos >= len(m.value) || len(m.value) == 0 {
 		return false
+	}
+
+	if m.EchoMode != EchoNormal {
+		return m.deleteAfterCursor()
 	}
 
 	i := m.pos
@@ -509,12 +534,9 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		case tea.KeyCtrlE, tea.KeyEnd: // ^E, go to end
 			resetBlink = m.cursorEnd()
 		case tea.KeyCtrlK: // ^K, kill text after cursor
-			m.value = m.value[:m.pos]
-			resetBlink = m.setCursor(len(m.value))
+			resetBlink = m.deleteAfterCursor()
 		case tea.KeyCtrlU: // ^U, kill text before cursor
-			m.value = m.value[m.pos:]
-			resetBlink = m.setCursor(0)
-			m.offset = 0
+			resetBlink = m.deleteBeforeCursor()
 		case tea.KeyCtrlV: // ^V paste
 			return m, Paste
 		case tea.KeyRunes: // input regular characters
