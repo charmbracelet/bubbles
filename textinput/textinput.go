@@ -140,7 +140,7 @@ func (m *Model) SetValue(s string) {
 		m.value = runes
 	}
 	if m.pos == 0 || m.pos > len(m.value) {
-		m.SetCursor(len(m.value))
+		m.setCursor(len(m.value))
 	}
 	m.handleOverflow()
 }
@@ -150,10 +150,16 @@ func (m Model) Value() string {
 	return string(m.value)
 }
 
-// SetCursor start moves the cursor to the given position. If the position is
+// SetCursor moves the cursor to the given position. If the position is
 // out of bounds the cursor will be moved to the start or end accordingly.
-// Returns whether or nor the cursor timer should be reset.
-func (m *Model) SetCursor(pos int) bool {
+func (m *Model) SetCursor(pos int) {
+	m.setCursor(pos)
+}
+
+// setCursor moves the cursor to the given position and returns whether or not
+// the cursor blink should be reset. If the position is out of bounds the
+// cursor will be moved to the start or end accordingly.
+func (m *Model) setCursor(pos int) bool {
 	m.pos = clamp(pos, 0, len(m.value))
 	m.handleOverflow()
 
@@ -164,16 +170,26 @@ func (m *Model) SetCursor(pos int) bool {
 	return m.cursorMode == cursorBlink
 }
 
-// CursorStart moves the cursor to the start of the field. Returns whether or
-// not the curosr blink should be reset.
-func (m *Model) CursorStart() bool {
-	return m.SetCursor(0)
+// CursorStart moves the cursor to the start of the input field.
+func (m *Model) CursorStart() {
+	m.cursorStart()
 }
 
-// CursorEnd moves the cursor to the end of the field. Returns whether or not
-// the cursor blink should be reset.
-func (m *Model) CursorEnd() bool {
-	return m.SetCursor(len(m.value))
+// cursorStart moves the cursor to the start of the input field and returns
+// whether or not the curosr blink should be reset.
+func (m *Model) cursorStart() bool {
+	return m.setCursor(0)
+}
+
+// CursorEnd moves the cursor to the end of the input field
+func (m *Model) CursorEnd() {
+	m.cursorEnd()
+}
+
+// cursorEnd moves the cursor to the end of the input field and returns whether
+// or not
+func (m *Model) cursorEnd() bool {
+	return m.setCursor(len(m.value))
 }
 
 // Focused returns the focus state on the model.
@@ -197,7 +213,7 @@ func (m *Model) Blur() {
 // or not the cursor blink should reset.
 func (m *Model) Reset() bool {
 	m.value = nil
-	return m.SetCursor(0)
+	return m.setCursor(0)
 }
 
 // handle a clipboard paste event, if supported. Returns whether or not the
@@ -243,7 +259,7 @@ func (m *Model) handlePaste(v string) bool {
 	m.value = append(head, tail...)
 
 	// Reset blink state if necessary and run overflow checks
-	return m.SetCursor(m.pos)
+	return m.setCursor(m.pos)
 }
 
 // If a max width is defined, perform some logic to treat the visible area
@@ -299,19 +315,19 @@ func (m *Model) deleteWordLeft() bool {
 	}
 
 	i := m.pos
-	blink := m.SetCursor(m.pos - 1)
+	blink := m.setCursor(m.pos - 1)
 	for unicode.IsSpace(m.value[m.pos]) {
 		// ignore series of whitespace before cursor
-		blink = m.SetCursor(m.pos - 1)
+		blink = m.setCursor(m.pos - 1)
 	}
 
 	for m.pos > 0 {
 		if !unicode.IsSpace(m.value[m.pos]) {
-			blink = m.SetCursor(m.pos - 1)
+			blink = m.setCursor(m.pos - 1)
 		} else {
 			if m.pos > 0 {
 				// keep the previous space
-				blink = m.SetCursor(m.pos + 1)
+				blink = m.setCursor(m.pos + 1)
 			}
 			break
 		}
@@ -334,15 +350,15 @@ func (m *Model) deleteWordRight() bool {
 	}
 
 	i := m.pos
-	m.SetCursor(m.pos + 1)
+	m.setCursor(m.pos + 1)
 	for unicode.IsSpace(m.value[m.pos]) {
 		// ignore series of whitespace after cursor
-		m.SetCursor(m.pos + 1)
+		m.setCursor(m.pos + 1)
 	}
 
 	for m.pos < len(m.value) {
 		if !unicode.IsSpace(m.value[m.pos]) {
-			m.SetCursor(m.pos + 1)
+			m.setCursor(m.pos + 1)
 		} else {
 			break
 		}
@@ -354,7 +370,7 @@ func (m *Model) deleteWordRight() bool {
 		m.value = append(m.value[:i], m.value[m.pos:]...)
 	}
 
-	return m.SetCursor(i)
+	return m.setCursor(i)
 }
 
 // wordLeft moves the cursor one word to the left. Returns whether or not the
@@ -368,7 +384,7 @@ func (m *Model) wordLeft() bool {
 	i := m.pos - 1
 	for i >= 0 {
 		if unicode.IsSpace(m.value[i]) {
-			blink = m.SetCursor(m.pos - 1)
+			blink = m.setCursor(m.pos - 1)
 			i--
 		} else {
 			break
@@ -377,7 +393,7 @@ func (m *Model) wordLeft() bool {
 
 	for i >= 0 {
 		if !unicode.IsSpace(m.value[i]) {
-			blink = m.SetCursor(m.pos - 1)
+			blink = m.setCursor(m.pos - 1)
 			i--
 		} else {
 			break
@@ -398,7 +414,7 @@ func (m *Model) wordRight() bool {
 	i := m.pos
 	for i < len(m.value) {
 		if unicode.IsSpace(m.value[i]) {
-			blink = m.SetCursor(m.pos + 1)
+			blink = m.setCursor(m.pos + 1)
 			i++
 		} else {
 			break
@@ -407,7 +423,7 @@ func (m *Model) wordRight() bool {
 
 	for i < len(m.value) {
 		if !unicode.IsSpace(m.value[i]) {
-			blink = m.SetCursor(m.pos + 1)
+			blink = m.setCursor(m.pos + 1)
 			i++
 		} else {
 			break
@@ -448,7 +464,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				if len(m.value) > 0 {
 					m.value = append(m.value[:max(0, m.pos-1)], m.value[m.pos:]...)
 					if m.pos > 0 {
-						resetBlink = m.SetCursor(m.pos - 1)
+						resetBlink = m.setCursor(m.pos - 1)
 					}
 				}
 			}
@@ -458,7 +474,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				break
 			}
 			if m.pos > 0 { // left arrow, ^F, back one character
-				resetBlink = m.SetCursor(m.pos - 1)
+				resetBlink = m.setCursor(m.pos - 1)
 			}
 		case tea.KeyRight, tea.KeyCtrlF:
 			if msg.Alt { // alt+right arrow, forward one word
@@ -466,24 +482,24 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				break
 			}
 			if m.pos < len(m.value) { // right arrow, ^F, forward one word
-				resetBlink = m.SetCursor(m.pos + 1)
+				resetBlink = m.setCursor(m.pos + 1)
 			}
 		case tea.KeyCtrlW: // ^W, delete word left of cursor
 			resetBlink = m.deleteWordLeft()
 		case tea.KeyHome, tea.KeyCtrlA: // ^A, go to beginning
-			resetBlink = m.CursorStart()
+			resetBlink = m.cursorStart()
 		case tea.KeyDelete, tea.KeyCtrlD: // ^D, delete char under cursor
 			if len(m.value) > 0 && m.pos < len(m.value) {
 				m.value = append(m.value[:m.pos], m.value[m.pos+1:]...)
 			}
 		case tea.KeyCtrlE, tea.KeyEnd: // ^E, go to end
-			resetBlink = m.CursorEnd()
+			resetBlink = m.cursorEnd()
 		case tea.KeyCtrlK: // ^K, kill text after cursor
 			m.value = m.value[:m.pos]
-			resetBlink = m.SetCursor(len(m.value))
+			resetBlink = m.setCursor(len(m.value))
 		case tea.KeyCtrlU: // ^U, kill text before cursor
 			m.value = m.value[m.pos:]
-			resetBlink = m.SetCursor(0)
+			resetBlink = m.setCursor(0)
 			m.offset = 0
 		case tea.KeyCtrlV: // ^V paste
 			return m, Paste
@@ -506,7 +522,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			// Input a regular character
 			if m.CharLimit <= 0 || len(m.value) < m.CharLimit {
 				m.value = append(m.value[:m.pos], append(msg.Runes, m.value[m.pos:]...)...)
-				resetBlink = m.SetCursor(m.pos + len(msg.Runes))
+				resetBlink = m.setCursor(m.pos + len(msg.Runes))
 			}
 		}
 
