@@ -188,10 +188,9 @@ type TickMsg struct {
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case TickMsg:
-
 		// If a tag is set, and it's not the one we expect, reject the message.
 		// This prevents the spinner from receiving too many messages and
-		// this spinning too fast.
+		// thus spinning too fast.
 		if msg.tag > 0 && msg.tag != m.tag {
 			return m, nil
 		}
