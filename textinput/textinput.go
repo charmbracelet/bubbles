@@ -46,13 +46,25 @@ type blinkCtx struct {
 	cancel context.CancelFunc
 }
 
-type cursorMode int
+// CursorMode describes the behavior of the cursor.
+type CursorMode int
 
+// Available cursor modes.
 const (
-	cursorBlink = iota
-	cursorStatic
-	cursorHide
+	CursorBlink CursorMode = iota
+	CursorStatic
+	CursorHide
 )
+
+// String returns a the cursor mode in a human-readable format. This method is
+// provisional and for informational purposes only.
+func (c CursorMode) String() string {
+	return [...]string{
+		"blink",
+		"static",
+		"hidden",
+	}[c]
+}
 
 // Model is the Bubble Tea model for this text input element.
 type Model struct {
@@ -87,8 +99,8 @@ type Model struct {
 	// Underlying text value.
 	value []rune
 
-	// Focus indicates whether user input focus should be on this input
-	// component. When false, don't blink and ignore keyboard input.
+	// focus indicates whether user input focus should be on this input
+	// component. When false, ignore keyboard input and hide the cursor.
 	focus bool
 
 	// Cursor blink state.
@@ -106,7 +118,7 @@ type Model struct {
 	blinkCtx *blinkCtx
 
 	// cursorMode determines the behavior of the cursor
-	cursorMode cursorMode
+	cursorMode CursorMode
 }
 
 // NewModel creates a new model with default settings.
@@ -122,7 +134,7 @@ func NewModel() Model {
 		focus:      false,
 		blink:      true,
 		pos:        0,
-		cursorMode: cursorBlink,
+		cursorMode: CursorBlink,
 
 		blinkCtx: &blinkCtx{
 			ctx: context.Background(),
@@ -168,10 +180,10 @@ func (m *Model) setCursor(pos int) bool {
 	m.handleOverflow()
 
 	// Show the cursor unless it's been explicitly hidden
-	m.blink = m.cursorMode == cursorHide
+	m.blink = m.cursorMode == CursorHide
 
 	// Reset cursor blink if necessary
-	return m.cursorMode == cursorBlink
+	return m.cursorMode == CursorBlink
 }
 
 // CursorStart moves the cursor to the start of the input field.
@@ -190,6 +202,24 @@ func (m *Model) CursorEnd() {
 	m.cursorEnd()
 }
 
+// CursorMode returns the model's cursor mode. For available cursor modes, see
+// type CursorMode.
+func (m Model) CursorMode() CursorMode {
+	return m.cursorMode
+}
+
+// CursorMode sets the model's cursor mode. This method returns a command.
+//
+// For available cursor modes, see type CursorMode.
+func (m *Model) SetCursorMode(mode CursorMode) tea.Cmd {
+	m.cursorMode = mode
+	m.blink = m.cursorMode == CursorHide || !m.focus
+	if mode == CursorBlink {
+		return Blink
+	}
+	return nil
+}
+
 // cursorEnd moves the cursor to the end of the input field and returns whether
 // or not
 func (m *Model) cursorEnd() bool {
@@ -201,13 +231,15 @@ func (m Model) Focused() bool {
 	return m.focus
 }
 
-// Focus sets the focus state on the model.
+// Focus sets the focus state on the model. When the model is in focus it can
+// receive keyboard input and the cursor will be hidden.
 func (m *Model) Focus() {
 	m.focus = true
-	m.blink = m.cursorMode == cursorHide // show the cursor unless we've explicitly hidden it
+	m.blink = m.cursorMode == CursorHide // show the cursor unless we've explicitly hidden it
 }
 
-// Blur removes the focus state on the model.
+// Blur removes the focus state on the model.  When the model is blurred it can
+// not receive keyboard input and the cursor will be hidden.
 func (m *Model) Blur() {
 	m.focus = false
 	m.blink = true
@@ -564,7 +596,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 	case blinkMsg:
 		var cmd tea.Cmd
-		if m.cursorMode == cursorBlink {
+		if m.cursorMode == CursorBlink {
 			m.blink = !m.blink
 			cmd = m.blinkCmd()
 		}
