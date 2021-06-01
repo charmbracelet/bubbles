@@ -233,9 +233,14 @@ func (m Model) Focused() bool {
 
 // Focus sets the focus state on the model. When the model is in focus it can
 // receive keyboard input and the cursor will be hidden.
-func (m *Model) Focus() {
+func (m *Model) Focus() tea.Cmd {
 	m.focus = true
 	m.blink = m.cursorMode == CursorHide // show the cursor unless we've explicitly hidden it
+
+	if m.cursorMode == CursorBlink && m.focus {
+		return m.blinkCmd()
+	}
+	return nil
 }
 
 // Blur removes the focus state on the model.  When the model is blurred it can
