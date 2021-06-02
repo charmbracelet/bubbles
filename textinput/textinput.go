@@ -3,6 +3,7 @@ package textinput
 import (
 	"context"
 	"strings"
+	"sync"
 	"time"
 	"unicode"
 
@@ -14,11 +15,35 @@ import (
 
 const defaultBlinkSpeed = time.Millisecond * 530
 
-// blinkMsg and blinkCanceled are used to manage cursor blinking.
-type blinkMsg struct{}
+// Internal ID management for text inputs. Necessary for blink integrity when
+// multiple text inputs are involved.
+var (
+	lastID int
+	idMtx  sync.Mutex
+)
+
+// Return the next ID we should use on the Model.
+func nextID() int {
+	idMtx.Lock()
+	defer idMtx.Unlock()
+	lastID++
+	return lastID
+}
+
+// initialBlinkMsg initializes cursor blinking.
+type initialBlinkMsg struct{}
+
+// blinkMsg signals that the cursor should blink. It contains metadata that
+// allows us to tell if the blink message is the one we're expecting.
+type blinkMsg struct {
+	id  int
+	tag int
+}
+
+// blinkCanceled is sent when a blink operation is canceled.
 type blinkCanceled struct{}
 
-// Messages for clipboard events.
+// Internal messages for clipboard operations.
 type pasteMsg string
 type pasteErrMsg struct{ error }
 
@@ -96,6 +121,12 @@ type Model struct {
 	// viewport. If 0 or less this setting is ignored.
 	Width int
 
+	// The ID of this Model as it relates to other textinput Models.
+	id int
+
+	// The ID of the blink message we're expecting to receive.
+	blinkTag int
+
 	// Underlying text value.
 	value []rune
 
@@ -130,6 +161,7 @@ func NewModel() Model {
 		CharLimit:        0,
 		PlaceholderStyle: lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
 
+		id:         nextID(),
 		value:      nil,
 		focus:      false,
 		blink:      true,
@@ -221,7 +253,7 @@ func (m *Model) SetCursorMode(mode CursorMode) tea.Cmd {
 }
 
 // cursorEnd moves the cursor to the end of the input field and returns whether
-// or not
+// the cursor should blink should reset.
 func (m *Model) cursorEnd() bool {
 	return m.setCursor(len(m.value))
 }
@@ -258,7 +290,7 @@ func (m *Model) Reset() bool {
 }
 
 // handle a clipboard paste event, if supported. Returns whether or not the
-// cursor blink should be reset.
+// cursor blink should reset.
 func (m *Model) handlePaste(v string) bool {
 	paste := []rune(v)
 
@@ -599,7 +631,30 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			}
 		}
 
+	case initialBlinkMsg:
+		// We accept all initialBlinkMsgs genrated by the Blink command.
+
+		if m.cursorMode != CursorBlink || !m.focus {
+			return m, nil
+		}
+
+		cmd := m.blinkCmd()
+		return m, cmd
+
 	case blinkMsg:
+		// We're choosy about whether to accept blinkMsgs so that our cursor
+		// only exactly when it should.
+
+		// Is this model blinkable?
+		if m.cursorMode != CursorBlink || !m.focus {
+			return m, nil
+		}
+
+		// Were we expecting this blink message?
+		if msg.id != m.id || msg.tag != m.blinkTag {
+			return m, nil
+		}
+
 		var cmd tea.Cmd
 		if m.cursorMode == CursorBlink {
 			m.blink = !m.blink
@@ -690,7 +745,11 @@ func (m Model) cursorView(v string) string {
 }
 
 // blinkCmd is an internal command used to manage cursor blinking.
-func (m Model) blinkCmd() tea.Cmd {
+func (m *Model) blinkCmd() tea.Cmd {
+	if m.cursorMode != CursorBlink {
+		return nil
+	}
+
 	if m.blinkCtx != nil && m.blinkCtx.cancel != nil {
 		m.blinkCtx.cancel()
 	}
@@ -698,11 +757,13 @@ func (m Model) blinkCmd() tea.Cmd {
 	ctx, cancel := context.WithTimeout(m.blinkCtx.ctx, m.BlinkSpeed)
 	m.blinkCtx.cancel = cancel
 
+	m.blinkTag++
+
 	return func() tea.Msg {
 		defer cancel()
 		<-ctx.Done()
 		if ctx.Err() == context.DeadlineExceeded {
-			return blinkMsg{}
+			return blinkMsg{id: m.id, tag: m.blinkTag}
 		}
 		return blinkCanceled{}
 	}
@@ -710,7 +771,7 @@ func (m Model) blinkCmd() tea.Cmd {
 
 // Blink is a command used to initialize cursor blinking.
 func Blink() tea.Msg {
-	return blinkMsg{}
+	return initialBlinkMsg{}
 }
 
 // Paste is a command for pasting from the clipboard into the text input.
