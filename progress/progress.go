@@ -3,13 +3,36 @@ package progress
 import (
 	"fmt"
 	"strings"
+	"sync"
+	"time"
 
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/fogleman/ease"
 	"github.com/lucasb-eyer/go-colorful"
 	"github.com/muesli/reflow/ansi"
 	"github.com/muesli/termenv"
 )
 
-const defaultWidth = 40
+// Internal ID management. Used during animating to assure that frame messages
+// can only be received by progress components that sent them.
+var (
+	lastID int
+	idMtx  sync.Mutex
+)
+
+// Return the next ID we should use on the model.
+func nextID() int {
+	idMtx.Lock()
+	defer idMtx.Unlock()
+	lastID++
+	return lastID
+}
+
+const (
+	defaultWidth              = 40
+	defaultFPS                = time.Second / 60
+	defaultTransitionDuration = time.Millisecond * 350
+)
 
 var color func(string) termenv.Color = termenv.ColorProfile().Color
 
@@ -19,6 +42,7 @@ var color func(string) termenv.Color = termenv.ColorProfile().Color
 //	       WithRamp("#ff0000", "#0000ff"),
 //	       WithoutPercentage(),
 //     )
+//
 type Option func(*Model) error
 
 // WithDefaultGradient sets a gradient fill with default colors.
@@ -74,25 +98,43 @@ func WithWidth(w int) Option {
 	}
 }
 
+// FrameMsg indicates that an animation step should occur.
+type FrameMsg struct {
+	id int
+}
+
 // Model stores values we'll use when rendering the progress bar.
 type Model struct {
+	// The internal identifier for this model.
+	id int
 
 	// Total width of the progress bar, including percentage, if set.
 	Width int
 
-	// "Filled" sections of the progress bar
+	// "Filled" sections of the progress bar.
 	Full      rune
 	FullColor string
 
-	// "Empty" sections of progress bar
+	// "Empty" sections of progress bar.
 	Empty      rune
 	EmptyColor string
 
-	// Settings for rendering the numeric percentage
+	// Settings for rendering the numeric percentage.
 	ShowPercentage  bool
 	PercentFormat   string // a fmt string for a float
 	PercentageStyle *termenv.Style
 
+	// Animation options.
+	FPS                time.Duration
+	TransitionDuration time.Duration
+
+	// Values for the internal animation state.
+	progress        float64
+	startPercent    float64
+	endPercent      float64
+	transitionStart time.Time
+
+	// Gradient settings
 	useRamp    bool
 	rampColorA colorful.Color
 	rampColorB colorful.Color
@@ -104,28 +146,37 @@ type Model struct {
 }
 
 // NewModel returns a model with default values.
-func NewModel(opts ...Option) (*Model, error) {
-	m := &Model{
-		Width:          defaultWidth,
-		Full:           '█',
-		FullColor:      "#7571F9",
-		Empty:          '░',
-		EmptyColor:     "#606060",
-		ShowPercentage: true,
-		PercentFormat:  " %3.0f%%",
+func NewModel(opts ...Option) (Model, error) {
+	m := Model{
+		id:                 nextID(),
+		Width:              defaultWidth,
+		Full:               '█',
+		FullColor:          "#7571F9",
+		Empty:              '░',
+		EmptyColor:         "#606060",
+		ShowPercentage:     true,
+		PercentFormat:      " %3.0f%%",
+		FPS:                defaultFPS,
+		TransitionDuration: defaultTransitionDuration,
 	}
 
 	for _, opt := range opts {
-		if err := opt(m); err != nil {
-			return nil, err
+		if err := opt(&m); err != nil {
+			return Model{}, err
 		}
 	}
 
 	return m, nil
 }
 
-// View renders the progress bar as a given percentage.
-func (m Model) View(percent float64) string {
+// View renders the an animated progress bar in its current state. To render
+// a static progress bar based on your own calculations use ViewAs instead.
+func (m Model) View() string {
+	return m.ViewAs(m.progress)
+}
+
+// ViewAs renders the progress bar with a given percentage.
+func (m Model) ViewAs(percent float64) string {
 	b := strings.Builder{}
 	if m.ShowPercentage {
 		percentage := fmt.Sprintf(m.PercentFormat, percent*100) //nolint:gomnd
@@ -138,6 +189,48 @@ func (m Model) View(percent float64) string {
 		m.bar(&b, percent, 0)
 	}
 	return b.String()
+}
+
+func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case FrameMsg:
+		if msg.id != m.id {
+			return m, nil
+		}
+
+		elapsed := time.Since(m.transitionStart)
+		totalDuration := m.transitionStart.
+			Add(m.TransitionDuration).
+			Sub(m.transitionStart)
+
+		f := func(d time.Duration) float64 { return float64(int64(d)) }
+
+		segmentProgress := f(elapsed) / f(totalDuration)
+		if segmentProgress >= 1.0 {
+			m.progress = m.endPercent
+			return m, nil
+		}
+
+		segmentSize := m.endPercent - m.startPercent
+		m.progress = ease.OutQuad(segmentProgress)*segmentSize + m.startPercent
+		return m, m.nextFrame()
+
+	default:
+		return m, nil
+	}
+}
+
+func (m *Model) SetPercent(p float64) tea.Cmd {
+	m.startPercent = m.endPercent
+	m.endPercent = p
+	m.transitionStart = time.Now()
+	return m.nextFrame()
+}
+
+func (m Model) nextFrame() tea.Cmd {
+	return tea.Tick(m.FPS, func(time.Time) tea.Msg {
+		return FrameMsg{m.id}
+	})
 }
 
 func (m Model) bar(b *strings.Builder, percent float64, textWidth int) {
