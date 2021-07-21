@@ -2,12 +2,13 @@ package progress
 
 import (
 	"fmt"
+	"math"
 	"strings"
 	"sync"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/fogleman/ease"
+	"github.com/charmbracelet/harmonica"
 	"github.com/lucasb-eyer/go-colorful"
 	"github.com/muesli/reflow/ansi"
 	"github.com/muesli/termenv"
@@ -29,9 +30,10 @@ func nextID() int {
 }
 
 const (
-	defaultWidth              = 40
-	defaultFPS                = time.Second / 60
-	defaultTransitionDuration = time.Millisecond * 350
+	fps              = 60
+	defaultWidth     = 40
+	defaultFrequency = 18.0
+	defaultDamping   = 1.0
 )
 
 var color func(string) termenv.Color = termenv.ColorProfile().Color
@@ -100,13 +102,18 @@ func WithWidth(w int) Option {
 
 // FrameMsg indicates that an animation step should occur.
 type FrameMsg struct {
-	id int
+	id  int
+	tag int
 }
 
 // Model stores values we'll use when rendering the progress bar.
 type Model struct {
-	// The internal identifier for this model.
+	// An identifier to keep us from receiving messages intended for other
+	// progress bars.
 	id int
+
+	// An identifier to keep us from receiving frame messages too quickly.
+	tag int
 
 	// Total width of the progress bar, including percentage, if set.
 	Width int
@@ -124,15 +131,11 @@ type Model struct {
 	PercentFormat   string // a fmt string for a float
 	PercentageStyle *termenv.Style
 
-	// Animation options.
-	FPS                time.Duration
-	TransitionDuration time.Duration
-
-	// Values for the internal animation state.
-	progress        float64
-	startPercent    float64
-	endPercent      float64
-	transitionStart time.Time
+	// Members for animated transitons.
+	spring        harmonica.Spring
+	percent       float64
+	targetPercent float64
+	velocity      float64
 
 	// Gradient settings
 	useRamp    bool
@@ -148,17 +151,17 @@ type Model struct {
 // NewModel returns a model with default values.
 func NewModel(opts ...Option) (Model, error) {
 	m := Model{
-		id:                 nextID(),
-		Width:              defaultWidth,
-		Full:               '█',
-		FullColor:          "#7571F9",
-		Empty:              '░',
-		EmptyColor:         "#606060",
-		ShowPercentage:     true,
-		PercentFormat:      " %3.0f%%",
-		FPS:                defaultFPS,
-		TransitionDuration: defaultTransitionDuration,
+		id:             nextID(),
+		Width:          defaultWidth,
+		Full:           '█',
+		FullColor:      "#7571F9",
+		Empty:          '░',
+		EmptyColor:     "#606060",
+		ShowPercentage: true,
+		PercentFormat:  " %3.0f%%",
 	}
+
+	m.SetSpringOptions(defaultFrequency, defaultDamping)
 
 	for _, opt := range opts {
 		if err := opt(&m); err != nil {
@@ -169,50 +172,24 @@ func NewModel(opts ...Option) (Model, error) {
 	return m, nil
 }
 
-// View renders the an animated progress bar in its current state. To render
-// a static progress bar based on your own calculations use ViewAs instead.
-func (m Model) View() string {
-	return m.ViewAs(m.progress)
-}
-
-// ViewAs renders the progress bar with a given percentage.
-func (m Model) ViewAs(percent float64) string {
-	b := strings.Builder{}
-	if m.ShowPercentage {
-		percentage := fmt.Sprintf(m.PercentFormat, percent*100) //nolint:gomnd
-		if m.PercentageStyle != nil {
-			percentage = m.PercentageStyle.Styled(percentage)
-		}
-		m.bar(&b, percent, ansi.PrintableRuneWidth(percentage))
-		b.WriteString(percentage)
-	} else {
-		m.bar(&b, percent, 0)
-	}
-	return b.String()
-}
-
+// Update is used to animation the progress bar during transitons. Use
+// SetPercent to create the command you'll need to trigger the animation.
+//
+// If you're rendering with ViewAs you won't need this.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case FrameMsg:
-		if msg.id != m.id {
+		if msg.id != m.id || msg.tag != m.tag {
 			return m, nil
 		}
 
-		elapsed := time.Since(m.transitionStart)
-		totalDuration := m.transitionStart.
-			Add(m.TransitionDuration).
-			Sub(m.transitionStart)
-
-		f := func(d time.Duration) float64 { return float64(int64(d)) }
-
-		segmentProgress := f(elapsed) / f(totalDuration)
-		if segmentProgress >= 1.0 {
-			m.progress = m.endPercent
+		// If we've more or less reached equilibrium, stop updating.
+		dist := math.Abs(m.percent - m.targetPercent)
+		if dist < 0.001 && m.velocity < 0.01 {
 			return m, nil
 		}
 
-		segmentSize := m.endPercent - m.startPercent
-		m.progress = ease.OutQuad(segmentProgress)*segmentSize + m.startPercent
+		m.spring.Update(&m.percent, &m.velocity, m.targetPercent)
 		return m, m.nextFrame()
 
 	default:
@@ -220,25 +197,76 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	}
 }
 
+// SetSpringOptions sets the frequency and damping for the current spring.
+// Frequency corresponds to speed, and damping to bounciness. For details see:
+// https://github.com/charmbracelet/harmonica.
+func (m *Model) SetSpringOptions(frequency, damping float64) {
+	m.spring = harmonica.NewSpring(harmonica.FPS(fps), frequency, damping)
+}
+
+// Percent returns the current percentage state of the model. This is only
+// relevant when you're animating the progress bar.
+//
+// If you're rendering with ViewAs you won't need this.
+func (m Model) Percent() float64 {
+	return m.targetPercent
+}
+
+// SetPercent sets the percentage state of the model as well as a command
+// necessary for animating the progress bar to this new percentage.
+//
+// If you're rendering with ViewAs you won't need this.
 func (m *Model) SetPercent(p float64) tea.Cmd {
-	m.startPercent = m.endPercent
-	m.endPercent = p
-	m.transitionStart = time.Now()
+	m.targetPercent = math.Max(0, math.Min(1, p))
+	m.tag++
 	return m.nextFrame()
 }
 
-func (m Model) nextFrame() tea.Cmd {
-	return tea.Tick(m.FPS, func(time.Time) tea.Msg {
-		return FrameMsg{m.id}
+// IncrPercent increments the percentage by a given amount, returning a command
+// necessary to animate the progress bar to the new percentage.
+//
+// If you're rendering with ViewAs you won't need this.
+func (m *Model) IncrPercent(v float64) tea.Cmd {
+	return m.SetPercent(m.Percent() + v)
+}
+
+// DecrPercent decrements the percentage by a given amount, returning a command
+// necessary to animate the progress bar to the new percentage.
+//
+// If you're rendering with ViewAs you won't need this.
+func (m *Model) DecrPercent(v float64) tea.Cmd {
+	return m.SetPercent(m.Percent() - v)
+}
+
+// View renders the an animated progress bar in its current state. To render
+// a static progress bar based on your own calculations use ViewAs instead.
+func (m Model) View() string {
+	return m.ViewAs(m.percent)
+}
+
+// ViewAs renders the progress bar with a given percentage.
+func (m Model) ViewAs(percent float64) string {
+	b := strings.Builder{}
+	percentView := m.percentageView(percent)
+	m.barView(&b, percent, ansi.PrintableRuneWidth(percentView))
+	b.WriteString(percentView)
+	return b.String()
+}
+
+func (m *Model) nextFrame() tea.Cmd {
+	return tea.Tick(time.Second/time.Duration(fps), func(time.Time) tea.Msg {
+		return FrameMsg{id: m.id, tag: m.tag}
 	})
 }
 
-func (m Model) bar(b *strings.Builder, percent float64, textWidth int) {
+func (m Model) barView(b *strings.Builder, percent float64, textWidth int) {
 	var (
-		tw = m.Width - textWidth        // total width
-		fw = int(float64(tw) * percent) // filled width
+		tw = max(0, m.Width-textWidth)                // total width
+		fw = int(math.Round((float64(tw) * percent))) // filled width
 		p  float64
 	)
+
+	fw = max(0, min(tw, fw))
 
 	if m.useRamp {
 		// Gradient fill
@@ -263,7 +291,20 @@ func (m Model) bar(b *strings.Builder, percent float64, textWidth int) {
 
 	// Empty fill
 	e := termenv.String(string(m.Empty)).Foreground(color(m.EmptyColor)).String()
-	b.WriteString(strings.Repeat(e, tw-fw))
+	n := max(0, tw-fw)
+	b.WriteString(strings.Repeat(e, n))
+}
+
+func (m Model) percentageView(percent float64) string {
+	if !m.ShowPercentage {
+		return ""
+	}
+	percent = math.Max(0, math.Min(1, percent))
+	percentage := fmt.Sprintf(m.PercentFormat, percent*100) //nolint:gomnd
+	if m.PercentageStyle != nil {
+		percentage = m.PercentageStyle.Styled(percentage)
+	}
+	return percentage
 }
 
 func (m *Model) setRamp(colorA, colorB string, scaled bool) error {
@@ -282,4 +323,18 @@ func (m *Model) setRamp(colorA, colorB string, scaled bool) error {
 	m.rampColorA = a
 	m.rampColorB = b
 	return nil
+}
+
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
