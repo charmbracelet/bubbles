@@ -9,6 +9,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/harmonica"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/lucasb-eyer/go-colorful"
 	"github.com/muesli/reflow/ansi"
 	"github.com/muesli/termenv"
@@ -129,7 +130,7 @@ type Model struct {
 	// Settings for rendering the numeric percentage.
 	ShowPercentage  bool
 	PercentFormat   string // a fmt string for a float
-	PercentageStyle *termenv.Style
+	PercentageStyle lipgloss.Style
 
 	// Members for animated transitons.
 	spring        harmonica.Spring
@@ -301,9 +302,7 @@ func (m Model) percentageView(percent float64) string {
 	}
 	percent = math.Max(0, math.Min(1, percent))
 	percentage := fmt.Sprintf(m.PercentFormat, percent*100) //nolint:gomnd
-	if m.PercentageStyle != nil {
-		percentage = m.PercentageStyle.Styled(percentage)
-	}
+	percentage = m.PercentageStyle.Inline(true).Render(percentage)
 	return percentage
 }
 
