@@ -183,7 +183,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			return m, nil
 		}
 
-		m.spring.Update(&m.percent, &m.velocity, m.targetPercent)
+		m.percent, m.velocity = m.spring.Update(m.percent, m.velocity, m.targetPercent)
 		return m, m.nextFrame()
 
 	default:
