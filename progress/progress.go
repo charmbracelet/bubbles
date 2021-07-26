@@ -98,6 +98,13 @@ func WithWidth(w int) Option {
 	}
 }
 
+func WithSpringOptions(frequency, damping float64) Option {
+	return func(m *Model) {
+		m.SetSpringOptions(frequency, damping)
+		m.springCustomized = true
+	}
+}
+
 // FrameMsg indicates that an animation step should occur.
 type FrameMsg struct {
 	id  int
@@ -130,10 +137,11 @@ type Model struct {
 	PercentageStyle lipgloss.Style
 
 	// Members for animated transitons.
-	spring        harmonica.Spring
-	percent       float64
-	targetPercent float64
-	velocity      float64
+	spring           harmonica.Spring
+	springCustomized bool
+	percent          float64
+	targetPercent    float64
+	velocity         float64
 
 	// Gradient settings
 	useRamp    bool
@@ -158,7 +166,9 @@ func NewModel(opts ...Option) Model {
 		ShowPercentage: true,
 		PercentFormat:  " %3.0f%%",
 	}
-	m.SetSpringOptions(defaultFrequency, defaultDamping)
+	if !m.springCustomized {
+		m.SetSpringOptions(defaultFrequency, defaultDamping)
+	}
 
 	for _, opt := range opts {
 		opt(&m)
