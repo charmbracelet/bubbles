@@ -80,6 +80,17 @@ indenting and text wrapping.
 [reflow]: https://github.com/muesli/reflow
 
 
+## Additional Bubbles
+
+* [promptkit](https://github.com/erikgeiser/promptkit): A collection of common
+  prompts for cases like selection, text input, and confirmation. Each prompt
+  comes with sensible defaults, remappable keybindings, any many customization
+  options.
+
+If you’ve built a Bubble you think should be listed here,
+[let us know](mailto:vt100@charm.sh).
+
+
 ## License
 
 [MIT](https://github.com/charmbracelet/teaparty/raw/master/LICENSE)
