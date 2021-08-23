@@ -136,7 +136,7 @@ type Model struct {
 	PercentFormat   string // a fmt string for a float
 	PercentageStyle lipgloss.Style
 
-	// Members for animated transitons.
+	// Members for animated transitions.
 	spring           harmonica.Spring
 	springCustomized bool
 	percent          float64
@@ -176,7 +176,7 @@ func NewModel(opts ...Option) Model {
 	return m
 }
 
-// Update is used to animation the progress bar during transitons. Use
+// Update is used to animation the progress bar during transitions. Use
 // SetPercent to create the command you'll need to trigger the animation.
 //
 // If you're rendering with ViewAs you won't need this.
