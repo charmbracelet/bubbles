@@ -87,7 +87,7 @@ indenting and text wrapping.
 
 A customizable, batteries-included component for browsing a set of items.
 Features pagination, fuzzy filtering, auto-generated help, an activity spinner,
-and status messages, all of which and be enabled and disabled as needed.
+and status messages, all of which can be enabled and disabled as needed.
 Extrapolated from [Glow][glow].
 
 * [Example code, default list](https://github.com/charmbracelet/tea/tree/master/examples/list-default/main.go)
