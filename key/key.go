@@ -9,13 +9,13 @@
 //
 //     var DefaultKeyMap = KeyMap{
 //         Up: key.NewBinding(
-//             key.WithKeys("k", "up"),
-//             key.WithHelp("↑/k", "move up"),
+//             key.WithKeys("k", "up"),        // actual keybindings
+//             key.WithHelp("↑/k", "move up"), // corresponding help text
 //         ),
-//         Down: key.Binding{
+//         Down: key.NewBinding(
 //             WithKeys("j", "down"),
 //             WithHelp("↓/j", "move down"),
-//         },
+//         ),
 //     }
 //
 //     func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
