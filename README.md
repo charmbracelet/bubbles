@@ -147,6 +147,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
   prompts for cases like selection, text input, and confirmation. Each prompt
   comes with sensible defaults, remappable keybindings, any many customization
   options.
+* [mritd/bubbles](https://github.com/mritd/bubbles): Some general-purpose
+  bubbles. Inputs with validation, menu selection, a modified progressbar, and
+  so on.
 
 If you’ve built a Bubble you think should be listed here,
 [let us know](mailto:vt100@charm.sh).
