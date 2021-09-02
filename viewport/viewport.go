@@ -4,18 +4,34 @@ import (
 	"math"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-const (
-	spacebar        = " "
-	mouseWheelDelta = 3
-)
+// NewModel returns a new model with the given width and height as well as
+// default keymappings.
+func NewModel(width, height int) Model {
+	return Model{
+		Width:             width,
+		Height:            height,
+		KeyMap:            DefaultKeyMap(),
+		MouseWheelEnabled: true,
+		MouseWheelDelta:   3,
+	}
+}
 
 // Model is the Bubble Tea model for this viewport element.
 type Model struct {
 	Width  int
 	Height int
+	KeyMap KeyMap
+
+	// Whether or not to respond to the mouse. The mouse must be enabled in
+	// Bubble Tea for this to work. For details, see the Bubble Tea docs.
+	MouseWheelEnabled bool
+
+	// The number of lines the mouse wheel will scroll. By default, this is 3.
+	MouseWheelDelta int
 
 	// YOffset is the vertical scroll position.
 	YOffset int
@@ -35,6 +51,11 @@ type Model struct {
 	HighPerformanceRendering bool
 
 	lines []string
+}
+
+// Init exists to satisfy the tea.Model interface for composability purposes.
+func (m Model) Init() tea.Cmd {
+	return nil
 }
 
 // AtTop returns whether or not the viewport is in the very top position.
@@ -227,54 +248,52 @@ func ViewUp(m Model, lines []string) tea.Cmd {
 	return tea.ScrollUp(lines, top, bottom)
 }
 
-// UPDATE
-
-// Update runs the update loop with default keybindings similar to popular
-// pagers. To define your own keybindings use the methods on Model (i.e.
-// Model.LineDown()) and define your own update function.
+// Update handles standard message-based viewport updates.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
+	var cmd tea.Cmd
+	m, cmd = m.updateAsModel(msg)
+	return m, cmd
+}
+
+// Author's note: this method has been broken out to make it easier to
+// potentially transition Update to satisfy tea.Model.
+func (m Model) updateAsModel(msg tea.Msg) (Model, tea.Cmd) {
 	var cmd tea.Cmd
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		switch msg.String() {
-		// Down one page
-		case "pgdown", spacebar, "f":
+		switch {
+		case key.Matches(msg, m.KeyMap.PageDown):
 			lines := m.ViewDown()
 			if m.HighPerformanceRendering {
 				cmd = ViewDown(m, lines)
 			}
 
-		// Up one page
-		case "pgup", "b":
+		case key.Matches(msg, m.KeyMap.PageUp):
 			lines := m.ViewUp()
 			if m.HighPerformanceRendering {
 				cmd = ViewUp(m, lines)
 			}
 
-		// Down half page
-		case "d", "ctrl+d":
+		case key.Matches(msg, m.KeyMap.HalfPageDown):
 			lines := m.HalfViewDown()
 			if m.HighPerformanceRendering {
 				cmd = ViewDown(m, lines)
 			}
 
-		// Up half page
-		case "u", "ctrl+u":
+		case key.Matches(msg, m.KeyMap.HalfPageUp):
 			lines := m.HalfViewUp()
 			if m.HighPerformanceRendering {
 				cmd = ViewUp(m, lines)
 			}
 
-		// Down one line
-		case "down", "j":
+		case key.Matches(msg, m.KeyMap.Down):
 			lines := m.LineDown(1)
 			if m.HighPerformanceRendering {
 				cmd = ViewDown(m, lines)
 			}
 
-		// Up one line
-		case "up", "k":
+		case key.Matches(msg, m.KeyMap.Up):
 			lines := m.LineUp(1)
 			if m.HighPerformanceRendering {
 				cmd = ViewUp(m, lines)
@@ -282,15 +301,18 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		}
 
 	case tea.MouseMsg:
+		if !m.MouseWheelEnabled {
+			break
+		}
 		switch msg.Type {
 		case tea.MouseWheelUp:
-			lines := m.LineUp(mouseWheelDelta)
+			lines := m.LineUp(m.MouseWheelDelta)
 			if m.HighPerformanceRendering {
 				cmd = ViewUp(m, lines)
 			}
 
 		case tea.MouseWheelDown:
-			lines := m.LineDown(mouseWheelDelta)
+			lines := m.LineDown(m.MouseWheelDelta)
 			if m.HighPerformanceRendering {
 				cmd = ViewDown(m, lines)
 			}
@@ -299,8 +321,6 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 	return m, cmd
 }
-
-// VIEW
 
 // View renders the viewport into a string.
 func (m Model) View() string {
