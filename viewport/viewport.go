@@ -6,6 +6,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 // NewModel returns a new model with the given width and height as well as
@@ -39,6 +40,10 @@ type Model struct {
 	// YPosition is the position of the viewport in relation to the terminal
 	// window. It's used in high performance rendering only.
 	YPosition int
+
+	// Style applies a lipgloss style to the viewport. Realistically, it's most
+	// useful for setting borders, margins and padding.
+	Style lipgloss.Style
 
 	// HighPerformanceRendering bypasses the normal Bubble Tea renderer to
 	// provide higher performance rendering. Most of the time the normal Bubble
@@ -340,7 +345,7 @@ func (m Model) View() string {
 		extraLines = strings.Repeat("\n", max(0, m.Height-len(lines)))
 	}
 
-	return strings.Join(lines, "\n") + extraLines
+	return m.Style.Render(strings.Join(lines, "\n") + extraLines)
 }
 
 // ETC
