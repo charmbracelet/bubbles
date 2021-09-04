@@ -1,4 +1,4 @@
-// Package timer provides a simple timeout component that ticks every second.
+// Package timer provides a simple timeout component.
 package timer
 
 import (
