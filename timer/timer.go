@@ -46,7 +46,7 @@ func (m Model) View() string {
 }
 
 func (m Model) tick() tea.Cmd {
-	return tea.Every(time.Second, func(_ time.Time) tea.Msg {
+	return tea.Tick(time.Second, func(_ time.Time) tea.Msg {
 		return tickMsg{}
 	})
 }
