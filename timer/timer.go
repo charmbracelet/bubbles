@@ -37,9 +37,6 @@ func New(timeout time.Duration) Model {
 
 // Init starts the timer.
 func (m Model) Init() tea.Cmd {
-	if m.TickEvery == 0 {
-		m.TickEvery = time.Second
-	}
 	return tick(m.TickEvery)
 }
 
