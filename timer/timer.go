@@ -7,34 +7,53 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-type tickMsg struct{}
+// TickMsg is a message that is sent on every timer tick.
+type TickMsg struct{}
+
+// TimeoutMsg is a message that is sent once when the timer times out.
+type TimeoutMsg struct{}
 
 // Model of the timer component.
 type Model struct {
 	// How long until the timer expires.
 	Timeout time.Duration
 
-	// What to do when the timer expires.
-	OnTimeout func() tea.Cmd
+	// How long to wait before every tick. Defaults to 1 second.
+	TickEvery time.Duration
+}
+
+// NewWithInterval creates a new timer with the given timeout and tick interval.
+func NewWithInterval(timeout, interval time.Duration) Model {
+	return Model{
+		Timeout:   timeout,
+		TickEvery: interval,
+	}
+}
+
+// New creates a new timer with the given timeout and default 1s interval.
+func New(timeout time.Duration) Model {
+	return NewWithInterval(timeout, time.Second)
 }
 
 // Init starts the timer.
 func (m Model) Init() tea.Cmd {
-	return m.tick()
+	if m.TickEvery == 0 {
+		m.TickEvery = time.Second
+	}
+	return tick(m.TickEvery)
 }
 
 // Update handles the timer tick.
-func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	switch msg.(type) {
-	case tickMsg:
-		m.Timeout -= time.Second
+	case TickMsg:
+		m.Timeout -= m.TickEvery
 		if m.Timeout <= 0 {
-			if m.OnTimeout != nil {
-				return m, m.OnTimeout()
+			return m, func() tea.Msg {
+				return TimeoutMsg{}
 			}
-			return m, nil
 		}
-		return m, m.tick()
+		return m, tick(m.TickEvery)
 	}
 
 	return m, nil
@@ -45,8 +64,8 @@ func (m Model) View() string {
 	return m.Timeout.String()
 }
 
-func (m Model) tick() tea.Cmd {
-	return tea.Tick(time.Second, func(_ time.Time) tea.Msg {
-		return tickMsg{}
+func tick(d time.Duration) tea.Cmd {
+	return tea.Tick(d, func(_ time.Time) tea.Msg {
+		return TickMsg{}
 	})
 }
