@@ -46,11 +46,15 @@ the common, and many customization options.
 
 <img src="https://stuff.charm.sh/bubbles-examples/progress.gif" width="800" alt="Progressbar Example">
 
-A simple, customizable progress meter. Supports solid and gradient fills. The
-empty and filled runes can be set to whatever you'd like. The percentage readout
-is customizable and can also be omitted entirely.
+A simple, customizable progress meter, with optional animation via
+[Harmonica][harmonica]. Supports solid and gradient fills. The empty and filled
+runes can be set to whatever you'd like. The percentage readout is customizable
+and can also be omitted entirely.
 
-* [Example code](https://github.com/charmbracelet/bubbletea/blob/master/examples/progress/main.go)
+* [Animated example](https://github.com/charmbracelet/bubbletea/blob/master/examples/progress-animated/main.go)
+* [Static example](https://github.com/charmbracelet/bubbletea/blob/master/examples/progress-static/main.go)
+
+[harmonica]: https://github.com/charmbracelet/harmonica
 
 
 ## Paginator
@@ -105,6 +109,7 @@ can optionally toggle between. It will truncate gracefully if the terminal is
 too wide for the content.
 
 * [Example code](https://github.com/charmbracelet/bubbletea/blob/master/examples/help/main.go)
+
 
 ## Key
 
