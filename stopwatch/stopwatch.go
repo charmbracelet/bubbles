@@ -10,45 +10,86 @@ import (
 // TickMsg is a message that is sent on every timer tick.
 type TickMsg struct{}
 
-// StopMsg is a message that can be send to stop the watch.
-type StopMsg struct{}
+type startStopMsg struct {
+	running bool
+}
+
+type resetMsg struct{}
 
 // Model of the timer component.
 type Model struct {
 	d time.Duration
 
+	running bool
+
 	// How long to wait before every tick. Defaults to 1 second.
-	TickEvery time.Duration
+	Interval time.Duration
 }
 
-// NewWithInterval creates a new timer with the given timeout and tick interval.
+// NewWithInterval creates a new stopwatch with the given timeout and tick interval.
 func NewWithInterval(interval time.Duration) Model {
 	return Model{
-		TickEvery: interval,
+		Interval: interval,
 	}
 }
 
-// New creates a new timer with the given timeout and default 1s interval.
-func New(timeout time.Duration) Model {
+// New creates a new stopwatch with 1s interval.
+func New() Model {
 	return NewWithInterval(time.Second)
 }
 
-// Init starts the timer.
+// Init starts the stopwatch..
 func (m Model) Init() tea.Cmd {
-	return tick(m.TickEvery)
+	return m.Start()
+}
+
+// Start starts the stopwatch.
+func (m Model) Start() tea.Cmd {
+	return tea.Batch(func() tea.Msg {
+		return startStopMsg{true}
+	}, tick(m.Interval))
+}
+
+// Stop stops the stopwatch.
+func (m Model) Stop() tea.Cmd {
+	return func() tea.Msg {
+		return startStopMsg{false}
+	}
+}
+
+// Reset restes the stopwatch to 0.
+func (m Model) Reset() tea.Cmd {
+	return func() tea.Msg {
+		return resetMsg{}
+	}
+}
+
+// Running returns true if the stopwatch is running or false if it is stopped.
+func (m Model) Running() bool {
+	return m.running
 }
 
 // Update handles the timer tick.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
-	switch msg.(type) {
+	switch msg := msg.(type) {
+	case startStopMsg:
+		m.running = msg.running
+	case resetMsg:
+		m.d = 0
 	case TickMsg:
-		m.d += m.TickEvery
-		return m, tick(m.TickEvery)
-	case StopMsg:
-		return m, nil
+		if !m.running {
+			break
+		}
+		m.d += m.Interval
+		return m, tick(m.Interval)
 	}
 
 	return m, nil
+}
+
+// Elapsed returns the time elapsed.
+func (m Model) Elapsed() time.Duration {
+	return m.d
 }
 
 // View of the timer component.
