@@ -97,11 +97,14 @@ Extrapolated from [Glow][glow].
 
 ## Help
 
+<img src="https://stuff.charm.sh/bubbles-examples/help.gif" width="500" alt="Help Example">
+
 A customizable horizontal mini help view that automatically generates itself
 from your keybindings. It features single and multi-line modes, which the user
 can optionally toggle between. It will truncate gracefully if the terminal is
 too wide for the content.
 
+* [Example code](https://github.com/charmbracelet/bubbletea/blob/master/examples/help/main.go)
 
 ## Key
 
