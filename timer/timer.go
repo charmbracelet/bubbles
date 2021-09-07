@@ -19,14 +19,14 @@ type Model struct {
 	Timeout time.Duration
 
 	// How long to wait before every tick. Defaults to 1 second.
-	TickEvery time.Duration
+	Interval time.Duration
 }
 
 // NewWithInterval creates a new timer with the given timeout and tick interval.
 func NewWithInterval(timeout, interval time.Duration) Model {
 	return Model{
-		Timeout:   timeout,
-		TickEvery: interval,
+		Timeout:  timeout,
+		Interval: interval,
 	}
 }
 
@@ -37,20 +37,20 @@ func New(timeout time.Duration) Model {
 
 // Init starts the timer.
 func (m Model) Init() tea.Cmd {
-	return tick(m.TickEvery)
+	return tick(m.Interval)
 }
 
 // Update handles the timer tick.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	switch msg.(type) {
 	case TickMsg:
-		m.Timeout -= m.TickEvery
+		m.Timeout -= m.Interval
 		if m.Timeout <= 0 {
 			return m, func() tea.Msg {
 				return TimeoutMsg{}
 			}
 		}
-		return m, tick(m.TickEvery)
+		return m, tick(m.Interval)
 	}
 
 	return m, nil
