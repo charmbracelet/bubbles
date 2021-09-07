@@ -57,6 +57,14 @@ func (m Model) Stop() tea.Cmd {
 	}
 }
 
+// Toggle stops the stopwatch if it is running and starts it if it is stopped.
+func (m Model) Toggle() tea.Cmd {
+	if m.Running() {
+		return m.Stop()
+	}
+	return m.Start()
+}
+
 // Reset restes the stopwatch to 0.
 func (m Model) Reset() tea.Cmd {
 	return func() tea.Msg {
