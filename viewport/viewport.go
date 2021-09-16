@@ -21,7 +21,7 @@ type Model struct {
 	YOffset int
 
 	// YPosition is the position of the viewport in relation to the terminal
-	// window. It's used in high performance rendering.
+	// window. It's used in high performance rendering only.
 	YPosition int
 
 	// HighPerformanceRendering bypasses the normal Bubble Tea renderer to
@@ -69,7 +69,7 @@ func (m Model) ScrollPercent() float64 {
 // SetContent set the pager's text content. For high performance rendering the
 // Sync command should also be called.
 func (m *Model) SetContent(s string) {
-	s = strings.Replace(s, "\r\n", "\n", -1) // normalize line endings
+	s = strings.ReplaceAll(s, "\r\n", "\n") // normalize line endings
 	m.lines = strings.Split(s, "\n")
 
 	if m.YOffset > len(m.lines)-1 {
@@ -77,7 +77,8 @@ func (m *Model) SetContent(s string) {
 	}
 }
 
-// Return the lines that should currently be visible in the viewport.
+// visibleLines returns the lines that should currently be visible in the
+// viewport.
 func (m Model) visibleLines() (lines []string) {
 	if len(m.lines) > 0 {
 		top := max(0, m.YOffset)
@@ -85,6 +86,16 @@ func (m Model) visibleLines() (lines []string) {
 		lines = m.lines[top:bottom]
 	}
 	return lines
+}
+
+// scrollArea returns the scrollable boundaries for high performance rendering.
+func (m Model) scrollArea() (top, bottom int) {
+	top = max(0, m.YPosition)
+	bottom = max(top, top+m.Height)
+	if top > 0 && bottom > top {
+		bottom--
+	}
+	return top, bottom
 }
 
 // SetYOffset sets the Y offset.
@@ -186,17 +197,8 @@ func Sync(m Model) tea.Cmd {
 	if len(m.lines) == 0 {
 		return nil
 	}
-
-	// TODO: we should probably use m.visibleLines() rather than these two
-	// expressions.
-	top := max(m.YOffset, 0)
-	bottom := clamp(m.YOffset+m.Height, 0, len(m.lines)-1)
-
-	return tea.SyncScrollArea(
-		m.lines[top:bottom],
-		m.YPosition,
-		m.YPosition+m.Height,
-	)
+	top, bottom := m.scrollArea()
+	return tea.SyncScrollArea(m.visibleLines(), top, bottom)
 }
 
 // ViewDown is a high performance command that moves the viewport up by a given
@@ -210,7 +212,8 @@ func ViewDown(m Model, lines []string) tea.Cmd {
 	if len(lines) == 0 {
 		return nil
 	}
-	return tea.ScrollDown(lines, m.YPosition, m.YPosition+m.Height)
+	top, bottom := m.scrollArea()
+	return tea.ScrollDown(lines, top, bottom)
 }
 
 // ViewUp is a high performance command the moves the viewport down by a given
@@ -220,7 +223,8 @@ func ViewUp(m Model, lines []string) tea.Cmd {
 	if len(lines) == 0 {
 		return nil
 	}
-	return tea.ScrollUp(lines, m.YPosition, m.YPosition+m.Height)
+	top, bottom := m.scrollArea()
+	return tea.ScrollUp(lines, top, bottom)
 }
 
 // UPDATE
