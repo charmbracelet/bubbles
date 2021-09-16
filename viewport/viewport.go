@@ -45,13 +45,13 @@ func (m Model) AtTop() bool {
 // AtBottom returns whether or not the viewport is at or past the very bottom
 // position.
 func (m Model) AtBottom() bool {
-	return m.YOffset >= len(m.lines)-1-m.Height
+	return m.YOffset >= len(m.lines)-m.Height
 }
 
 // PastBottom returns whether or not the viewport is scrolled beyond the last
 // line. This can happen when adjusting the viewport height.
 func (m Model) PastBottom() bool {
-	return m.YOffset > len(m.lines)-1-m.Height
+	return m.YOffset > len(m.lines)-m.Height
 }
 
 // ScrollPercent returns the amount scrolled as a float between 0 and 1.
@@ -87,6 +87,11 @@ func (m Model) visibleLines() (lines []string) {
 	return lines
 }
 
+// SetYOffset sets the Y offset.
+func (m *Model) SetYOffset(n int) {
+	m.YOffset = clamp(n, 0, len(m.lines)-m.Height)
+}
+
 // ViewDown moves the view down by the number of lines in the viewport.
 // Basically, "page down".
 func (m *Model) ViewDown() []string {
@@ -94,11 +99,7 @@ func (m *Model) ViewDown() []string {
 		return nil
 	}
 
-	m.YOffset = min(
-		m.YOffset+m.Height,      // target
-		len(m.lines)-1-m.Height, // fallback
-	)
-
+	m.SetYOffset(m.YOffset + m.Height)
 	return m.visibleLines()
 }
 
@@ -108,11 +109,7 @@ func (m *Model) ViewUp() []string {
 		return nil
 	}
 
-	m.YOffset = max(
-		m.YOffset-m.Height, // target
-		0,                  // fallback
-	)
-
+	m.SetYOffset(m.YOffset - m.Height)
 	return m.visibleLines()
 }
 
@@ -122,18 +119,8 @@ func (m *Model) HalfViewDown() (lines []string) {
 		return nil
 	}
 
-	m.YOffset = min(
-		m.YOffset+m.Height/2,    // target
-		len(m.lines)-1-m.Height, // fallback
-	)
-
-	if len(m.lines) > 0 {
-		top := max(m.YOffset+m.Height/2, 0)
-		bottom := clamp(m.YOffset+m.Height, top, len(m.lines)-1)
-		lines = m.lines[top:bottom]
-	}
-
-	return lines
+	m.SetYOffset(m.YOffset + m.Height/2)
+	return m.visibleLines()
 }
 
 // HalfViewUp moves the view up by half the height of the viewport.
@@ -142,18 +129,8 @@ func (m *Model) HalfViewUp() (lines []string) {
 		return nil
 	}
 
-	m.YOffset = max(
-		m.YOffset-m.Height/2, // target
-		0,                    // fallback
-	)
-
-	if len(m.lines) > 0 {
-		top := max(m.YOffset, 0)
-		bottom := clamp(m.YOffset+m.Height/2, top, len(m.lines)-1)
-		lines = m.lines[top:bottom]
-	}
-
-	return lines
+	m.SetYOffset(m.YOffset - m.Height/2)
+	return m.visibleLines()
 }
 
 // LineDown moves the view down by the given number of lines.
@@ -165,21 +142,8 @@ func (m *Model) LineDown(n int) (lines []string) {
 	// Make sure the number of lines by which we're going to scroll isn't
 	// greater than the number of lines we actually have left before we reach
 	// the bottom.
-	maxDelta := (len(m.lines) - 1) - (m.YOffset + m.Height) // number of lines - viewport bottom edge
-	n = min(n, maxDelta)
-
-	m.YOffset = min(
-		m.YOffset+n,             // target
-		len(m.lines)-1-m.Height, // fallback
-	)
-
-	if len(m.lines) > 0 {
-		top := max(m.YOffset+m.Height-n, 0)
-		bottom := clamp(m.YOffset+m.Height, top, len(m.lines)-1)
-		lines = m.lines[top:bottom]
-	}
-
-	return lines
+	m.SetYOffset(m.YOffset + n)
+	return m.visibleLines()
 }
 
 // LineUp moves the view down by the given number of lines. Returns the new
@@ -191,17 +155,8 @@ func (m *Model) LineUp(n int) (lines []string) {
 
 	// Make sure the number of lines by which we're going to scroll isn't
 	// greater than the number of lines we are from the top.
-	n = min(n, m.YOffset)
-
-	m.YOffset = max(m.YOffset-n, 0)
-
-	if len(m.lines) > 0 {
-		top := max(0, m.YOffset)
-		bottom := clamp(m.YOffset+n, top, len(m.lines)-1)
-		lines = m.lines[top:bottom]
-	}
-
-	return lines
+	m.SetYOffset(m.YOffset - n)
+	return m.visibleLines()
 }
 
 // GotoTop sets the viewport to the top position.
@@ -210,28 +165,14 @@ func (m *Model) GotoTop() (lines []string) {
 		return nil
 	}
 
-	m.YOffset = 0
-
-	if len(m.lines) > 0 {
-		top := m.YOffset
-		bottom := clamp(m.YOffset+m.Height, top, len(m.lines)-1)
-		lines = m.lines[top:bottom]
-	}
-
-	return lines
+	m.SetYOffset(0)
+	return m.visibleLines()
 }
 
 // GotoBottom sets the viewport to the bottom position.
 func (m *Model) GotoBottom() (lines []string) {
-	m.YOffset = max(len(m.lines)-1-m.Height, 0)
-
-	if len(m.lines) > 0 {
-		top := m.YOffset
-		bottom := max(len(m.lines)-1, 0)
-		lines = m.lines[top:bottom]
-	}
-
-	return lines
+	m.SetYOffset(len(m.lines) - 1 - m.Height)
+	return m.visibleLines()
 }
 
 // COMMANDS
@@ -360,8 +301,8 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 // View renders the viewport into a string.
 func (m Model) View() string {
 	if m.HighPerformanceRendering {
-		// Just send newlines since we're doing to be rendering the actual
-		// content seprately. We still need send something that equals the
+		// Just send newlines since we're going to be rendering the actual
+		// content seprately. We still need to send something that equals the
 		// height of this view so that the Bubble Tea standard renderer can
 		// position anything below this view properly.
 		return strings.Repeat("\n", m.Height-1)
@@ -372,7 +313,7 @@ func (m Model) View() string {
 	// Fill empty space with newlines
 	extraLines := ""
 	if len(lines) < m.Height {
-		extraLines = strings.Repeat("\n", m.Height-len(lines))
+		extraLines = strings.Repeat("\n", max(0, m.Height-len(lines)))
 	}
 
 	return strings.Join(lines, "\n") + extraLines
