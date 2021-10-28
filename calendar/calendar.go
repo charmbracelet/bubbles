@@ -3,6 +3,7 @@ package calendar
 import (
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -10,10 +11,9 @@ import (
 )
 
 var (
-	weekDayToNumber = map[string]int{
-		"Monday": 0, "Tuesday": 1, "Wednesday": 2, "Thursday": 3, "Friday": 4, "Saturday": 5, "Sunday": 6,
+	weekdays = []string{
+		"Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday",
 	}
-	separator = " "
 )
 
 type Model struct {
@@ -47,12 +47,22 @@ func (m Model) View() string {
 	firstofmonth := time.Date(m.CurrentDate.Year(), m.CurrentDate.Month(), 1, 0, 0, 0, 0, m.CurrentDate.Location())
 	lastofmonth := firstofmonth.AddDate(0, 1, -1)
 
-	s := fmt.Sprintf("%s %s %s %s %s %s %s\n", "Mo", "Tu", "We", "Th", "Fr", "Sa", "Su")
-
-	offset := weekDayToNumber[firstofmonth.Weekday().String()]
-	for i := 0; i < offset; i++ {
-		s += fmt.Sprintf("   ")
+	var s string
+	for i := 0; i < len(weekdays); i++ {
+		s += weekdays[i][0:2]
+		s += " "
 	}
+
+	s += "\n"
+
+	var offset int
+	for i, weekday := range weekdays {
+		if weekday == firstofmonth.Weekday().String() {
+			offset = i
+			break
+		}
+	}
+	s += strings.Repeat("   ", offset)
 
 	for i := 1; i <= lastofmonth.Day(); i++ {
 		var char string
