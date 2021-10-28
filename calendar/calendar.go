@@ -10,25 +10,36 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-var ()
-
 type Model struct {
 	CurrentDate time.Time
 	Styles      Styles
-	Weekdays    []string
+	Weekdays    []Weekday
 }
 
 type Styles struct {
 	CurrentDate lipgloss.Style
 }
 
+type Weekday struct {
+	Name         string
+	Abbreviation string
+}
+
+var EnglishWeekdays = []Weekday{
+	{Name: "Monday", Abbreviation: "Mo"},
+	{Name: "Tuesday", Abbreviation: "Tu"},
+	{Name: "Wednesday", Abbreviation: "We"},
+	{Name: "Thursday", Abbreviation: "Th"},
+	{Name: "Friday", Abbreviation: "Fr"},
+	{Name: "Saturday", Abbreviation: "Sa"},
+	{Name: "Sunday", Abbreviation: "Su"},
+}
+
 func NewModel() Model {
 	return Model{
 		CurrentDate: time.Now(),
 		Styles:      Styles{CurrentDate: lipgloss.NewStyle().Background(lipgloss.Color("#7571F9"))},
-		Weekdays: []string{
-			"Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday",
-		},
+		Weekdays:    EnglishWeekdays,
 	}
 }
 
@@ -54,14 +65,14 @@ func (m Model) View() string {
 	// Header with 2 character prefix of day names
 	var s string
 	for i := 0; i < len(m.Weekdays); i++ {
-		s += m.Weekdays[i][0:2]
+		s += m.Weekdays[i].Abbreviation
 		s += " "
 	}
 	s += "\n"
 
 	var offset int
 	for i, weekday := range m.Weekdays {
-		if weekday == firstofmonth.Weekday().String() {
+		if weekday.Name == firstofmonth.Weekday().String() {
 			offset = i
 			break
 		}
