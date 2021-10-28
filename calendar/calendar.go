@@ -10,21 +10,25 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-var (
-	weekdays = []string{
-		"Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday",
-	}
-)
+var ()
 
 type Model struct {
 	CurrentDate time.Time
-	Styles      map[string]lipgloss.Style
+	Styles      Styles
+	Weekdays    []string
+}
+
+type Styles struct {
+	CurrentDate lipgloss.Style
 }
 
 func NewModel() Model {
 	return Model{
 		CurrentDate: time.Now(),
-		Styles:      map[string]lipgloss.Style{"current_date": lipgloss.NewStyle().Background(lipgloss.Color("#7571F9"))},
+		Styles:      Styles{CurrentDate: lipgloss.NewStyle().Background(lipgloss.Color("#7571F9"))},
+		Weekdays: []string{
+			"Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday",
+		},
 	}
 }
 
@@ -47,16 +51,16 @@ func (m Model) View() string {
 	firstofmonth := time.Date(m.CurrentDate.Year(), m.CurrentDate.Month(), 1, 0, 0, 0, 0, m.CurrentDate.Location())
 	lastofmonth := firstofmonth.AddDate(0, 1, -1)
 
+	// Header with 2 character prefix of day names
 	var s string
-	for i := 0; i < len(weekdays); i++ {
-		s += weekdays[i][0:2]
+	for i := 0; i < len(m.Weekdays); i++ {
+		s += m.Weekdays[i][0:2]
 		s += " "
 	}
-
 	s += "\n"
 
 	var offset int
-	for i, weekday := range weekdays {
+	for i, weekday := range m.Weekdays {
 		if weekday == firstofmonth.Weekday().String() {
 			offset = i
 			break
@@ -67,17 +71,19 @@ func (m Model) View() string {
 	for i := 1; i <= lastofmonth.Day(); i++ {
 		var char string
 		if i == m.CurrentDate.Day() {
-			char = m.Styles["current_date"].Render(strconv.Itoa(i))
+			char = m.Styles.CurrentDate.Render(strconv.Itoa(i))
 		} else {
 			char = strconv.Itoa(i)
 		}
 
+		// Indent days numbers
 		if i < 10 {
 			s += fmt.Sprintf(" %s ", char)
 		} else {
 			s += fmt.Sprintf("%s ", char)
 		}
 
+		// Line return on week end
 		if (i+offset)%7 == 0 {
 			s += "\n"
 		}
