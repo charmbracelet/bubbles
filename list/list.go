@@ -75,7 +75,7 @@ func (f filteredItems) matches() [][]int {
 	return agg
 }
 
-type filterMatchesMsg []filteredItem
+type FilterMatchesMsg []filteredItem
 
 type statusMessageTimeoutMsg struct{}
 
@@ -687,7 +687,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			return m, tea.Quit
 		}
 
-	case filterMatchesMsg:
+	case FilterMatchesMsg:
 		m.filteredItems = filteredItems(msg)
 		return m, nil
 
@@ -1118,7 +1118,7 @@ func (m Model) spinnerView() string {
 func filterItems(m Model) tea.Cmd {
 	return func() tea.Msg {
 		if m.FilterInput.Value() == "" || m.filterState == Unfiltered {
-			return filterMatchesMsg(m.itemsAsFilterItems()) // return nothing
+			return FilterMatchesMsg(m.itemsAsFilterItems()) // return nothing
 		}
 
 		targets := []string{}
@@ -1139,7 +1139,7 @@ func filterItems(m Model) tea.Cmd {
 			})
 		}
 
-		return filterMatchesMsg(filterMatches)
+		return FilterMatchesMsg(filterMatches)
 	}
 }
 
