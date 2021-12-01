@@ -2,12 +2,28 @@ package spinner
 
 import (
 	"strings"
+	"sync"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/muesli/reflow/ansi"
 )
+
+// Internal ID management for text inputs. Necessary for blink integrity when
+// multiple text inputs are involved.
+var (
+	lastID int
+	idMtx  sync.Mutex
+)
+
+// Return the next ID we should use on the Model.
+func nextID() int {
+	idMtx.Lock()
+	defer idMtx.Unlock()
+	lastID++
+	return lastID
+}
 
 // Spinner is a set of frames used in animating the spinner.
 type Spinner struct {
@@ -92,6 +108,7 @@ type Model struct {
 
 	frame     int
 	startTime time.Time
+	id        int
 	tag       int
 }
 
@@ -173,13 +190,17 @@ func (m Model) Visible() bool {
 
 // NewModel returns a model with default values.
 func NewModel() Model {
-	return Model{Spinner: Line}
+	return Model{
+		Spinner: Line,
+		id:      nextID(),
+	}
 }
 
 // TickMsg indicates that the timer has ticked and we should render a frame.
 type TickMsg struct {
 	Time time.Time
 	tag  int
+	id   int
 }
 
 // Update is the Tea update function. This will advance the spinner one frame
@@ -188,6 +209,12 @@ type TickMsg struct {
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case TickMsg:
+		// If an ID is set, and the ID doesn't belong to this spinner, reject
+		// the message.
+		if msg.id > 0 && msg.id != m.id {
+			return m, nil
+		}
+
 		// If a tag is set, and it's not the one we expect, reject the message.
 		// This prevents the spinner from receiving too many messages and
 		// thus spinning too fast.
@@ -201,7 +228,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		}
 
 		m.tag++
-		return m, m.tick(m.tag)
+		return m, m.tick(m.id, m.tag)
 	default:
 		return m, nil
 	}
@@ -231,10 +258,11 @@ func Tick() tea.Msg {
 	return TickMsg{Time: time.Now()}
 }
 
-func (m Model) tick(tag int) tea.Cmd {
+func (m Model) tick(id, tag int) tea.Cmd {
 	return tea.Tick(m.Spinner.FPS, func(t time.Time) tea.Msg {
 		return TickMsg{
 			Time: t,
+			id:   id,
 			tag:  tag,
 		}
 	})
