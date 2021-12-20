@@ -2,13 +2,35 @@
 package stopwatch
 
 import (
+	"sync"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
 
+var (
+	lastID int
+	idMtx  sync.Mutex
+)
+
+func nextID() int {
+	idMtx.Lock()
+	defer idMtx.Unlock()
+	lastID++
+	return lastID
+}
+
 // TickMsg is a message that is sent on every timer tick.
-type TickMsg struct{}
+type TickMsg struct {
+	// ID is the identifier of the stopwatch that send the message. This makes
+	// it possible to determine which stopwatch a tick belongs to when there
+	// are multiple stopwatches running.
+	//
+	// Note, however, that a stopwatch will reject ticks from other
+	// stopwatches, so it's safe to flow all TickMsgs through all stopwatches
+	// and hvae them still behave appropriately.
+	ID int
+}
 
 type startStopMsg struct {
 	running bool
@@ -16,26 +38,33 @@ type startStopMsg struct {
 
 type resetMsg struct{}
 
-// Model of the timer component.
+// Model for the stopwatch component.
 type Model struct {
-	d time.Duration
-
+	d       time.Duration
+	id      int
 	running bool
 
 	// How long to wait before every tick. Defaults to 1 second.
 	Interval time.Duration
 }
 
-// NewWithInterval creates a new stopwatch with the given timeout and tick interval.
+// NewWithInterval creates a new stopwatch with the given timeout and tick
+// interval.
 func NewWithInterval(interval time.Duration) Model {
 	return Model{
 		Interval: interval,
+		id:       nextID(),
 	}
 }
 
 // New creates a new stopwatch with 1s interval.
 func New() Model {
 	return NewWithInterval(time.Second)
+}
+
+// ID returns the unique ID of the model.
+func (m Model) ID() int {
+	return m.id
 }
 
 // Init starts the stopwatch..
@@ -47,7 +76,7 @@ func (m Model) Init() tea.Cmd {
 func (m Model) Start() tea.Cmd {
 	return tea.Batch(func() tea.Msg {
 		return startStopMsg{true}
-	}, tick(m.Interval))
+	}, tick(m.id, m.Interval))
 }
 
 // Stop stops the stopwatch.
@@ -85,11 +114,11 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	case resetMsg:
 		m.d = 0
 	case TickMsg:
-		if !m.running {
+		if !m.running || (msg.ID != 0 && msg.ID != m.id) {
 			break
 		}
 		m.d += m.Interval
-		return m, tick(m.Interval)
+		return m, tick(m.id, m.Interval)
 	}
 
 	return m, nil
@@ -105,8 +134,8 @@ func (m Model) View() string {
 	return m.d.String()
 }
 
-func tick(d time.Duration) tea.Cmd {
+func tick(id int, d time.Duration) tea.Cmd {
 	return tea.Tick(d, func(_ time.Time) tea.Msg {
-		return TickMsg{}
+		return TickMsg{ID: id}
 	})
 }
