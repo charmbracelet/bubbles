@@ -28,15 +28,20 @@ type TickMsg struct {
 	//
 	// Note, however, that a stopwatch will reject ticks from other
 	// stopwatches, so it's safe to flow all TickMsgs through all stopwatches
-	// and hvae them still behave appropriately.
+	// and have them still behave appropriately.
 	ID int
 }
 
-type startStopMsg struct {
+// StartStopMsg is sent when the stopwatch should start or stop.
+type StartStopMsg struct {
+	ID      int
 	running bool
 }
 
-type resetMsg struct{}
+// ResetMsg is sent when the stopwatch should reset.
+type ResetMsg struct {
+	ID int
+}
 
 // Model for the stopwatch component.
 type Model struct {
@@ -67,7 +72,7 @@ func (m Model) ID() int {
 	return m.id
 }
 
-// Init starts the stopwatch..
+// Init starts the stopwatch.
 func (m Model) Init() tea.Cmd {
 	return m.Start()
 }
@@ -75,14 +80,14 @@ func (m Model) Init() tea.Cmd {
 // Start starts the stopwatch.
 func (m Model) Start() tea.Cmd {
 	return tea.Batch(func() tea.Msg {
-		return startStopMsg{true}
+		return StartStopMsg{ID: m.id, running: true}
 	}, tick(m.id, m.Interval))
 }
 
 // Stop stops the stopwatch.
 func (m Model) Stop() tea.Cmd {
 	return func() tea.Msg {
-		return startStopMsg{false}
+		return StartStopMsg{ID: m.id, running: false}
 	}
 }
 
@@ -97,7 +102,7 @@ func (m Model) Toggle() tea.Cmd {
 // Reset restes the stopwatch to 0.
 func (m Model) Reset() tea.Cmd {
 	return func() tea.Msg {
-		return resetMsg{}
+		return ResetMsg{ID: m.id}
 	}
 }
 
@@ -109,12 +114,18 @@ func (m Model) Running() bool {
 // Update handles the timer tick.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
-	case startStopMsg:
+	case StartStopMsg:
+		if msg.ID != m.id {
+			return m, nil
+		}
 		m.running = msg.running
-	case resetMsg:
+	case ResetMsg:
+		if msg.ID != m.id {
+			return m, nil
+		}
 		m.d = 0
 	case TickMsg:
-		if !m.running || (msg.ID != 0 && msg.ID != m.id) {
+		if !m.running || msg.ID != m.id {
 			break
 		}
 		m.d += m.Interval
