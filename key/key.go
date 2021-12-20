@@ -128,11 +128,13 @@ type Help struct {
 	Desc string
 }
 
-// Matches checks if the given KeyMsg matches a given binding.
-func Matches(k tea.KeyMsg, b Binding) bool {
-	for _, v := range b.keys {
-		if k.String() == v && b.Enabled() {
-			return true
+// Matches checks if the given KeyMsg matches the given bindings.
+func Matches(k tea.KeyMsg, b ...Binding) bool {
+	for _, binding := range b {
+		for _, v := range binding.keys {
+			if k.String() == v && binding.Enabled() {
+				return true
+			}
 		}
 	}
 	return false
