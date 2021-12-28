@@ -24,15 +24,15 @@ func nextID() int {
 //
 // Technically speaking, sending commands to start and stop the timer in this
 // case is extraneous. To stop the timer we'd just need to set the 'running'
-// property on the model to false which would tell us to stop responding to
-// TickMsgs. To start the model we'd set 'running' to true and fire off
-// a TickMsg. Helper functions would look like:
+// property on the model to false which cause logic in the update function to
+// stop responding to TickMsgs. To start the model we'd set 'running' to true
+// and fire off a TickMsg. Helper functions would look like:
 //
 //     func (m *model) Start() tea.Cmd
 //     func (m *model) Stop()
 //
-// All this said, this makes order of operations important when using such
-// helper commands. For example:
+// The danger with this approach, however, is that order of operations becomes
+// important with helper functions like the above. Consider the following:
 //
 //     // Would not work
 //     return m, m.timer.Start()
@@ -43,9 +43,9 @@ func nextID() int {
 //
 // Thus, because of potential pitfalls like the ones above, we've introduced
 // the extraneous StartStopMsg to simplify the mental model when using this
-// package. Bear in mind that sending commands to simply communicate with other
-// parts of your application, such as in this pacakge, is still not
-// recommended.
+// package. Bear in mind that the practice of sending commands to simply
+// communicate with other parts of your application, such as in this package,
+// is still not recommended.
 
 // StartStopMsg is used to start and stop the timer.
 type StartStopMsg struct {
