@@ -95,6 +95,7 @@ func NewWithInterval(timeout, interval time.Duration) Model {
 		Timeout:  timeout,
 		Interval: interval,
 		running:  true,
+		id:       nextID(),
 	}
 }
 
