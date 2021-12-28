@@ -60,7 +60,7 @@ type TickMsg struct {
 	// are multiple timers running.
 	//
 	// Note, however, that a timer will reject ticks from other stopwatches, so
-	// it's safe to flow all TickMsgs through all timers and hvae them still
+	// it's safe to flow all TickMsgs through all timers and have them still
 	// behave appropriately.
 	ID int
 
@@ -103,7 +103,8 @@ func New(timeout time.Duration) Model {
 	return NewWithInterval(timeout, time.Second)
 }
 
-// ID returns
+// ID returns the model's identifier. This can be used to determine if messages
+// belong to this timer instance when there are multiple timers.
 func (m Model) ID() int {
 	return m.id
 }
