@@ -415,6 +415,9 @@ func (m *Model) deleteWordLeft() bool {
 	i := m.pos
 	blink := m.setCursor(m.pos - 1)
 	for unicode.IsSpace(m.value[m.pos]) {
+		if m.pos <= 0 {
+			break
+		}
 		// ignore series of whitespace before cursor
 		blink = m.setCursor(m.pos - 1)
 	}
@@ -457,6 +460,10 @@ func (m *Model) deleteWordRight() bool {
 	for unicode.IsSpace(m.value[m.pos]) {
 		// ignore series of whitespace after cursor
 		m.setCursor(m.pos + 1)
+
+		if m.pos >= len(m.value) {
+			break
+		}
 	}
 
 	for m.pos < len(m.value) {
