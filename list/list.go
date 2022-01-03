@@ -297,6 +297,7 @@ func (m *Model) SetItems(i []Item) tea.Cmd {
 	}
 
 	m.updatePagination()
+	m.updateKeybindings()
 	return cmd
 }
 
