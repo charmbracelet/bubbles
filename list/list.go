@@ -611,7 +611,7 @@ func (m *Model) updateKeybindings() {
 		m.KeyMap.CloseFullHelp.SetEnabled(false)
 
 	default:
-		hasItems := m.items != nil
+		hasItems := len(m.items) != 0
 		m.KeyMap.CursorUp.SetEnabled(hasItems)
 		m.KeyMap.CursorDown.SetEnabled(hasItems)
 
