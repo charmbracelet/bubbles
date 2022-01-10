@@ -9,16 +9,13 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// NewModel returns a new model with the given width and height as well as
-// default keymappings.
-func NewModel(width, height int) Model {
-	return Model{
-		Width:             width,
-		Height:            height,
-		KeyMap:            DefaultKeyMap(),
-		MouseWheelEnabled: true,
-		MouseWheelDelta:   3,
-	}
+// New returns a new model with the given width and height as well as default
+// keymappings.
+func New(width, height int) (m Model) {
+	m.Width = width
+	m.Height = height
+	m.setInitialValues()
+	return m
 }
 
 // Model is the Bubble Tea model for this viewport element.
@@ -55,7 +52,15 @@ type Model struct {
 	// which is usually via the alternate screen buffer.
 	HighPerformanceRendering bool
 
-	lines []string
+	initialized bool
+	lines       []string
+}
+
+func (m *Model) setInitialValues() {
+	m.KeyMap = DefaultKeyMap()
+	m.MouseWheelEnabled = true
+	m.MouseWheelDelta = 3
+	m.initialized = true
 }
 
 // Init exists to satisfy the tea.Model interface for composability purposes.
@@ -263,6 +268,10 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 // Author's note: this method has been broken out to make it easier to
 // potentially transition Update to satisfy tea.Model.
 func (m Model) updateAsModel(msg tea.Msg) (Model, tea.Cmd) {
+	if !m.initialized {
+		m.setInitialValues()
+	}
+
 	var cmd tea.Cmd
 
 	switch msg := msg.(type) {
