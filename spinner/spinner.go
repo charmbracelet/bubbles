@@ -254,8 +254,12 @@ func (m Model) View() string {
 
 // Tick is the command used to advance the spinner one frame. Use this command
 // to effectively start the spinner.
-func Tick() tea.Msg {
-	return TickMsg{Time: time.Now()}
+func (m Model) Tick() tea.Msg {
+	return TickMsg{
+		Time: time.Now(),
+		id:   m.id,
+		tag:  m.tag,
+	}
 }
 
 func (m Model) tick(id, tag int) tea.Cmd {
@@ -266,4 +270,12 @@ func (m Model) tick(id, tag int) tea.Cmd {
 			tag:  tag,
 		}
 	})
+}
+
+// Tick is the command used to advance the spinner one frame. Use this command
+// to effectively start the spinner.
+//
+// This method is deprecated. Use Model.Tick instead.
+func Tick() tea.Msg {
+	return TickMsg{Time: time.Now()}
 }
