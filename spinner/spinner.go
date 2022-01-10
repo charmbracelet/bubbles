@@ -146,6 +146,11 @@ func (m *Model) Finish() {
 	}
 }
 
+// ID returns the spinner's unique ID.
+func (m Model) ID() int {
+	return m.id
+}
+
 // advancedMode returns whether or not the user is making use of HideFor and
 // MinimumLifetime properties.
 func (m Model) advancedMode() bool {
@@ -200,7 +205,7 @@ func NewModel() Model {
 type TickMsg struct {
 	Time time.Time
 	tag  int
-	id   int
+	ID   int
 }
 
 // Update is the Tea update function. This will advance the spinner one frame
@@ -211,7 +216,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	case TickMsg:
 		// If an ID is set, and the ID doesn't belong to this spinner, reject
 		// the message.
-		if msg.id > 0 && msg.id != m.id {
+		if msg.ID > 0 && msg.ID != m.id {
 			return m, nil
 		}
 
@@ -256,9 +261,15 @@ func (m Model) View() string {
 // to effectively start the spinner.
 func (m Model) Tick() tea.Msg {
 	return TickMsg{
+		// The time at which the tick occurred.
 		Time: time.Now(),
-		id:   m.id,
-		tag:  m.tag,
+
+		// The ID of the spinner that this message belongs to. This can be
+		// helpful when routing messages, however bear in mind that spinners
+		// will ignore messages that don't contain ID by default.
+		ID: m.id,
+
+		tag: m.tag,
 	}
 }
 
@@ -266,7 +277,7 @@ func (m Model) tick(id, tag int) tea.Cmd {
 	return tea.Tick(m.Spinner.FPS, func(t time.Time) tea.Msg {
 		return TickMsg{
 			Time: t,
-			id:   id,
+			ID:   id,
 			tag:  tag,
 		}
 	})
