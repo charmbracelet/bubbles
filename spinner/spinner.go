@@ -193,13 +193,18 @@ func (m Model) Visible() bool {
 	return !m.hidden() && !m.finished()
 }
 
-// NewModel returns a model with default values.
-func NewModel() Model {
+// New returns a model with default values.
+func New() Model {
 	return Model{
 		Spinner: Line,
 		id:      nextID(),
 	}
 }
+
+// NewModel returns a model with default values.
+//
+// Deprecated. Use New instead.
+var NewModel = New
 
 // TickMsg indicates that the timer has ticked and we should render a frame.
 type TickMsg struct {

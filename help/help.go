@@ -57,8 +57,8 @@ type Model struct {
 	Styles Styles
 }
 
-// NewModel creates a new help view with some useful defaults.
-func NewModel() Model {
+// New creates a new help view with some useful defaults.
+func New() Model {
 	keyStyle := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{
 		Light: "#909090",
 		Dark:  "#626262",
@@ -89,6 +89,11 @@ func NewModel() Model {
 		},
 	}
 }
+
+// NewModel creates a new help view with some useful defaults.
+//
+// Deprecated. Use New instead.
+var NewModel = New
 
 // Update helps satisfy the Bubble Tea Model interface. It's a no-op.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
