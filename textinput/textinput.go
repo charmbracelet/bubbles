@@ -153,7 +153,7 @@ type Model struct {
 }
 
 // NewModel creates a new model with default settings.
-func NewModel() Model {
+func New() Model {
 	return Model{
 		Prompt:           "> ",
 		BlinkSpeed:       defaultBlinkSpeed,
@@ -173,6 +173,11 @@ func NewModel() Model {
 		},
 	}
 }
+
+// NewModel creates a new model with default settings.
+//
+// Deprecated. Use New instead.
+var NewModel = New
 
 // SetValue sets the value of the text input.
 func (m *Model) SetValue(s string) {

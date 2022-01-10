@@ -96,8 +96,8 @@ func (m Model) OnLastPage() bool {
 	return m.Page == m.TotalPages-1
 }
 
-// NewModel creates a new model with defaults.
-func NewModel() Model {
+// New creates a new model with defaults.
+func New() Model {
 	return Model{
 		Type:              Arabic,
 		Page:              0,
@@ -113,6 +113,11 @@ func NewModel() Model {
 		UseJKKeys:         false,
 	}
 }
+
+// NewModel creates a new model with defaults.
+//
+// Deprecated. Use New instead.
+var NewModel = New
 
 // Update is the Tea update function which binds keystrokes to pagination.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {

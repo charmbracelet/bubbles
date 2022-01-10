@@ -149,8 +149,8 @@ type Model struct {
 	delegate ItemDelegate
 }
 
-// NewModel returns a new model with sensible defaults.
-func NewModel(items []Item, delegate ItemDelegate, width, height int) Model {
+// New returns a new model with sensible defaults.
+func New(items []Item, delegate ItemDelegate, width, height int) Model {
 	styles := DefaultStyles()
 
 	sp := spinner.NewModel()
@@ -195,6 +195,11 @@ func NewModel(items []Item, delegate ItemDelegate, width, height int) Model {
 	m.updateKeybindings()
 	return m
 }
+
+// NewModel returns a new model with sensible defaults.
+//
+// Deprecated. Use New instead.
+var NewModel = New
 
 // SetFilteringEnabled enables or disables filtering. Note that this is different
 // from ShowFilter, which merely hides or shows the input view.

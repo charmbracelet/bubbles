@@ -154,8 +154,8 @@ type Model struct {
 	scaleRamp bool
 }
 
-// NewModel returns a model with default values.
-func NewModel(opts ...Option) Model {
+// New returns a model with default values.
+func New(opts ...Option) Model {
 	m := Model{
 		id:             nextID(),
 		Width:          defaultWidth,
@@ -175,6 +175,11 @@ func NewModel(opts ...Option) Model {
 	}
 	return m
 }
+
+// NewModel returns a model with default values.
+//
+// Deprecated. Use New instead.
+var NewModel = New
 
 // Init exists satisfy the tea.Model interface.
 func (m Model) Init() tea.Cmd {
