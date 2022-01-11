@@ -340,6 +340,7 @@ func (m *Model) InsertItem(index int, item Item) tea.Cmd {
 	}
 
 	m.updatePagination()
+	m.updateKeybindings()
 	return cmd
 }
 
