@@ -71,7 +71,7 @@ logic and visualize pagination however you like.
 
 ## Viewport
 
-<img src="https://stuff.charm.sh/bubbles-examples/viewport.gif" width="600" alt="Viewport Example">
+<img src="https://stuff.charm.sh/bubbles-examples/viewport.gif?0" width="600" alt="Viewport Example">
 
 A viewport for vertically scrolling content. Optionally includes standard
 pager keybindings and mouse wheel support. A high performance mode is available
@@ -104,14 +104,14 @@ Extrapolated from [Glow][glow].
 A simple, flexible component for counting down. The update frequency and output
 can be customized as you like.
 
-<img src="stuff.charm.sh/bubbles-examples/timer.gif" width="500" alt="Timer example">
+<img src="https://stuff.charm.sh/bubbles-examples/timer.gif" width="400" alt="Timer example">
 
 * [Example code](https://github.com/charmbracelet/bubbletea/blob/master/examples/timer/main.go)
 
 
 ## Stopwatch
 
-<img src="stuff.charm.sh/bubbles-examples/timer.gif" width="500" alt="Stopwatch example">
+<img src="https://stuff.charm.sh/bubbles-examples/stopwatch.gif" width="400" alt="Stopwatch example">
 
 A simple, flexible component for counting up. The update frequency and output
 can be customized as you see fit.
