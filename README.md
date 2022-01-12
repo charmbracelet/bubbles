@@ -99,6 +99,26 @@ Extrapolated from [Glow][glow].
 * [Example code, all features](https://github.com/charmbracelet/tea/tree/master/examples/list-fancy/main.go)
 
 
+## Timer
+
+A simple, flexible component for counting down. The update frequency and output
+can be customized as you like.
+
+<img src="stuff.charm.sh/bubbles-examples/timer.gif" width="500" alt="Timer example">
+
+* [Example code](https://github.com/charmbracelet/bubbletea/blob/master/examples/timer/main.go)
+
+
+## Stopwatch
+
+<img src="stuff.charm.sh/bubbles-examples/timer.gif" width="500" alt="Stopwatch example">
+
+A simple, flexible component for counting up. The update frequency and output
+can be customized as you see fit.
+
+* [Example code](https://github.com/charmbracelet/bubbletea/blob/master/examples/stopwatch/main.go)
+
+
 ## Help
 
 <img src="https://stuff.charm.sh/bubbles-examples/help.gif" width="500" alt="Help Example">
@@ -172,6 +192,6 @@ If you’ve built a Bubble you think should be listed here,
 
 Part of [Charm](https://charm.sh).
 
-<a href="https://charm.sh/"><img alt="The Charm logo" src="https://stuff.charm.sh/charm-badge-unrounded.jpg" width="400"></a>
+<a href="https://charm.sh/"><img alt="The Charm logo" src="https://stuff.charm.sh/charm-badge.jpg" width="400"></a>
 
 Charm热爱开源 • Charm loves open source
