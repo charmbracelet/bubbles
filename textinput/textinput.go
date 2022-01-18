@@ -62,7 +62,7 @@ const (
 	// seen for password fields on the command line.
 	EchoNone
 
-	// EchoOnEdit
+	// EchoOnEdit.
 )
 
 // blinkCtx manages cursor blinking.
@@ -234,7 +234,7 @@ func (m *Model) cursorStart() bool {
 	return m.setCursor(0)
 }
 
-// CursorEnd moves the cursor to the end of the input field
+// CursorEnd moves the cursor to the end of the input field.
 func (m *Model) CursorEnd() {
 	m.cursorEnd()
 }

@@ -75,6 +75,8 @@ func (f filteredItems) matches() [][]int {
 	return agg
 }
 
+// FilterMatchesMsg contains data about items matched during filtering. The
+// message should be routed to Update for processing.
 type FilterMatchesMsg []filteredItem
 
 type statusMessageTimeoutMsg struct{}

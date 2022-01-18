@@ -98,6 +98,11 @@ func WithWidth(w int) Option {
 	}
 }
 
+// WithSpringOptions sets the initial frequency and damping options for the
+// progressbar's built-in spring-based animation. Frequency corresponds to
+// speed, and damping to bounciness. For details see:
+//
+// https://github.com/charmbracelet/harmonica
 func WithSpringOptions(frequency, damping float64) Option {
 	return func(m *Model) {
 		m.SetSpringOptions(frequency, damping)
@@ -213,7 +218,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // SetSpringOptions sets the frequency and damping for the current spring.
 // Frequency corresponds to speed, and damping to bounciness. For details see:
-// https://github.com/charmbracelet/harmonica.
+//
+// https://github.com/charmbracelet/harmonica
 func (m *Model) SetSpringOptions(frequency, damping float64) {
 	m.spring = harmonica.NewSpring(harmonica.FPS(fps), frequency, damping)
 }
