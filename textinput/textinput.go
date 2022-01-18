@@ -412,7 +412,6 @@ func (m *Model) deleteWordLeft() bool {
 		return m.deleteBeforeCursor()
 	}
 
-	i := m.pos
 	blink := m.setCursor(m.pos - 1)
 	for unicode.IsSpace(m.value[m.pos]) {
 		if m.pos <= 0 {
@@ -434,10 +433,10 @@ func (m *Model) deleteWordLeft() bool {
 		}
 	}
 
-	if i > len(m.value) {
+	if m.pos > len(m.value) {
 		m.value = m.value[:m.pos]
 	} else {
-		m.value = append(m.value[:m.pos], m.value[i:]...)
+		m.value = append(m.value[:m.pos], m.value[m.pos:]...)
 	}
 
 	return blink
