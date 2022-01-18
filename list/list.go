@@ -67,14 +67,6 @@ func (f filteredItems) items() []Item {
 	return agg
 }
 
-func (f filteredItems) matches() [][]int {
-	agg := make([][]int, len(f))
-	for i, v := range f {
-		agg[i] = v.matches
-	}
-	return agg
-}
-
 // FilterMatchesMsg contains data about items matched during filtering. The
 // message should be routed to Update for processing.
 type FilterMatchesMsg []filteredItem
