@@ -213,7 +213,7 @@ func (m *Model) GotoTop() (lines []string) {
 
 // GotoBottom sets the viewport to the bottom position.
 func (m *Model) GotoBottom() (lines []string) {
-	m.SetYOffset(len(m.lines) - 1 - m.Height)
+	m.SetYOffset(len(m.lines) - m.Height)
 	return m.visibleLines()
 }
 
