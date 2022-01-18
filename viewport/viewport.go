@@ -76,13 +76,13 @@ func (m Model) AtTop() bool {
 // AtBottom returns whether or not the viewport is at or past the very bottom
 // position.
 func (m Model) AtBottom() bool {
-	return m.YOffset >= len(m.lines)-m.Height
+	return m.YOffset >= m.maxYOffset()
 }
 
 // PastBottom returns whether or not the viewport is scrolled beyond the last
 // line. This can happen when adjusting the viewport height.
 func (m Model) PastBottom() bool {
-	return m.YOffset > len(m.lines)-m.Height
+	return m.YOffset > m.maxYOffset()
 }
 
 // ScrollPercent returns the amount scrolled as a float between 0 and 1.
@@ -108,6 +108,12 @@ func (m *Model) SetContent(s string) {
 	}
 }
 
+// maxYOffset returns the maximum possible value of the y-offset based on the
+// viewport's content and set height.
+func (m Model) maxYOffset() int {
+	return max(0, len(m.lines)-m.Height)
+}
+
 // visibleLines returns the lines that should currently be visible in the
 // viewport.
 func (m Model) visibleLines() (lines []string) {
@@ -131,7 +137,7 @@ func (m Model) scrollArea() (top, bottom int) {
 
 // SetYOffset sets the Y offset.
 func (m *Model) SetYOffset(n int) {
-	m.YOffset = clamp(n, 0, len(m.lines)-m.Height)
+	m.YOffset = clamp(n, 0, m.maxYOffset())
 }
 
 // ViewDown moves the view down by the number of lines in the viewport.
@@ -213,11 +219,9 @@ func (m *Model) GotoTop() (lines []string) {
 
 // GotoBottom sets the viewport to the bottom position.
 func (m *Model) GotoBottom() (lines []string) {
-	m.SetYOffset(len(m.lines) - m.Height)
+	m.SetYOffset(m.maxYOffset())
 	return m.visibleLines()
 }
-
-// COMMANDS
 
 // Sync tells the renderer where the viewport will be located and requests
 // a render of the current state of the viewport. It should be called for the
@@ -357,9 +361,10 @@ func (m Model) View() string {
 	return m.Style.Render(strings.Join(lines, "\n") + extraLines)
 }
 
-// ETC
-
 func clamp(v, low, high int) int {
+	if high < low {
+		low, high = high, low
+	}
 	return min(high, max(low, v))
 }
 
