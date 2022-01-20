@@ -358,7 +358,10 @@ func (m Model) View() string {
 		extraLines = strings.Repeat("\n", max(0, m.Height-len(lines)))
 	}
 
-	return m.Style.Render(strings.Join(lines, "\n") + extraLines)
+	return m.Style.Copy().
+		UnsetWidth().
+		UnsetHeight().
+		Render(strings.Join(lines, "\n") + extraLines)
 }
 
 func clamp(v, low, high int) int {
