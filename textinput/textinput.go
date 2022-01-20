@@ -412,7 +412,11 @@ func (m *Model) deleteWordLeft() bool {
 		return m.deleteBeforeCursor()
 	}
 
-	oldPos := m.pos
+	// Linter note: it's critical that we acquire the initial cursor position
+	// here prior to altering it via SetCursor() below. As such, moving this
+	// call into the corresponding if clause does not apply here.
+	oldPos := m.pos //nolint:ifshort
+
 	blink := m.setCursor(m.pos - 1)
 	for unicode.IsSpace(m.value[m.pos]) {
 		if m.pos <= 0 {
@@ -434,7 +438,11 @@ func (m *Model) deleteWordLeft() bool {
 		}
 	}
 
-	m.value = append(m.value[:m.pos], m.value[oldPos:]...)
+	if oldPos > len(m.value) {
+		m.value = m.value[:m.pos]
+	} else {
+		m.value = append(m.value[:m.pos], m.value[oldPos:]...)
+	}
 
 	return blink
 }
