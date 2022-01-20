@@ -459,7 +459,7 @@ func (m *Model) deleteWordRight() bool {
 		return m.deleteAfterCursor()
 	}
 
-	i := m.pos
+	oldPos := m.pos
 	m.setCursor(m.pos + 1)
 	for unicode.IsSpace(m.value[m.pos]) {
 		// ignore series of whitespace after cursor
@@ -479,12 +479,12 @@ func (m *Model) deleteWordRight() bool {
 	}
 
 	if m.pos > len(m.value) {
-		m.value = m.value[:i]
+		m.value = m.value[:oldPos]
 	} else {
-		m.value = append(m.value[:i], m.value[m.pos:]...)
+		m.value = append(m.value[:oldPos], m.value[m.pos:]...)
 	}
 
-	return m.setCursor(i)
+	return m.setCursor(oldPos)
 }
 
 // wordLeft moves the cursor one word to the left. Returns whether or not the
