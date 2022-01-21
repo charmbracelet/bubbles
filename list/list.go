@@ -71,6 +71,34 @@ func (f filteredItems) items() []Item {
 // message should be routed to Update for processing.
 type FilterMatchesMsg []filteredItem
 
+// Filter takes a term and a list of strings to search through
+// (defined by Item#FilterValue).
+// It should return a sorted list of ranks.
+type Filter func(string, []string) []Rank
+
+// Rank defines a rank for a given item.
+type Rank struct {
+	// The index of the item in the original input.
+	Index int
+	// Indices of the actual word that were matched against the filter term.
+	MatchedIndexes []int
+}
+
+// DefaultFilter uses the sahilm/fuzzy to filter through the list.
+// This is set by default.
+func DefaultFilter(term string, targets []string) []Rank {
+	var ranks fuzzy.Matches = fuzzy.Find(term, targets)
+	sort.Stable(ranks)
+	result := make([]Rank, len(ranks))
+	for i, r := range ranks {
+		result[i] = Rank{
+			Index:          r.Index,
+			MatchedIndexes: r.MatchedIndexes,
+		}
+	}
+	return result
+}
+
 type statusMessageTimeoutMsg struct{}
 
 // FilterState describes the current filtering state on the model.
@@ -106,6 +134,8 @@ type Model struct {
 
 	// Key mappings for navigating the list.
 	KeyMap KeyMap
+
+	Filter Filter
 
 	disableQuitKeybindings bool
 
@@ -173,6 +203,7 @@ func New(items []Item, delegate ItemDelegate, width, height int) Model {
 		showHelp:              true,
 		filteringEnabled:      true,
 		KeyMap:                DefaultKeyMap(),
+		Filter:                DefaultFilter,
 		Styles:                styles,
 		Title:                 "List",
 		FilterInput:           filterInput,
@@ -1133,11 +1164,8 @@ func filterItems(m Model) tea.Cmd {
 			targets = append(targets, t.FilterValue())
 		}
 
-		var ranks fuzzy.Matches = fuzzy.Find(m.FilterInput.Value(), targets)
-		sort.Stable(ranks)
-
 		filterMatches := []filteredItem{}
-		for _, r := range ranks {
+		for _, r := range m.Filter(m.FilterInput.Value(), targets) {
 			filterMatches = append(filterMatches, filteredItem{
 				item:    items[r.Index],
 				matches: r.MatchedIndexes,
