@@ -71,10 +71,10 @@ func (f filteredItems) items() []Item {
 // message should be routed to Update for processing.
 type FilterMatchesMsg []filteredItem
 
-// Filter takes a term and a list of strings to search through
+// FilterFunc takes a term and a list of strings to search through
 // (defined by Item#FilterValue).
 // It should return a sorted list of ranks.
-type Filter func(string, []string) []Rank
+type FilterFunc func(string, []string) []Rank
 
 // Rank defines a rank for a given item.
 type Rank struct {
@@ -135,7 +135,7 @@ type Model struct {
 	// Key mappings for navigating the list.
 	KeyMap KeyMap
 
-	Filter Filter
+	Filter FilterFunc
 
 	disableQuitKeybindings bool
 
