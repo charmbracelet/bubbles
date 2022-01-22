@@ -602,7 +602,7 @@ func (m *Model) updateKeybindings() {
 		m.KeyMap.ClearFilter.SetEnabled(false)
 		m.KeyMap.CancelWhileFiltering.SetEnabled(true)
 		m.KeyMap.AcceptWhileFiltering.SetEnabled(m.FilterInput.Value() != "")
-		m.KeyMap.Quit.SetEnabled(true)
+		m.KeyMap.Quit.SetEnabled(false)
 		m.KeyMap.ShowFullHelp.SetEnabled(false)
 		m.KeyMap.CloseFullHelp.SetEnabled(false)
 
