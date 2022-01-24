@@ -149,8 +149,8 @@ var DefaultKeyMap = KeyMap{
         key.WithHelp("↑/k", "move up"), // corresponding help text
     ),
     Down: key.NewBinding(
-        WithKeys("j", "down"),
-        WithHelp("↓/j", "move down"),
+        key.WithKeys("j", "down"),
+        key.WithHelp("↓/j", "move down"),
     ),
 }
 
