@@ -590,6 +590,7 @@ func (m Model) itemsAsFilterItems() filteredItems {
 
 // Set keybindings according to the filter state.
 func (m *Model) updateKeybindings() {
+	quit := m.KeyMap.Quit.Enabled()
 	switch m.filterState {
 	case Filtering:
 		m.KeyMap.CursorUp.SetEnabled(false)
@@ -602,7 +603,7 @@ func (m *Model) updateKeybindings() {
 		m.KeyMap.ClearFilter.SetEnabled(false)
 		m.KeyMap.CancelWhileFiltering.SetEnabled(true)
 		m.KeyMap.AcceptWhileFiltering.SetEnabled(m.FilterInput.Value() != "")
-		m.KeyMap.Quit.SetEnabled(true)
+		m.KeyMap.Quit.SetEnabled(false)
 		m.KeyMap.ShowFullHelp.SetEnabled(false)
 		m.KeyMap.CloseFullHelp.SetEnabled(false)
 
@@ -622,7 +623,6 @@ func (m *Model) updateKeybindings() {
 		m.KeyMap.ClearFilter.SetEnabled(m.filterState == FilterApplied)
 		m.KeyMap.CancelWhileFiltering.SetEnabled(false)
 		m.KeyMap.AcceptWhileFiltering.SetEnabled(false)
-		m.KeyMap.Quit.SetEnabled(true)
 
 		if m.Help.ShowAll {
 			m.KeyMap.ShowFullHelp.SetEnabled(true)
@@ -633,6 +633,7 @@ func (m *Model) updateKeybindings() {
 			m.KeyMap.CloseFullHelp.SetEnabled(minHelp)
 		}
 	}
+	m.KeyMap.Quit.SetEnabled(quit)
 }
 
 // Update pagination according to the amount of items for the current state.
