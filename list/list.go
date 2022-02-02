@@ -325,6 +325,7 @@ func (m *Model) SetItem(index int, item Item) tea.Cmd {
 }
 
 // Insert an item at the given index. This returns a command.
+// If index is out of the upper bound, the item will be append
 func (m *Model) InsertItem(index int, item Item) tea.Cmd {
 	var cmd tea.Cmd
 	m.items = insertItemIntoSlice(m.items, item, index)
