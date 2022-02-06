@@ -178,6 +178,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 * [mritd/bubbles](https://github.com/mritd/bubbles): Some general-purpose
   bubbles. Inputs with validation, menu selection, a modified progressbar, and
   so on.
+* [bubblelister](https://github.com/treilik/bubblelister): An alternate list
+  that is scrollable without pagination and has the ability to contain other
+  bubbles as list items.
+* [bubbleboxer](https://github.com/treilik/bubbleboxer): Layout multiple bubbles
+  side-by-side in a layout-tree.
 
 If you’ve built a Bubble you think should be listed here,
 [let us know](mailto:vt100@charm.sh).
