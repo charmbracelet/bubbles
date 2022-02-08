@@ -91,6 +91,9 @@ func (c CursorMode) String() string {
 	}[c]
 }
 
+// ValidateFunc is a function that returns an error if the input is invalid.
+type ValidateFunc func(string) error
+
 // Model is the Bubble Tea model for this text input element.
 type Model struct {
 	Err error
@@ -150,9 +153,15 @@ type Model struct {
 
 	// cursorMode determines the behavior of the cursor
 	cursorMode CursorMode
+
+	// Validate is a function that checks whether or not the text within the
+	// input is valid. If it is not valid, the `Err` field will be set to the
+	// error returned by the function. If the function is not defined, all
+	// input is considered valid.
+	Validate ValidateFunc
 }
 
-// NewModel creates a new model with default settings.
+// New creates a new model with default settings.
 func New() Model {
 	return Model{
 		Prompt:           "> ",
@@ -181,13 +190,22 @@ var NewModel = New
 
 // SetValue sets the value of the text input.
 func (m *Model) SetValue(s string) {
+	if m.Validate != nil {
+		if err := m.Validate(s); err != nil {
+			m.Err = err
+			return
+		}
+	}
+
+	m.Err = nil
+
 	runes := []rune(s)
 	if m.CharLimit > 0 && len(runes) > m.CharLimit {
 		m.value = runes[:m.CharLimit]
 	} else {
 		m.value = runes
 	}
-	if m.pos == 0 || m.pos > len(m.value) {
+	if (m.pos == 0 && len(m.value) == 0) || m.pos > len(m.value) {
 		m.setCursor(len(m.value))
 	}
 	m.handleOverflow()
@@ -250,7 +268,7 @@ func (m Model) CursorMode() CursorMode {
 	return m.cursorMode
 }
 
-// CursorMode sets the model's cursor mode. This method returns a command.
+// SetCursorMode sets the model's cursor mode. This method returns a command.
 //
 // For available cursor modes, see type CursorMode.
 func (m *Model) SetCursorMode(mode CursorMode) tea.Cmd {
@@ -326,6 +344,8 @@ func (m *Model) handlePaste(v string) bool {
 	tail := make([]rune, len(tailSrc))
 	copy(tail, tailSrc)
 
+	oldPos := m.pos
+
 	// Insert pasted runes
 	for _, r := range paste {
 		head = append(head, r)
@@ -339,7 +359,12 @@ func (m *Model) handlePaste(v string) bool {
 	}
 
 	// Put it all back together
-	m.value = append(head, tail...)
+	value := append(head, tail...)
+	m.SetValue(string(value))
+
+	if m.Err != nil {
+		m.pos = oldPos
+	}
 
 	// Reset blink state if necessary and run overflow checks
 	return m.setCursor(m.pos)
@@ -587,6 +612,8 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.Type {
 		case tea.KeyBackspace: // delete character before cursor
+			m.Err = nil
+
 			if msg.Alt {
 				resetBlink = m.deleteWordLeft()
 			} else {
@@ -647,8 +674,15 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 			// Input a regular character
 			if m.CharLimit <= 0 || len(m.value) < m.CharLimit {
-				m.value = append(m.value[:m.pos], append(msg.Runes, m.value[m.pos:]...)...)
-				resetBlink = m.setCursor(m.pos + len(msg.Runes))
+				runes := msg.Runes
+
+				value := make([]rune, len(m.value))
+				copy(value, m.value)
+				value = append(value[:m.pos], append(runes, value[m.pos:]...)...)
+				m.SetValue(string(value))
+				if m.Err == nil {
+					resetBlink = m.setCursor(m.pos + len(runes))
+				}
 			}
 		}
 
