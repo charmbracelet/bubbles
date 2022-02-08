@@ -107,6 +107,8 @@ type Model struct {
 	// Key mappings for navigating the list.
 	KeyMap KeyMap
 
+	disableQuitKeybindings bool
+
 	// Additional key mappings for the short and full help views. This allows
 	// you to add additional key mappings to the help menu without
 	// re-implementing the help component. Of course, you can also disable the
@@ -521,6 +523,7 @@ func (m *Model) StopSpinner() {
 // Helper for disabling the keybindings used for quitting, incase you want to
 // handle this elsewhere in your application.
 func (m *Model) DisableQuitKeybindings() {
+	m.disableQuitKeybindings = true
 	m.KeyMap.Quit.SetEnabled(false)
 	m.KeyMap.ForceQuit.SetEnabled(false)
 }
@@ -591,7 +594,6 @@ func (m Model) itemsAsFilterItems() filteredItems {
 
 // Set keybindings according to the filter state.
 func (m *Model) updateKeybindings() {
-	quit := m.KeyMap.Quit.Enabled()
 	switch m.filterState {
 	case Filtering:
 		m.KeyMap.CursorUp.SetEnabled(false)
@@ -624,6 +626,7 @@ func (m *Model) updateKeybindings() {
 		m.KeyMap.ClearFilter.SetEnabled(m.filterState == FilterApplied)
 		m.KeyMap.CancelWhileFiltering.SetEnabled(false)
 		m.KeyMap.AcceptWhileFiltering.SetEnabled(false)
+		m.KeyMap.Quit.SetEnabled(!m.disableQuitKeybindings)
 
 		if m.Help.ShowAll {
 			m.KeyMap.ShowFullHelp.SetEnabled(true)
@@ -634,7 +637,6 @@ func (m *Model) updateKeybindings() {
 			m.KeyMap.CloseFullHelp.SetEnabled(minHelp)
 		}
 	}
-	m.KeyMap.Quit.SetEnabled(quit)
 }
 
 // Update pagination according to the amount of items for the current state.
