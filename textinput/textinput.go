@@ -2,6 +2,7 @@ package textinput
 
 import (
 	"context"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -91,6 +92,32 @@ func (c CursorMode) String() string {
 	}[c]
 }
 
+// ValidateBool validates boolean-like inputs only
+// i.e 'y', 'n', 't', 'f', '1', '0' (case insensitive).
+func ValidateBool(s string, m Model) error {
+	_, parseErr := strconv.ParseBool(string(s))
+
+	if parseErr == nil || s == "y" || s == "Y" || s == "n" || s == "N" {
+		return nil
+	} else {
+		return parseErr
+	}
+}
+
+// ValidateInt validates integer-only inputs.
+func ValidateInt(s string, m Model) error {
+	_, parseErr := strconv.ParseInt(s, 10, 64)
+
+	return parseErr
+}
+
+// ValidateFloat validates float-only inputs.
+func ValidateFloat(s string, m Model) error {
+	_, parseErr := strconv.ParseFloat(s, 64)
+
+	return parseErr
+}
+
 // Model is the Bubble Tea model for this text input element.
 type Model struct {
 	Err error
@@ -150,6 +177,13 @@ type Model struct {
 
 	// cursorMode determines the behavior of the cursor
 	cursorMode CursorMode
+
+	// Validate takes a string to be evaluated.
+	// If any character of the string is invalid, it's expected to return an error
+	// which is stored in m.Err.
+	//
+	// If no Validate function is provided, no validation is done.
+	Validate func(string, Model) error
 }
 
 // NewModel creates a new model with default settings.
@@ -180,17 +214,28 @@ func New() Model {
 var NewModel = New
 
 // SetValue sets the value of the text input.
-func (m *Model) SetValue(s string) {
+// Returns an error if validation fails.
+func (m *Model) SetValue(s string) error {
+	if m.Validate != nil {
+		err := m.Validate(s, *m)
+		if err != nil {
+			m.Err = err
+			return err
+		}
+	}
+
 	runes := []rune(s)
 	if m.CharLimit > 0 && len(runes) > m.CharLimit {
 		m.value = runes[:m.CharLimit]
 	} else {
 		m.value = runes
 	}
-	if m.pos == 0 || m.pos > len(m.value) {
+	if (m.pos == 0 && len(m.value) == 0) || m.pos > len(m.value) {
 		m.setCursor(len(m.value))
 	}
 	m.handleOverflow()
+
+	return nil
 }
 
 // Value returns the value of the text input.
@@ -316,10 +361,12 @@ func (m *Model) handlePaste(v string) bool {
 	}
 
 	// Stuff before and after the cursor
-	head := m.value[:m.pos]
-	tailSrc := m.value[m.pos:]
+	head := append([]rune{}, m.value[:m.pos]...)
+	tailSrc := append([]rune{}, m.value[m.pos:]...)
 	tail := make([]rune, len(tailSrc))
 	copy(tail, tailSrc)
+
+	oldPos := m.pos
 
 	// Insert pasted runes
 	for _, r := range paste {
@@ -334,7 +381,12 @@ func (m *Model) handlePaste(v string) bool {
 	}
 
 	// Put it all back together
-	m.value = append(head, tail...)
+	value := append(head, tail...)
+	err := m.SetValue(string(value))
+
+	if err != nil {
+		m.pos = oldPos
+	}
 
 	// Reset blink state if necessary and run overflow checks
 	return m.setCursor(m.pos)
@@ -642,8 +694,15 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 			// Input a regular character
 			if m.CharLimit <= 0 || len(m.value) < m.CharLimit {
-				m.value = append(m.value[:m.pos], append(msg.Runes, m.value[m.pos:]...)...)
-				resetBlink = m.setCursor(m.pos + len(msg.Runes))
+				runes := msg.Runes
+
+				value := make([]rune, len(m.value))
+				copy(value, m.value)
+				value = append(value[:m.pos], append(runes, value[m.pos:]...)...)
+				err := m.SetValue(string(value))
+				if err == nil {
+					resetBlink = m.setCursor(m.pos + len(runes))
+				}
 			}
 		}
 
