@@ -31,10 +31,11 @@ func nextID() int {
 }
 
 const (
-	fps              = 60
-	defaultWidth     = 40
-	defaultFrequency = 18.0
-	defaultDamping   = 1.0
+	fps                  = 60
+	defaultWidth         = 40
+	defaultFrequency     = 18.0
+	defaultDamping       = 1.0
+	defaultAnimThreshold = 0.08
 )
 
 var color func(string) termenv.Color = termenv.ColorProfile().Color
@@ -110,6 +111,14 @@ func WithSpringOptions(frequency, damping float64) Option {
 	}
 }
 
+// WithAnimationThreshold sets the percent chagne threshold necessary to
+// trigger an animated transition.
+func WithAnimationThreshold(ratio float64) Option {
+	return func(m *Model) {
+		m.SetAnimationThreshold(ratio)
+	}
+}
+
 // FrameMsg indicates that an animation step should occur.
 type FrameMsg struct {
 	id  int
@@ -141,12 +150,16 @@ type Model struct {
 	PercentFormat   string // a fmt string for a float
 	PercentageStyle lipgloss.Style
 
-	// Members for animated transitions.
+	// Settings for animated transitions.
 	spring           harmonica.Spring
 	springCustomized bool
 	percentShown     float64 // percent currently displaying
 	targetPercent    float64 // percent to which we're animating
 	velocity         float64
+
+	// The amount of change required to trigger an animated transition. Should
+	// be a float between 0 and 1.
+	animThreshold float64
 
 	// Gradient settings
 	useRamp    bool
@@ -237,7 +250,14 @@ func (m Model) Percent() float64 {
 //
 // If you're rendering with ViewAs you won't need this.
 func (m *Model) SetPercent(p float64) tea.Cmd {
-	m.targetPercent = math.Max(0, math.Min(1, p))
+	// If the value is at or below the animation threshold, don't animate
+	if math.Abs(p-m.percent) <= m.animThreshold {
+		m.percent = asRatio(p)
+		m.targetPercent = asRatio(p)
+		return nil
+	}
+
+	m.targetPercent = asRatio(p)
 	m.tag++
 	return m.nextFrame()
 }
@@ -256,6 +276,18 @@ func (m *Model) IncrPercent(v float64) tea.Cmd {
 // If you're rendering with ViewAs you won't need this.
 func (m *Model) DecrPercent(v float64) tea.Cmd {
 	return m.SetPercent(m.Percent() - v)
+}
+
+// SetAnimationThreshold sets the percent chagne threshold necessary to trigger
+// an animated transition.
+func (m *Model) SetAnimationThreshold(v float64) {
+	m.animThreshold = asRatio(v)
+}
+
+// AnimationThreshold returns the percent change necessary to trigger an
+// animated transition.
+func (m *Model) AnimationThreshold() float64 {
+	return m.animThreshold
 }
 
 // View renders the an animated progress bar in its current state. To render
@@ -350,4 +382,8 @@ func min(a, b int) int {
 		return a
 	}
 	return b
+}
+
+func asRatio(v float64) float64 {
+	return math.Max(math.Min(v, 1), 0)
 }
