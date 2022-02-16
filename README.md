@@ -86,7 +86,7 @@ indenting and text wrapping.
 
 ### Note:
 
-The bubble no longer applies a specific height or width setting because of possible rendering issues. (See https://github.com/charmbracelet/bubbles/commit/7ecce3fb97420ba2a44e3453c9291a98d5894d9d)
+The bubble no longer applies a specific height or width setting because of possible rendering issues. (See [the commit in question](https://github.com/charmbracelet/bubbles/commit/7ecce3fb97420ba2a44e3453c9291a98d5894d9d))
 
 ## List
 
