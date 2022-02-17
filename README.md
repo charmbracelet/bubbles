@@ -171,18 +171,20 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 ## Additional Bubbles
 
-* [promptkit](https://github.com/erikgeiser/promptkit): A collection of common
+* [erikgeiser/promptkit](https://github.com/erikgeiser/promptkit): A collection of common
   prompts for cases like selection, text input, and confirmation. Each prompt
   comes with sensible defaults, remappable keybindings, any many customization
   options.
+* [evertras/bubble-table](https://github.com/Evertras/bubble-table): Interactive,
+  customizable tables.
 * [mritd/bubbles](https://github.com/mritd/bubbles): Some general-purpose
   bubbles. Inputs with validation, menu selection, a modified progressbar, and
   so on.
-* [bubblelister](https://github.com/treilik/bubblelister): An alternate list
+* [treilik/bubbleboxer](https://github.com/treilik/bubbleboxer): Layout multiple bubbles
+  side-by-side in a layout-tree.
+* [treilik/bubblelister](https://github.com/treilik/bubblelister): An alternate list
   that is scrollable without pagination and has the ability to contain other
   bubbles as list items.
-* [bubbleboxer](https://github.com/treilik/bubbleboxer): Layout multiple bubbles
-  side-by-side in a layout-tree.
 
 If you’ve built a Bubble you think should be listed here,
 [let us know](mailto:vt100@charm.sh).
