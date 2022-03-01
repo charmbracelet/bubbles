@@ -203,6 +203,11 @@ func (m Model) Cursor() int {
 	return m.pos
 }
 
+// Blink returns whether or not to draw the cursor.
+func (m Model) Blink() bool {
+	return m.blink
+}
+
 // SetCursor moves the cursor to the given position. If the position is
 // out of bounds the cursor will be moved to the start or end accordingly.
 func (m *Model) SetCursor(pos int) {
