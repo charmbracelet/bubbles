@@ -1082,7 +1082,7 @@ func (m Model) populatedView() string {
 		if m.filterState == Filtering {
 			return ""
 		}
-		m.Styles.NoItems.Render("No items found.")
+		return m.Styles.NoItems.Render("No items found.")
 	}
 
 	if len(items) > 0 {
