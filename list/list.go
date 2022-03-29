@@ -1004,7 +1004,11 @@ func (m Model) titleView() string {
 		}
 	}
 
-	return titleBarStyle.Render(view)
+	if len(view) > 0 {
+		return titleBarStyle.Render(view)
+	} else {
+		return view
+	}
 }
 
 func (m Model) statusView() string {
