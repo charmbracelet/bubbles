@@ -144,8 +144,8 @@ type Model struct {
 	// Members for animated transitions.
 	spring           harmonica.Spring
 	springCustomized bool
-	percent          float64
-	targetPercent    float64
+	percentShown     float64 // percent currently displaying
+	targetPercent    float64 // percent to which we're animating
 	velocity         float64
 
 	// Gradient settings
@@ -203,12 +203,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		// If we've more or less reached equilibrium, stop updating.
-		dist := math.Abs(m.percent - m.targetPercent)
+		dist := math.Abs(m.percentShown - m.targetPercent)
 		if dist < 0.001 && m.velocity < 0.01 {
 			return m, nil
 		}
 
-		m.percent, m.velocity = m.spring.Update(m.percent, m.velocity, m.targetPercent)
+		m.percentShown, m.velocity = m.spring.Update(m.percentShown, m.velocity, m.targetPercent)
 		return m, m.nextFrame()
 
 	default:
@@ -224,7 +224,7 @@ func (m *Model) SetSpringOptions(frequency, damping float64) {
 	m.spring = harmonica.NewSpring(harmonica.FPS(fps), frequency, damping)
 }
 
-// Percent returns the current percentage state of the model. This is only
+// Percent returns the current visible percentage on the model. This is only
 // relevant when you're animating the progress bar.
 //
 // If you're rendering with ViewAs you won't need this.
@@ -261,7 +261,7 @@ func (m *Model) DecrPercent(v float64) tea.Cmd {
 // View renders the an animated progress bar in its current state. To render
 // a static progress bar based on your own calculations use ViewAs instead.
 func (m Model) View() string {
-	return m.ViewAs(m.percent)
+	return m.ViewAs(m.percentShown)
 }
 
 // ViewAs renders the progress bar with a given percentage.
