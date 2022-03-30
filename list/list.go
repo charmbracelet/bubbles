@@ -135,7 +135,7 @@ type Model struct {
 	// Key mappings for navigating the list.
 	KeyMap KeyMap
 
-	// Filter used to filter the list.
+	// Filter is used to filter the list.
 	Filter FilterFunc
 
 	disableQuitKeybindings bool
