@@ -251,8 +251,8 @@ func (m Model) Percent() float64 {
 // If you're rendering with ViewAs you won't need this.
 func (m *Model) SetPercent(p float64) tea.Cmd {
 	// If the value is at or below the animation threshold, don't animate
-	if math.Abs(p-m.percent) <= m.animThreshold {
-		m.percent = asRatio(p)
+	if math.Abs(p-m.percentShown) <= m.animThreshold {
+		m.percentShown = asRatio(p)
 		m.targetPercent = asRatio(p)
 		return nil
 	}
