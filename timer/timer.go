@@ -162,9 +162,7 @@ func (m *Model) Start() tea.Cmd {
 
 // Stop pauses the timer. Has no effect if the timer has timed out.
 func (m *Model) Stop() tea.Cmd {
-	return func() tea.Msg {
-		return m.startStop(false)
-	}
+	return m.startStop(false)
 }
 
 // Toggle stops the timer if it's running and starts it if it's stopped.
