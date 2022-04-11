@@ -150,6 +150,9 @@ type Model struct {
 
 	// cursorMode determines the behavior of the cursor
 	cursorMode CursorMode
+
+	shouldAutocomplete	bool
+	autocomplete				string
 }
 
 // NewModel creates a new model with default settings.
@@ -605,13 +608,19 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			if m.pos > 0 { // left arrow, ^F, back one character
 				resetBlink = m.setCursor(m.pos - 1)
 			}
+			m.shouldAutocomplete = false
 		case tea.KeyRight, tea.KeyCtrlF:
 			if msg.Alt { // alt+right arrow, forward one word
 				resetBlink = m.wordRight()
 				break
 			}
-			if m.pos < len(m.value) { // right arrow, ^F, forward one character
-				resetBlink = m.setCursor(m.pos + 1)
+			if m.shouldAutocomplete {
+				m.value = []rune(m.autocomplete)
+				m.cursorEnd()
+			} else {
+				if m.pos < len(m.value) { // right arrow, ^F, forward one character
+					resetBlink = m.setCursor(m.pos + 1)
+				}
 			}
 		case tea.KeyCtrlW: // ^W, delete word left of cursor
 			resetBlink = m.deleteWordLeft()
@@ -650,6 +659,9 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				m.value = append(m.value[:m.pos], append(msg.Runes, m.value[m.pos:]...)...)
 				resetBlink = m.setCursor(m.pos + len(msg.Runes))
 			}
+
+			//Check if can be autocompleted
+			m.checkIfCanBeAutocompleted()
 		}
 
 	case initialBlinkMsg:
@@ -719,7 +731,11 @@ func (m Model) View() string {
 		v += m.cursorView(m.echoTransform(string(value[pos]))) // cursor and text under it
 		v += styleText(m.echoTransform(string(value[pos+1:]))) // text after cursor
 	} else {
-		v += m.cursorView(" ")
+		if m.shouldAutocomplete {
+			v += m.cursorView(m.autocompleteCursor())
+		} else {
+			v += m.cursorView(" ")
+		}
 	}
 
 	// If a max width and background color were set fill the empty spaces with
@@ -733,7 +749,7 @@ func (m Model) View() string {
 		v += styleText(strings.Repeat(" ", padding))
 	}
 
-	return m.PromptStyle.Render(m.Prompt) + v
+	return m.PromptStyle.Render(m.Prompt) + v + m.autocompleteView()
 }
 
 // placeholderView returns the prompt and placeholder view, if any.
@@ -823,4 +839,40 @@ func max(a, b int) int {
 		return a
 	}
 	return b
+}
+
+func (m *Model) SetAutoComplete(str string) {
+	m.autocomplete = str
+	m.checkIfCanBeAutocompleted()
+}
+
+func (m Model) autocompleteView() string {
+	var (
+		view  string
+		a     = m.autocomplete
+		style = m.PlaceholderStyle.Inline(true).Render
+	)
+
+	if (m.shouldAutocomplete && len(m.value) + 1 < len(m.autocomplete)) {
+		return style(a[len(m.value) + 1:])
+	}
+	return view
+}
+
+func (m *Model) autocompleteCursor() string {
+	if len(m.value) < len(m.autocomplete) {
+		return string(m.autocomplete[len(m.value)])
+	} else {
+		return " "
+	}
+}
+
+func (m *Model) checkIfCanBeAutocompleted() {
+	lowerValue := strings.ToLower(string(m.value))
+	lowerAutocomplete := strings.ToLower(m.autocomplete)
+	if strings.HasPrefix(lowerAutocomplete, lowerValue) {
+		m.shouldAutocomplete = true
+	} else {
+		m.shouldAutocomplete = false
+	}
 }
