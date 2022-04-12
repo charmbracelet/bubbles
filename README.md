@@ -171,6 +171,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 ## Additional Bubbles
 
+<!-- in alphabetical order by author -->
+
 * [76creates/stickers](https://github.com/76creates/stickers): Responsive
   flexbox and table components.
 * [calyptia/go-bubble-table](https://github.com/calyptia/go-bubble-table): An
@@ -181,6 +183,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
   customization options.
 * [evertras/bubble-table](https://github.com/Evertras/bubble-table): Interactive,
   customizable, paginated tables.
+* [knipferrc/teacup](https://github.com/knipferrc/teacup): Various handy
+  bubbles and utilities for building Bubble Tea applications.
 * [mritd/bubbles](https://github.com/mritd/bubbles): Some general-purpose
   bubbles. Inputs with validation, menu selection, a modified progressbar, and
   so on.
