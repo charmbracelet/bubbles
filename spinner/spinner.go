@@ -72,7 +72,6 @@ var (
 // Model contains the state for the spinner. Use NewModel to create new models
 // rather than using Model as a struct literal.
 type Model struct {
-
 	// Spinner settings to use. See type Spinner.
 	Spinner Spinner
 
@@ -83,10 +82,9 @@ type Model struct {
 	// https://github.com/charmbracelet/lipgloss
 	Style lipgloss.Style
 
-	frame     int
-	startTime time.Time
-	id        int
-	tag       int
+	frame int
+	id    int
+	tag   int
 }
 
 // ID returns the spinner's unique ID.
