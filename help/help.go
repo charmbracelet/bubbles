@@ -164,11 +164,10 @@ func (m Model) FullHelpView(groups [][]key.Binding) string {
 		return ""
 	}
 
+	// Linter note: at this time we don't think it's worth the additional
+	// code complexity involved in preallocating this slice.
+	//nolint:prealloc
 	var (
-		// Linter note: at this time we don't think it's worth the additional
-		// code complexity involved in preallocating this slice.
-		//
-		//nolint:prealloc
 		out []string
 
 		totalWidth int
