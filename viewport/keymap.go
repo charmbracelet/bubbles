@@ -30,11 +30,11 @@ func DefaultKeyMap() KeyMap {
 		),
 		HalfPageUp: key.NewBinding(
 			key.WithKeys("u", "ctrl+u"),
-			key.WithHelp("ctrl+u/u", "half page up"),
+			key.WithHelp("u", "½ page up"),
 		),
 		HalfPageDown: key.NewBinding(
 			key.WithKeys("d", "ctrl+d"),
-			key.WithHelp("ctrl+d/d", "half page down"),
+			key.WithHelp("d", "½ page down"),
 		),
 		Up: key.NewBinding(
 			key.WithKeys("up", "k"),
