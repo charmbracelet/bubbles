@@ -204,3 +204,30 @@ func WithSpinner(spinner Spinner) Option {
 		m.Spinner = spinner
 	}
 }
+
+// WithLine sets a Line spinner
+func WithLine() Option { return WithSpinner(Line) }
+
+// WithDot sets a Dot spinner
+func WithDot() Option { return WithSpinner(Dot) }
+
+// WithMiniDot sets a MiniDot spinner
+func WithMiniDot() Option { return WithSpinner(MiniDot) }
+
+// WithJump sets a Jump spinner
+func WithJump() Option { return WithSpinner(Jump) }
+
+// WithPulse sets a Pulse spinner
+func WithPulse() Option { return WithSpinner(Pulse) }
+
+// WithPoints sets a Points spinner
+func WithPoints() Option { return WithSpinner(Points) }
+
+// WithGlobe sets a Globe spinner
+func WithGlobe() Option { return WithSpinner(Globe) }
+
+// WithMoon sets a Moon spinner
+func WithMoon() Option { return WithSpinner(Moon) }
+
+// WithMonkey sets a Monkey spinner
+func WithMonkey() Option { return WithSpinner(Monkey) }
