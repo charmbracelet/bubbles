@@ -231,3 +231,10 @@ func WithMoon() Option { return WithSpinner(Moon) }
 
 // WithMonkey sets a Monkey spinner
 func WithMonkey() Option { return WithSpinner(Monkey) }
+
+// WithStyle sets the Model style
+func WithStyle(style lipgloss.Style) Option {
+	return func(m *Model) {
+		m.Style = style
+	}
+}
