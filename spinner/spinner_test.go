@@ -7,10 +7,8 @@ import (
 )
 
 func TestSpinnerNew(t *testing.T) {
-	t.Run("default", func(t *testing.T) {
-		s := spinner.New()
-
-		exp, got := spinner.Line, s.Spinner
+	assertEqualSpinner := func(t *testing.T, exp, got spinner.Spinner) {
+		t.Helper()
 
 		if exp.FPS != got.FPS {
 			t.Errorf("expecting %d FPS, got %d", exp.FPS, got.FPS)
@@ -25,5 +23,16 @@ func TestSpinnerNew(t *testing.T) {
 				t.Errorf("expecting frame index %d with value %q, got %q", i, e, g)
 			}
 		}
+	}
+	t.Run("default", func(t *testing.T) {
+		s := spinner.New()
+
+		assertEqualSpinner(t, spinner.Line, s.Spinner)
+	})
+
+	t.Run("with spinner", func(t *testing.T) {
+		s := spinner.New(spinner.WithSpinner(spinner.Dot))
+
+		assertEqualSpinner(t, spinner.Dot, s.Spinner)
 	})
 }

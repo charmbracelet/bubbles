@@ -93,11 +93,17 @@ func (m Model) ID() int {
 }
 
 // New returns a model with default values.
-func New() Model {
-	return Model{
+func New(opts ...Option) Model {
+	m := Model{
 		Spinner: Line,
 		id:      nextID(),
 	}
+
+	for _, opt := range opts {
+		opt(&m)
+	}
+
+	return m
 }
 
 // NewModel returns a model with default values.
