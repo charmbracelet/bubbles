@@ -185,3 +185,16 @@ func (m Model) tick(id, tag int) tea.Cmd {
 func Tick() tea.Msg {
 	return TickMsg{Time: time.Now()}
 }
+
+// Option is used to set options in New. For example:
+//
+//    spinner := New(WithSpinner(Dot))
+//
+type Option func(*Model)
+
+// WithSpinner sets the spinner
+func WithSpinner(spinner Spinner) Option {
+	return func(m *Model) {
+		m.Spinner = spinner
+	}
+}
