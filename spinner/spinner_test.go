@@ -30,10 +30,15 @@ func TestSpinnerNew(t *testing.T) {
 		assertEqualSpinner(t, spinner.Line, s.Spinner)
 	})
 
-	t.Run("with spinner", func(t *testing.T) {
-		s := spinner.New(spinner.WithSpinner(spinner.Dot))
+	t.Run("WithSpinner", func(t *testing.T) {
+		customSpinner := spinner.Spinner{
+			Frames: []string{"a", "b", "c", "d"},
+			FPS:    16,
+		}
 
-		assertEqualSpinner(t, spinner.Dot, s.Spinner)
+		s := spinner.New(spinner.WithSpinner(customSpinner))
+
+		assertEqualSpinner(t, customSpinner, s.Spinner)
 	})
 
 	tests := map[string]struct {
