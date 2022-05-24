@@ -149,20 +149,21 @@ func (d DefaultDelegate) Render(w io.Writer, m Model, index int, item Item) {
 		return
 	}
 
-	if d.ShowDescription {
-		lines := strings.Split(desc, "\n")
-		if len(lines) > d.height-1 {
-			desc = strings.Join(lines[0:d.height-1], "\n")
-		}
+	if m.width <= 0 {
+		// short-circuit
+		return
 	}
 
 	// Prevent text from exceeding list width
-	if m.width > 0 {
-		textwidth := uint(m.width - s.NormalTitle.GetPaddingLeft() - s.NormalTitle.GetPaddingRight())
-		title = truncate.StringWithTail(title, textwidth, ellipsis)
-		lines := strings.Split(desc, "\n")
-		for i, line := range lines {
-			lines[i] = truncate.StringWithTail(line, textwidth, ellipsis)
+	textwidth := uint(m.width - s.NormalTitle.GetPaddingLeft() - s.NormalTitle.GetPaddingRight())
+	title = truncate.StringWithTail(title, textwidth, ellipsis)
+	if d.ShowDescription {
+		var lines []string
+		for i, line := range strings.Split(desc, "\n") {
+			if i > d.height-1 {
+				break
+			}
+			lines = append(lines, truncate.StringWithTail(line, textwidth, ellipsis))
 		}
 		desc = strings.Join(lines, "\n")
 	}
