@@ -160,7 +160,7 @@ func (d DefaultDelegate) Render(w io.Writer, m Model, index int, item Item) {
 	if d.ShowDescription {
 		var lines []string
 		for i, line := range strings.Split(desc, "\n") {
-			if i > d.height-1 {
+			if i >= d.height-1 {
 				break
 			}
 			lines = append(lines, truncate.StringWithTail(line, textwidth, ellipsis))
