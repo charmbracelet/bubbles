@@ -629,7 +629,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			resetBlink = m.deleteBeforeCursor()
 		case tea.KeyCtrlV: // ^V paste
 			return m, Paste
-		case tea.KeyRunes: // input regular characters
+		case tea.KeyRunes, tea.KeySpace: // input regular characters
 			if msg.Alt && len(msg.Runes) == 1 {
 				if msg.Runes[0] == 'd' { // alt+d, delete word right of cursor
 					resetBlink = m.deleteWordRight()
