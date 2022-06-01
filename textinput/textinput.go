@@ -146,8 +146,11 @@ type Model struct {
 	// Cursor blink state.
 	blink bool
 
-	// Cursor position.
-	pos int
+	// Cursor column.
+	col int
+
+	// Cursor row.
+	row int
 
 	// Used to emulate a viewport when width is set and the content is
 	// overflowing.
@@ -174,7 +177,7 @@ func New() Model {
 		value:      nil,
 		focus:      false,
 		blink:      true,
-		pos:        0,
+		col:        0,
 		cursorMode: CursorBlink,
 
 		blinkCtx: &blinkCtx{
@@ -196,7 +199,7 @@ func (m *Model) SetValue(s string) {
 	} else {
 		m.value = runes
 	}
-	if m.pos == 0 || m.pos > len(m.value) {
+	if m.col == 0 || m.col > len(m.value) {
 		m.setCursor(len(m.value))
 	}
 	m.handleOverflow()
@@ -207,9 +210,14 @@ func (m Model) Value() string {
 	return string(m.value)
 }
 
-// Cursor returns the cursor position.
+// Cursor returns the cursor row.
 func (m Model) Cursor() int {
-	return m.pos
+	return m.col
+}
+
+// Cursor returns the line position.
+func (m Model) Line() int {
+	return m.row
 }
 
 // Blink returns whether or not to draw the cursor.
@@ -219,15 +227,15 @@ func (m Model) Blink() bool {
 
 // SetCursor moves the cursor to the given position. If the position is
 // out of bounds the cursor will be moved to the start or end accordingly.
-func (m *Model) SetCursor(pos int) {
-	m.setCursor(pos)
+func (m *Model) SetCursor(col int) {
+	m.setCursor(col)
 }
 
 // setCursor moves the cursor to the given position and returns whether or not
 // the cursor blink should be reset. If the position is out of bounds the
 // cursor will be moved to the start or end accordingly.
-func (m *Model) setCursor(pos int) bool {
-	m.pos = clamp(pos, 0, len(m.value))
+func (m *Model) setCursor(col int) bool {
+	m.col = clamp(col, 0, len(m.value))
 	m.handleOverflow()
 
 	// Show the cursor unless it's been explicitly hidden
@@ -330,15 +338,15 @@ func (m *Model) handlePaste(v string) bool {
 	}
 
 	// Stuff before and after the cursor
-	head := m.value[:m.pos]
-	tailSrc := m.value[m.pos:]
+	head := m.value[:m.col]
+	tailSrc := m.value[m.col:]
 	tail := make([]rune, len(tailSrc))
 	copy(tail, tailSrc)
 
 	// Insert pasted runes
 	for _, r := range paste {
 		head = append(head, r)
-		m.pos++
+		m.col++
 		if m.CharLimit > 0 {
 			availSpace--
 			if availSpace <= 0 {
@@ -351,12 +359,22 @@ func (m *Model) handlePaste(v string) bool {
 	m.value = append(head, tail...)
 
 	// Reset blink state if necessary and run overflow checks
-	return m.setCursor(m.pos)
+	return m.setCursor(m.col)
+}
+
+// If input is multi-line, the input can scroll vertically,
+// otherwise, scroll horizontally.
+func (m *Model) handleOverflow() {
+	if m.Height > 1 {
+		m.handleVerticalOverflow()
+	} else {
+		m.handleHorizontalOverflow()
+	}
 }
 
 // If a max width is defined, perform some logic to treat the visible area
 // as a horizontally scrolling viewport.
-func (m *Model) handleOverflow() {
+func (m *Model) handleHorizontalOverflow() {
 	if m.Width <= 0 || rw.StringWidth(string(m.value)) <= m.Width {
 		m.offset = 0
 		m.offsetRight = len(m.value)
@@ -366,8 +384,8 @@ func (m *Model) handleOverflow() {
 	// Correct right offset if we've deleted characters
 	m.offsetRight = min(m.offsetRight, len(m.value))
 
-	if m.pos < m.offset {
-		m.offset = m.pos
+	if m.col < m.offset {
+		m.offset = m.col
 
 		w := 0
 		i := 0
@@ -381,8 +399,8 @@ func (m *Model) handleOverflow() {
 		}
 
 		m.offsetRight = m.offset + i
-	} else if m.pos >= m.offsetRight {
-		m.offsetRight = m.pos
+	} else if m.col >= m.offsetRight {
+		m.offsetRight = m.col
 
 		w := 0
 		runes := m.value[:m.offsetRight]
@@ -399,10 +417,13 @@ func (m *Model) handleOverflow() {
 	}
 }
 
+func (m *Model) handleVerticalOverflow() {
+}
+
 // deleteBeforeCursor deletes all text before the cursor. Returns whether or
 // not the cursor blink should be reset.
 func (m *Model) deleteBeforeCursor() bool {
-	m.value = m.value[m.pos:]
+	m.value = m.value[m.col:]
 	m.offset = 0
 	return m.setCursor(0)
 }
@@ -411,14 +432,14 @@ func (m *Model) deleteBeforeCursor() bool {
 // the cursor blink should be reset. If input is masked delete everything after
 // the cursor so as not to reveal word breaks in the masked input.
 func (m *Model) deleteAfterCursor() bool {
-	m.value = m.value[:m.pos]
+	m.value = m.value[:m.col]
 	return m.setCursor(len(m.value))
 }
 
 // deleteWordLeft deletes the word left to the cursor. Returns whether or not
 // the cursor blink should be reset.
 func (m *Model) deleteWordLeft() bool {
-	if m.pos == 0 || len(m.value) == 0 {
+	if m.col == 0 || len(m.value) == 0 {
 		return false
 	}
 
@@ -429,33 +450,33 @@ func (m *Model) deleteWordLeft() bool {
 	// Linter note: it's critical that we acquire the initial cursor position
 	// here prior to altering it via SetCursor() below. As such, moving this
 	// call into the corresponding if clause does not apply here.
-	oldPos := m.pos //nolint:ifshort
+	oldCol := m.col //nolint:ifshort
 
-	blink := m.setCursor(m.pos - 1)
-	for unicode.IsSpace(m.value[m.pos]) {
-		if m.pos <= 0 {
+	blink := m.setCursor(m.col - 1)
+	for unicode.IsSpace(m.value[m.col]) {
+		if m.col <= 0 {
 			break
 		}
 		// ignore series of whitespace before cursor
-		blink = m.setCursor(m.pos - 1)
+		blink = m.setCursor(m.col - 1)
 	}
 
-	for m.pos > 0 {
-		if !unicode.IsSpace(m.value[m.pos]) {
-			blink = m.setCursor(m.pos - 1)
+	for m.col > 0 {
+		if !unicode.IsSpace(m.value[m.col]) {
+			blink = m.setCursor(m.col - 1)
 		} else {
-			if m.pos > 0 {
+			if m.col > 0 {
 				// keep the previous space
-				blink = m.setCursor(m.pos + 1)
+				blink = m.setCursor(m.col + 1)
 			}
 			break
 		}
 	}
 
-	if oldPos > len(m.value) {
-		m.value = m.value[:m.pos]
+	if oldCol > len(m.value) {
+		m.value = m.value[:m.col]
 	} else {
-		m.value = append(m.value[:m.pos], m.value[oldPos:]...)
+		m.value = append(m.value[:m.col], m.value[oldCol:]...)
 	}
 
 	return blink
@@ -465,7 +486,7 @@ func (m *Model) deleteWordLeft() bool {
 // the cursor blink should be reset. If input is masked delete everything after
 // the cursor so as not to reveal word breaks in the masked input.
 func (m *Model) deleteWordRight() bool {
-	if m.pos >= len(m.value) || len(m.value) == 0 {
+	if m.col >= len(m.value) || len(m.value) == 0 {
 		return false
 	}
 
@@ -473,39 +494,39 @@ func (m *Model) deleteWordRight() bool {
 		return m.deleteAfterCursor()
 	}
 
-	oldPos := m.pos
-	m.setCursor(m.pos + 1)
-	for unicode.IsSpace(m.value[m.pos]) {
+	oldCol := m.col
+	m.setCursor(m.col + 1)
+	for unicode.IsSpace(m.value[m.col]) {
 		// ignore series of whitespace after cursor
-		m.setCursor(m.pos + 1)
+		m.setCursor(m.col + 1)
 
-		if m.pos >= len(m.value) {
+		if m.col >= len(m.value) {
 			break
 		}
 	}
 
-	for m.pos < len(m.value) {
-		if !unicode.IsSpace(m.value[m.pos]) {
-			m.setCursor(m.pos + 1)
+	for m.col < len(m.value) {
+		if !unicode.IsSpace(m.value[m.col]) {
+			m.setCursor(m.col + 1)
 		} else {
 			break
 		}
 	}
 
-	if m.pos > len(m.value) {
-		m.value = m.value[:oldPos]
+	if m.col > len(m.value) {
+		m.value = m.value[:oldCol]
 	} else {
-		m.value = append(m.value[:oldPos], m.value[m.pos:]...)
+		m.value = append(m.value[:oldCol], m.value[m.col:]...)
 	}
 
-	return m.setCursor(oldPos)
+	return m.setCursor(oldCol)
 }
 
 // wordLeft moves the cursor one word to the left. Returns whether or not the
 // cursor blink should be reset. If input is masked, move input to the start
 // so as not to reveal word breaks in the masked input.
 func (m *Model) wordLeft() bool {
-	if m.pos == 0 || len(m.value) == 0 {
+	if m.col == 0 || len(m.value) == 0 {
 		return false
 	}
 
@@ -514,10 +535,10 @@ func (m *Model) wordLeft() bool {
 	}
 
 	blink := false
-	i := m.pos - 1
+	i := m.col - 1
 	for i >= 0 {
 		if unicode.IsSpace(m.value[i]) {
-			blink = m.setCursor(m.pos - 1)
+			blink = m.setCursor(m.col - 1)
 			i--
 		} else {
 			break
@@ -526,7 +547,7 @@ func (m *Model) wordLeft() bool {
 
 	for i >= 0 {
 		if !unicode.IsSpace(m.value[i]) {
-			blink = m.setCursor(m.pos - 1)
+			blink = m.setCursor(m.col - 1)
 			i--
 		} else {
 			break
@@ -540,7 +561,7 @@ func (m *Model) wordLeft() bool {
 // cursor blink should be reset. If the input is masked, move input to the end
 // so as not to reveal word breaks in the masked input.
 func (m *Model) wordRight() bool {
-	if m.pos >= len(m.value) || len(m.value) == 0 {
+	if m.col >= len(m.value) || len(m.value) == 0 {
 		return false
 	}
 
@@ -549,10 +570,10 @@ func (m *Model) wordRight() bool {
 	}
 
 	blink := false
-	i := m.pos
+	i := m.col
 	for i < len(m.value) {
 		if unicode.IsSpace(m.value[i]) {
-			blink = m.setCursor(m.pos + 1)
+			blink = m.setCursor(m.col + 1)
 			i++
 		} else {
 			break
@@ -561,7 +582,7 @@ func (m *Model) wordRight() bool {
 
 	for i < len(m.value) {
 		if !unicode.IsSpace(m.value[i]) {
-			blink = m.setCursor(m.pos + 1)
+			blink = m.setCursor(m.col + 1)
 			i++
 		} else {
 			break
@@ -569,6 +590,18 @@ func (m *Model) wordRight() bool {
 	}
 
 	return blink
+}
+
+func (m *Model) lineDown() {
+	if m.row < m.LineLimit-1 {
+		m.row += 1
+	}
+}
+
+func (m *Model) lineUp() {
+	if m.row > 0 {
+		m.row -= 1
+	}
 }
 
 func (m Model) echoTransform(v string) string {
@@ -600,35 +633,39 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				resetBlink = m.deleteWordLeft()
 			} else {
 				if len(m.value) > 0 {
-					m.value = append(m.value[:max(0, m.pos-1)], m.value[m.pos:]...)
-					if m.pos > 0 {
-						resetBlink = m.setCursor(m.pos - 1)
+					m.value = append(m.value[:max(0, m.col-1)], m.value[m.col:]...)
+					if m.col > 0 {
+						resetBlink = m.setCursor(m.col - 1)
 					}
 				}
 			}
+		case tea.KeyUp:
+			m.lineUp()
+		case tea.KeyDown, tea.KeyEnter:
+			m.lineDown()
 		case tea.KeyLeft, tea.KeyCtrlB:
 			if msg.Alt { // alt+left arrow, back one word
 				resetBlink = m.wordLeft()
 				break
 			}
-			if m.pos > 0 { // left arrow, ^F, back one character
-				resetBlink = m.setCursor(m.pos - 1)
+			if m.col > 0 { // left arrow, ^F, back one character
+				resetBlink = m.setCursor(m.col - 1)
 			}
 		case tea.KeyRight, tea.KeyCtrlF:
 			if msg.Alt { // alt+right arrow, forward one word
 				resetBlink = m.wordRight()
 				break
 			}
-			if m.pos < len(m.value) { // right arrow, ^F, forward one character
-				resetBlink = m.setCursor(m.pos + 1)
+			if m.col < len(m.value) { // right arrow, ^F, forward one character
+				resetBlink = m.setCursor(m.col + 1)
 			}
 		case tea.KeyCtrlW: // ^W, delete word left of cursor
 			resetBlink = m.deleteWordLeft()
 		case tea.KeyHome, tea.KeyCtrlA: // ^A, go to beginning
 			resetBlink = m.cursorStart()
 		case tea.KeyDelete, tea.KeyCtrlD: // ^D, delete char under cursor
-			if len(m.value) > 0 && m.pos < len(m.value) {
-				m.value = append(m.value[:m.pos], m.value[m.pos+1:]...)
+			if len(m.value) > 0 && m.col < len(m.value) {
+				m.value = append(m.value[:m.col], m.value[m.col+1:]...)
 			}
 		case tea.KeyCtrlE, tea.KeyEnd: // ^E, go to end
 			resetBlink = m.cursorEnd()
@@ -656,8 +693,8 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 			// Input a regular character
 			if m.CharLimit <= 0 || len(m.value) < m.CharLimit {
-				m.value = append(m.value[:m.pos], append(msg.Runes, m.value[m.pos:]...)...)
-				resetBlink = m.setCursor(m.pos + len(msg.Runes))
+				m.value = append(m.value[:m.col], append(msg.Runes, m.value[m.col:]...)...)
+				resetBlink = m.setCursor(m.col + len(msg.Runes))
 			}
 		}
 
@@ -721,12 +758,12 @@ func (m Model) View() string {
 	styleText := m.TextStyle.Inline(true).Render
 
 	value := m.value[m.offset:m.offsetRight]
-	pos := max(0, m.pos-m.offset)
-	v := styleText(m.echoTransform(string(value[:pos])))
+	col := max(0, m.col-m.offset)
+	v := styleText(m.echoTransform(string(value[:col])))
 
-	if pos < len(value) {
-		v += m.cursorView(m.echoTransform(string(value[pos]))) // cursor and text under it
-		v += styleText(m.echoTransform(string(value[pos+1:]))) // text after cursor
+	if col < len(value) {
+		v += m.cursorView(m.echoTransform(string(value[col]))) // cursor and text under it
+		v += styleText(m.echoTransform(string(value[col+1:]))) // text after cursor
 	} else {
 		v += m.cursorView(" ")
 	}
@@ -736,7 +773,7 @@ func (m Model) View() string {
 	valWidth := rw.StringWidth(string(value))
 	if m.Width > 0 && valWidth <= m.Width {
 		padding := max(0, m.Width-valWidth)
-		if valWidth+padding <= m.Width && pos < len(value) {
+		if valWidth+padding <= m.Width && col < len(value) {
 			padding++
 		}
 		v += styleText(strings.Repeat(" ", padding))
