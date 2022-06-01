@@ -112,7 +112,7 @@ type Model struct {
 	PlaceholderStyle lipgloss.Style
 	CursorStyle      lipgloss.Style
 
-	// CharLimit is the maximum amount of characters this input element will
+	// CharLimit is the maximum number of characters this input element will
 	// accept. If 0 or less, there's no limit.
 	CharLimit int
 
@@ -120,6 +120,15 @@ type Model struct {
 	// It essentially treats the text field like a horizontally scrolling
 	// viewport. If 0 or less this setting is ignored.
 	Width int
+
+	// LineLimit is the maximum number of lines this input element will accept.
+	// If 0 or less, there's no limit.
+	LineLimit int
+
+	// Height is the maximum number of lines that can be displayed at once.
+	// It essentially treats the text field like a vertically scrolling viewport
+	// if there are more lines that permitted height.
+	Height int
 
 	// The ID of this Model as it relates to other textinput Models.
 	id int
