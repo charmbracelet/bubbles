@@ -41,6 +41,18 @@ the common, and many customization options.
 * [Example code, one field](https://github.com/charmbracelet/tea/tree/master/examples/textinput/main.go)
 * [Example code, many fields](https://github.com/charmbracelet/tea/tree/master/examples/textinputs/main.go)
 
+## Text Area
+
+<img src="https://stuff.charm.sh/bubbles-examples/textarea.gif" width="400" alt="Text Area Example">
+
+A text area field, akin to an `<textarea />` in HTML. Allows for input that
+spans multiple lines. Supports unicode, pasting, vertical scrolling when the
+value exceeds the width and height of the element,  and many customization
+options.
+
+* [Example code, chat input](https://github.com/charmbracelet/tea/tree/master/examples/chat/main.go)
+* [Example code, story time input](https://github.com/charmbracelet/tea/tree/master/examples/textarea/main.go)
+
 
 ## Progress
 
