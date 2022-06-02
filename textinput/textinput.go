@@ -216,6 +216,15 @@ func (m Model) Value() string {
 	return strings.TrimSpace(v)
 }
 
+// Length returns the number of characters currently in the text input.
+func (m *Model) Length() int {
+	var l int
+	for _, row := range m.value {
+		l += len(row)
+	}
+	return l
+}
+
 // Cursor returns the cursor row.
 func (m Model) Cursor() int {
 	return m.col
@@ -424,7 +433,18 @@ func (m *Model) handleHorizontalOverflow() {
 }
 
 func (m *Model) handleVerticalOverflow() {
+	for i := range m.value {
+		if len(m.value[i]) >= m.Width {
+			overflow := m.value[i][m.Width:]
+			m.value[i] = m.value[i][:m.Width]
+			m.value[i+1] = concat(overflow, m.value[i+1])
+		}
+	}
 
+	if m.col >= m.Width {
+		m.lineDown()
+		m.cursorStart()
+	}
 }
 
 // deleteBeforeCursor deletes all text before the cursor. Returns whether or
@@ -641,19 +661,19 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			if msg.Alt {
 				resetBlink = m.deleteWordLeft()
 			} else {
-				if len(m.value[m.row]) > 0 {
-					m.value[m.row] = append(m.value[m.row][:max(0, m.col-1)], m.value[m.row][m.col:]...)
-					if m.col > 0 {
-						resetBlink = m.setCursor(m.col - 1)
-					}
-				}
-
 				// In a multi-line input, if the cursor is at the start of a
 				// line, and backspace is pressed move the cursor to the end of
 				// the previous line and bring the previous line up.
 				if m.col == 0 {
 					m.lineUp()
-					m.cursorEnd()
+					m.col = len(m.value[m.row])
+				}
+
+				if len(m.value[m.row]) > 0 {
+					m.value[m.row] = append(m.value[m.row][:max(0, m.col-1)], m.value[m.row][m.col:]...)
+					if m.col > 0 {
+						resetBlink = m.setCursor(m.col - 1)
+					}
 				}
 			}
 		case tea.KeyUp:
@@ -725,7 +745,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.handleColumnBoundaries()
 
 			// Input a regular character
-			if m.CharLimit <= 0 || len(m.value[m.row]) < m.CharLimit {
+			if m.CharLimit <= 0 || m.Length() < m.CharLimit {
 				m.value[m.row] = append(m.value[m.row][:m.col], append(msg.Runes, m.value[m.row][m.col:]...)...)
 				resetBlink = m.setCursor(m.col + len(msg.Runes))
 			}
@@ -960,4 +980,9 @@ func max(a, b int) int {
 		return a
 	}
 	return b
+}
+
+func concat(first []rune, second []rune) []rune {
+	n := len(first)
+	return append(first[:n:n], second...)
 }
