@@ -664,10 +664,14 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.lineDown()
 		case tea.KeyEnter:
 			resetBlink = true
-			if m.row != m.LineLimit-1 {
+			lastRow := m.row
+			m.lineDown()
+			currentRow := m.row
+
+			// Reset column only if we've actually changed rows
+			if lastRow != currentRow {
 				m.col = 0
 			}
-			m.lineDown()
 		case tea.KeyLeft, tea.KeyCtrlB:
 			if msg.Alt { // alt+left arrow, back one word
 				resetBlink = m.wordLeft()
