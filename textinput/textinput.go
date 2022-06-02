@@ -424,6 +424,7 @@ func (m *Model) handleHorizontalOverflow() {
 }
 
 func (m *Model) handleVerticalOverflow() {
+
 }
 
 // deleteBeforeCursor deletes all text before the cursor. Returns whether or
@@ -663,7 +664,9 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.lineDown()
 		case tea.KeyEnter:
 			resetBlink = true
-			m.col = 0
+			if m.row != m.LineLimit-1 {
+				m.col = 0
+			}
 			m.lineDown()
 		case tea.KeyLeft, tea.KeyCtrlB:
 			if msg.Alt { // alt+left arrow, back one word
