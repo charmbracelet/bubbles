@@ -174,7 +174,7 @@ func New() Model {
 		PlaceholderStyle: lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
 
 		id:         nextID(),
-		value:      make([][]rune, 10),
+		value:      make([][]rune, 100),
 		focus:      false,
 		blink:      true,
 		col:        0,
@@ -590,7 +590,7 @@ func (m *Model) wordLeft() bool {
 	blink := false
 	i := m.col - 1
 	for i >= 0 {
-		if unicode.IsSpace(m.value[m.row][i]) {
+		if unicode.IsSpace(m.value[m.row][min(i, len(m.value[m.row])-1)]) {
 			blink = m.setCursor(m.col - 1)
 			i--
 		} else {
@@ -599,7 +599,7 @@ func (m *Model) wordLeft() bool {
 	}
 
 	for i >= 0 {
-		if !unicode.IsSpace(m.value[m.row][i]) {
+		if !unicode.IsSpace(m.value[m.row][min(i, len(m.value[m.row])-1)]) {
 			blink = m.setCursor(m.col - 1)
 			i--
 		} else {
@@ -682,8 +682,6 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.Type {
 		case tea.KeyBackspace: // delete character before cursor
-			m.handleColumnBoundaries()
-
 			if msg.Alt {
 				resetBlink = m.deleteWordLeft()
 			} else {
@@ -726,6 +724,8 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			resetBlink = true
 			m.lineDown()
 		case tea.KeyEnter:
+			m.handleColumnBoundaries()
+
 			lastRow := m.row
 			m.lineDown()
 			currentRow := m.row
@@ -744,12 +744,15 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 			// Shift all rows after the current row down by one.
 			for i := m.LineLimit - 1; i > currentRow; i-- {
-				m.value[i] = m.value[i-1]
+				m.value[i] = make([]rune, len(m.value[i-1]))
+				copy(m.value[i], m.value[i-1])
 			}
 
 			// Split the current line into two lines.
-			m.value[currentRow] = m.value[lastRow][m.col:]
-			m.value[lastRow] = m.value[lastRow][:m.col]
+			s1, s2 := m.value[lastRow][:m.col], m.value[lastRow][m.col:]
+			m.value[lastRow], m.value[currentRow] = make([]rune, len(s1)), make([]rune, len(s2))
+			copy(m.value[lastRow], s1)
+			copy(m.value[currentRow], s2)
 
 			// Reset column only if we've actually changed rows
 			if lastRow != currentRow {
@@ -795,8 +798,10 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		case tea.KeyCtrlE, tea.KeyEnd: // ^E, go to end
 			resetBlink = m.cursorEnd()
 		case tea.KeyCtrlK: // ^K, kill text after cursor
+			m.handleColumnBoundaries()
 			resetBlink = m.deleteAfterCursor()
 		case tea.KeyCtrlU: // ^U, kill text before cursor
+			m.handleColumnBoundaries()
 			resetBlink = m.deleteBeforeCursor()
 		case tea.KeyCtrlV: // ^V paste
 			return m, Paste
