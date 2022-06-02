@@ -441,9 +441,10 @@ func (m *Model) handleVerticalOverflow() {
 		}
 	}
 
-	if m.col >= m.Width && m.row != m.LineLimit-1 {
+	if m.col > m.Width && m.row != m.LineLimit-1 {
 		m.lineDown()
 		m.cursorStart()
+		m.col++
 	}
 }
 
@@ -691,7 +692,8 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				// the previous line and bring the previous line up.
 				if m.col == 0 {
 					m.lineUp()
-					m.col = len(m.value[m.row])
+					m.cursorEnd()
+					break
 				}
 
 				if len(m.value[m.row]) > 0 {
@@ -725,10 +727,18 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			if m.col > 0 { // left arrow, ^F, back one character
 				resetBlink = m.setCursor(m.col - 1)
 			}
+			if m.col == 0 {
+				m.lineUp()
+				m.cursorEnd()
+			}
 		case tea.KeyRight, tea.KeyCtrlF:
 			if msg.Alt { // alt+right arrow, forward one word
 				resetBlink = m.wordRight()
 				break
+			}
+			if m.col >= len(m.value[m.row]) {
+				m.lineDown()
+				m.cursorStart()
 			}
 			if m.col < len(m.value[m.row]) { // right arrow, ^F, forward one character
 				resetBlink = m.setCursor(m.col + 1)
