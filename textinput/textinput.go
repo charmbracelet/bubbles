@@ -476,7 +476,7 @@ func (m *Model) canHandleMoreInput() bool {
 // deleteBeforeCursor deletes all text before the cursor. Returns whether or
 // not the cursor blink should be reset.
 func (m *Model) deleteBeforeCursor() bool {
-	m.value = m.value[m.col:]
+	m.value[m.row] = m.value[m.row][m.col:]
 	m.offset = 0
 	return m.setCursor(0)
 }
@@ -485,7 +485,7 @@ func (m *Model) deleteBeforeCursor() bool {
 // the cursor blink should be reset. If input is masked delete everything after
 // the cursor so as not to reveal word breaks in the masked input.
 func (m *Model) deleteAfterCursor() bool {
-	m.value = m.value[:m.col]
+	m.value[m.row] = m.value[m.row][:m.col]
 	return m.setCursor(len(m.value[m.row]))
 }
 
