@@ -433,7 +433,7 @@ func (m *Model) handleHorizontalOverflow() {
 }
 
 func (m *Model) handleVerticalOverflow() {
-	for i := range m.value {
+	for i := 0; i < len(m.value)-1; i++ {
 		if len(m.value[i]) >= m.Width {
 			overflow := m.value[i][m.Width:]
 			m.value[i] = m.value[i][:m.Width]
@@ -441,10 +441,35 @@ func (m *Model) handleVerticalOverflow() {
 		}
 	}
 
-	if m.col >= m.Width {
+	if m.col >= m.Width && m.row != m.LineLimit-1 {
 		m.lineDown()
 		m.cursorStart()
 	}
+}
+
+func (m *Model) canHandleMoreInput() bool {
+	// Single line input
+	if m.Height <= 1 && m.LineLimit <= 1 {
+		return m.CharLimit <= 0 || m.Length() < m.CharLimit
+	}
+
+	// Multi-line input
+	if m.CharLimit >= 0 && m.Length() >= m.CharLimit {
+		return false
+	}
+
+	// Depending on where we are in the multi-line input, we may not be able to insert
+	// more characters as they may overflow the input area when wrapping, i.e. may go over the LineLimit.
+	// In this case, let's just make sure we can handle the input.
+
+	// We'll ned to count the number of characters remaining and the characters we've already inserted
+	// starting from the cursor.
+	totalSpaceRemaining := ((m.LineLimit - m.row) * m.Width)
+	spaceUsed := 0
+	for i := m.row; i < m.LineLimit; i++ {
+		spaceUsed += rw.StringWidth(string(m.value[i]))
+	}
+	return spaceUsed < totalSpaceRemaining
 }
 
 // deleteBeforeCursor deletes all text before the cursor. Returns whether or
@@ -742,10 +767,15 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				}
 			}
 
+			// We can't allow the user to input if we are already at the maximum width and height.
+			if m.Height > 1 && m.row >= m.LineLimit-1 && len(m.value[m.row]) >= m.Width {
+				break
+			}
+
 			m.handleColumnBoundaries()
 
 			// Input a regular character
-			if m.CharLimit <= 0 || m.Length() < m.CharLimit {
+			if m.canHandleMoreInput() {
 				m.value[m.row] = append(m.value[m.row][:m.col], append(msg.Runes, m.value[m.row][m.col:]...)...)
 				resetBlink = m.setCursor(m.col + len(msg.Runes))
 			}
