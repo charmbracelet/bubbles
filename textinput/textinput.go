@@ -635,6 +635,8 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.Type {
 		case tea.KeyBackspace: // delete character before cursor
+			m.handleColumnBoundaries()
+
 			if msg.Alt {
 				resetBlink = m.deleteWordLeft()
 			} else {
@@ -644,12 +646,23 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 						resetBlink = m.setCursor(m.col - 1)
 					}
 				}
+
+				// In a multi-line input, if the cursor is at the start of a
+				// line, and backspace is pressed move the cursor to the end of
+				// the previous line and bring the previous line up.
+				if m.col == 0 {
+					m.lineUp()
+					m.cursorEnd()
+				}
 			}
 		case tea.KeyUp:
+			resetBlink = true
 			m.lineUp()
 		case tea.KeyDown:
+			resetBlink = true
 			m.lineDown()
 		case tea.KeyEnter:
+			resetBlink = true
 			m.col = 0
 			m.lineDown()
 		case tea.KeyLeft, tea.KeyCtrlB:
@@ -669,10 +682,12 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				resetBlink = m.setCursor(m.col + 1)
 			}
 		case tea.KeyCtrlW: // ^W, delete word left of cursor
+			m.handleColumnBoundaries()
 			resetBlink = m.deleteWordLeft()
 		case tea.KeyHome, tea.KeyCtrlA: // ^A, go to beginning
 			resetBlink = m.cursorStart()
 		case tea.KeyDelete, tea.KeyCtrlD: // ^D, delete char under cursor
+			m.handleColumnBoundaries()
 			if len(m.value[m.row]) > 0 && m.col < len(m.value[m.row]) {
 				m.value[m.row] = append(m.value[m.row][:m.col], m.value[m.row][m.col+1:]...)
 			}
@@ -699,6 +714,8 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 					break
 				}
 			}
+
+			m.handleColumnBoundaries()
 
 			// Input a regular character
 			if m.CharLimit <= 0 || len(m.value[m.row]) < m.CharLimit {
@@ -760,10 +777,77 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 // View renders the textinput in its current state.
 func (m Model) View() string {
 	// Placeholder text
-	if len(m.value[m.row]) == 0 && m.Placeholder != "" {
+	if m.Value() == "" && m.row == 0 && m.Placeholder != "" {
 		return m.placeholderView()
 	}
 
+	// Multi-line input
+	if m.Height > 1 {
+		return m.multiLineView()
+	}
+
+	// Single-line input
+	return m.singleLineView()
+}
+
+// placeholderView returns the prompt and placeholder view, if any.
+func (m Model) placeholderView() string {
+	var (
+		v     string
+		p     = m.Placeholder
+		style = m.PlaceholderStyle.Inline(true).Render
+	)
+
+	// Cursor
+	if m.blink {
+		v += m.cursorView(style(p[:1]))
+	} else {
+		v += m.cursorView(p[:1])
+	}
+
+	// The rest of the placeholder text
+	v += style(p[1:])
+
+	// The rest of the new lines
+	v += strings.Repeat("\n"+m.PromptStyle.Render(m.Prompt), m.Height)
+	v = strings.TrimSuffix(v, m.PromptStyle.Render(m.Prompt))
+
+	return m.PromptStyle.Render(m.Prompt) + v
+}
+
+// multiLineView returns the prompt and multi-line view.
+func (m Model) multiLineView() string {
+	var (
+		str       string
+		styleText = m.TextStyle.Inline(true).Render
+	)
+
+	// Display the value for all it's height
+	for i := 0; i < m.Height; i++ {
+		var v string
+		value := m.value[i]
+
+		// We're at the cursor line now, so display the cursor
+		if i == m.row {
+			col := min(max(0, m.col), len(value))
+			v = styleText(m.echoTransform(string(value[:col])))
+			if m.col < len(value) {
+				v += m.cursorView(m.echoTransform(string(value[m.col]))) // cursor and text under it
+				v += styleText(m.echoTransform(string(value[m.col+1:]))) // text after cursor
+			} else {
+				v += m.cursorView(" ")
+			}
+		} else {
+			v = styleText(m.echoTransform(string(value)))
+		}
+
+		str += m.PromptStyle.Render(m.Prompt) + v + "\n"
+	}
+	return str
+}
+
+// singleLineView returns the prompt and single-line view.
+func (m Model) singleLineView() string {
 	styleText := m.TextStyle.Inline(true).Render
 
 	value := m.value[m.row]
@@ -787,27 +871,6 @@ func (m Model) View() string {
 		}
 		v += styleText(strings.Repeat(" ", padding))
 	}
-
-	return m.PromptStyle.Render(m.Prompt) + v
-}
-
-// placeholderView returns the prompt and placeholder view, if any.
-func (m Model) placeholderView() string {
-	var (
-		v     string
-		p     = m.Placeholder
-		style = m.PlaceholderStyle.Inline(true).Render
-	)
-
-	// Cursor
-	if m.blink {
-		v += m.cursorView(style(p[:1]))
-	} else {
-		v += m.cursorView(p[:1])
-	}
-
-	// The rest of the placeholder text
-	v += style(p[1:])
 
 	return m.PromptStyle.Render(m.Prompt) + v
 }
@@ -843,6 +906,18 @@ func (m *Model) blinkCmd() tea.Cmd {
 		}
 		return blinkCanceled{}
 	}
+}
+
+func (m *Model) handleColumnBoundaries() {
+	// While the user is traversing a multi-line input, the cursor may be past
+	// the end of the line. This is not an issue until the user makes a change,
+	// in which case we will want to adjust the cursor so that it is within the
+	// bounds of the line.
+	//
+	// We don't want to adjust the cursor if the user is only moving the cursor
+	// as it may be disorienting if the user goes from a long line to a short
+	// line and then back to a long line, otherwise.
+	m.col = clamp(m.col, 0, len(m.value[m.row]))
 }
 
 // Blink is a command used to initialize cursor blinking.
