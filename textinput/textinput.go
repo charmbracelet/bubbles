@@ -727,7 +727,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			if m.col > 0 { // left arrow, ^F, back one character
 				resetBlink = m.setCursor(m.col - 1)
 			}
-			if m.col == 0 {
+			if m.Height > 1 && m.col == 0 && m.row != 0 {
 				m.lineUp()
 				m.cursorEnd()
 			}
@@ -736,7 +736,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				resetBlink = m.wordRight()
 				break
 			}
-			if m.col >= len(m.value[m.row]) {
+			if m.Height > 1 && m.col >= len(m.value[m.row]) && m.row != m.LineLimit-1 {
 				m.lineDown()
 				m.cursorStart()
 			}
