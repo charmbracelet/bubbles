@@ -690,9 +690,16 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				// In a multi-line input, if the cursor is at the start of a
 				// line, and backspace is pressed move the cursor to the end of
 				// the previous line and bring the previous line up.
-				if m.col == 0 {
+				if m.col == 0 && m.row > 0 {
 					m.lineUp()
 					m.cursorEnd()
+
+					m.value[m.row] = append(m.value[m.row], m.value[m.row+1]...)
+
+					// Shift all the lines up by one.
+					for i := m.row + 1; i < m.LineLimit; i++ {
+						m.value[i] = m.value[i+1]
+					}
 					break
 				}
 
@@ -703,6 +710,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 					}
 				}
 			}
+
 		case tea.KeyUp:
 			resetBlink = true
 			m.lineUp()
@@ -715,21 +723,44 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.lineDown()
 			currentRow := m.row
 
+			// On a multi-line input, we will need to shift the lines after the
+			// cursor line down by one since a new line was inserted.
+			if m.Height <= 1 {
+				break
+			}
+
+			// First, let's ensure that there is enough space to insert a new line.
+			// We can do this by ensuring that the last line is empty.
+			if len(m.value[m.LineLimit-1]) > 0 {
+				break
+			}
+
+			// Shift all rows after the current row down by one.
+			for i := m.LineLimit - 1; i > currentRow; i-- {
+				m.value[i] = m.value[i-1]
+			}
+
+			// Split the current line into two lines.
+			m.value[currentRow] = m.value[lastRow][m.col:]
+			m.value[lastRow] = m.value[lastRow][:m.col]
+
 			// Reset column only if we've actually changed rows
 			if lastRow != currentRow {
 				m.col = 0
 			}
+
 		case tea.KeyLeft, tea.KeyCtrlB:
 			if msg.Alt { // alt+left arrow, back one word
 				resetBlink = m.wordLeft()
 				break
 			}
-			if m.col > 0 { // left arrow, ^F, back one character
-				resetBlink = m.setCursor(m.col - 1)
-			}
 			if m.Height > 1 && m.col == 0 && m.row != 0 {
 				m.lineUp()
 				m.cursorEnd()
+				m.col++
+			}
+			if m.col > 0 { // left arrow, ^F, back one character
+				resetBlink = m.setCursor(m.col - 1)
 			}
 		case tea.KeyRight, tea.KeyCtrlF:
 			if msg.Alt { // alt+right arrow, forward one word
@@ -739,6 +770,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			if m.Height > 1 && m.col >= len(m.value[m.row]) && m.row != m.LineLimit-1 {
 				m.lineDown()
 				m.cursorStart()
+				m.col--
 			}
 			if m.col < len(m.value[m.row]) { // right arrow, ^F, forward one character
 				resetBlink = m.setCursor(m.col + 1)
