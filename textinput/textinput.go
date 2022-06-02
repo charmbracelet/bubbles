@@ -647,13 +647,13 @@ func (m *Model) wordRight() bool {
 
 func (m *Model) lineDown() {
 	if m.row < m.LineLimit-1 {
-		m.row += 1
+		m.row++
 	}
 }
 
 func (m *Model) lineUp() {
 	if m.row > 0 {
-		m.row -= 1
+		m.row--
 	}
 }
 
