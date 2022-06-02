@@ -691,8 +691,16 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				// line, and backspace is pressed move the cursor to the end of
 				// the previous line and bring the previous line up.
 				if m.col == 0 && m.row > 0 {
+					rowIsEmpty := len(m.value[m.row]) == 0
+
 					m.lineUp()
 					m.cursorEnd()
+
+					// If the current line is full we won't have space to shift
+					// all the other lines up, so simply do nothing.
+					if !rowIsEmpty && len(m.value[m.row]) >= m.Width {
+						break
+					}
 
 					m.value[m.row] = append(m.value[m.row], m.value[m.row+1]...)
 
@@ -718,7 +726,6 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			resetBlink = true
 			m.lineDown()
 		case tea.KeyEnter:
-			resetBlink = true
 			lastRow := m.row
 			m.lineDown()
 			currentRow := m.row
