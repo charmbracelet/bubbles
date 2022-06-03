@@ -180,6 +180,8 @@ func New() Model {
 		EchoCharacter:    '*',
 		CharLimit:        0,
 		PlaceholderStyle: lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
+		LineLimit:        1,
+		Height:           1,
 
 		id:         nextID(),
 		value:      nil,
@@ -348,7 +350,7 @@ func (m *Model) handlePaste(v string) bool {
 
 	var availSpace int
 	if m.CharLimit > 0 {
-		availSpace = m.CharLimit - len(m.value[m.row])
+		availSpace = m.CharLimit - m.Length()
 	}
 
 	// If the char limit's been reached cancel
@@ -363,14 +365,14 @@ func (m *Model) handlePaste(v string) bool {
 	}
 
 	// Stuff before and after the cursor
-	head := m.value[:m.col]
-	tailSrc := m.value[m.col:]
+	head := m.value[m.row][:m.col]
+	tailSrc := m.value[m.row][m.col:]
 	tail := make([]rune, len(tailSrc))
-	copy(tail, tailSrc[m.row])
+	copy(tail, tailSrc)
 
 	// Insert pasted runes
 	for _, r := range paste {
-		head[m.row] = append(head[m.row], r)
+		head = append(head, r)
 		m.col++
 		if m.CharLimit > 0 {
 			availSpace--
@@ -381,10 +383,12 @@ func (m *Model) handlePaste(v string) bool {
 	}
 
 	// Put it all back together
-	m.value[m.row] = append(head[m.row], tail...)
+	m.value[m.row] = append(head, tail...)
 
 	// Reset blink state if necessary and run overflow checks
-	return m.setCursor(m.col)
+	m.handleColumnBoundaries()
+	resetBlink := m.setCursor(m.col + len(paste))
+	return resetBlink
 }
 
 // If input is multi-line, the input can scroll vertically,
@@ -414,10 +418,10 @@ func (m *Model) handleHorizontalOverflow() {
 
 		w := 0
 		i := 0
-		runes := m.value[m.offset:]
+		runes := m.value[m.row][m.offset:]
 
 		for i < len(runes) && w <= m.Width {
-			w += rw.RuneWidth(runes[m.row][i])
+			w += rw.RuneWidth(runes[i])
 			if w <= m.Width+1 {
 				i++
 			}
@@ -428,11 +432,11 @@ func (m *Model) handleHorizontalOverflow() {
 		m.offsetRight = m.col
 
 		w := 0
-		runes := m.value[:m.offsetRight]
+		runes := m.value[m.row][:m.offsetRight]
 		i := len(runes) - 1
 
 		for i > 0 && w < m.Width {
-			w += rw.RuneWidth(runes[m.row][i])
+			w += rw.RuneWidth(runes[i])
 			if w <= m.Width {
 				i--
 			}
@@ -950,7 +954,7 @@ func (m Model) placeholderView() string {
 
 	// The rest of the new lines
 	v += strings.Repeat("\n"+m.PromptStyle.Render(m.Prompt), m.LineLimit)
-	v = strings.TrimSuffix(v, m.PromptStyle.Render(m.Prompt))
+	v = strings.TrimSuffix(v, "\n"+m.PromptStyle.Render(m.Prompt))
 
 	prompt := m.PromptStyle.Render(m.Prompt)
 
@@ -999,7 +1003,7 @@ func (m Model) multiLineView() string {
 func (m Model) singleLineView() string {
 	styleText := m.TextStyle.Inline(true).Render
 
-	value := m.value[m.row]
+	value := m.value[m.row][m.offset:m.offsetRight]
 	col := min(max(0, m.col-m.offset), len(value))
 	v := styleText(m.echoTransform(string(value[:col])))
 
