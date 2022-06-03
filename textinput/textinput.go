@@ -174,7 +174,7 @@ func New() Model {
 		PlaceholderStyle: lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
 
 		id:         nextID(),
-		value:      make([][]rune, 100),
+		value:      nil,
 		focus:      false,
 		blink:      true,
 		col:        0,
@@ -674,6 +674,10 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	if !m.focus {
 		m.blink = true
 		return m, nil
+	}
+
+	if m.value == nil {
+		m.value = make([][]rune, max(m.LineLimit, m.Height)+1)
 	}
 
 	var resetBlink bool
