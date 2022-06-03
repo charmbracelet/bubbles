@@ -690,7 +690,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 	if m.value == nil {
 		m.value = make([][]rune, m.LineLimit)
-		m.Viewport.Height = m.Height + 1
+		m.Viewport.Height = m.Height
 		m.Viewport.Width = m.Width
 	}
 
@@ -721,9 +721,11 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 					m.value[m.row] = append(m.value[m.row], m.value[m.row+1]...)
 
 					// Shift all the lines up by one.
-					for i := m.row + 1; i < m.LineLimit; i++ {
+					for i := m.row + 1; i < m.LineLimit-1; i++ {
 						m.value[i] = m.value[i+1]
 					}
+					// Clear the last line
+					m.value[m.LineLimit-1] = nil
 					break
 				}
 
