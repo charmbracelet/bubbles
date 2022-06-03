@@ -382,9 +382,6 @@ func (m *Model) handlePaste(v string) bool {
 		}
 	}
 
-	// Put it all back together
-	m.value[m.row] = append(head, tail...)
-
 	// Reset blink state if necessary and run overflow checks
 	m.handleColumnBoundaries()
 	resetBlink := m.setCursor(m.col + len(paste))
@@ -462,7 +459,9 @@ func (m *Model) handleVerticalOverflow() {
 	}
 }
 
-func (m *Model) canHandleMoreInput() bool {
+// canHandleMoreInput returns whether or not the input can handle n more
+// characters of input.
+func (m *Model) canHandleMoreInput(length int) bool {
 	// Single line input
 	if m.LineLimit <= 1 {
 		return m.CharLimit <= 0 || m.Length() < m.CharLimit
@@ -477,14 +476,14 @@ func (m *Model) canHandleMoreInput() bool {
 	// more characters as they may overflow the input area when wrapping, i.e. may go over the LineLimit.
 	// In this case, let's just make sure we can handle the input.
 
-	// We'll ned to count the number of characters remaining and the characters we've already inserted
+	// We'll need to count the number of characters remaining and the characters we've already inserted
 	// starting from the cursor.
 	totalSpaceRemaining := ((m.LineLimit - m.row) * m.Width)
 	spaceUsed := 0
 	for i := m.row; i < m.LineLimit; i++ {
 		spaceUsed += rw.StringWidth(string(m.value[i]))
 	}
-	return spaceUsed < totalSpaceRemaining
+	return spaceUsed < (totalSpaceRemaining - length)
 }
 
 // deleteBeforeCursor deletes all text before the cursor. Returns whether or
@@ -858,8 +857,19 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 			m.handleColumnBoundaries()
 
+			if len(msg.Runes) > 1 {
+				// We are possibly pasting in multiple characters. If this
+				// paste contains a new line it can break the input, so strip
+				// newlines away.
+				for i, r := range msg.Runes {
+					if r == '\n' || r == '\r' {
+						msg.Runes[i] = ' '
+					}
+				}
+			}
+
 			// Input a regular character
-			if m.canHandleMoreInput() {
+			if m.canHandleMoreInput(len(msg.Runes)) {
 				m.value[m.row] = append(m.value[m.row][:m.col], append(msg.Runes, m.value[m.row][m.col:]...)...)
 				resetBlink = m.setCursor(m.col + len(msg.Runes))
 			}
