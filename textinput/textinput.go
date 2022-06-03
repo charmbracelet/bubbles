@@ -8,6 +8,7 @@ import (
 	"unicode"
 
 	"github.com/atotto/clipboard"
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	rw "github.com/mattn/go-runewidth"
@@ -162,10 +163,17 @@ type Model struct {
 
 	// cursorMode determines the behavior of the cursor
 	cursorMode CursorMode
+
+	// Viewport is the vertically-scrollable Viewport of the multi-line text
+	// input.
+	Viewport *viewport.Model
 }
 
 // NewModel creates a new model with default settings.
 func New() Model {
+	vp := viewport.New(0, 0)
+	vp.KeyMap = viewport.KeyMap{}
+
 	return Model{
 		Prompt:           "> ",
 		BlinkSpeed:       defaultBlinkSpeed,
@@ -184,6 +192,8 @@ func New() Model {
 		blinkCtx: &blinkCtx{
 			ctx: context.Background(),
 		},
+
+		Viewport: &vp,
 	}
 }
 
@@ -380,7 +390,7 @@ func (m *Model) handlePaste(v string) bool {
 // If input is multi-line, the input can scroll vertically,
 // otherwise, scroll horizontally.
 func (m *Model) handleOverflow() {
-	if m.Height > 1 {
+	if m.LineLimit > 1 {
 		m.handleVerticalOverflow()
 	} else {
 		m.handleHorizontalOverflow()
@@ -450,7 +460,7 @@ func (m *Model) handleVerticalOverflow() {
 
 func (m *Model) canHandleMoreInput() bool {
 	// Single line input
-	if m.Height <= 1 && m.LineLimit <= 1 {
+	if m.LineLimit <= 1 {
 		return m.CharLimit <= 0 || m.Length() < m.CharLimit
 	}
 
@@ -649,12 +659,14 @@ func (m *Model) lineDown() {
 	if m.row < m.LineLimit-1 {
 		m.row++
 	}
+	m.Viewport.SetYOffset(m.row - m.Height/2)
 }
 
 func (m *Model) lineUp() {
 	if m.row > 0 {
 		m.row--
 	}
+	m.Viewport.SetYOffset(m.row - m.Height/2)
 }
 
 func (m Model) echoTransform(v string) string {
@@ -677,7 +689,9 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	}
 
 	if m.value == nil {
-		m.value = make([][]rune, max(m.LineLimit, m.Height)+1)
+		m.value = make([][]rune, m.LineLimit)
+		m.Viewport.Height = m.Height + 1
+		m.Viewport.Width = m.Width
 	}
 
 	var resetBlink bool
@@ -736,7 +750,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 			// On a multi-line input, we will need to shift the lines after the
 			// cursor line down by one since a new line was inserted.
-			if m.Height <= 1 {
+			if m.LineLimit <= 1 {
 				break
 			}
 
@@ -768,7 +782,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				resetBlink = m.wordLeft()
 				break
 			}
-			if m.Height > 1 && m.col == 0 && m.row != 0 {
+			if m.LineLimit > 1 && m.col == 0 && m.row != 0 {
 				m.lineUp()
 				m.cursorEnd()
 				m.col++
@@ -781,7 +795,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				resetBlink = m.wordRight()
 				break
 			}
-			if m.Height > 1 && m.col >= len(m.value[m.row]) && m.row != m.LineLimit-1 {
+			if m.LineLimit > 1 && m.col >= len(m.value[m.row]) && m.row != m.LineLimit-1 {
 				m.lineDown()
 				m.cursorStart()
 				m.col--
@@ -809,6 +823,12 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			resetBlink = m.deleteBeforeCursor()
 		case tea.KeyCtrlV: // ^V paste
 			return m, Paste
+		case tea.KeyCtrlN: // ^N next line
+			m.lineDown()
+			resetBlink = true
+		case tea.KeyCtrlP: // ^P previous line
+			m.lineUp()
+			resetBlink = true
 		case tea.KeyRunes, tea.KeySpace: // input regular characters
 			if msg.Alt && len(msg.Runes) == 1 {
 				if msg.Runes[0] == 'd' { // alt+d, delete word right of cursor
@@ -881,8 +901,11 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	}
 
 	var cmd tea.Cmd
-	if resetBlink {
-		cmd = m.blinkCmd()
+
+	vp, cmd := m.Viewport.Update(msg)
+	m.Viewport = &vp
+
+	if cmd == nil && resetBlink {
 	}
 
 	m.handleOverflow()
@@ -897,7 +920,7 @@ func (m Model) View() string {
 	}
 
 	// Multi-line input
-	if m.Height > 1 {
+	if m.LineLimit > 1 {
 		return m.multiLineView()
 	}
 
@@ -924,10 +947,17 @@ func (m Model) placeholderView() string {
 	v += style(p[1:])
 
 	// The rest of the new lines
-	v += strings.Repeat("\n"+m.PromptStyle.Render(m.Prompt), m.Height)
+	v += strings.Repeat("\n"+m.PromptStyle.Render(m.Prompt), m.LineLimit)
 	v = strings.TrimSuffix(v, m.PromptStyle.Render(m.Prompt))
 
-	return m.PromptStyle.Render(m.Prompt) + v
+	prompt := m.PromptStyle.Render(m.Prompt)
+
+	if m.LineLimit > 1 {
+		m.Viewport.SetContent(prompt + v)
+		return m.Viewport.View()
+	}
+
+	return prompt + v
 }
 
 // multiLineView returns the prompt and multi-line view.
@@ -938,7 +968,7 @@ func (m Model) multiLineView() string {
 	)
 
 	// Display the value for all it's height
-	for i := 0; i < m.Height; i++ {
+	for i := 0; i < m.LineLimit; i++ {
 		var v string
 		value := m.value[i]
 
@@ -958,7 +988,9 @@ func (m Model) multiLineView() string {
 
 		str += m.PromptStyle.Render(m.Prompt) + v + "\n"
 	}
-	return str
+
+	m.Viewport.SetContent(str)
+	return m.Viewport.View()
 }
 
 // singleLineView returns the prompt and single-line view.
