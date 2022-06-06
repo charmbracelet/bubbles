@@ -472,8 +472,8 @@ func (m *Model) handleVerticalOverflow() {
 	}
 }
 
-// canHandleMoreInput returns whether or not the input can handle n more
-// characters of input.
+// canHandleMoreInput returns whether or not the input can handle `length` more
+// characters of input being added.
 func (m *Model) canHandleMoreInput(length int) bool {
 	// Single line input
 	if m.isSingleLineInput() {
@@ -491,12 +491,12 @@ func (m *Model) canHandleMoreInput(length int) bool {
 
 	// We'll need to count the number of characters remaining and the characters we've already inserted
 	// starting from the cursor.
-	totalSpaceRemaining := ((m.LineLimit - m.row) * m.Width)
+	spaceRemaining := ((m.LineLimit - m.row) * m.Width)
 	spaceUsed := 0
 	for i := m.row; i < m.LineLimit; i++ {
 		spaceUsed += rw.StringWidth(string(m.value[i]))
 	}
-	return spaceUsed < (totalSpaceRemaining - length)
+	return spaceUsed+length < spaceRemaining
 }
 
 // deleteBeforeCursor deletes all text before the cursor. Returns whether or
@@ -896,7 +896,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				m.value[m.row] = append(m.value[m.row][:m.col], append(msg.Runes, m.value[m.row][m.col:]...)...)
 				resetBlink = m.setCursor(m.col + msgw)
 
-				if m.isMultiLineInput() && m.col > m.Width {
+				if m.isMultiLineInput() && m.col > m.Width && m.row <= m.LineLimit-1 {
 					newLines := m.col / m.Width
 					m.row += newLines
 					m.col = (m.col % m.Width) + newLines
