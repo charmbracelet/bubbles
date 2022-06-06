@@ -491,7 +491,7 @@ func (m *Model) canHandleMoreInput(length int) bool {
 
 	// We'll need to count the number of characters remaining and the characters we've already inserted
 	// starting from the cursor.
-	spaceRemaining := ((m.LineLimit - m.row) * m.Width)
+	spaceRemaining := ((m.LineLimit - m.row) * (m.Width - 1)) + 1
 	spaceUsed := 0
 	for i := m.row; i < m.LineLimit; i++ {
 		spaceUsed += rw.StringWidth(string(m.value[i]))
@@ -874,7 +874,8 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				break
 			}
 
-			// If the cursor is at the end of the line let's move the cursor to the next line
+			// If the cursor is at the end of the line let's move the cursor to
+			// the next line
 			if m.isMultiLineInput() && rw.StringWidth(string(m.value[m.row][:m.col])) >= m.Width-1 {
 				m.lineDown()
 				m.cursorStart()
