@@ -339,7 +339,10 @@ func (m *Model) Blur() {
 // Reset sets the input to its default state with no input. Returns whether
 // or not the cursor blink should reset.
 func (m *Model) Reset() bool {
-	m.value = nil
+	m.value = make([][]rune, m.LineLimit)
+	m.col = 0
+	m.row = 0
+	m.Viewport.GotoTop()
 	return m.setCursor(0)
 }
 
