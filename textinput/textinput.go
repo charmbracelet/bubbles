@@ -394,7 +394,7 @@ func (m *Model) handlePaste(v string) bool {
 // If input is multi-line, the input can scroll vertically,
 // otherwise, scroll horizontally.
 func (m *Model) handleOverflow() {
-	if m.LineLimit > 1 {
+	if m.isMultiLineInput() {
 		m.handleVerticalOverflow()
 	} else {
 		m.handleHorizontalOverflow()
@@ -449,7 +449,7 @@ func (m *Model) handleHorizontalOverflow() {
 func (m *Model) handleVerticalOverflow() {
 	for i := 0; i < len(m.value)-1; i++ {
 		l := m.value[i]
-		if rw.StringWidth(string(l)) <= m.Width {
+		if rw.StringWidth(string(l)) < m.Width {
 			// The line is less than the maximum width, so let's move on to the
 			// next line.
 			continue
@@ -476,7 +476,7 @@ func (m *Model) handleVerticalOverflow() {
 // characters of input.
 func (m *Model) canHandleMoreInput(length int) bool {
 	// Single line input
-	if m.LineLimit <= 1 {
+	if m.isSingleLineInput() {
 		return m.CharLimit <= 0 || m.Length() < m.CharLimit
 	}
 
@@ -716,6 +716,8 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.Type {
 		case tea.KeyBackspace: // delete character before cursor
+			m.handleColumnBoundaries()
+
 			if msg.Alt {
 				resetBlink = m.deleteWordLeft()
 			} else {
@@ -800,7 +802,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				resetBlink = m.wordLeft()
 				break
 			}
-			if m.LineLimit > 1 && m.col == 0 && m.row != 0 {
+			if m.isMultiLineInput() && m.col == 0 && m.row != 0 {
 				m.lineUp()
 				m.cursorEnd()
 				m.col++
@@ -813,7 +815,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				resetBlink = m.wordRight()
 				break
 			}
-			if m.LineLimit > 1 && m.col >= len(m.value[m.row]) && m.row != m.LineLimit-1 {
+			if m.isMultiLineInput() && m.col >= len(m.value[m.row]) && m.row != m.LineLimit-1 {
 				m.lineDown()
 				m.cursorStart()
 				m.col--
@@ -865,15 +867,17 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 			m.handleColumnBoundaries()
 
-			// If the cursor is at the end of the line let's move the cursor to the next line
-			if rw.StringWidth(string(m.value[m.row][:m.col])) >= m.Width {
-				m.lineDown()
-				m.cursorStart()
+			// We can't allow the user to input if we are already at the maximum width and height.
+			lw := rw.StringWidth(string(m.value[m.row]))
+			msgw := rw.StringWidth(string(msg.Runes))
+			if m.isMultiLineInput() && m.row >= m.LineLimit-1 && lw+msgw >= m.Width {
+				break
 			}
 
-			// We can't allow the user to input if we are already at the maximum width and height.
-			if m.Height > 1 && m.row >= m.LineLimit-1 && len(m.value[m.row]) >= m.Width {
-				break
+			// If the cursor is at the end of the line let's move the cursor to the next line
+			if m.isMultiLineInput() && rw.StringWidth(string(m.value[m.row][:m.col])) >= m.Width-1 {
+				m.lineDown()
+				m.cursorStart()
 			}
 
 			if len(msg.Runes) > 1 {
@@ -888,9 +892,17 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			}
 
 			// Input a regular character
-			if m.canHandleMoreInput(len(msg.Runes)) {
+			if m.canHandleMoreInput(msgw) {
 				m.value[m.row] = append(m.value[m.row][:m.col], append(msg.Runes, m.value[m.row][m.col:]...)...)
-				resetBlink = m.setCursor(m.col + len(msg.Runes))
+				resetBlink = m.setCursor(m.col + msgw)
+
+				if m.isMultiLineInput() && m.col > m.Width {
+					newLines := m.col / m.Width
+					m.row += newLines
+					m.col = (m.col % m.Width) + newLines
+					// Re-center the viewport
+					m.Viewport.SetYOffset(m.row - m.Height/2)
+				}
 			}
 		}
 
@@ -954,13 +966,11 @@ func (m Model) View() string {
 		return m.placeholderView()
 	}
 
-	// Multi-line input
-	if m.LineLimit > 1 {
+	if m.isMultiLineInput() {
 		return m.multiLineView()
+	} else {
+		return m.singleLineView()
 	}
-
-	// Single-line input
-	return m.singleLineView()
 }
 
 // placeholderView returns the prompt and placeholder view, if any.
@@ -987,7 +997,7 @@ func (m Model) placeholderView() string {
 
 	prompt := m.PromptStyle.Render(m.Prompt)
 
-	if m.LineLimit > 1 {
+	if m.isMultiLineInput() {
 		m.Viewport.SetContent(prompt + v)
 		return m.Viewport.View()
 	}
@@ -1100,6 +1110,16 @@ func (m *Model) handleColumnBoundaries() {
 	// as it may be disorienting if the user goes from a long line to a short
 	// line and then back to a long line, otherwise.
 	m.col = clamp(m.col, 0, len(m.value[m.row]))
+}
+
+// isMultiLineInput returns true if the input is multi-line.
+func (m *Model) isMultiLineInput() bool {
+	return m.LineLimit > 1
+}
+
+// isSingleLineInput returns true if the input is single-line.
+func (m *Model) isSingleLineInput() bool {
+	return m.LineLimit <= 1
 }
 
 // Blink is a command used to initialize cursor blinking.
