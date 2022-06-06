@@ -232,7 +232,7 @@ func (m Model) Value() string {
 func (m *Model) Length() int {
 	var l int
 	for _, row := range m.value {
-		l += len(row)
+		l += rw.StringWidth(string(row))
 	}
 	return l
 }
@@ -448,17 +448,27 @@ func (m *Model) handleHorizontalOverflow() {
 
 func (m *Model) handleVerticalOverflow() {
 	for i := 0; i < len(m.value)-1; i++ {
-		if len(m.value[i]) >= m.Width {
-			overflow := m.value[i][m.Width:]
-			m.value[i] = m.value[i][:m.Width]
-			m.value[i+1] = concat(overflow, m.value[i+1])
+		l := m.value[i]
+		if rw.StringWidth(string(l)) <= m.Width {
+			// The line is less than the maximum width, so let's move on to the
+			// next line.
+			continue
 		}
-	}
 
-	if m.col > m.Width && m.row != m.LineLimit-1 {
-		m.lineDown()
-		m.cursorStart()
-		m.col++
+		// The line is too long, so let's wrap it
+		// Before we do this, we need to find the character that will act as
+		// the break point. Since we may have multi-width characters this will
+		// not always align with the m.value[row][width-1]
+		w := 0
+		for j := 0; j < len(l); j++ {
+			w += rw.RuneWidth(l[j])
+			if w >= m.Width {
+				overflow := l[j:]
+				m.value[i] = l[:j]
+				m.value[i+1] = concat(overflow, m.value[i+1])
+				break
+			}
+		}
 	}
 }
 
@@ -853,12 +863,18 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				}
 			}
 
+			m.handleColumnBoundaries()
+
+			// If the cursor is at the end of the line let's move the cursor to the next line
+			if rw.StringWidth(string(m.value[m.row][:m.col])) >= m.Width {
+				m.lineDown()
+				m.cursorStart()
+			}
+
 			// We can't allow the user to input if we are already at the maximum width and height.
 			if m.Height > 1 && m.row >= m.LineLimit-1 && len(m.value[m.row]) >= m.Width {
 				break
 			}
-
-			m.handleColumnBoundaries()
 
 			if len(msg.Runes) > 1 {
 				// We are possibly pasting in multiple characters. If this
@@ -919,16 +935,16 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		m.Err = msg
 	}
 
-	var cmd tea.Cmd
-
-	vp, cmd := m.Viewport.Update(msg)
+	vp, vpCmd := m.Viewport.Update(msg)
 	m.Viewport = &vp
 
-	if cmd == nil && resetBlink {
+	m.handleOverflow()
+
+	if resetBlink {
+		return m, tea.Batch(vpCmd, m.blinkCmd())
 	}
 
-	m.handleOverflow()
-	return m, cmd
+	return m, vpCmd
 }
 
 // View renders the textinput in its current state.
