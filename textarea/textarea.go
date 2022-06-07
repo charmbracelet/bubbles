@@ -158,11 +158,6 @@ type Model struct {
 	// Cursor row.
 	row int
 
-	// Used to emulate a viewport when width is set and the content is
-	// overflowing.
-	offset      int
-	offsetRight int
-
 	// Used to manage cursor blink
 	blinkCtx *blinkCtx
 
