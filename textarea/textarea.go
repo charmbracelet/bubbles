@@ -2,6 +2,7 @@ package textarea
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -103,6 +104,8 @@ type Model struct {
 	EchoMode      EchoMode
 	EchoCharacter rune
 
+	ShowLineNumbers bool
+
 	// Styles. These will be applied as inline styles.
 	//
 	// For an introduction to styling with Lip Gloss see:
@@ -113,6 +116,7 @@ type Model struct {
 	PlaceholderStyle lipgloss.Style
 	CursorStyle      lipgloss.Style
 	CursorLineStyle  lipgloss.Style
+	LineNumberStyle  lipgloss.Style
 
 	// CharLimit is the maximum number of characters this input element will
 	// accept. If 0 or less, there's no limit.
@@ -165,6 +169,9 @@ type Model struct {
 	// cursorMode determines the behavior of the cursor
 	cursorMode CursorMode
 
+	// lineNumberFormat is the format string used to display line numbers.
+	lineNumberFormat string
+
 	// Viewport is the vertically-scrollable Viewport of the multi-line text
 	// input.
 	Viewport *viewport.Model
@@ -181,16 +188,18 @@ func New() Model {
 		EchoCharacter:    '*',
 		CharLimit:        0,
 		PlaceholderStyle: lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
+		LineNumberStyle:  lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
 		LineLimit:        1,
 		Height:           1,
 
-		id:         nextID(),
-		value:      nil,
-		focus:      false,
-		blink:      true,
-		col:        0,
-		row:        0,
-		cursorMode: CursorBlink,
+		id:               nextID(),
+		value:            nil,
+		focus:            false,
+		blink:            true,
+		col:              0,
+		row:              0,
+		cursorMode:       CursorBlink,
+		lineNumberFormat: "%3d ",
 
 		blinkCtx: &blinkCtx{
 			ctx: context.Background(),
@@ -199,11 +208,6 @@ func New() Model {
 		Viewport: &vp,
 	}
 }
-
-// NewModel creates a new model with default settings.
-//
-// Deprecated. Use New instead.
-var NewModel = New
 
 // SetValue sets the value of the text input.
 func (m *Model) SetValue(s string) {
@@ -613,18 +617,24 @@ func (m *Model) wordRight() bool {
 	return blink
 }
 
-func (m *Model) lineDown() {
+// lineDown moves the cursor down by `n` lines.
+// Returns whether or not the cursor blink should be reset.
+func (m *Model) lineDown(n int) bool {
 	if m.row < m.LineLimit-1 {
 		m.row++
 	}
 	m.Viewport.SetYOffset(m.row - m.Height/2)
+	return true
 }
 
-func (m *Model) lineUp() {
+// lineUp moves the cursor up by `n` lines.
+// returns whether or not the cursor blink should be reset.
+func (m *Model) lineUp(n int) bool {
 	if m.row > 0 {
 		m.row--
 	}
 	m.Viewport.SetYOffset(m.row - m.Height/2)
+	return true
 }
 
 func (m Model) echoTransform(v string) string {
@@ -669,7 +679,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				if m.col == 0 && m.row > 0 {
 					rowIsEmpty := len(m.value[m.row]) == 0
 
-					m.lineUp()
+					resetBlink = m.lineUp(1)
 					m.cursorEnd()
 
 					// If the current line is full we won't have space to shift
@@ -698,16 +708,14 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			}
 
 		case tea.KeyUp:
-			resetBlink = true
-			m.lineUp()
+			resetBlink = m.lineUp(1)
 		case tea.KeyDown:
-			resetBlink = true
-			m.lineDown()
+			resetBlink = m.lineDown(1)
 		case tea.KeyEnter:
 			m.handleColumnBoundaries()
 
 			lastRow := m.row
-			m.lineDown()
+			m.lineDown(1)
 			currentRow := m.row
 
 			// On a multi-line input, we will need to shift the lines after the
@@ -745,7 +753,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				break
 			}
 			if m.col == 0 && m.row != 0 {
-				m.lineUp()
+				resetBlink = m.lineUp(1)
 				m.cursorEnd()
 				m.col++
 			}
@@ -758,7 +766,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				break
 			}
 			if m.col >= len(m.value[m.row]) && m.row != m.LineLimit-1 {
-				m.lineDown()
+				m.lineDown(1)
 				m.cursorStart()
 				m.col--
 			}
@@ -786,11 +794,9 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		case tea.KeyCtrlV: // ^V paste
 			return m, Paste
 		case tea.KeyCtrlN: // ^N next line
-			m.lineDown()
-			resetBlink = true
+			resetBlink = m.lineDown(1)
 		case tea.KeyCtrlP: // ^P previous line
-			m.lineUp()
-			resetBlink = true
+			resetBlink = m.lineUp(1)
 		case tea.KeyRunes, tea.KeySpace: // input regular characters
 			if msg.Alt && len(msg.Runes) == 1 {
 				if msg.Runes[0] == 'd' { // alt+d, delete word right of cursor
@@ -819,7 +825,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			// If the cursor is at the end of the line let's move the cursor to
 			// the next line
 			if rw.StringWidth(string(m.value[m.row][:m.col])) >= m.Width-1 {
-				m.lineDown()
+				m.lineDown(1)
 				m.cursorStart()
 			}
 
@@ -939,7 +945,17 @@ func (m Model) View() string {
 			v = styleText(m.echoTransform(string(value)))
 		}
 
-		str += m.PromptStyle.Render(m.Prompt) + v + "\n"
+		str += m.PromptStyle.Render(m.Prompt)
+
+		if m.ShowLineNumbers {
+			lineNumber := m.LineNumberStyle.Render(fmt.Sprintf(m.lineNumberFormat, i+1))
+			if m.row == i {
+				str += styleCursorLine(lineNumber)
+			} else {
+				str += lineNumber
+			}
+		}
+		str += v + "\n"
 	}
 
 	m.Viewport.SetContent(str)
@@ -949,28 +965,45 @@ func (m Model) View() string {
 // placeholderView returns the prompt and placeholder view, if any.
 func (m Model) placeholderView() string {
 	var (
-		v     string
-		p     = m.Placeholder
-		style = m.PlaceholderStyle.Inline(true).Render
+		v       string
+		p       = m.Placeholder
+		style   = m.PlaceholderStyle.Inline(true).Render
+		clStyle = m.CursorLineStyle.Render
+		lnStyle = m.LineNumberStyle.Render
 	)
+
+	prompt := m.PromptStyle.Render(m.Prompt)
+	v += prompt
+
+	if m.ShowLineNumbers {
+		v += clStyle(lnStyle((fmt.Sprintf(m.lineNumberFormat, 1))))
+	}
 
 	// Cursor
 	if m.blink {
-		v += m.cursorView(style(p[:1]))
+		v += clStyle(m.cursorView(style(p[:1])))
 	} else {
-		v += m.cursorView(p[:1])
+		v += clStyle(m.cursorView(p[:1]))
 	}
 
 	// The rest of the placeholder text
-	v += style(p[1:])
+	v += clStyle(style(p[1:] + strings.Repeat(" ", m.Width-rw.StringWidth(p))))
 
 	// The rest of the new lines
-	v += strings.Repeat("\n"+m.PromptStyle.Render(m.Prompt), m.LineLimit)
-	v = strings.TrimSuffix(v, "\n"+m.PromptStyle.Render(m.Prompt))
+	for i := 1; i < m.LineLimit; i++ {
+		v += "\n" + prompt
 
-	prompt := m.PromptStyle.Render(m.Prompt)
+		if m.ShowLineNumbers {
+			lineNumber := lnStyle((fmt.Sprintf(m.lineNumberFormat, i+1)))
+			if i == 0 {
+				v += clStyle(lineNumber)
+			} else {
+				v += lineNumber
+			}
+		}
+	}
 
-	m.Viewport.SetContent(prompt + v)
+	m.Viewport.SetContent(v)
 	return m.Viewport.View()
 }
 
