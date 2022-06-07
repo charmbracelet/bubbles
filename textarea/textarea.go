@@ -415,8 +415,15 @@ func (m *Model) handleOverflow() {
 		for j := 0; j < len(l); j++ {
 			w += rw.RuneWidth(l[j])
 			if w >= m.Width {
-				overflow := l[j:]
-				m.value[i] = l[:j]
+				// We've hit the maximum number of characters we can allow on this line
+				// Let's work backwards until we find a nice break point
+				bp := j
+				for bp > m.col+1 && !unicode.IsSpace(l[bp]) {
+					bp--
+				}
+				var overflow []rune = make([]rune, len(l[bp:]))
+				copy(overflow, l[bp:])
+				m.value[i] = l[:bp]
 				m.value[i+1] = concat(overflow, m.value[i+1])
 				break
 			}
@@ -825,8 +832,28 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			// If the cursor is at the end of the line let's move the cursor to
 			// the next line
 			if rw.StringWidth(string(m.value[m.row][:m.col])) >= m.Width-1 {
+				// We've hit the end of the line, let's wrap the word we are
+				// currently typing to the next line.
+				bp := m.col - 1
+
+				// Words are delimited by spaces
+				for bp > 0 && !unicode.IsSpace(m.value[m.row][bp]) {
+					bp--
+				}
+
+				if bp == 0 {
+					// There is no space on the previous line, so let's just
+					// split the line at the column
+					bp = m.col - 1
+				}
+
+				word := string(m.value[m.row][(bp + 1):])
+				m.value[m.row] = m.value[m.row][:bp]
+
 				m.lineDown(1)
-				m.cursorStart()
+
+				m.value[m.row] = concat([]rune(word), m.value[m.row])
+				m.col = len(word)
 			}
 
 			if len(msg.Runes) > 1 {
@@ -896,16 +923,15 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		m.Err = msg
 	}
 
-	vp, vpCmd := m.Viewport.Update(msg)
+	vp, vpcmd := m.Viewport.Update(msg)
 	m.Viewport = &vp
 
 	m.handleOverflow()
 
 	if resetBlink {
-		return m, tea.Batch(vpCmd, m.blinkCmd())
+		return m, tea.Batch(m.blinkCmd(), vpcmd)
 	}
-
-	return m, vpCmd
+	return m, vpcmd
 }
 
 // View renders the textinput in its current state.
@@ -940,7 +966,7 @@ func (m Model) View() string {
 			}
 
 			// Add padding to fill out the rest of the background
-			v += styleCursorLine(strings.Repeat(" ", padding))
+			v += styleCursorLine(strings.Repeat(" ", max(0, padding)))
 		} else {
 			v = styleText(m.echoTransform(string(value)))
 		}
@@ -987,7 +1013,7 @@ func (m Model) placeholderView() string {
 	}
 
 	// The rest of the placeholder text
-	v += clStyle(style(p[1:] + strings.Repeat(" ", m.Width-rw.StringWidth(p))))
+	v += clStyle(style(p[1:] + strings.Repeat(" ", max(0, m.Width-rw.StringWidth(p)))))
 
 	// The rest of the new lines
 	for i := 1; i < m.LineLimit; i++ {
