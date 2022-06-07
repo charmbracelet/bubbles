@@ -451,7 +451,6 @@ func (m *Model) canHandleMoreInput(length int) bool {
 // not the cursor blink should be reset.
 func (m *Model) deleteBeforeCursor() bool {
 	m.value[m.row] = m.value[m.row][m.col:]
-	m.offset = 0
 	return m.setCursor(0)
 }
 
@@ -665,6 +664,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	}
 
 	var resetBlink bool
+	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
@@ -918,15 +918,17 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		m.Err = msg
 	}
 
-	vp, vpcmd := m.Viewport.Update(msg)
+	vp, cmd := m.Viewport.Update(msg)
 	m.Viewport = &vp
+	cmds = append(cmds, cmd)
 
 	m.handleOverflow()
 
 	if resetBlink {
-		return m, tea.Batch(m.blinkCmd(), vpcmd)
+		m.blink = false
+		cmds = append(cmds, m.blinkCmd())
 	}
-	return m, vpcmd
+	return m, tea.Batch(cmds...)
 }
 
 // View renders the textinput in its current state.
