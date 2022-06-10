@@ -28,39 +28,33 @@ func (d itemDelegate) Render(w io.Writer, m Model, index int, listItem Item) {
 	fmt.Fprint(w, m.Styles.TitleBar.Render(str))
 }
 
-func TestStatusBarTitle(t *testing.T) {
+func TestStatusBarItemName(t *testing.T) {
 	assert := assert.New(t)
 
-	list := New([]Item{
-		item("foo"),
-		item("bar"),
-	}, itemDelegate{}, 10, 10)
+	list := New([]Item{item("foo"), item("bar")}, itemDelegate{}, 10, 10)
+	assert.Contains(list.statusView(), "2 items")
 
-	statusBar := list.statusView()
-
-	assert.Contains(statusBar, "2 items")
+	list.SetItems([]Item{item("foo")})
+	assert.Contains(list.statusView(), "1 item")
 }
 
 func TestStatusBarWithoutItems(t *testing.T) {
 	assert := assert.New(t)
 
 	list := New([]Item{}, itemDelegate{}, 10, 10)
-
 	statusBar := list.statusView()
 
 	assert.Contains(statusBar, "No items")
 }
 
-func TestCustomStatusBarTitle(t *testing.T) {
+func TestCustomStatusBarItemName(t *testing.T) {
 	assert := assert.New(t)
 
-	list := New([]Item{
-		item("foo"),
-		item("bar"),
-	}, itemDelegate{}, 10, 10)
+	list := New([]Item{item("foo"), item("bar")}, itemDelegate{}, 10, 10)
+	list.SetStatusBarItemName("connection", "connections")
 
-	list.SetStatusBarTitle("connections")
-	statusBar := list.statusView()
+	assert.Contains(list.statusView(), "2 connections")
 
-	assert.Contains(statusBar, "2 connections")
+	list.SetItems([]Item{item("foo")})
+	assert.Contains(list.statusView(), "1 connection")
 }

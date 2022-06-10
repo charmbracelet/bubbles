@@ -125,10 +125,12 @@ type Model struct {
 	showTitle        bool
 	showFilter       bool
 	showStatusBar    bool
-	statusBarTitle   string
 	showPagination   bool
 	showHelp         bool
 	filteringEnabled bool
+
+	itemNameSingular string
+	itemNamePlural   string
 
 	Title  string
 	Styles Styles
@@ -203,6 +205,8 @@ func New(items []Item, delegate ItemDelegate, width, height int) Model {
 		showStatusBar:         true,
 		showPagination:        true,
 		showHelp:              true,
+		itemNameSingular:      "item",
+		itemNamePlural:        "items",
 		filteringEnabled:      true,
 		KeyMap:                DefaultKeyMap(),
 		Filter:                DefaultFilter,
@@ -287,15 +291,16 @@ func (m Model) ShowStatusBar() bool {
 	return m.showStatusBar
 }
 
-// SetStatusBarTitle defines a replacement for the items identifier. Defaults
+// SetStatusBarItemName defines a replacement for the items identifier. Defaults
 // to item/items
-func (m *Model) SetStatusBarTitle(v string) {
-	m.statusBarTitle = v
+func (m *Model) SetStatusBarItemName(singular, plural string) {
+	m.itemNameSingular = singular
+	m.itemNamePlural = plural
 }
 
-// StatusBarTitle returns the custom status bar title
-func (m Model) StatusBarTitle() string {
-	return m.statusBarTitle
+// StatusBarItemName returns the custom status bar title
+func (m Model) StatusBarItemName() (string, string) {
+	return m.itemNameSingular, m.itemNamePlural
 }
 
 // ShowingPagination hides or shoes the paginator. Note that pagination will
@@ -1060,24 +1065,21 @@ func (m Model) statusView() string {
 	totalItems := len(m.items)
 	visibleItems := len(m.VisibleItems())
 
-	var title string
-	if m.statusBarTitle != "" {
-		title = fmt.Sprintf("%d %s", visibleItems, m.statusBarTitle)
+	var itemName string
+	if visibleItems != 1 {
+		itemName = m.itemNamePlural
 	} else {
-		plural := ""
-		if visibleItems != 1 {
-			plural = "s"
-		}
-
-		title = fmt.Sprintf("%d item%s", visibleItems, plural)
+		itemName = m.itemNameSingular
 	}
+
+	itemsDisplay := fmt.Sprintf("%d %s", visibleItems, itemName)
 
 	if m.filterState == Filtering {
 		// Filter results
 		if visibleItems == 0 {
 			status = m.Styles.StatusEmpty.Render("Nothing matched")
 		} else {
-			status = title
+			status = itemsDisplay
 		}
 	} else if len(m.items) == 0 {
 		// Not filtering: no items.
@@ -1092,7 +1094,7 @@ func (m Model) statusView() string {
 			status += fmt.Sprintf("“%s” ", f)
 		}
 
-		status += title
+		status += itemsDisplay
 	}
 
 	numFiltered := totalItems - visibleItems
