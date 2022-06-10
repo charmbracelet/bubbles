@@ -287,13 +287,13 @@ func (m Model) ShowStatusBar() bool {
 	return m.showStatusBar
 }
 
-// SetStatusBarTitle shows or hides the view that displays metadata about the
-// list, such as item counts.
+// SetStatusBarTitle defines a replacement for the items identifier. Defaults
+// to item/items
 func (m *Model) SetStatusBarTitle(v string) {
 	m.statusBarTitle = v
 }
 
-// ShowStatusBar returns whether or not the status bar is set to be rendered.
+// StatusBarTitle returns the custom status bar title
 func (m Model) StatusBarTitle() string {
 	return m.statusBarTitle
 }
