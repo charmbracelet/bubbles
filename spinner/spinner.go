@@ -112,9 +112,7 @@ type TickMsg struct {
 	ID   int
 }
 
-// Update is the Tea update function. This will advance the spinner one frame
-// every time it's called, regardless the message passed, so be sure the logic
-// is setup so as not to call this Update needlessly.
+// Update is the Tea update function.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case TickMsg:
