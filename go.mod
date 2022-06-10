@@ -13,6 +13,4 @@ require (
 	github.com/muesli/reflow v0.3.0
 	github.com/muesli/termenv v0.11.1-0.20220212125758-44cd13922739
 	github.com/sahilm/fuzzy v0.1.0
-	github.com/stretchr/objx v0.4.0 // indirect
-	github.com/stretchr/testify v1.7.2 // indirect
 )

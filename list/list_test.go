@@ -3,10 +3,10 @@ package list
 import (
 	"fmt"
 	"io"
+	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/stretchr/testify/assert"
 )
 
 type item string
@@ -29,32 +29,40 @@ func (d itemDelegate) Render(w io.Writer, m Model, index int, listItem Item) {
 }
 
 func TestStatusBarItemName(t *testing.T) {
-	assert := assert.New(t)
-
 	list := New([]Item{item("foo"), item("bar")}, itemDelegate{}, 10, 10)
-	assert.Contains(list.statusView(), "2 items")
+    expected := "2 items"
+    if !strings.Contains(list.statusView(), expected) {
+        t.Fatalf("Error: expected view to contain %s", expected)
+    }
 
 	list.SetItems([]Item{item("foo")})
-	assert.Contains(list.statusView(), "1 item")
+    expected = "1 item"
+    if !strings.Contains(list.statusView(), expected) {
+        t.Fatalf("Error: expected view to contain %s", expected)
+    }
 }
 
 func TestStatusBarWithoutItems(t *testing.T) {
-	assert := assert.New(t)
-
 	list := New([]Item{}, itemDelegate{}, 10, 10)
-	statusBar := list.statusView()
 
-	assert.Contains(statusBar, "No items")
+    expected := "No items"
+    if !strings.Contains(list.statusView(), expected) {
+        t.Fatalf("Error: expected view to contain %s", expected)
+    }
 }
 
 func TestCustomStatusBarItemName(t *testing.T) {
-	assert := assert.New(t)
-
 	list := New([]Item{item("foo"), item("bar")}, itemDelegate{}, 10, 10)
 	list.SetStatusBarItemName("connection", "connections")
 
-	assert.Contains(list.statusView(), "2 connections")
+    expected := "2 connections"
+    if !strings.Contains(list.statusView(), expected) {
+        t.Fatalf("Error: expected view to contain %s", expected)
+    }
 
 	list.SetItems([]Item{item("foo")})
-	assert.Contains(list.statusView(), "1 connection")
+    expected = "1 connection"
+    if !strings.Contains(list.statusView(), expected) {
+        t.Fatalf("Error: expected view to contain %s", expected)
+    }
 }
