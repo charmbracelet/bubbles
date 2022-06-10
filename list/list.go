@@ -87,7 +87,7 @@ type Rank struct {
 // DefaultFilter uses the sahilm/fuzzy to filter through the list.
 // This is set by default.
 func DefaultFilter(term string, targets []string) []Rank {
-	var ranks fuzzy.Matches = fuzzy.Find(term, targets)
+	var ranks = fuzzy.Find(term, targets)
 	sort.Stable(ranks)
 	result := make([]Rank, len(ranks))
 	for i, r := range ranks {
@@ -125,6 +125,7 @@ type Model struct {
 	showTitle        bool
 	showFilter       bool
 	showStatusBar    bool
+	statusBarTitle   string
 	showPagination   bool
 	showHelp         bool
 	filteringEnabled bool
@@ -284,6 +285,17 @@ func (m *Model) SetShowStatusBar(v bool) {
 // ShowStatusBar returns whether or not the status bar is set to be rendered.
 func (m Model) ShowStatusBar() bool {
 	return m.showStatusBar
+}
+
+// SetStatusBarTitle shows or hides the view that displays metadata about the
+// list, such as item counts.
+func (m *Model) SetStatusBarTitle(v string) {
+	m.statusBarTitle = v
+}
+
+// ShowStatusBar returns whether or not the status bar is set to be rendered.
+func (m Model) StatusBarTitle() string {
+	return m.statusBarTitle
 }
 
 // ShowingPagination hides or shoes the paginator. Note that pagination will
@@ -1048,9 +1060,16 @@ func (m Model) statusView() string {
 	totalItems := len(m.items)
 	visibleItems := len(m.VisibleItems())
 
-	plural := ""
-	if visibleItems != 1 {
-		plural = "s"
+	var title string
+	if m.statusBarTitle != "" {
+		title = fmt.Sprintf("%d %s", visibleItems, m.statusBarTitle)
+	} else {
+		plural := ""
+		if visibleItems != 1 {
+			plural = "s"
+		}
+
+		title = fmt.Sprintf("%d item%s", visibleItems, plural)
 	}
 
 	if m.filterState == Filtering {
@@ -1058,7 +1077,7 @@ func (m Model) statusView() string {
 		if visibleItems == 0 {
 			status = m.Styles.StatusEmpty.Render("Nothing matched")
 		} else {
-			status = fmt.Sprintf("%d item%s", visibleItems, plural)
+			status = title
 		}
 	} else if len(m.items) == 0 {
 		// Not filtering: no items.
@@ -1073,7 +1092,7 @@ func (m Model) statusView() string {
 			status += fmt.Sprintf("“%s” ", f)
 		}
 
-		status += fmt.Sprintf("%d item%s", visibleItems, plural)
+		status += title
 	}
 
 	numFiltered := totalItems - visibleItems
