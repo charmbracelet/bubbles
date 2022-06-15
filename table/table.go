@@ -85,9 +85,6 @@ func (m Model) View() string {
 	return lipgloss.JoinVertical(lipgloss.Left, header, m.rowsViewport.View())
 }
 
-func (m *Model) SyncViewPortContent() {
-}
-
 func (m *Model) renderRow(rowId int, headerColumns []string) string {
 	style := lipgloss.NewStyle().MaxHeight(1)
 
