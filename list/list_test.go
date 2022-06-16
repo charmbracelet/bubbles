@@ -65,4 +65,10 @@ func TestCustomStatusBarItemName(t *testing.T) {
 	if !strings.Contains(list.statusView(), expected) {
 		t.Fatalf("Error: expected view to contain %s", expected)
 	}
+
+	list.SetItems([]Item{})
+	expected = "No connections"
+	if !strings.Contains(list.statusView(), expected) {
+		t.Fatalf("Error: expected view to contain %s", expected)
+	}
 }

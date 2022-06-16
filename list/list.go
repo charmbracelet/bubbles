@@ -1083,7 +1083,7 @@ func (m Model) statusView() string {
 		}
 	} else if len(m.items) == 0 {
 		// Not filtering: no items.
-		status = m.Styles.StatusEmpty.Render("No items")
+		status = m.Styles.StatusEmpty.Render("No " + m.itemNamePlural)
 	} else {
 		// Normal
 		filtered := m.FilterState() == FilterApplied
@@ -1138,7 +1138,7 @@ func (m Model) populatedView() string {
 		if m.filterState == Filtering {
 			return ""
 		}
-		return m.Styles.NoItems.Render("No items found.")
+		return m.Styles.NoItems.Render("No " + m.itemNamePlural + " found.")
 	}
 
 	if len(items) > 0 {
