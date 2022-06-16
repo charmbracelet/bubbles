@@ -298,7 +298,7 @@ func (m *Model) SetStatusBarItemName(singular, plural string) {
 	m.itemNamePlural = plural
 }
 
-// StatusBarItemName returns the custom status bar title
+// StatusBarItemName returns singular and plural status bar item names
 func (m Model) StatusBarItemName() (string, string) {
 	return m.itemNameSingular, m.itemNamePlural
 }
