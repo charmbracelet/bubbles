@@ -87,7 +87,7 @@ type Rank struct {
 // DefaultFilter uses the sahilm/fuzzy to filter through the list.
 // This is set by default.
 func DefaultFilter(term string, targets []string) []Rank {
-	var ranks fuzzy.Matches = fuzzy.Find(term, targets)
+	var ranks = fuzzy.Find(term, targets)
 	sort.Stable(ranks)
 	result := make([]Rank, len(ranks))
 	for i, r := range ranks {
@@ -128,6 +128,9 @@ type Model struct {
 	showPagination   bool
 	showHelp         bool
 	filteringEnabled bool
+
+	itemNameSingular string
+	itemNamePlural   string
 
 	Title  string
 	Styles Styles
@@ -202,6 +205,8 @@ func New(items []Item, delegate ItemDelegate, width, height int) Model {
 		showStatusBar:         true,
 		showPagination:        true,
 		showHelp:              true,
+		itemNameSingular:      "item",
+		itemNamePlural:        "items",
 		filteringEnabled:      true,
 		KeyMap:                DefaultKeyMap(),
 		Filter:                DefaultFilter,
@@ -284,6 +289,18 @@ func (m *Model) SetShowStatusBar(v bool) {
 // ShowStatusBar returns whether or not the status bar is set to be rendered.
 func (m Model) ShowStatusBar() bool {
 	return m.showStatusBar
+}
+
+// SetStatusBarItemName defines a replacement for the items identifier. Defaults
+// to item/items
+func (m *Model) SetStatusBarItemName(singular, plural string) {
+	m.itemNameSingular = singular
+	m.itemNamePlural = plural
+}
+
+// StatusBarItemName returns singular and plural status bar item names
+func (m Model) StatusBarItemName() (string, string) {
+	return m.itemNameSingular, m.itemNamePlural
 }
 
 // ShowingPagination hides or shoes the paginator. Note that pagination will
@@ -1048,21 +1065,25 @@ func (m Model) statusView() string {
 	totalItems := len(m.items)
 	visibleItems := len(m.VisibleItems())
 
-	plural := ""
+	var itemName string
 	if visibleItems != 1 {
-		plural = "s"
+		itemName = m.itemNamePlural
+	} else {
+		itemName = m.itemNameSingular
 	}
+
+	itemsDisplay := fmt.Sprintf("%d %s", visibleItems, itemName)
 
 	if m.filterState == Filtering {
 		// Filter results
 		if visibleItems == 0 {
 			status = m.Styles.StatusEmpty.Render("Nothing matched")
 		} else {
-			status = fmt.Sprintf("%d item%s", visibleItems, plural)
+			status = itemsDisplay
 		}
 	} else if len(m.items) == 0 {
 		// Not filtering: no items.
-		status = m.Styles.StatusEmpty.Render("No items")
+		status = m.Styles.StatusEmpty.Render("No " + m.itemNamePlural)
 	} else {
 		// Normal
 		filtered := m.FilterState() == FilterApplied
@@ -1073,7 +1094,7 @@ func (m Model) statusView() string {
 			status += fmt.Sprintf("“%s” ", f)
 		}
 
-		status += fmt.Sprintf("%d item%s", visibleItems, plural)
+		status += itemsDisplay
 	}
 
 	numFiltered := totalItems - visibleItems
@@ -1117,7 +1138,7 @@ func (m Model) populatedView() string {
 		if m.filterState == Filtering {
 			return ""
 		}
-		return m.Styles.NoItems.Render("No items found.")
+		return m.Styles.NoItems.Render("No " + m.itemNamePlural + " found.")
 	}
 
 	if len(items) > 0 {
