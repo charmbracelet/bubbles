@@ -291,19 +291,19 @@ func (m Model) ShowStatusBar() bool {
 	return m.showStatusBar
 }
 
-// SetStatusBarItemName defines a replacement for the items identifier. Defaults
-// to item/items
+// SetStatusBarItemName defines a replacement for the items identifier.
+// Defaults to item/items.
 func (m *Model) SetStatusBarItemName(singular, plural string) {
 	m.itemNameSingular = singular
 	m.itemNamePlural = plural
 }
 
-// StatusBarItemName returns singular and plural status bar item names
+// StatusBarItemName returns singular and plural status bar item names.
 func (m Model) StatusBarItemName() (string, string) {
 	return m.itemNameSingular, m.itemNamePlural
 }
 
-// ShowingPagination hides or shoes the paginator. Note that pagination will
+// SetShowPagination hides or shoes the paginator. Note that pagination will
 // still be active, it simply won't be displayed.
 func (m *Model) SetShowPagination(v bool) {
 	m.showPagination = v
@@ -569,7 +569,7 @@ func (m *Model) StopSpinner() {
 	m.showSpinner = false
 }
 
-// Helper for disabling the keybindings used for quitting, incase you want to
+// Helper for disabling the keybindings used for quitting, in case you want to
 // handle this elsewhere in your application.
 func (m *Model) DisableQuitKeybindings() {
 	m.disableQuitKeybindings = true
