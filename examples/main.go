@@ -35,7 +35,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "a":
-			m.appendRow(table.Row{randSeq(10), "25"})
+			m.appendRow(table.Row{"-", randSeq(15), "25"})
 			m.table.SetRows(m.data)
 			return m, nil
 		}
@@ -59,8 +59,9 @@ func main() {
 
 	m := model{
 		cols: []table.Column{
-			{Title: "name", Width: 30},
-			{Title: "age", Width: 5},
+			{Title: "#"},
+			{Title: "name", Width: 20},
+			{Title: "age"},
 		},
 	}
 

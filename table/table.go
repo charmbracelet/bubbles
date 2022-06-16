@@ -69,7 +69,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 func (m Model) View() string {
 	hCols := m.renderHeaderCols()
-	m.SyncViewportContent()
+	m.UpdateViewport()
 
 	header := m.Styles.HeaderStyle.Render(
 		lipgloss.JoinHorizontal(lipgloss.Top, hCols...),
@@ -78,7 +78,7 @@ func (m Model) View() string {
 	return lipgloss.JoinVertical(lipgloss.Left, header, body)
 }
 
-func (m *Model) SyncViewportContent() {
+func (m *Model) UpdateViewport() {
 	hCols := m.renderHeaderCols()
 	renderedRows := make([]string, 0, len(m.rows))
 	for i := range m.rows {
@@ -103,7 +103,7 @@ func (m Model) SelectedRow() Row {
 
 func (m *Model) SetRows(r []Row) {
 	m.rows = r
-	m.SyncViewportContent()
+	m.UpdateViewport()
 }
 
 // CursorIsAtTop of the table.
@@ -124,7 +124,7 @@ func (m *Model) MoveUp() {
 	}
 
 	m.cursor--
-	m.SyncViewportContent()
+	m.UpdateViewport()
 
 	if m.cursor < m.viewport.YOffset {
 		m.viewport.LineUp(1)
@@ -139,7 +139,7 @@ func (m *Model) MoveDown() {
 	}
 
 	m.cursor++
-	m.SyncViewportContent()
+	m.UpdateViewport()
 
 	if m.cursor > (m.viewport.YOffset + (m.viewport.Height - 1)) {
 		m.viewport.LineDown(1)
@@ -153,7 +153,7 @@ func (m *Model) GotoTop() {
 	}
 
 	m.cursor = 0
-	m.SyncViewportContent()
+	m.UpdateViewport()
 	m.viewport.GotoTop()
 }
 
@@ -164,17 +164,30 @@ func (m *Model) GotoBottom() {
 	}
 
 	m.cursor = len(m.rows) - 1
-	m.SyncViewportContent()
+	m.UpdateViewport()
 	m.viewport.GotoBottom()
 }
 
 func (m Model) renderHeaderCols() []string {
-	var hCols []string
-	for _, c := range m.cols {
-		hCols = append(hCols, m.Styles.TitleCellStyle.
+	titleStyle := m.Styles.TitleCellStyle
+	hCols := make([]string, len(m.cols))
+	singleRuneWidth := 4
+
+	for i, c := range m.cols {
+		width := c.Width
+		if width == 0 {
+			if len(c.Title) <= 1 {
+				width = singleRuneWidth
+			} else {
+				width = lipgloss.Width(titleStyle.Copy().Render(c.Title))
+			}
+		}
+
+		hCols[i] = titleStyle.
 			Copy().
-			Width(c.Width).
-			Render(c.Title))
+			Width(width).
+			MaxWidth(width).
+			Render(c.Title)
 	}
 
 	return hCols
