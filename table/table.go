@@ -7,16 +7,16 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// Column defines the table structure
+// Column defines the table structure.
 type Column struct {
 	Title string
 	Width int
 }
 
-// Row represents one line in the table
+// Row represents one line in the table.
 type Row []string
 
-// Model defines a state for the table widget
+// Model defines a state for the table widget.
 type Model struct {
 	// Public API
 	// Key mappings for navigating the list.
@@ -33,7 +33,7 @@ type Model struct {
 	viewport viewport.Model
 }
 
-// New creates a new model for the table widget
+// New creates a new model for the table widget.
 func New(cols []Column, rows []Row, w, h int) Model {
 	vp := viewport.New(w, max(h-1, 0))
 	return Model{
@@ -49,6 +49,7 @@ func New(cols []Column, rows []Row, w, h int) Model {
 	}
 }
 
+// Update is the Bubble Tea update loop.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
@@ -71,6 +72,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
+// View renders the component.
 func (m Model) View() string {
 	hCols := m.renderHeaderCols()
 	m.UpdateViewport()
@@ -83,7 +85,7 @@ func (m Model) View() string {
 }
 
 // UpdateViewport updates the list content based on the previously defined
-// columns and rows
+// columns and rows.
 func (m *Model) UpdateViewport() {
 	hCols := m.renderHeaderCols()
 	renderedRows := make([]string, 0, len(m.rows))
@@ -107,7 +109,7 @@ func (m Model) SelectedRow() Row {
 	return m.rows[m.cursor]
 }
 
-// SetRows set a new rows state
+// SetRows set a new rows state.
 func (m *Model) SetRows(r []Row) {
 	m.rows = r
 	m.UpdateViewport()
