@@ -7,13 +7,16 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+// Column defines the table structure
 type Column struct {
 	Title string
 	Width int
 }
 
+// Row represents one line in the table
 type Row []string
 
+// Model defines a state for the table widget
 type Model struct {
 	// Public API
 	// Key mappings for navigating the list.
@@ -30,6 +33,7 @@ type Model struct {
 	viewport viewport.Model
 }
 
+// New creates a new model for the table widget
 func New(cols []Column, rows []Row, w, h int) Model {
 	vp := viewport.New(w, max(h-1, 0))
 	return Model{
@@ -78,6 +82,8 @@ func (m Model) View() string {
 	return lipgloss.JoinVertical(lipgloss.Left, header, body)
 }
 
+// UpdateViewport updates the list content based on the previously defined
+// columns and rows
 func (m *Model) UpdateViewport() {
 	hCols := m.renderHeaderCols()
 	renderedRows := make([]string, 0, len(m.rows))
@@ -101,6 +107,7 @@ func (m Model) SelectedRow() Row {
 	return m.rows[m.cursor]
 }
 
+// SetRows set a new rows state
 func (m *Model) SetRows(r []Row) {
 	m.rows = r
 	m.UpdateViewport()
@@ -146,7 +153,7 @@ func (m *Model) MoveDown() {
 	}
 }
 
-//  moves the selection to the first row.
+// GotoTop moves the selection to the first row.
 func (m *Model) GotoTop() {
 	if m.CursorIsAtTop() {
 		return
@@ -157,7 +164,7 @@ func (m *Model) GotoTop() {
 	m.viewport.GotoTop()
 }
 
-// GoBottom moves the selection to the last row.
+// GotoBottom moves the selection to the last row.
 func (m *Model) GotoBottom() {
 	if m.CursorIsAtBottom() {
 		return
@@ -179,7 +186,9 @@ func (m Model) renderHeaderCols() []string {
 			if len(c.Title) <= 1 {
 				width = singleRuneWidth
 			} else {
-				width = lipgloss.Width(titleStyle.Copy().Render(c.Title))
+				width = lipgloss.Width(
+					titleStyle.Copy().Render(c.Title),
+				)
 			}
 		}
 
@@ -204,11 +213,17 @@ func (m *Model) renderRow(rowId int, headerColumns []string) string {
 	renderedColumns := make([]string, len(m.cols))
 	for i, value := range m.rows[rowId] {
 		colWidth := lipgloss.Width(headerColumns[i])
-		col := style.Copy().Width(colWidth).MaxWidth(colWidth).Render(value)
+		col := style.Copy().
+			Width(colWidth).
+			MaxWidth(colWidth).
+			Render(value)
 		renderedColumns = append(renderedColumns, col)
 	}
 
-	return lipgloss.JoinHorizontal(lipgloss.Left, renderedColumns...)
+	return lipgloss.JoinHorizontal(
+		lipgloss.Left,
+		renderedColumns...,
+	)
 }
 
 func max(a, b int) int {

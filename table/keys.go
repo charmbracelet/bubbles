@@ -2,6 +2,8 @@ package table
 
 import "github.com/charmbracelet/bubbles/key"
 
+// KeyMap defines keybindings. It satisfies to the help.KeyMap interface, which
+// is used to render the menu menu.
 type KeyMap struct {
 	// Motions
 	MoveUp     key.Binding
@@ -9,7 +11,7 @@ type KeyMap struct {
 	GotoTop    key.Binding
 	GotoBottom key.Binding
 
-	// The quit keybinding. This won't be caught when filtering.
+	// The quit keybinding
 	Quit key.Binding
 }
 
