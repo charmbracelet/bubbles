@@ -66,7 +66,7 @@ Supports "dot-style" pagination (similar to what you might see on iOS) and
 numeric page numbering, but you could also just use this component for the
 logic and visualize pagination however you like.
 
-* [Example code](https://github.com/charmbracelet/bubbletea/blob/master/examples/pager/main.go)
+* [Example code](https://github.com/charmbracelet/bubbletea/blob/master/examples/paginator/main.go)
 
 
 ## Viewport
