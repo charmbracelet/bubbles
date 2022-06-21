@@ -69,18 +69,18 @@ var (
 	}
 	Meter = Spinner{
 		Frames: []string{
-			"▰▱▱▱▱▱▱",
-			"▰▰▱▱▱▱▱",
-			"▰▰▰▱▱▱▱",
-			"▰▰▰▰▱▱▱",
-			"▰▰▰▰▰▱▱",
-			"▰▰▰▰▰▰▱",
-			"▰▰▰▰▰▰▰",
+			"▱▱▱",
+			"▰▱▱",
+			"▰▰▱",
+			"▰▰▰",
+			"▰▰▱",
+			"▰▱▱",
+			"▱▱▱",
 		},
 		FPS: time.Second / 7, //nolint:gomnd
 	}
 	Hamburger = Spinner{
-		Frames: []string{"☱", "☲", "☴"},
+		Frames: []string{"☱", "☲", "☴", "☲"},
 		FPS:    time.Second / 3, //nolint:gomnd
 	}
 )
