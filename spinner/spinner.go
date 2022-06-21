@@ -8,8 +8,8 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// Internal ID management. Used during animating to assure that frame messages
-// can only be received by spinner components that sent them.
+// Internal ID management. Used during animating to ensure that frame messages
+// are received only by spinner components that sent them.
 var (
 	lastID int
 	idMtx  sync.Mutex
