@@ -8,8 +8,8 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// Internal ID management for text inputs. Necessary for blink integrity when
-// multiple text inputs are involved.
+// Internal ID management. Used during animating to ensure that frame messages
+// are received only by spinner components that sent them.
 var (
 	lastID int
 	idMtx  sync.Mutex
