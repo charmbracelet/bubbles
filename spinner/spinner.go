@@ -67,6 +67,22 @@ var (
 		Frames: []string{"🙈", "🙉", "🙊"},
 		FPS:    time.Second / 3, //nolint:gomnd
 	}
+	Meter = Spinner{
+		Frames: []string{
+			"▱▱▱",
+			"▰▱▱",
+			"▰▰▱",
+			"▰▰▰",
+			"▰▰▱",
+			"▰▱▱",
+			"▱▱▱",
+		},
+		FPS: time.Second / 7, //nolint:gomnd
+	}
+	Hamburger = Spinner{
+		Frames: []string{"☱", "☲", "☴", "☲"},
+		FPS:    time.Second / 3, //nolint:gomnd
+	}
 )
 
 // Model contains the state for the spinner. Use NewModel to create new models
