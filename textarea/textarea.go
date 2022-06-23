@@ -156,15 +156,14 @@ type Model struct {
 	// accept. If 0 or less, there's no limit.
 	CharLimit int
 
-	// Width is the maximum number of characters that can be displayed at once.
-	// It essentially treats the text field like a horizontally scrolling
-	// viewport. If 0 or less this setting is ignored.
-	Width int
+	// width is the maximum number of characters that can be displayed at once.
+	// If 0 or less this setting is ignored.
+	width int
 
-	// Height is the maximum number of lines that can be displayed at once.
-	// It essentially treats the text field like a vertically scrolling viewport
-	// if there are more lines that permitted height.
-	Height int
+	// height is the maximum number of lines that can be displayed at once. It
+	// essentially treats the text field like a vertically scrolling viewport
+	// if there are more lines than the permitted height.
+	height int
 
 	// The ID of this Model as it relates to other text area Models.
 	id int
@@ -211,11 +210,9 @@ func New() Model {
 	vp := viewport.New(0, 0)
 	vp.KeyMap = viewport.KeyMap{}
 
-	return Model{
+	m := Model{
 		BlinkSpeed:       defaultBlinkSpeed,
 		CharLimit:        defaultCharLimit,
-		Height:           defaultHeight,
-		Width:            defaultWidth,
 		EchoCharacter:    '*',
 		Prompt:           "│ ",
 		PromptStyle:      lipgloss.NewStyle().Foreground(lipgloss.Color("230")),
@@ -238,6 +235,10 @@ func New() Model {
 
 		viewport: &vp,
 	}
+	m.SetHeight(defaultHeight)
+	m.SetWidth(defaultWidth)
+
+	return m
 }
 
 // SetValue sets the value of the text input.
@@ -339,7 +340,7 @@ func (m *Model) CursorDown() {
 		return
 	}
 
-	var offset = 0
+	offset := 0
 	for offset < charOffset {
 		if m.col > len(m.value[m.row]) || offset >= nli.CharWidth-1 {
 			break
@@ -373,7 +374,7 @@ func (m *Model) CursorUp() {
 		return
 	}
 
-	var offset = 0
+	offset := 0
 	for offset < charOffset {
 		if m.col >= len(m.value[m.row]) || offset >= nli.CharWidth-1 {
 			break
@@ -688,7 +689,7 @@ func (m *Model) wordRight() bool {
 // LineInfo returns the number of characters from the start of the
 // (soft-wrapped) line and the (soft-wrapped) line width.
 func (m Model) LineInfo() SoftLineInfo {
-	grid := wrap(m.value[m.row], m.Width)
+	grid := wrap(m.value[m.row], m.width)
 
 	// Find out which line we are currently on. This can be determined by the
 	// m.col and counting the number of runes that we need to skip.
@@ -751,6 +752,28 @@ func (m Model) echoTransform(v string) string {
 	}
 }
 
+// Width returns the width of the textarea.
+func (m Model) Width() int {
+	return m.width
+}
+
+// SetWidth sets the width of the textrea.
+func (m *Model) SetWidth(v int) {
+	m.width = clamp(v, minWidth, maxWidth)
+	m.viewport.Width = clamp(v, minWidth, maxWidth)
+}
+
+// Height returns the current height of the textarea.
+func (m Model) Height() int {
+	return m.height
+}
+
+// SetHeight sets the height of the textarea.
+func (m *Model) SetHeight(v int) {
+	m.height = clamp(v, minHeight, maxHeight)
+	m.viewport.Height = clamp(v, minHeight, maxHeight)
+}
+
 // Update is the Bubble Tea update loop.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	if !m.focus {
@@ -761,17 +784,9 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	var (
 		resetBlink      bool
 		resetCharOffset = true
+		cmds            []tea.Cmd
 	)
-	var cmds []tea.Cmd
 
-	if m.Height != m.viewport.Height {
-		m.Height = clamp(m.Height, minHeight, maxHeight)
-		m.viewport.Height = clamp(m.Height, minHeight, maxHeight)
-	}
-	if m.Width != m.viewport.Width {
-		m.Width = clamp(m.Width, minWidth, maxWidth)
-		m.viewport.Width = clamp(m.Width, minWidth, maxWidth)
-	}
 	if m.value[m.row] == nil {
 		m.value[m.row] = make([]rune, 0)
 	}
@@ -972,7 +987,7 @@ func (m Model) View() string {
 	var newLines int
 
 	for l, line := range m.value {
-		wrappedLines := wrap(line, m.Width)
+		wrappedLines := wrap(line, m.width)
 
 		if m.row == l {
 			style = m.CursorLineStyle
@@ -992,21 +1007,21 @@ func (m Model) View() string {
 			}
 
 			strwidth := rw.StringWidth(string(wrappedLine))
-			padding := m.Width - strwidth
+			padding := m.width - strwidth
 			// If the trailing space causes the line to be wider than the
 			// width, we should not draw it to the screen since it will result
 			// in an extra space at the end of the line which can look off when
 			// the cursor line is showing.
-			if strwidth > m.Width {
+			if strwidth > m.width {
 				// The character causing the line to be wider than the width is
 				// guaranteed to be a space since any other character would
 				// have been wrapped.
 				wrappedLine = []rune(strings.TrimSuffix(string(wrappedLine), " "))
-				padding -= m.Width - strwidth
+				padding -= m.width - strwidth
 			}
 			if m.row == l && lineInfo.RowOffset == wl {
 				s.WriteString(style.Render(string(wrappedLine[:lineInfo.ColumnOffset])))
-				if m.col >= len(line) && lineInfo.CharOffset >= m.Width {
+				if m.col >= len(line) && lineInfo.CharOffset >= m.width {
 					s.WriteString(m.cursorView(" "))
 				} else {
 					s.WriteString(style.Render(m.cursorView(string(wrappedLine[lineInfo.ColumnOffset]))))
@@ -1023,7 +1038,7 @@ func (m Model) View() string {
 
 	// Always show at least `m.Height` lines at all times.
 	// To do this we can simply pad out a few extra new lines in the view.
-	for i := 0; i < m.Height; i++ {
+	for i := 0; i < m.height; i++ {
 		s.WriteString(m.PromptStyle.Render(m.TextStyle.Render(m.Prompt)))
 
 		if m.ShowLineNumbers {
@@ -1061,10 +1076,10 @@ func (m Model) placeholderView() string {
 	}
 
 	// The rest of the placeholder text
-	v += m.CursorLineStyle.Render(style(p[1:] + strings.Repeat(" ", max(0, m.Width-rw.StringWidth(p)))))
+	v += m.CursorLineStyle.Render(style(p[1:] + strings.Repeat(" ", max(0, m.width-rw.StringWidth(p)))))
 
 	// The rest of the new lines
-	for i := 1; i < m.Height; i++ {
+	for i := 1; i < m.height; i++ {
 		v += "\n" + prompt
 
 		if m.ShowLineNumbers {
@@ -1092,7 +1107,7 @@ func (m Model) cursorLineNumber() int {
 	for i := 0; i < m.row; i++ {
 		// Calculate the number of lines that the current line will be split
 		// into.
-		line += len(wrap(m.value[i], m.Width))
+		line += len(wrap(m.value[i], m.width))
 	}
 	line += m.LineInfo().RowOffset
 	return line
