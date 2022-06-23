@@ -1021,17 +1021,16 @@ func (m Model) View() string {
 		}
 	}
 
-	if newLines < m.Height {
-		// The rest of the new lines
-		for i := newLines; i < m.Height; i++ {
-			s.WriteString(m.PromptStyle.Render(m.TextStyle.Render(m.Prompt)))
+	// Always show at least `m.Height` lines at all times.
+	// To do this we can simply pad out a few extra new lines in the view.
+	for i := 0; i < m.Height; i++ {
+		s.WriteString(m.PromptStyle.Render(m.TextStyle.Render(m.Prompt)))
 
-			if m.ShowLineNumbers {
-				lineNumber := m.LineNumberStyle.Render((fmt.Sprintf(m.lineNumberFormat, i+len(m.value)-newLines+1)))
-				s.WriteString(lineNumber)
-			}
-			s.WriteRune('\n')
+		if m.ShowLineNumbers {
+			lineNumber := m.LineNumberStyle.Render((fmt.Sprintf(m.lineNumberFormat, len(m.value)+i+1)))
+			s.WriteString(lineNumber)
 		}
+		s.WriteRune('\n')
 	}
 
 	m.viewport.SetContent(s.String())
@@ -1116,10 +1115,6 @@ func (m *Model) mergeLineBelow(row int) {
 	// And, remove the last line
 	if len(m.value) > 0 {
 		m.value = m.value[:len(m.value)-1]
-		// Since it is possible that the last line was part of the viewport,
-		// shift the viewport up by one so that the viewport is always full
-		// with lines.
-		m.viewport.LineUp(1)
 	}
 }
 
@@ -1143,10 +1138,6 @@ func (m *Model) mergeLineAbove(row int) {
 	// And, remove the last line
 	if len(m.value) > 0 {
 		m.value = m.value[:len(m.value)-1]
-		// Since it is possible that the last line was part of the viewport,
-		// shift the viewport up by one so that the viewport is always full
-		// with lines.
-		m.viewport.LineUp(1)
 	}
 }
 
