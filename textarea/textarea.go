@@ -831,8 +831,10 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			if m.col < len(m.value[m.row]) { // right arrow, ^F, forward one character
 				resetBlink = m.setCursor(m.col + 1)
 			} else {
-				m.col = 0
-				m.row++
+				if m.row < len(m.value)-1 {
+					m.row++
+					m.cursorStart()
+				}
 				resetBlink = true
 			}
 		case tea.KeyCtrlW: // ^W, delete word left of cursor
@@ -1232,6 +1234,19 @@ func wrap(runes []rune, width int) [][]rune {
 				lines[row] = append(lines[row], word...)
 				lines[row] = append(lines[row], repeatSpaces(spaces)...)
 				spaces = 0
+				word = nil
+			}
+		} else {
+			if rw.StringWidth(string(word)) >= width {
+				// The word is longer than the width we're trying to contain it
+				// to so we will have to break up this word no matter what.
+				// Let's try to fit as much as we can on the current line and
+				// put the rest on the next line.
+				remainingWidth := width - rw.StringWidth(string(lines[row]))
+				lines[row] = append(lines[row], word[:remainingWidth]...)
+				row++
+				lines = append(lines, []rune{})
+				lines[row] = append(lines[row], word[remainingWidth:]...)
 				word = nil
 			}
 		}
