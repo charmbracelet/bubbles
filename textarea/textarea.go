@@ -1234,10 +1234,24 @@ func wrap(runes []rune, width int) [][]rune {
 				// Let's try to fit as much as we can on the current line and
 				// put the rest on the next line.
 				remainingWidth := width - rw.StringWidth(string(lines[row]))
-				lines[row] = append(lines[row], word[:remainingWidth]...)
+
+				// Find the column in the word that corresponds to the
+				// remaining width. This is entirely to handle double-width
+				// runes. As for single-width runes, splitCol will be the same
+				// as the remainingWidth.
+				var splitCol int
+				var stringWidth int
+				for ; splitCol < len(word); splitCol++ {
+					stringWidth += rw.RuneWidth(word[splitCol])
+					if stringWidth > remainingWidth {
+						break
+					}
+				}
+
+				lines[row] = append(lines[row], word[:splitCol]...)
 				row++
 				lines = append(lines, []rune{})
-				lines[row] = append(lines[row], word[remainingWidth:]...)
+				lines[row] = append(lines[row], word[splitCol:]...)
 				word = nil
 			}
 		}
