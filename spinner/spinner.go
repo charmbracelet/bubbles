@@ -109,11 +109,17 @@ func (m Model) ID() int {
 }
 
 // New returns a model with default values.
-func New() Model {
-	return Model{
+func New(opts ...Option) Model {
+	m := Model{
 		Spinner: Line,
 		id:      nextID(),
 	}
+
+	for _, opt := range opts {
+		opt(&m)
+	}
+
+	return m
 }
 
 // NewModel returns a model with default values.
@@ -198,4 +204,24 @@ func (m Model) tick(id, tag int) tea.Cmd {
 // This method is deprecated. Use Model.Tick instead.
 func Tick() tea.Msg {
 	return TickMsg{Time: time.Now()}
+}
+
+// Option is used to set options in New. For example:
+//
+//    spinner := New(WithSpinner(Dot))
+//
+type Option func(*Model)
+
+// WithSpinner is an option to set the spinner.
+func WithSpinner(spinner Spinner) Option {
+	return func(m *Model) {
+		m.Spinner = spinner
+	}
+}
+
+// WithStyle is an option to set the spinner style.
+func WithStyle(style lipgloss.Style) Option {
+	return func(m *Model) {
+		m.Style = style
+	}
 }
