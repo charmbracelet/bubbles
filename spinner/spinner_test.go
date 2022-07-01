@@ -41,26 +41,21 @@ func TestSpinnerNew(t *testing.T) {
 		assertEqualSpinner(t, customSpinner, s.Spinner)
 	})
 
-	tests := map[string]struct {
-		option func() spinner.Option
-		exp    spinner.Spinner
-	}{
-		"WithLine":    {spinner.WithLine, spinner.Line},
-		"WithDot":     {spinner.WithDot, spinner.Dot},
-		"WithMiniDot": {spinner.WithMiniDot, spinner.MiniDot},
-		"WithJump":    {spinner.WithJump, spinner.Jump},
-		"WithPulse":   {spinner.WithPulse, spinner.Pulse},
-		"WithPoints":  {spinner.WithPoints, spinner.Points},
-		"WithGlobe":   {spinner.WithGlobe, spinner.Globe},
-		"WithMoon":    {spinner.WithMoon, spinner.Moon},
-		"WithMonkey":  {spinner.WithMonkey, spinner.Monkey},
+	tests := map[string]spinner.Spinner{
+		"Line":    spinner.Line,
+		"Dot":     spinner.Dot,
+		"MiniDot": spinner.MiniDot,
+		"Jump":    spinner.Jump,
+		"Pulse":   spinner.Pulse,
+		"Points":  spinner.Points,
+		"Globe":   spinner.Globe,
+		"Moon":    spinner.Moon,
+		"Monkey":  spinner.Monkey,
 	}
 
-	for name, tt := range tests {
+	for name, s := range tests {
 		t.Run(name, func(t *testing.T) {
-			s := spinner.New(tt.option())
-
-			assertEqualSpinner(t, tt.exp, s.Spinner)
+			assertEqualSpinner(t, spinner.New(spinner.WithSpinner(s)).Spinner, s)
 		})
 	}
 }
