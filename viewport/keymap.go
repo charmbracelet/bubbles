@@ -22,21 +22,27 @@ func DefaultKeyMap() KeyMap {
 	return KeyMap{
 		PageDown: key.NewBinding(
 			key.WithKeys("pgdown", spacebar, "f"),
+			key.WithHelp("f/pgdn", "page down"),
 		),
 		PageUp: key.NewBinding(
 			key.WithKeys("pgup", "b"),
+			key.WithHelp("b/pgup", "page up"),
 		),
 		HalfPageUp: key.NewBinding(
 			key.WithKeys("u", "ctrl+u"),
+			key.WithHelp("u", "½ page up"),
 		),
 		HalfPageDown: key.NewBinding(
 			key.WithKeys("d", "ctrl+d"),
+			key.WithHelp("d", "½ page down"),
 		),
 		Up: key.NewBinding(
 			key.WithKeys("up", "k"),
+			key.WithHelp("↑/k", "up"),
 		),
 		Down: key.NewBinding(
 			key.WithKeys("down", "j"),
+			key.WithHelp("↓/j", "down"),
 		),
 	}
 }

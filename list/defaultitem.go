@@ -3,6 +3,7 @@ package list
 import (
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
@@ -86,6 +87,7 @@ type DefaultDelegate struct {
 	UpdateFunc      func(tea.Msg, *Model) tea.Cmd
 	ShortHelpFunc   func() []key.Binding
 	FullHelpFunc    func() [][]key.Binding
+	height          int
 	spacing         int
 }
 
@@ -94,14 +96,22 @@ func NewDefaultDelegate() DefaultDelegate {
 	return DefaultDelegate{
 		ShowDescription: true,
 		Styles:          NewDefaultItemStyles(),
+		height:          2,
 		spacing:         1,
 	}
 }
 
+// SetHeight sets delegate's preferred height.
+func (d *DefaultDelegate) SetHeight(i int) {
+	d.height = i
+}
+
 // Height returns the delegate's preferred height.
+// This has effect only if ShowDescription is true,
+// otherwise height is always 1.
 func (d DefaultDelegate) Height() int {
 	if d.ShowDescription {
-		return 2 //nolint:gomnd
+		return d.height
 	}
 	return 1
 }
@@ -139,11 +149,23 @@ func (d DefaultDelegate) Render(w io.Writer, m Model, index int, item Item) {
 		return
 	}
 
+	if m.width <= 0 {
+		// short-circuit
+		return
+	}
+
 	// Prevent text from exceeding list width
-	if m.width > 0 {
-		textwidth := uint(m.width - s.NormalTitle.GetPaddingLeft() - s.NormalTitle.GetPaddingRight())
-		title = truncate.StringWithTail(title, textwidth, ellipsis)
-		desc = truncate.StringWithTail(desc, textwidth, ellipsis)
+	textwidth := uint(m.width - s.NormalTitle.GetPaddingLeft() - s.NormalTitle.GetPaddingRight())
+	title = truncate.StringWithTail(title, textwidth, ellipsis)
+	if d.ShowDescription {
+		var lines []string
+		for i, line := range strings.Split(desc, "\n") {
+			if i >= d.height-1 {
+				break
+			}
+			lines = append(lines, truncate.StringWithTail(line, textwidth, ellipsis))
+		}
+		desc = strings.Join(lines, "\n")
 	}
 
 	// Conditions

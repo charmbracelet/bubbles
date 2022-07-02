@@ -8,8 +8,8 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// Internal ID management for text inputs. Necessary for blink integrity when
-// multiple text inputs are involved.
+// Internal ID management. Used during animating to ensure that frame messages
+// are received only by spinner components that sent them.
 var (
 	lastID int
 	idMtx  sync.Mutex
@@ -67,12 +67,27 @@ var (
 		Frames: []string{"🙈", "🙉", "🙊"},
 		FPS:    time.Second / 3, //nolint:gomnd
 	}
+	Meter = Spinner{
+		Frames: []string{
+			"▱▱▱",
+			"▰▱▱",
+			"▰▰▱",
+			"▰▰▰",
+			"▰▰▱",
+			"▰▱▱",
+			"▱▱▱",
+		},
+		FPS: time.Second / 7, //nolint:gomnd
+	}
+	Hamburger = Spinner{
+		Frames: []string{"☱", "☲", "☴", "☲"},
+		FPS:    time.Second / 3, //nolint:gomnd
+	}
 )
 
 // Model contains the state for the spinner. Use NewModel to create new models
 // rather than using Model as a struct literal.
 type Model struct {
-
 	// Spinner settings to use. See type Spinner.
 	Spinner Spinner
 
@@ -83,10 +98,9 @@ type Model struct {
 	// https://github.com/charmbracelet/lipgloss
 	Style lipgloss.Style
 
-	frame     int
-	startTime time.Time
-	id        int
-	tag       int
+	frame int
+	id    int
+	tag   int
 }
 
 // ID returns the spinner's unique ID.
@@ -95,11 +109,17 @@ func (m Model) ID() int {
 }
 
 // New returns a model with default values.
-func New() Model {
-	return Model{
+func New(opts ...Option) Model {
+	m := Model{
 		Spinner: Line,
 		id:      nextID(),
 	}
+
+	for _, opt := range opts {
+		opt(&m)
+	}
+
+	return m
 }
 
 // NewModel returns a model with default values.
@@ -114,9 +134,7 @@ type TickMsg struct {
 	ID   int
 }
 
-// Update is the Tea update function. This will advance the spinner one frame
-// every time it's called, regardless the message passed, so be sure the logic
-// is setup so as not to call this Update needlessly.
+// Update is the Tea update function.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case TickMsg:
@@ -186,4 +204,24 @@ func (m Model) tick(id, tag int) tea.Cmd {
 // This method is deprecated. Use Model.Tick instead.
 func Tick() tea.Msg {
 	return TickMsg{Time: time.Now()}
+}
+
+// Option is used to set options in New. For example:
+//
+//    spinner := New(WithSpinner(Dot))
+//
+type Option func(*Model)
+
+// WithSpinner is an option to set the spinner.
+func WithSpinner(spinner Spinner) Option {
+	return func(m *Model) {
+		m.Spinner = spinner
+	}
+}
+
+// WithStyle is an option to set the spinner style.
+func WithStyle(style lipgloss.Style) Option {
+	return func(m *Model) {
+		m.Style = style
+	}
 }

@@ -41,6 +41,18 @@ the common, and many customization options.
 * [Example code, one field](https://github.com/charmbracelet/tea/tree/master/examples/textinput/main.go)
 * [Example code, many fields](https://github.com/charmbracelet/tea/tree/master/examples/textinputs/main.go)
 
+## Text Area
+
+<img src="https://stuff.charm.sh/bubbles-examples/textarea.gif" width="400" alt="Text Area Example">
+
+A text area field, akin to an `<textarea />` in HTML. Allows for input that
+spans multiple lines. Supports unicode, pasting, vertical scrolling when the
+value exceeds the width and height of the element,  and many customization
+options.
+
+* [Example code, chat input](https://github.com/charmbracelet/tea/tree/master/examples/chat/main.go)
+* [Example code, story time input](https://github.com/charmbracelet/tea/tree/master/examples/textarea/main.go)
+
 
 ## Progress
 
@@ -66,7 +78,7 @@ Supports "dot-style" pagination (similar to what you might see on iOS) and
 numeric page numbering, but you could also just use this component for the
 logic and visualize pagination however you like.
 
-* [Example code](https://github.com/charmbracelet/bubbletea/blob/master/examples/pager/main.go)
+* [Example code](https://github.com/charmbracelet/bubbletea/blob/master/examples/paginator/main.go)
 
 
 ## Viewport
@@ -171,6 +183,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 ## Additional Bubbles
 
+<!-- in alphabetical order by author -->
+
 * [76creates/stickers](https://github.com/76creates/stickers): Responsive
   flexbox and table components.
 * [calyptia/go-bubble-table](https://github.com/calyptia/go-bubble-table): An
@@ -181,6 +195,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
   customization options.
 * [evertras/bubble-table](https://github.com/Evertras/bubble-table): Interactive,
   customizable, paginated tables.
+* [knipferrc/teacup](https://github.com/knipferrc/teacup): Various handy
+  bubbles and utilities for building Bubble Tea applications.
 * [mritd/bubbles](https://github.com/mritd/bubbles): Some general-purpose
   bubbles. Inputs with validation, menu selection, a modified progressbar, and
   so on.
