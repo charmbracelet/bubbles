@@ -673,6 +673,10 @@ func (m *Model) SetWidth(w int) {
 	if m.ShowLineNumbers {
 		inputWidth -= rw.StringWidth(fmt.Sprintf(m.lineNumberFormat, 0))
 	}
+
+	// Account for base style borders and padding.
+	inputWidth -= m.style.Base.GetHorizontalFrameSize()
+
 	inputWidth -= rw.StringWidth(m.Prompt)
 	m.width = clamp(inputWidth, minWidth, maxWidth)
 }
