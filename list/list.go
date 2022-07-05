@@ -534,6 +534,15 @@ func (m Model) SettingFilter() bool {
 	return m.filterState == Filtering
 }
 
+// IsFiltered returns whether or not the list is currently filtered.
+// It's purely a convenience method for the following:
+//
+//	 m.FilterState() == FilterApplied
+//
+func (m Model) IsFiltered() bool {
+	return m.filterState == FilterApplied
+}
+
 // Width returns the current width setting.
 func (m Model) Width() int {
 	return m.width
