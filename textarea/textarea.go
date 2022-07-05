@@ -752,6 +752,12 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			}
 			m.deleteWordLeft()
 		case key.Matches(msg, m.KeyMap.DeleteWordForward):
+			m.col = clamp(m.col, 0, len(m.value[m.row]))
+			if m.col >= len(m.value[m.row]) {
+				m.mergeLineBelow(m.row)
+				break
+			}
+			m.deleteWordRight()
 		case key.Matches(msg, m.KeyMap.InsertNewline):
 			if len(m.value) >= maxHeight {
 				return m, nil
