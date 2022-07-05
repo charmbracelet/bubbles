@@ -92,8 +92,8 @@ type Styles struct {
 // DefaultStyles returns a set of default style definitions for this table.
 func DefaultStyles() Styles {
 	return Styles{
-		Selected: lipgloss.NewStyle().Bold(true).Foreground(lipgloss.AdaptiveColor{Light: "#EE6FF8", Dark: "#EE6FF8"}),
-		Header:   lipgloss.NewStyle().Padding(0, 1).Bold(true),
+		Selected: lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("212")),
+		Header:   lipgloss.NewStyle().Bold(true).Padding(0, 1),
 		Cell:     lipgloss.NewStyle().Padding(0, 1),
 	}
 }
@@ -327,19 +327,20 @@ func (m Model) headersView() string {
 }
 
 func (m *Model) renderRow(rowID int) string {
-	selected := rowID == m.cursor
-
 	var s = make([]string, len(m.cols))
 	for i, value := range m.rows[rowID] {
 		style := lipgloss.NewStyle().Width(m.cols[i].Width).MaxWidth(m.cols[i].Width).Inline(true)
-		if selected && m.focus {
-			style = style.Inherit(m.styles.Selected)
-		}
-		renderedCell := style.Render(runewidth.Truncate(value, m.cols[i].Width, "…"))
-		s = append(s, m.styles.Cell.Render(renderedCell))
+		renderedCell := m.styles.Cell.Render(style.Render(runewidth.Truncate(value, m.cols[i].Width, "…")))
+		s = append(s, renderedCell)
 	}
 
-	return lipgloss.JoinHorizontal(lipgloss.Left, s...)
+	row := lipgloss.JoinHorizontal(lipgloss.Left, s...)
+
+	if rowID == m.cursor {
+		return m.styles.Selected.Render(row)
+	}
+
+	return row
 }
 
 func max(a, b int) int {
