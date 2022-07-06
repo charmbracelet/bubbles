@@ -94,6 +94,11 @@ func (c CursorMode) String() string {
 // ValidateFunc is a function that returns an error if the input is invalid.
 type ValidateFunc func(string) error
 
+type completionMsg struct {
+		textInputId		int
+		completion		string
+}
+
 // Model is the Bubble Tea model for this text input element.
 type Model struct {
 	Err error
@@ -114,6 +119,7 @@ type Model struct {
 	BackgroundStyle  lipgloss.Style
 	PlaceholderStyle lipgloss.Style
 	CursorStyle      lipgloss.Style
+	CompletionStyle  lipgloss.Style
 
 	// CharLimit is the maximum amount of characters this input element will
 	// accept. If 0 or less, there's no limit.
@@ -153,9 +159,15 @@ type Model struct {
 
 	// cursorMode determines the behavior of the cursor
 	cursorMode CursorMode
-
-	shouldAutocomplete	bool
-	autocomplete				string
+	
+	// Should the input suggest to complete
+	ShowCompletions     bool
+	
+	// Key to be pressed in order to accept the complete suggestion, defaults to right-arrow
+	AcceptCompletionKey 	tea.KeyType
+	
+	isCompletionActive		bool
+	availableCompletion		string
 
 	// Validate is a function that checks whether or not the text within the
 	// input is valid. If it is not valid, the `Err` field will be set to the
@@ -167,11 +179,13 @@ type Model struct {
 // New creates a new model with default settings.
 func New() Model {
 	return Model{
-		Prompt:           "> ",
-		BlinkSpeed:       defaultBlinkSpeed,
-		EchoCharacter:    '*',
-		CharLimit:        0,
-		PlaceholderStyle: lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
+		Prompt:              "> ",
+		BlinkSpeed:          defaultBlinkSpeed,
+		EchoCharacter:       '*',
+		CharLimit:           0,
+		PlaceholderStyle:    lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
+		ShowCompletions:     false,
+		AcceptCompletionKey: tea.KeyRight,
 
 		id:         nextID(),
 		value:      nil,
@@ -610,6 +624,17 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	}
 
 	var resetBlink bool
+	
+	// Need to check for completion before, because key is configurable and might be double assigned
+	key, ok := msg.(tea.KeyMsg)
+	if ok && key.Type == m.AcceptCompletionKey {
+		if m.isCompletionActive {
+			if len(m.availableCompletion) > 0 {
+				m.value = []rune(m.availableCompletion)
+				m.cursorEnd()
+			}
+		}
+	}
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
@@ -635,19 +660,13 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			if m.pos > 0 { // left arrow, ^F, back one character
 				resetBlink = m.setCursor(m.pos - 1)
 			}
-			m.shouldAutocomplete = false
 		case tea.KeyRight, tea.KeyCtrlF:
 			if msg.Alt { // alt+right arrow, forward one word
 				resetBlink = m.wordRight()
 				break
 			}
-			if m.shouldAutocomplete {
-				m.value = []rune(m.autocomplete)
-				m.cursorEnd()
-			} else {
-				if m.pos < len(m.value) { // right arrow, ^F, forward one character
-					resetBlink = m.setCursor(m.pos + 1)
-				}
+			if m.pos < len(m.value) { // right arrow, ^F, forward one character
+				resetBlink = m.setCursor(m.pos + 1)
 			}
 		case tea.KeyCtrlW: // ^W, delete word left of cursor
 			resetBlink = m.deleteWordLeft()
@@ -693,10 +712,10 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 					resetBlink = m.setCursor(m.pos + len(runes))
 				}
 			}
-
-			//Check if can be autocompleted
-			m.checkIfCanBeAutocompleted()
 		}
+		// Check again if can be completed
+		// because value might be something that does not match the completion prefix
+		m.checkIfCanBeCompleted()
 
 	case initialBlinkMsg:
 		// We accept all initialBlinkMsgs genrated by the Blink command.
@@ -737,6 +756,12 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 	case pasteErrMsg:
 		m.Err = msg
+		
+	case completionMsg:
+		if msg.textInputId == m.id {
+			m.availableCompletion = msg.completion
+			m.checkIfCanBeCompleted()
+		}
 	}
 
 	var cmd tea.Cmd
@@ -765,8 +790,8 @@ func (m Model) View() string {
 		v += m.cursorView(m.echoTransform(string(value[pos]))) // cursor and text under it
 		v += styleText(m.echoTransform(string(value[pos+1:]))) // text after cursor
 	} else {
-		if m.shouldAutocomplete {
-			v += m.cursorView(m.autocompleteCursor())
+		if m.isCompletionActive {
+			v += m.cursorView(m.completionCursor())
 		} else {
 			v += m.cursorView(" ")
 		}
@@ -783,7 +808,7 @@ func (m Model) View() string {
 		v += styleText(strings.Repeat(" ", padding))
 	}
 
-	return m.PromptStyle.Render(m.Prompt) + v + m.autocompleteView()
+	return m.PromptStyle.Render(m.Prompt) + v + m.completionView()
 }
 
 // placeholderView returns the prompt and placeholder view, if any.
@@ -875,38 +900,47 @@ func max(a, b int) int {
 	return b
 }
 
-func (m *Model) SetAutoComplete(str string) {
-	m.autocomplete = str
-	m.checkIfCanBeAutocompleted()
-}
-
-func (m Model) autocompleteView() string {
+func (m Model) completionView() string {
 	var (
 		view  string
-		a     = m.autocomplete
+		c = m.availableCompletion
 		style = m.PlaceholderStyle.Inline(true).Render
 	)
 
-	if (m.shouldAutocomplete && len(m.value) + 1 < len(m.autocomplete)) {
-		return style(a[len(m.value) + 1:])
+	if (m.isCompletionActive && len(m.value) + 1 < len(c)) {
+		return style(c[len(m.value) + 1:])
 	}
 	return view
 }
 
-func (m *Model) autocompleteCursor() string {
-	if len(m.value) < len(m.autocomplete) {
-		return string(m.autocomplete[len(m.value)])
+func (m *Model) completionCursor() string {
+	c := m.availableCompletion
+	
+	if len(m.value) < len(c) {
+		return string(c[len(m.value)])
 	} else {
 		return " "
 	}
 }
 
-func (m *Model) checkIfCanBeAutocompleted() {
-	lowerValue := strings.ToLower(string(m.value))
-	lowerAutocomplete := strings.ToLower(m.autocomplete)
-	if strings.HasPrefix(lowerAutocomplete, lowerValue) {
-		m.shouldAutocomplete = true
+func (m *Model) checkIfCanBeCompleted() {
+	if(m.ShowCompletions) {
+		c := m.availableCompletion
+		lowerValue := strings.ToLower(string(m.value))
+		lowerAutocomplete := strings.ToLower(c)
+		if len(lowerValue) > 0 && strings.HasPrefix(lowerAutocomplete, lowerValue) {
+			m.isCompletionActive = true
+		} else {
+			m.isCompletionActive = false
+		}
 	} else {
-		m.shouldAutocomplete = false
+		m.isCompletionActive = false
+	}
+}
+
+func (m *Model) NewCompletionMsg(completion string) completionMsg {
+	return completionMsg{
+		textInputId: m.id,
+		completion: completion,
 	}
 }
