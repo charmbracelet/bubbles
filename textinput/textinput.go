@@ -927,21 +927,10 @@ func (m Model) completionView(offset int) string {
 	return view
 }
 
-func (m *Model) completionCursor() string {
-	c := m.availableCompletion
-	
-	if len(m.value) < len(c) {
-		return string(c[len(m.value)])
-	} else {
-		return " "
-	}
-}
-
 func (m *Model) checkIfCanBeCompleted() {
 	if(m.ShowCompletions) {
-		c := m.availableCompletion
 		lowerValue := strings.ToLower(string(m.value))
-		lowerAutocomplete := strings.ToLower(c)
+		lowerAutocomplete := strings.ToLower(m.availableCompletion)
 		if len(lowerValue) > 0 && strings.HasPrefix(lowerAutocomplete, lowerValue) {
 			m.isCompletionActive = true
 		} else {
@@ -952,6 +941,7 @@ func (m *Model) checkIfCanBeCompleted() {
 	}
 }
 
+// Generates a Msg that can be used to set this textinput's completion suggestion
 func (m *Model) NewCompletionMsg(completion string) completionMsg {
 	return completionMsg{
 		textInputId: m.id,
