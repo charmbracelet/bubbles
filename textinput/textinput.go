@@ -185,6 +185,7 @@ func New() Model {
 		CharLimit:           0,
 		PlaceholderStyle:    lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
 		ShowCompletions:     false,
+		CompletionStyle:     lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
 		AcceptCompletionKey: tea.KeyRight,
 
 		id:         nextID(),
@@ -629,7 +630,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	key, ok := msg.(tea.KeyMsg)
 	if ok && key.Type == m.AcceptCompletionKey {
 		if m.isCompletionActive {
-			if len(m.availableCompletion) > 0 {
+			if m.pos >= len(m.value) - 1 {
 				m.value = []rune(m.availableCompletion)
 				m.cursorEnd()
 			}
@@ -781,17 +782,29 @@ func (m Model) View() string {
 	}
 
 	styleText := m.TextStyle.Inline(true).Render
+	styleCompletion := m.CompletionStyle.Inline(true).Render
 
 	value := m.value[m.offset:m.offsetRight]
+	completion := m.availableCompletion
 	pos := max(0, m.pos-m.offset)
 	v := styleText(m.echoTransform(string(value[:pos])))
 
 	if pos < len(value) {
 		v += m.cursorView(m.echoTransform(string(value[pos]))) // cursor and text under it
 		v += styleText(m.echoTransform(string(value[pos+1:]))) // text after cursor
+		v += m.completionView(0)
 	} else {
 		if m.isCompletionActive {
-			v += m.cursorView(m.completionCursor())
+			if len(value) < len(completion) {
+				if m.blink {
+					v += m.cursorView(m.echoTransform(styleCompletion(string(completion[pos]))))
+				} else {
+					v += m.cursorView(m.echoTransform(string(completion[pos])))
+				}
+				v += m.completionView(1)
+			} else {
+				v += m.cursorView(" ")
+			}
 		} else {
 			v += m.cursorView(" ")
 		}
@@ -808,7 +821,7 @@ func (m Model) View() string {
 		v += styleText(strings.Repeat(" ", padding))
 	}
 
-	return m.PromptStyle.Render(m.Prompt) + v + m.completionView()
+	return m.PromptStyle.Render(m.Prompt) + v
 }
 
 // placeholderView returns the prompt and placeholder view, if any.
@@ -900,15 +913,16 @@ func max(a, b int) int {
 	return b
 }
 
-func (m Model) completionView() string {
+func (m Model) completionView(offset int) string {
 	var (
 		view  string
-		c = m.availableCompletion
+		completion = m.availableCompletion
+		value = m.value
 		style = m.PlaceholderStyle.Inline(true).Render
 	)
 
-	if (m.isCompletionActive && len(m.value) + 1 < len(c)) {
-		return style(c[len(m.value) + 1:])
+	if (m.isCompletionActive && len(value) < len(completion)) {
+		return style(completion[len(m.value) + offset:])
 	}
 	return view
 }
