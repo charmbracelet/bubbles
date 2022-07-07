@@ -2,6 +2,7 @@ package textinput
 
 import (
 	"strings"
+	"time"
 	"unicode"
 
 	"github.com/atotto/clipboard"
@@ -46,6 +47,10 @@ type Model struct {
 	EchoMode      EchoMode
 	EchoCharacter rune
 	Cursor        cursor.Model
+
+	// Deprecated: use cursor.BlinkSpeed instead.
+	// This is unused and will be removed in the future.
+	BlinkSpeed time.Duration
 
 	// Styles. These will be applied as inline styles.
 	//
@@ -653,4 +658,32 @@ func max(a, b int) int {
 		return a
 	}
 	return b
+}
+
+// Deprecated.
+
+// Deprecated: use cursor.Mode.
+type CursorMode int
+
+const (
+	// Deprecated: use cursor.CursorBlink.
+	CursorBlink = CursorMode(cursor.CursorBlink)
+	// Deprecated: use cursor.CursorStatic.
+	CursorStatic = CursorMode(cursor.CursorStatic)
+	// Deprecated: use cursor.CursorHide.
+	CursorHide = CursorMode(cursor.CursorHide)
+)
+
+func (c CursorMode) String() string {
+	return cursor.Mode(c).String()
+}
+
+// Deprecated: use cursor.Mode().
+func (m Model) CursorMode() CursorMode {
+	return CursorMode(m.Cursor.Mode())
+}
+
+// Deprecated: use cursor.SetMode().
+func (m *Model) SetCursorMode(mode CursorMode) tea.Cmd {
+	return m.Cursor.SetMode(cursor.Mode(mode))
 }
