@@ -1,6 +1,8 @@
 package table
 
 import (
+	"strings"
+
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
@@ -311,10 +313,30 @@ func (m *Model) MoveDown(n int) {
 }
 
 // GotoTop moves the selection to the first row.
-func (m *Model) GotoTop() { m.MoveUp(m.cursor) }
+func (m *Model) GotoTop() {
+	m.MoveUp(m.cursor)
+}
 
 // GotoBottom moves the selection to the last row.
-func (m *Model) GotoBottom() { m.MoveDown(len(m.rows)) }
+func (m *Model) GotoBottom() {
+	m.MoveDown(len(m.rows))
+}
+
+// FromValues create the table rows from a simple string. It uses `\n` by
+// default for getting all the rows and the given separator for the fields on
+// each row
+func (m Model) FromValues(value, separator string) {
+	rows := []Row{}
+	for _, line := range strings.Split(value, "\n") {
+		r := Row{}
+		for _, field := range strings.Split(line, separator) {
+			r = append(r, field)
+		}
+		rows = append(rows, r)
+	}
+
+	m.SetRows(rows)
+}
 
 func (m Model) headersView() string {
 	var s = make([]string, len(m.cols))
