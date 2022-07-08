@@ -106,7 +106,7 @@ func (b Binding) Help() Help {
 // keybindings won't be activated and won't show up in help. Keybindings are
 // enabled by default.
 func (b Binding) Enabled() bool {
-	return !b.disabled || b.keys == nil
+	return !b.disabled && b.keys != nil
 }
 
 // SetEnabled enables or disables the keybinding.
