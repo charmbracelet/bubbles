@@ -325,7 +325,7 @@ func (m *Model) GotoBottom() {
 
 // FromValues create the table rows from a simple string. It uses `\n` by
 // default for getting all the rows and the given separator for the fields on
-// each row
+// each row.
 func (m *Model) FromValues(value, separator string) {
 	rows := []Row{}
 	for _, line := range strings.Split(value, "\n") {
