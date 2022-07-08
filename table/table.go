@@ -47,6 +47,7 @@ type KeyMap struct {
 
 // DefaultKeyMap returns a default set of keybindings.
 func DefaultKeyMap() KeyMap {
+	const spacebar = " "
 	return KeyMap{
 		LineUp: key.NewBinding(
 			key.WithKeys("up", "k"),
@@ -57,20 +58,20 @@ func DefaultKeyMap() KeyMap {
 			key.WithHelp("↓/j", "down"),
 		),
 		PageUp: key.NewBinding(
-			key.WithKeys("ctrl+b"),
-			key.WithHelp("c-b", "page up"),
+			key.WithKeys("b", "pgup"),
+			key.WithHelp("b", "page up"),
 		),
 		PageDown: key.NewBinding(
-			key.WithKeys("ctrl+f"),
-			key.WithHelp("c-f", "page down"),
+			key.WithKeys("f", "pgup", spacebar),
+			key.WithHelp("f", "page down"),
 		),
 		HalfPageUp: key.NewBinding(
-			key.WithKeys("ctrl+u"),
-			key.WithHelp("c-p", "half page up"),
+			key.WithKeys("u", "ctrl+u"),
+			key.WithHelp("u", "½ page up"),
 		),
 		HalfPageDown: key.NewBinding(
-			key.WithKeys("ctrl+d"),
-			key.WithHelp("c-d", "half page down"),
+			key.WithKeys("d", "ctrl+d"),
+			key.WithHelp("d", "½ page down"),
 		),
 		GotoTop: key.NewBinding(
 			key.WithKeys("home", "g"),
@@ -324,8 +325,8 @@ func (m *Model) GotoBottom() {
 
 // FromValues create the table rows from a simple string. It uses `\n` by
 // default for getting all the rows and the given separator for the fields on
-// each row
-func (m *Model) FromValues(value, separator string) {
+// each row.
+func (m Model) FromValues(value, separator string) {
 	rows := []Row{}
 	for _, line := range strings.Split(value, "\n") {
 		r := Row{}
