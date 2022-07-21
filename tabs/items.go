@@ -1,6 +1,6 @@
 package tabs
 
-func NewTab(title string) Item {
+func NewItem(title string) Item {
 	t := Item{}
 	t.Title = title
 	t.Active = false
