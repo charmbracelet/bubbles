@@ -5,7 +5,10 @@ import (
 )
 
 type style struct {
-	highlightLight, highlightDark string
+	highlightLight string
+	highlightDark  string
+	highlight      lipgloss.AdaptiveColor
+	tabdesign      lipgloss.Style
 }
 
 var (
@@ -46,28 +49,25 @@ func (s *style) SetTheme(theme_key string) {
 	theme := themes[theme_key]
 	s.highlightLight = theme.highlightLight
 	s.highlightDark = theme.highlightDark
+	s.highlight = lipgloss.AdaptiveColor{Light: s.highlightLight, Dark: s.highlightDark}
+	s.tabdesign = lipgloss.NewStyle().
+		Border(tabBorder, true).
+		BorderForeground(s.highlight).
+		Padding(0, 1)
+
 }
 func (s style) Render(title string, active bool) string {
-	tabdesign := s.getTabDesign()
 	if active == true {
-		activeTab := tabdesign.Copy().Border(activeTabBorder, true)
+		activeTab := s.tabdesign.Copy().Border(activeTabBorder, true)
 		return activeTab.Render(title)
 	} else {
-		return tabdesign.Render(title)
+		return s.tabdesign.Render(title)
 	}
 }
 func (s style) GetTabGap() lipgloss.Style {
-	tabGap := s.getTabDesign().Copy().
+	tabGap := s.tabdesign.Copy().
 		BorderTop(false).
 		BorderLeft(false).
 		BorderRight(false)
 	return tabGap
-}
-func (s style) getTabDesign() lipgloss.Style {
-	highlight := lipgloss.AdaptiveColor{Light: s.highlightLight, Dark: s.highlightDark}
-	tabdesign := lipgloss.NewStyle().
-		Border(tabBorder, true).
-		BorderForeground(highlight).
-		Padding(0, 1)
-	return tabdesign
 }
