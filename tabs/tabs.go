@@ -35,8 +35,13 @@ func (m *Model) AddTab(title string) {
 	m.tabs = append(m.tabs, Item{Title: title})
 }
 
+func (m Model) GetActive() Item {
+	return m.tabs[m.Index]
+}
 func (m *Model) SetActive(i int) {
+	m.tabs[m.Index].Active = false
 	m.Index = i
+	m.tabs[m.Index].Active = true
 }
 func (m *Model) NextTab() {
 	if m.Index+1 >= len(m.tabs) {
@@ -69,10 +74,7 @@ func (m Model) View() string {
 
 func (m Model) getTabs() []string {
 	out := make([]string, len(m.tabs))
-	for i, t := range m.tabs {
-		if i == m.Index {
-			t.Active = true
-		}
+	for _, t := range m.tabs {
 		out = append(out, m.style.Render(t.Title, t.Active))
 	}
 	return out
