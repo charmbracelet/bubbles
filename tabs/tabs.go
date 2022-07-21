@@ -23,7 +23,7 @@ func New(tabs []Item) *Model {
 type Model struct {
 	tabs  []Item
 	style style
-	index int
+	Index int
 	width int
 }
 
@@ -36,20 +36,20 @@ func (m *Model) AddTab(title string) {
 }
 
 func (m *Model) SetActive(i int) {
-	m.index = i
+	m.Index = i
 }
 func (m *Model) NextTab() {
-	if m.index+1 >= len(m.tabs) {
+	if m.Index+1 >= len(m.tabs) {
 		m.SetActive(0)
 	} else {
-		m.SetActive(m.index + 1)
+		m.SetActive(m.Index + 1)
 	}
 }
 func (m *Model) PrevTab() {
-	if m.index-1 < 0 {
+	if m.Index-1 < 0 {
 		m.SetActive(len(m.tabs) - 1)
 	} else {
-		m.SetActive(m.index - 1)
+		m.SetActive(m.Index - 1)
 	}
 
 }
@@ -70,7 +70,7 @@ func (m Model) View() string {
 func (m Model) getTabs() []string {
 	out := make([]string, len(m.tabs))
 	for i, t := range m.tabs {
-		if i == m.index {
+		if i == m.Index {
 			t.Active = true
 		}
 		out = append(out, m.style.Render(t.Title, t.Active))
