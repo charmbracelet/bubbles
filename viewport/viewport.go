@@ -10,7 +10,7 @@ import (
 )
 
 // New returns a new model with the given width and height as well as default
-// keymappings.
+// key mappings.
 func New(width, height int) (m Model) {
 	m.Width = width
 	m.Height = height
@@ -237,7 +237,7 @@ func Sync(m Model) tea.Cmd {
 }
 
 // ViewDown is a high performance command that moves the viewport up by a given
-// numer of lines. Use Model.ViewDown to get the lines that should be rendered.
+// number of lines. Use Model.ViewDown to get the lines that should be rendered.
 // For example:
 //
 //     lines := model.ViewDown(1)
@@ -344,10 +344,10 @@ func (m Model) updateAsModel(msg tea.Msg) (Model, tea.Cmd) {
 func (m Model) View() string {
 	if m.HighPerformanceRendering {
 		// Just send newlines since we're going to be rendering the actual
-		// content seprately. We still need to send something that equals the
+		// content separately. We still need to send something that equals the
 		// height of this view so that the Bubble Tea standard renderer can
 		// position anything below this view properly.
-		return strings.Repeat("\n", m.Height-1)
+		return strings.Repeat("\n", max(0, m.Height-1))
 	}
 
 	lines := m.visibleLines()
