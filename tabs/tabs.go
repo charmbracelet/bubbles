@@ -38,6 +38,21 @@ func (m *Model) AddTab(title string) {
 func (m *Model) SetActive(i int) {
 	m.index = i
 }
+func (m *Model) NextTab() {
+	if m.index+1 >= len(m.tabs) {
+		m.SetActive(0)
+	} else {
+		m.SetActive(m.index + 1)
+	}
+}
+func (m *Model) PrevTab() {
+	if m.index-1 < 0 {
+		m.SetActive(len(m.tabs) - 1)
+	} else {
+		m.SetActive(m.index - 1)
+	}
+
+}
 
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	return m, nil
