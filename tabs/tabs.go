@@ -1,0 +1,71 @@
+package tabs
+
+import (
+	"os"
+	"strings"
+
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+	"golang.org/x/term"
+)
+
+func New(tabs []Item) *Model {
+	m := &Model{}
+	m.tabs = tabs
+	m.style = NewStyle()
+
+	physicalWidth, _, _ := term.GetSize(int(os.Stdout.Fd()))
+	m.SetWidth(physicalWidth)
+
+	return m
+}
+
+type Model struct {
+	tabs  []Item
+	style style
+	index int
+	width int
+}
+
+func (m *Model) SetWidth(width int) {
+	m.width = width
+}
+
+func (m *Model) AddTab(title string) {
+	m.tabs = append(m.tabs, Item{Title: title})
+}
+
+func (m *Model) SetActive(i int) {
+	m.index = i
+}
+
+func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
+	return m, nil
+}
+
+func (m Model) View() string {
+	doc := strings.Builder{}
+	row := lipgloss.JoinHorizontal(lipgloss.Top, m.getTabs()...)
+	gap := m.style.GetTabGap().Render(strings.Repeat(" ", max(0, m.width-lipgloss.Width(row)-2)))
+	row = lipgloss.JoinHorizontal(lipgloss.Bottom, row, gap)
+	doc.WriteString(row)
+	return doc.String()
+}
+
+func (m Model) getTabs() []string {
+	out := make([]string, len(m.tabs))
+	for i, t := range m.tabs {
+		if i == m.index {
+			t.Active = true
+		}
+		out = append(out, m.style.Render(t.Title, t.Active))
+	}
+	return out
+}
+
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
