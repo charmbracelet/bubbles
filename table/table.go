@@ -29,7 +29,6 @@ type Row []string
 // Column defines the table structure.
 type Column struct {
 	Title string
-	Width int
 }
 
 // KeyMap defines keybindings. It satisfies to the help.KeyMap interface, which
@@ -190,6 +189,11 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.viewport.Width = msg.Width - 1
+		m.viewport.Height = msg.Height - 5
+		m.UpdateViewport()
+
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, m.KeyMap.LineUp):
@@ -243,8 +247,9 @@ func (m Model) View() string {
 // columns and rows.
 func (m *Model) UpdateViewport() {
 	renderedRows := make([]string, 0, len(m.rows))
+	colWidths := m.getColWidths()
 	for i := range m.rows {
-		renderedRows = append(renderedRows, m.renderRow(i))
+		renderedRows = append(renderedRows, m.renderRow(i, colWidths))
 	}
 
 	m.viewport.SetContent(
@@ -339,21 +344,73 @@ func (m *Model) FromValues(value, separator string) {
 	m.SetRows(rows)
 }
 
+func (m Model) getColWidths() []int {
+	maxCharWidths := make([]int, len(m.cols))
+
+	// Identify Max width based on Columns
+	for i, col := range m.cols {
+		w := runewidth.StringWidth(col.Title)
+		maxCharWidths[i] = w
+	}
+
+	// Identify Max width based on Rows
+	for _, row := range m.rows {
+		for cI := range m.cols {
+			w := runewidth.StringWidth(row[cI])
+			if w > maxCharWidths[cI] {
+				maxCharWidths[cI] = w
+			}
+		}
+	}
+
+	flexiRemaining := m.viewport.Width - (2 * len(m.cols))
+	allowance := flexiRemaining / len(m.cols)
+
+	widths := maxCharWidths
+	// Take away the columns who's width is already too big
+	// Count overly large columns
+	overlyLarge := 0
+	for i := range m.cols {
+		if widths[i] > allowance {
+			overlyLarge += 1
+		}
+	}
+	extra := 0
+	for i := range m.cols {
+		if overlyLarge > 0 {
+			if widths[i] < allowance {
+				extra += allowance - widths[i]
+			} else {
+				if extra > 0 {
+					widths[i] = allowance + (extra / overlyLarge)
+				} else {
+					widths[i] = allowance
+				}
+			}
+		} else {
+			widths[i] = allowance
+		}
+	}
+
+	return widths
+}
+
 func (m Model) headersView() string {
 	var s = make([]string, len(m.cols))
-	for _, col := range m.cols {
-		style := lipgloss.NewStyle().Width(col.Width).MaxWidth(col.Width).Inline(true)
-		renderedCell := style.Render(runewidth.Truncate(col.Title, col.Width, "…"))
+	colMinWidth := m.getColWidths()
+	for i, col := range m.cols {
+		style := lipgloss.NewStyle().Width(colMinWidth[i]).Inline(true)
+		renderedCell := style.Render(runewidth.Truncate(col.Title, colMinWidth[i], "…"))
 		s = append(s, m.styles.Header.Render(renderedCell))
 	}
 	return lipgloss.JoinHorizontal(lipgloss.Left, s...)
 }
 
-func (m *Model) renderRow(rowID int) string {
+func (m *Model) renderRow(rowID int, colWidths []int) string {
 	var s = make([]string, len(m.cols))
 	for i, value := range m.rows[rowID] {
-		style := lipgloss.NewStyle().Width(m.cols[i].Width).MaxWidth(m.cols[i].Width).Inline(true)
-		renderedCell := m.styles.Cell.Render(style.Render(runewidth.Truncate(value, m.cols[i].Width, "…")))
+		style := lipgloss.NewStyle().Width(colWidths[i]).Inline(true)
+		renderedCell := m.styles.Cell.Render(style.Render(runewidth.Truncate(value, colWidths[i], "…")))
 		s = append(s, renderedCell)
 	}
 
