@@ -611,7 +611,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.Type {
-		case tea.KeyBackspace: // delete character before cursor
+		case tea.KeyBackspace, tea.KeyCtrlH: // delete character before cursor
 			m.Err = nil
 
 			if msg.Alt {
