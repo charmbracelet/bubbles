@@ -31,12 +31,17 @@ func (m *Model) SetWidth(width int) {
 	m.width = width
 }
 
-func (m *Model) AddTab(title string) {
+func (m *Model) AddTab(title string) int {
 	m.tabs = append(m.tabs, Item{Title: title})
+	return len(m.tabs) - 1
 }
 
 func (m Model) GetActive() Item {
-	return m.tabs[m.Index]
+	if len(m.tabs) > 0 {
+		return m.tabs[m.Index]
+	} else {
+		return Item{}
+	}
 }
 func (m *Model) SetActive(i int) {
 	m.tabs[m.Index].Active = false
