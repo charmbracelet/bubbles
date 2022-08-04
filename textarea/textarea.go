@@ -797,7 +797,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		case key.Matches(msg, m.KeyMap.WordBackward):
 			m.wordLeft()
 		default:
-			if rw.StringWidth(m.Value()) >= m.CharLimit {
+			if m.CharLimit > 0 && rw.StringWidth(m.Value()) >= m.CharLimit {
 				break
 			}
 
