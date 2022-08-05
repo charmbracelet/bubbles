@@ -286,7 +286,7 @@ func (m *Model) Length() int {
 	for _, row := range m.value {
 		l += rw.StringWidth(string(row))
 	}
-	return l
+	return l + len(m.value) - 1
 }
 
 // Line returns the line position.
