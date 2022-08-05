@@ -289,6 +289,11 @@ func (m *Model) Length() int {
 	return l + len(m.value) - 1
 }
 
+// LineCount returns the number of lines that are currently in the text input.
+func (m *Model) LineCount() int {
+	return len(m.value)
+}
+
 // Line returns the line position.
 func (m Model) Line() int {
 	return m.row
