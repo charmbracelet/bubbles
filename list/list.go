@@ -244,6 +244,22 @@ func (m *Model) SetFilteringEnabled(v bool) {
 	m.updateKeybindings()
 }
 
+func (m *Model) enableLiveFiltering() tea.Cmd {
+	m.hideStatusMessage()
+	m.Paginator.Page = 0
+	m.cursor = 0
+	m.filterState = Filtering
+	m.FilterInput.CursorEnd()
+	m.FilterInput.Focus()
+	m.updateKeybindings()
+	return tea.Batch(textinput.Blink, filterItems(*m))
+}
+
+// SetFilterValue let you define the filter value programmatically
+func (m *Model) SetFilterValue(v string) {
+	m.FilterInput.SetValue(v)
+}
+
 // FilteringEnabled returns whether or not filtering is enabled.
 func (m Model) FilteringEnabled() bool {
 	return m.filteringEnabled
@@ -739,11 +755,21 @@ func (m *Model) hideStatusMessage() {
 	}
 }
 
+type liveFilteringEnabledMsg struct{}
+
+// EnableLiveFiltering let you enable filtering programmatically
+func EnableLiveFiltering() tea.Msg {
+	return liveFilteringEnabledMsg{}
+}
+
 // Update is the Bubble Tea update loop.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
+	case liveFilteringEnabledMsg:
+		return m, m.enableLiveFiltering()
+		
 	case tea.KeyMsg:
 		if key.Matches(msg, m.KeyMap.ForceQuit) {
 			return m, tea.Quit
@@ -810,18 +836,7 @@ func (m *Model) handleBrowsing(msg tea.Msg) tea.Cmd {
 			m.cursor = m.Paginator.ItemsOnPage(numItems) - 1
 
 		case key.Matches(msg, m.KeyMap.Filter):
-			m.hideStatusMessage()
-			if m.FilterInput.Value() == "" {
-				// Populate filter with all items only if the filter is empty.
-				m.filteredItems = m.itemsAsFilterItems()
-			}
-			m.Paginator.Page = 0
-			m.cursor = 0
-			m.filterState = Filtering
-			m.FilterInput.CursorEnd()
-			m.FilterInput.Focus()
-			m.updateKeybindings()
-			return textinput.Blink
+			return m.enableLiveFiltering()
 
 		case key.Matches(msg, m.KeyMap.ShowFullHelp):
 			fallthrough
