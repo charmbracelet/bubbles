@@ -72,3 +72,13 @@ func TestCustomStatusBarItemName(t *testing.T) {
 		t.Fatalf("Error: expected view to contain %s", expected)
 	}
 }
+
+func TestSetFilterValue(t *testing.T) {
+	list := New([]Item{item("foo")}, itemDelegate{}, 10, 10)
+	list.SetFilterValue("hello")
+
+	expected := "hello"
+	if !strings.EqualFold(list.FilterValue(), expected) {
+		t.Fatalf("Error: expected filter value to be %s", expected)
+	}
+}
