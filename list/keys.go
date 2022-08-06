@@ -14,10 +14,12 @@ type KeyMap struct {
 	GoToEnd     key.Binding
 	Filter      key.Binding
 	ClearFilter key.Binding
+	AddItem     key.Binding
 
 	// Keybindings used when setting a filter.
 	CancelWhileFiltering key.Binding
 	AcceptWhileFiltering key.Binding
+	AcceptWhileAdding    key.Binding
 
 	// Help toggle keybindings.
 	ShowFullHelp  key.Binding
@@ -66,6 +68,10 @@ func DefaultKeyMap() KeyMap {
 			key.WithKeys("esc"),
 			key.WithHelp("esc", "clear filter"),
 		),
+		AddItem: key.NewBinding(
+			key.WithKeys("a"),
+			key.WithHelp("a", "add item"),
+		),
 
 		// Filtering.
 		CancelWhileFiltering: key.NewBinding(
@@ -76,7 +82,10 @@ func DefaultKeyMap() KeyMap {
 			key.WithKeys("enter", "tab", "shift+tab", "ctrl+k", "up", "ctrl+j", "down"),
 			key.WithHelp("enter", "apply filter"),
 		),
-
+		AcceptWhileAdding: key.NewBinding(
+			key.WithKeys("enter"),
+			key.WithHelp("enter", "add item"),
+		),
 		// Toggle help.
 		ShowFullHelp: key.NewBinding(
 			key.WithKeys("?"),

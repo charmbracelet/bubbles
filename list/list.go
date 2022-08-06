@@ -101,6 +101,9 @@ func DefaultFilter(term string, targets []string) []Rank {
 
 type statusMessageTimeoutMsg struct{}
 
+// Message when a new item is added with used entered value
+type ItemAddedMsg string
+
 // FilterState describes the current filtering state on the model.
 type FilterState int
 
@@ -109,6 +112,7 @@ const (
 	Unfiltered    FilterState = iota // no filter set
 	Filtering                        // user is actively setting a filter
 	FilterApplied                    // a filter is applied and user is not editing filter
+	AddingItem                       // User is adding a new item and entering the title
 )
 
 // String returns a human-readable string of the current filter state.
@@ -117,6 +121,7 @@ func (f FilterState) String() string {
 		"unfiltered",
 		"filtering",
 		"filter applied",
+		"adding",
 	}[f]
 }
 
@@ -664,6 +669,23 @@ func (m *Model) updateKeybindings() {
 		m.KeyMap.ClearFilter.SetEnabled(false)
 		m.KeyMap.CancelWhileFiltering.SetEnabled(true)
 		m.KeyMap.AcceptWhileFiltering.SetEnabled(m.FilterInput.Value() != "")
+		m.KeyMap.AcceptWhileAdding.SetEnabled(false)
+		m.KeyMap.Quit.SetEnabled(false)
+		m.KeyMap.ShowFullHelp.SetEnabled(false)
+		m.KeyMap.CloseFullHelp.SetEnabled(false)
+
+	case AddingItem:
+		m.KeyMap.CursorUp.SetEnabled(false)
+		m.KeyMap.CursorDown.SetEnabled(false)
+		m.KeyMap.NextPage.SetEnabled(false)
+		m.KeyMap.PrevPage.SetEnabled(false)
+		m.KeyMap.GoToStart.SetEnabled(false)
+		m.KeyMap.GoToEnd.SetEnabled(false)
+		m.KeyMap.Filter.SetEnabled(false)
+		m.KeyMap.ClearFilter.SetEnabled(false)
+		m.KeyMap.CancelWhileFiltering.SetEnabled(true)
+		m.KeyMap.AcceptWhileFiltering.SetEnabled(false)
+		m.KeyMap.AcceptWhileAdding.SetEnabled(m.FilterInput.Value() != "")
 		m.KeyMap.Quit.SetEnabled(false)
 		m.KeyMap.ShowFullHelp.SetEnabled(false)
 		m.KeyMap.CloseFullHelp.SetEnabled(false)
@@ -684,6 +706,7 @@ func (m *Model) updateKeybindings() {
 		m.KeyMap.ClearFilter.SetEnabled(m.filterState == FilterApplied)
 		m.KeyMap.CancelWhileFiltering.SetEnabled(false)
 		m.KeyMap.AcceptWhileFiltering.SetEnabled(false)
+		m.KeyMap.AcceptWhileAdding.SetEnabled(false)
 		m.KeyMap.Quit.SetEnabled(!m.disableQuitKeybindings)
 
 		if m.Help.ShowAll {
@@ -765,7 +788,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		m.hideStatusMessage()
 	}
 
-	if m.filterState == Filtering {
+	if m.filterState == Filtering || m.filterState == AddingItem {
 		cmds = append(cmds, m.handleFiltering(msg))
 	} else {
 		cmds = append(cmds, m.handleBrowsing(msg))
@@ -812,6 +835,7 @@ func (m *Model) handleBrowsing(msg tea.Msg) tea.Cmd {
 
 		case key.Matches(msg, m.KeyMap.Filter):
 			m.hideStatusMessage()
+			m.FilterInput.Prompt = "Filter: "
 			if m.FilterInput.Value() == "" {
 				// Populate filter with all items only if the filter is empty.
 				m.filteredItems = m.itemsAsFilterItems()
@@ -824,6 +848,21 @@ func (m *Model) handleBrowsing(msg tea.Msg) tea.Cmd {
 			m.updateKeybindings()
 			return textinput.Blink
 
+		case key.Matches(msg, m.KeyMap.AddItem):
+			m.hideStatusMessage()
+
+			m.FilterInput.Prompt = "Add: "
+			if m.FilterInput.Value() == "" {
+				// Populate filter with all items only if the filter is empty.
+				m.filteredItems = m.itemsAsFilterItems()
+			}
+			m.Paginator.Page = 0
+			m.cursor = 0
+			m.filterState = AddingItem
+			m.FilterInput.CursorEnd()
+			m.FilterInput.Focus()
+			m.updateKeybindings()
+			return textinput.Blink
 		case key.Matches(msg, m.KeyMap.ShowFullHelp):
 			fallthrough
 		case key.Matches(msg, m.KeyMap.CloseFullHelp):
@@ -847,6 +886,11 @@ func (m *Model) handleBrowsing(msg tea.Msg) tea.Cmd {
 // Updates for when a user is in the filter editing interface.
 func (m *Model) handleFiltering(msg tea.Msg) tea.Cmd {
 	var cmds []tea.Cmd
+
+	// Allow accepting item name if filter changed
+	if m.filterState == AddingItem {
+		m.KeyMap.AcceptWhileAdding.SetEnabled(m.FilterInput.Value() != "")
+	}
 
 	// Handle keys
 	if msg, ok := msg.(tea.KeyMsg); ok {
@@ -878,6 +922,12 @@ func (m *Model) handleFiltering(msg tea.Msg) tea.Cmd {
 			if m.FilterInput.Value() == "" {
 				m.resetFiltering()
 			}
+		case key.Matches(msg, m.KeyMap.AcceptWhileAdding):
+			m.hideStatusMessage()
+			m.FilterInput.Blur()
+			m.filterState = Unfiltered
+			m.updateKeybindings()
+			return func() tea.Msg { return ItemAddedMsg(m.FilterInput.Value()) }
 		}
 	}
 
@@ -888,7 +938,7 @@ func (m *Model) handleFiltering(msg tea.Msg) tea.Cmd {
 	cmds = append(cmds, inputCmd)
 
 	// If the filtering input has changed, request updated filtering
-	if filterChanged {
+	if filterChanged && m.filterState == Filtering {
 		cmds = append(cmds, filterItems(*m))
 		m.KeyMap.AcceptWhileFiltering.SetEnabled(m.FilterInput.Value() != "")
 	}
@@ -1034,7 +1084,7 @@ func (m Model) titleView() string {
 	)
 
 	// If the filter's showing, draw that. Otherwise draw the title.
-	if m.showFilter && m.filterState == Filtering {
+	if (m.showFilter && m.filterState == Filtering) || m.filterState == AddingItem {
 		view += m.FilterInput.View()
 	} else if m.showTitle {
 		if m.showSpinner && spinnerOnLeft {
