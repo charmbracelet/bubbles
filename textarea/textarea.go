@@ -381,6 +381,11 @@ func (m *Model) CursorStart() {
 	m.SetCursor(0)
 }
 
+// SetLine moves the cursor to the given row number of the input field.
+func (m *Model) SetLine(row int) {
+	m.row = clamp(row, 0, len(m.value))
+}
+
 // CursorEnd moves the cursor to the end of the input field.
 func (m *Model) CursorEnd() {
 	m.SetCursor(len(m.value[m.row]))
