@@ -56,7 +56,11 @@ options.
 
 ## Progress
 
-<img src="https://stuff.charm.sh/bubbles-examples/progress.gif" width="800" alt="Progressbar Example">
+<picture>
+  <source media="(max-width: 800px)" srcset="https://stuff.charm.sh/bubbles-examples/progress.gif">
+  <source media="(min-width: 800px)" width="800" srcset="https://stuff.charm.sh/bubbles-examples/progress.gif">
+  <img src="https://stuff.charm.sh/bubbles-examples/progress.gif" alt="Progressbar Example">
+</picture>
 
 A simple, customizable progress meter, with optional animation via
 [Harmonica][harmonica]. Supports solid and gradient fills. The empty and filled
@@ -83,7 +87,11 @@ logic and visualize pagination however you like.
 
 ## Viewport
 
-<img src="https://stuff.charm.sh/bubbles-examples/viewport.gif?0" width="600" alt="Viewport Example">
+<picture>
+  <source media="(max-width: 600px)" srcset="https://stuff.charm.sh/bubbles-examples/viewport.gif?0">
+  <source media="(min-width: 600px)" width="600" srcset="https://stuff.charm.sh/bubbles-examples/viewport.gif?0">
+  <img src="https://stuff.charm.sh/bubbles-examples/viewport.gif?0" alt="Viewport Example">
+</picture>
 
 A viewport for vertically scrolling content. Optionally includes standard
 pager keybindings and mouse wheel support. A high performance mode is available
@@ -99,7 +107,11 @@ indenting and text wrapping.
 
 ## List
 
-<img src="https://stuff.charm.sh/bubbles-examples/list.gif" width="600" alt="List Example">
+<picture>
+  <source media="(max-width: 600px)" srcset="https://stuff.charm.sh/bubbles-examples/list.gif">
+  <source media="(min-width: 600px)" width="600" srcset="https://stuff.charm.sh/bubbles-examples/list.gif">
+  <img src="https://stuff.charm.sh/bubbles-examples/list.gif" alt="List Example">
+</picture>
 
 A customizable, batteries-included component for browsing a set of items.
 Features pagination, fuzzy filtering, auto-generated help, an activity spinner,
@@ -133,7 +145,11 @@ can be customized as you see fit.
 
 ## Help
 
-<img src="https://stuff.charm.sh/bubbles-examples/help.gif" width="500" alt="Help Example">
+<picture>
+  <source media="(max-width: 500px)" srcset="https://stuff.charm.sh/bubbles-examples/help.gif">
+  <source media="(min-width: 500px)" width="500" srcset="https://stuff.charm.sh/bubbles-examples/help.gif">
+  <img src="https://stuff.charm.sh/bubbles-examples/help.gif" alt="Help Example">
+</picture>
 
 A customizable horizontal mini help view that automatically generates itself
 from your keybindings. It features single and multi-line modes, which the user
