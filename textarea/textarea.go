@@ -2,6 +2,7 @@ package textarea
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"unicode"
 
@@ -60,6 +61,52 @@ type LineInfo struct {
 	// ColumnOffset, but will be different there are double-width runes before
 	// the cursor.
 	CharOffset int
+}
+
+// Action is the type of action that will be performed when the user completes
+// a key combination.
+type Action int
+
+const (
+	// ActionMove moves the cursor.
+	ActionMove Action = iota
+	// ActionSeek seeks the cursor to the desired character.
+	// Used in conjunction with f/F/t/T.
+	ActionSeek
+	// ActionReplace replaces text.
+	ActionReplace
+	// ActionDelete deletes text.
+	ActionDelete
+	// ActionYank yanks text.
+	ActionYank
+)
+
+// Position is a (row, column) pair representing a position of the cursor or
+// any character.
+type Position struct {
+	Row int
+	Col int
+}
+
+// Range is a range of characters in the text area.
+type Range struct {
+	Start Position
+	End   Position
+}
+
+// NormalCommand is a helper for keeping track of the various relevant information
+// when performing vim motions in the textarea.
+type NormalCommand struct {
+	// Buffer is the buffer of keys that have been press for the current
+	// command.
+	Buffer string
+	// Count is the number of times to replay the action. This is usually
+	// optional and defaults to 1.
+	Count int
+	// Action is the action to be performed.
+	Action Action
+	// Range is the range of characters to perform the action on.
+	Range Range
 }
 
 // Style that will be applied to the text area.
@@ -132,6 +179,9 @@ type Model struct {
 	// mode is the current mode of the textarea.
 	mode Mode
 
+	// command is the normal command of the textarea.
+	command *NormalCommand
+
 	// Last character offset, used to maintain state when the cursor is moved
 	// vertically such that we can maintain the same navigating position.
 	lastCharOffset int
@@ -168,6 +218,7 @@ func New() Model {
 		col:              0,
 		row:              0,
 		lineNumberFormat: "%2v ",
+		command:          &NormalCommand{},
 
 		viewport: &vp,
 	}
@@ -267,6 +318,11 @@ func (m *Model) LineCount() int {
 // Line returns the line position.
 func (m Model) Line() int {
 	return m.row
+}
+
+// NormalCommand returns the normal command.
+func (m *Model) NormalCommand() *NormalCommand {
+	return m.command
 }
 
 // CursorDown moves the cursor down by one line.
@@ -573,6 +629,31 @@ func (m *Model) wordRight() {
 	}
 }
 
+// findWordEnd locates the end of the current word or the end of the next word
+// if already at the end of the current word. It takes whether or not to break
+// words on spaces or any non-alpha-numeric character as an argument.
+func (m *Model) findWordEnd(count int, onlySpaces bool) Position {
+	_ = count
+	_ = onlySpaces
+	row, col := m.row, m.col
+
+	for col < len(m.value[row]) {
+		if !unicode.IsSpace(m.value[row][col]) {
+			col++
+		} else {
+			break
+		}
+	}
+
+	return Position{Row: row, Col: col}
+}
+
+// findWordStart locates the start of the next word. It takes whether or not to
+// break words on spaces or any non-alpha-numeric character as an argument.
+func (m *Model) findWordStart(count int, onlySpaces bool) Position {
+	return m.findWordEnd(count, onlySpaces)
+}
+
 // LineInfo returns the number of characters from the start of the
 // (soft-wrapped) line and the (soft-wrapped) line width.
 func (m Model) LineInfo() LineInfo {
@@ -723,44 +804,139 @@ func (m *Model) SetMode(mode Mode) tea.Cmd {
 }
 
 func (m *Model) normalUpdate(msg tea.Msg) tea.Cmd {
+	var cmd tea.Cmd
+
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
+		case "esc":
+			m.command = &NormalCommand{}
+		case "0", "1", "2", "3", "4", "5", "6", "7", "8", "9":
+			v := m.command.Buffer + msg.String()
+			count, err := strconv.Atoi(v)
+			if err != nil {
+				count, _ = strconv.Atoi(msg.String())
+				m.command = &NormalCommand{Buffer: msg.String(), Count: count}
+			} else {
+				m.command = &NormalCommand{Buffer: v, Count: count}
+			}
+		case "G":
+			var row int
+			if m.command.Count > 0 {
+				row = m.command.Count - 1
+			} else {
+				row = len(m.value) - 1
+			}
+			m.row = clamp(row, 0, len(m.value)-1)
+			return nil
+		case "g":
+			if m.command.Buffer == "g" {
+				m.command = &NormalCommand{}
+				m.row = clamp(m.command.Count-1, 0, len(m.value)-1)
+			} else {
+				m.command = &NormalCommand{Buffer: "g"}
+			}
+			return nil
+		case "d":
+			if m.command.Action == ActionDelete {
+				for i := 0; i < m.command.Count; i++ {
+					m.CursorStart()
+					m.deleteAfterCursor()
+					m.mergeLineBelow(m.row)
+				}
+				m.command = &NormalCommand{}
+				break
+			}
+			m.command.Action = ActionDelete
+		case "y":
+			m.command.Action = ActionYank
+		case "r":
+			m.command.Action = ActionReplace
 		case "i":
 			return m.SetMode(ModeInsert)
 		case "I":
 			m.CursorStart()
 			return m.SetMode(ModeInsert)
+		case "a":
+			m.SetCursor(m.col + 1)
+			return m.SetMode(ModeInsert)
 		case "A":
 			m.CursorEnd()
 			return m.SetMode(ModeInsert)
-		case "e":
-			m.wordRight()
-		case "w":
-			m.wordRight()
-		case "W":
-			m.wordRight()
-		case "b":
-			m.wordLeft()
-		case "B":
-			m.wordLeft()
+		case "^":
+			m.CursorStart()
+			return nil
+		case "$":
+			m.CursorEnd()
+			return nil
+		case "e", "E":
+			m.command.Range = Range{
+				Start: Position{m.row, m.col},
+				End:   m.findWordEnd(m.command.Count, msg.String() == "E"),
+			}
+		case "w", "W":
+			m.command.Range = Range{
+				Start: Position{m.row, m.col},
+				End:   m.findWordStart(m.command.Count, msg.String() == "W"),
+			}
+		case "b", "B":
+			direction := -1
+			m.command.Range = Range{
+				Start: Position{m.row, m.col},
+				End:   m.findWordStart(direction*m.command.Count, msg.String() == "B"),
+			}
 		case "h":
-			m.SetCursor(m.col - 1)
+			m.command.Range = Range{
+				Start: Position{m.row, m.col},
+				End:   Position{m.row, m.col - max(m.command.Count, 1)},
+			}
 		case "j":
-			m.CursorDown()
+			m.command.Range = Range{
+				Start: Position{m.row, m.col},
+				End:   Position{m.row + max(m.command.Count, 1), m.col},
+			}
 		case "k":
-			m.CursorUp()
+			m.command.Range = Range{
+				Start: Position{m.row, m.col},
+				End:   Position{m.row - max(m.command.Count, 1), m.col},
+			}
 		case "l":
-			m.SetCursor(m.col + 1)
+			m.command.Range = Range{
+				Start: Position{m.row, m.col},
+				End:   Position{m.row, m.col + max(m.command.Count, 1)},
+			}
+		case "J":
+			m.CursorEnd()
+			m.mergeLineBelow(m.row)
+			return nil
 		case "p":
-			return Paste
+			cmd = Paste
+		}
+
+		switch msg.String() {
+		case "i", "I", "a", "A", "e", "w", "W", "b", "B", "h", "j", "k", "l", "p":
+			if m.command.Action == ActionMove {
+				rowDelta := m.command.Range.End.Row - m.command.Range.Start.Row
+				if rowDelta > 0 {
+					for i := 0; i < rowDelta; i++ {
+						m.CursorDown()
+					}
+				} else if rowDelta < 0 {
+					for i := 0; i < -rowDelta; i++ {
+						m.CursorUp()
+					}
+				} else {
+					m.SetCursor(m.command.Range.End.Col)
+				}
+			}
+			m.command = &NormalCommand{}
 		}
 
 	case pasteMsg:
 		m.handlePaste(string(msg))
 	}
 
-	return nil
+	return cmd
 }
 
 func (m *Model) insertUpdate(msg tea.Msg) tea.Cmd {
