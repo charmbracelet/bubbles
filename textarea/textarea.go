@@ -7,7 +7,6 @@ import (
 
 	"github.com/atotto/clipboard"
 	"github.com/charmbracelet/bubbles/cursor"
-	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -24,50 +23,19 @@ const (
 	maxWidth         = 500
 )
 
+// Mode is the possible modes of the textarea for modal editing.
+type Mode string
+
+const (
+	// ModeNormal is the normal mode for navigating around text.
+	ModeNormal Mode = "normal"
+	// ModeInsert is the insert mode for inserting text.
+	ModeInsert Mode = "insert"
+)
+
 // Internal messages for clipboard operations.
 type pasteMsg string
 type pasteErrMsg struct{ error }
-
-// KeyMap is the key bindings for different actions within the textarea.
-type KeyMap struct {
-	CharacterBackward       key.Binding
-	CharacterForward        key.Binding
-	DeleteAfterCursor       key.Binding
-	DeleteBeforeCursor      key.Binding
-	DeleteCharacterBackward key.Binding
-	DeleteCharacterForward  key.Binding
-	DeleteWordBackward      key.Binding
-	DeleteWordForward       key.Binding
-	InsertNewline           key.Binding
-	LineEnd                 key.Binding
-	LineNext                key.Binding
-	LinePrevious            key.Binding
-	LineStart               key.Binding
-	Paste                   key.Binding
-	WordBackward            key.Binding
-	WordForward             key.Binding
-}
-
-// DefaultKeyMap is the default set of key bindings for navigating and acting
-// upon the textarea.
-var DefaultKeyMap = KeyMap{
-	CharacterForward:        key.NewBinding(key.WithKeys("right", "ctrl+f")),
-	CharacterBackward:       key.NewBinding(key.WithKeys("left", "ctrl+b")),
-	WordForward:             key.NewBinding(key.WithKeys("alt+right", "alt+f")),
-	WordBackward:            key.NewBinding(key.WithKeys("alt+left", "alt+b")),
-	LineNext:                key.NewBinding(key.WithKeys("down", "ctrl+n")),
-	LinePrevious:            key.NewBinding(key.WithKeys("up", "ctrl+p")),
-	DeleteWordBackward:      key.NewBinding(key.WithKeys("alt+backspace", "ctrl+w")),
-	DeleteWordForward:       key.NewBinding(key.WithKeys("alt+delete", "alt+d")),
-	DeleteAfterCursor:       key.NewBinding(key.WithKeys("ctrl+k")),
-	DeleteBeforeCursor:      key.NewBinding(key.WithKeys("ctrl+u")),
-	InsertNewline:           key.NewBinding(key.WithKeys("enter", "ctrl+m")),
-	DeleteCharacterBackward: key.NewBinding(key.WithKeys("backspace", "ctrl+h")),
-	DeleteCharacterForward:  key.NewBinding(key.WithKeys("delete", "ctrl+d")),
-	LineStart:               key.NewBinding(key.WithKeys("home", "ctrl+a")),
-	LineEnd:                 key.NewBinding(key.WithKeys("end", "ctrl+e")),
-	Paste:                   key.NewBinding(key.WithKeys("ctrl+v")),
-}
 
 // LineInfo is a helper for keeping track of line information regarding
 // soft-wrapped lines.
@@ -121,7 +89,6 @@ type Model struct {
 	Placeholder          string
 	ShowLineNumbers      bool
 	EndOfBufferCharacter rune
-	KeyMap               KeyMap
 
 	// Styling. FocusedStyle and BlurredStyle are used to style the textarea in
 	// focused and blurred states.
@@ -162,6 +129,9 @@ type Model struct {
 	// Cursor row.
 	row int
 
+	// mode is the current mode of the textarea.
+	mode Mode
+
 	// Last character offset, used to maintain state when the cursor is moved
 	// vertically such that we can maintain the same navigating position.
 	lastCharOffset int
@@ -191,9 +161,9 @@ func New() Model {
 		EndOfBufferCharacter: '~',
 		ShowLineNumbers:      true,
 		Cursor:               cur,
-		KeyMap:               DefaultKeyMap,
 
 		value:            make([][]rune, minHeight, maxHeight),
+		mode:             ModeInsert,
 		focus:            false,
 		col:              0,
 		row:              0,
@@ -713,24 +683,96 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		m.value[m.row] = make([]rune, 0)
 	}
 
+	var cmd tea.Cmd
+	switch m.mode {
+	case ModeInsert:
+		cmd = m.insertUpdate(msg)
+	case ModeNormal:
+		cmd = m.normalUpdate(msg)
+	}
+	cmds = append(cmds, cmd)
+
+	vp, cmd := m.viewport.Update(msg)
+	m.viewport = &vp
+	cmds = append(cmds, cmd)
+
+	newRow, newCol := m.cursorLineNumber(), m.col
+	if m.mode == ModeInsert {
+		m.Cursor, cmd = m.Cursor.Update(msg)
+	}
+	if m.mode == ModeInsert && (newRow != oldRow || newCol != oldCol) {
+		m.Cursor.Blink = false
+		cmd = m.Cursor.BlinkCmd()
+	}
+	cmds = append(cmds, cmd)
+
+	m.repositionView()
+
+	return m, tea.Batch(cmds...)
+}
+
+func (m *Model) normalUpdate(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		switch {
-		case key.Matches(msg, m.KeyMap.DeleteAfterCursor):
+		switch msg.String() {
+		case "i":
+			m.mode = ModeInsert
+		case "I":
+			m.CursorStart()
+			m.mode = ModeInsert
+		case "A":
+			m.CursorEnd()
+			m.mode = ModeInsert
+		case "e":
+			m.wordRight()
+		case "w":
+			m.wordRight()
+		case "W":
+			m.wordRight()
+		case "b":
+			m.wordLeft()
+		case "B":
+			m.wordLeft()
+		case "h":
+			m.SetCursor(m.col - 1)
+		case "j":
+			m.CursorDown()
+		case "k":
+			m.CursorUp()
+		case "l":
+			m.SetCursor(m.col + 1)
+		case "p":
+			return Paste
+		}
+
+	case pasteMsg:
+		m.handlePaste(string(msg))
+	}
+
+	return nil
+}
+
+func (m *Model) insertUpdate(msg tea.Msg) tea.Cmd {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "esc":
+			m.mode = ModeNormal
+		case "ctrl+k":
 			m.col = clamp(m.col, 0, len(m.value[m.row]))
 			if m.col >= len(m.value[m.row]) {
 				m.mergeLineBelow(m.row)
 				break
 			}
 			m.deleteAfterCursor()
-		case key.Matches(msg, m.KeyMap.DeleteBeforeCursor):
+		case "ctrl+u":
 			m.col = clamp(m.col, 0, len(m.value[m.row]))
 			if m.col <= 0 {
 				m.mergeLineAbove(m.row)
 				break
 			}
 			m.deleteBeforeCursor()
-		case key.Matches(msg, m.KeyMap.DeleteCharacterBackward):
+		case "backspace", "ctrl+h":
 			m.col = clamp(m.col, 0, len(m.value[m.row]))
 			if m.col <= 0 {
 				m.mergeLineAbove(m.row)
@@ -742,7 +784,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 					m.SetCursor(m.col - 1)
 				}
 			}
-		case key.Matches(msg, m.KeyMap.DeleteCharacterForward):
+		case "delete", "ctrl+d":
 			if len(m.value[m.row]) > 0 && m.col < len(m.value[m.row]) {
 				m.value[m.row] = append(m.value[m.row][:m.col], m.value[m.row][m.col+1:]...)
 			}
@@ -750,30 +792,30 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				m.mergeLineBelow(m.row)
 				break
 			}
-		case key.Matches(msg, m.KeyMap.DeleteWordBackward):
+		case "alt+backspace", "ctrl+w":
 			if m.col <= 0 {
 				m.mergeLineAbove(m.row)
 				break
 			}
 			m.deleteWordLeft()
-		case key.Matches(msg, m.KeyMap.DeleteWordForward):
+		case "alt+delete", "alt+d":
 			m.col = clamp(m.col, 0, len(m.value[m.row]))
 			if m.col >= len(m.value[m.row]) {
 				m.mergeLineBelow(m.row)
 				break
 			}
 			m.deleteWordRight()
-		case key.Matches(msg, m.KeyMap.InsertNewline):
+		case "enter", "ctrl+m":
 			if len(m.value) >= maxHeight {
-				return m, nil
+				return nil
 			}
 			m.col = clamp(m.col, 0, len(m.value[m.row]))
 			m.splitLine(m.row, m.col)
-		case key.Matches(msg, m.KeyMap.LineEnd):
+		case "end", "ctrl+e":
 			m.CursorEnd()
-		case key.Matches(msg, m.KeyMap.LineStart):
+		case "home", "ctrl+a":
 			m.CursorStart()
-		case key.Matches(msg, m.KeyMap.CharacterForward):
+		case "right", "ctrl+f":
 			if m.col < len(m.value[m.row]) {
 				m.SetCursor(m.col + 1)
 			} else {
@@ -782,13 +824,13 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 					m.CursorStart()
 				}
 			}
-		case key.Matches(msg, m.KeyMap.LineNext):
+		case "down", "ctrl+n":
 			m.CursorDown()
-		case key.Matches(msg, m.KeyMap.WordForward):
+		case "alt+right", "alt+f":
 			m.wordRight()
-		case key.Matches(msg, m.KeyMap.Paste):
-			return m, Paste
-		case key.Matches(msg, m.KeyMap.CharacterBackward):
+		case "ctrl+v":
+			return Paste
+		case "left", "ctrl+b":
 			if m.col == 0 && m.row != 0 {
 				m.row--
 				m.CursorEnd()
@@ -797,9 +839,9 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			if m.col > 0 {
 				m.SetCursor(m.col - 1)
 			}
-		case key.Matches(msg, m.KeyMap.LinePrevious):
+		case "up", "ctrl+p":
 			m.CursorUp()
-		case key.Matches(msg, m.KeyMap.WordBackward):
+		case "alt+left", "alt+b":
 			m.wordLeft()
 		default:
 			if m.CharLimit > 0 && rw.StringWidth(m.Value()) >= m.CharLimit {
@@ -818,21 +860,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		m.Err = msg
 	}
 
-	vp, cmd := m.viewport.Update(msg)
-	m.viewport = &vp
-	cmds = append(cmds, cmd)
-
-	newRow, newCol := m.cursorLineNumber(), m.col
-	m.Cursor, cmd = m.Cursor.Update(msg)
-	if newRow != oldRow || newCol != oldCol {
-		m.Cursor.Blink = false
-		cmd = m.Cursor.BlinkCmd()
-	}
-	cmds = append(cmds, cmd)
-
-	m.repositionView()
-
-	return m, tea.Batch(cmds...)
+	return nil
 }
 
 // View renders the text area in its current state.
