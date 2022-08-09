@@ -697,9 +697,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	cmds = append(cmds, cmd)
 
 	newRow, newCol := m.cursorLineNumber(), m.col
-	if m.mode == ModeInsert {
-		m.Cursor, cmd = m.Cursor.Update(msg)
-	}
+	m.Cursor, cmd = m.Cursor.Update(msg)
 	if m.mode == ModeInsert && (newRow != oldRow || newCol != oldCol) {
 		m.Cursor.Blink = false
 		cmd = m.Cursor.BlinkCmd()
@@ -711,18 +709,31 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
+// SetMode sets the mode of the textarea.
+func (m *Model) SetMode(mode Mode) tea.Cmd {
+	switch mode {
+	case ModeInsert:
+		m.mode = ModeInsert
+		return m.Cursor.SetCursorMode(cursor.CursorBlink)
+	case ModeNormal:
+		m.mode = ModeNormal
+		return m.Cursor.SetCursorMode(cursor.CursorStatic)
+	}
+	return nil
+}
+
 func (m *Model) normalUpdate(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "i":
-			m.mode = ModeInsert
+			return m.SetMode(ModeInsert)
 		case "I":
 			m.CursorStart()
-			m.mode = ModeInsert
+			return m.SetMode(ModeInsert)
 		case "A":
 			m.CursorEnd()
-			m.mode = ModeInsert
+			return m.SetMode(ModeInsert)
 		case "e":
 			m.wordRight()
 		case "w":
@@ -757,7 +768,7 @@ func (m *Model) insertUpdate(msg tea.Msg) tea.Cmd {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "esc":
-			m.mode = ModeNormal
+			return m.SetMode(ModeNormal)
 		case "ctrl+k":
 			m.col = clamp(m.col, 0, len(m.value[m.row]))
 			if m.col >= len(m.value[m.row]) {
