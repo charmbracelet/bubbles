@@ -44,6 +44,8 @@ const (
 	ActionDelete
 	// ActionYank yanks text.
 	ActionYank
+	// ActionChange deletes text and enters insert mode.
+	ActionChange
 )
 
 // Position is a (row, column) pair representing a position of the cursor or

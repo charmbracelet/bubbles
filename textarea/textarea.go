@@ -572,31 +572,6 @@ func (m *Model) wordRight() {
 	}
 }
 
-// findWordEnd locates the end of the current word or the end of the next word
-// if already at the end of the current word. It takes whether or not to break
-// words on spaces or any non-alpha-numeric character as an argument.
-func (m *Model) findWordEnd(count int, onlySpaces bool) Position {
-	_ = count
-	_ = onlySpaces
-	row, col := m.row, m.col
-
-	for col < len(m.value[row]) {
-		if !unicode.IsSpace(m.value[row][col]) {
-			col++
-		} else {
-			break
-		}
-	}
-
-	return Position{Row: row, Col: col}
-}
-
-// findWordStart locates the start of the next word. It takes whether or not to
-// break words on spaces or any non-alpha-numeric character as an argument.
-func (m *Model) findWordStart(count int, onlySpaces bool) Position {
-	return m.findWordEnd(count, onlySpaces)
-}
-
 // LineInfo returns the number of characters from the start of the
 // (soft-wrapped) line and the (soft-wrapped) line width.
 func (m Model) LineInfo() LineInfo {
@@ -731,9 +706,6 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	m.repositionView()
 
 	return m, tea.Batch(cmds...)
-}
-
-func (m *Model) deleteRange(r Range) {
 }
 
 // View renders the text area in its current state.
