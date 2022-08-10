@@ -553,6 +553,19 @@ func (m *Model) deleteRange(r Range) {
 
 	minRow, maxRow := min(r.Start.Row, r.End.Row), max(r.Start.Row, r.End.Row)
 
+	if maxRow-minRow == 1 {
+		if r.Start.Row < r.End.Row {
+			m.value[r.Start.Row] = append([]rune{}, m.value[r.Start.Row][:r.Start.Col]...)
+			m.value[r.End.Row] = append([]rune{}, m.value[r.End.Row][r.End.Col:]...)
+			m.mergeLineBelow(minRow)
+		} else {
+			m.value[r.Start.Row] = append([]rune{}, m.value[r.Start.Row][r.Start.Col:]...)
+			m.value[r.End.Row] = append([]rune{}, m.value[r.End.Row][:r.End.Col]...)
+			m.mergeLineAbove(maxRow)
+		}
+		return
+	}
+
 	for i := max(minRow, 0); i <= min(maxRow, len(m.value)-1); i++ {
 		m.value[i] = []rune{}
 	}
