@@ -683,13 +683,21 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	}
 
 	var cmd tea.Cmd
+
 	switch m.mode {
 	case ModeInsert:
 		cmd = m.insertUpdate(msg)
+		cmds = append(cmds, cmd)
+		// Sometimes, we need to enter insert mode after executing a command.
+		switch msg.(type) {
+		case executeMsg:
+			cmd = m.normalUpdate(msg)
+			cmds = append(cmds, cmd)
+		}
 	case ModeNormal:
 		cmd = m.normalUpdate(msg)
+		cmds = append(cmds, cmd)
 	}
-	cmds = append(cmds, cmd)
 
 	vp, cmd := m.viewport.Update(msg)
 	m.viewport = &vp

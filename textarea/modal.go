@@ -41,9 +41,6 @@ type Action int
 const (
 	// ActionMove moves the cursor.
 	ActionMove Action = iota
-	// ActionSeek seeks the cursor to the desired character.
-	// Used in conjunction with f/F/t/T.
-	ActionSeek
 	// ActionReplace replaces text.
 	ActionReplace
 	// ActionDelete deletes text.
@@ -80,6 +77,53 @@ type NormalCommand struct {
 	Action Action
 	// Range is the range of characters to perform the action on.
 	Range Range
+	// Seeking is the type of seeking that is in progress.
+	Seeking SeekType
+}
+
+// SeekType are the possible types of seeking that can be in progress.
+type SeekType int
+
+const (
+	// SeekNone is the default seeking action.
+	SeekNone SeekType = iota
+	// SeekForwardTo is the seeking action for f.
+	SeekForwardTo // f
+	// SeekBackwardTo is the seeking action for F.
+	SeekBackwardTo // F
+	// SeekForwardUntil is the seeking action for t.
+	SeekForwardUntil // t
+	// SeekBackwardUntil is the seeking action for T.
+	SeekBackwardUntil // T
+	// SeekAround is the seeking action for a.
+	SeekAround // a
+	// SeekInner is the seeking action for i.
+	SeekInner // i
+)
+
+// IsSeeking returns whether the command is in the middle of seeking a range.
+func (n *NormalCommand) IsSeeking() bool {
+	return n.Seeking != SeekNone
+}
+
+// IsSeekingForward returns whether the seeking action is in the forward direction (f, t).
+func (n *NormalCommand) IsSeekingForward() bool {
+	return n.Seeking == SeekForwardTo || n.Seeking == SeekForwardUntil
+}
+
+// IsSeekingBackward returns whether the seeking action is in the backward direction (F, T).
+func (n *NormalCommand) IsSeekingBackward() bool {
+	return n.Seeking == SeekBackwardTo || n.Seeking == SeekBackwardUntil
+}
+
+// executeMsg executes a command.
+type executeMsg NormalCommand
+
+// executeCmd implements tea.Cmd for an executeMsg.
+func executeCmd(n NormalCommand) tea.Cmd {
+	return func() tea.Msg {
+		return executeMsg(n)
+	}
 }
 
 func (m *Model) insertUpdate(msg tea.Msg) tea.Cmd {
@@ -195,10 +239,55 @@ func (m *Model) insertUpdate(msg tea.Msg) tea.Cmd {
 
 func (m *Model) normalUpdate(msg tea.Msg) tea.Cmd {
 	var cmd tea.Cmd
-	var execute bool
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
+		if m.command.IsSeeking() {
+			if len(msg.Runes) <= 0 {
+				m.command = &NormalCommand{}
+			}
+			switch m.command.Buffer {
+			case "a":
+				m.command.Range = m.findPairRange(msg.Runes[0])
+				return executeCmd(*m.command)
+			case "i":
+				pr := m.findPairRange(msg.Runes[0])
+
+				pr.Start.Col++
+				pr.End.Col--
+
+				m.command.Range = pr
+				return executeCmd(*m.command)
+			case "f":
+				end := m.findCharRight(msg.Runes[0])
+				m.command.Range = Range{
+					Start: Position{m.row, m.col},
+					End:   end,
+				}
+			case "F":
+				start := m.findCharLeft(msg.Runes[0])
+				m.command.Range = Range{
+					Start: start,
+					End:   Position{m.row, m.col},
+				}
+			case "t":
+				end := m.findCharRight(msg.Runes[0])
+				end.Col--
+				m.command.Range = Range{
+					Start: Position{m.row, m.col},
+					End:   end,
+				}
+			case "T":
+				start := m.findCharLeft(msg.Runes[0])
+				start.Col++
+				m.command.Range = Range{
+					Start: start,
+					End:   Position{m.row, m.col},
+				}
+			}
+			return executeCmd(*m.command)
+		}
+
 		if m.command.Action == ActionReplace {
 			for i := m.col; i < m.col+max(m.command.Count, 1); i++ {
 				if i >= len(m.value[m.row]) || len(msg.Runes) <= 0 {
@@ -207,7 +296,7 @@ func (m *Model) normalUpdate(msg tea.Msg) tea.Cmd {
 				m.value[m.row][i] = msg.Runes[0]
 			}
 			m.command = &NormalCommand{}
-			return nil
+			break
 		}
 		switch msg.String() {
 		case "esc":
@@ -219,8 +308,7 @@ func (m *Model) normalUpdate(msg tea.Msg) tea.Cmd {
 					Start: Position{Row: m.row, Col: m.col},
 					End:   Position{Row: m.row, Col: 0},
 				}
-				execute = true
-				break
+				return executeCmd(*m.command)
 			}
 
 			v := m.command.Buffer + msg.String()
@@ -241,27 +329,27 @@ func (m *Model) normalUpdate(msg tea.Msg) tea.Cmd {
 				row = len(m.value) - 1
 			}
 			m.row = clamp(row, 0, len(m.value)-1)
-			return nil
+			return executeCmd(*m.command)
 		case "g":
 			if m.command.Buffer == "g" {
-				m.command = &NormalCommand{}
 				m.row = clamp(m.command.Count-1, 0, len(m.value)-1)
-			} else {
-				m.command = &NormalCommand{Buffer: "g"}
+				return executeCmd(*m.command)
 			}
-			return nil
+			m.command = &NormalCommand{Buffer: "g"}
 		case "x":
 			m.command.Action = ActionDelete
 			m.command.Range = Range{
 				Start: Position{Row: m.row, Col: m.col},
 				End:   Position{Row: m.row, Col: m.col + max(m.command.Count, 1)},
 			}
+			return executeCmd(*m.command)
 		case "X":
 			m.command.Action = ActionDelete
 			m.command.Range = Range{
 				Start: Position{Row: m.row, Col: m.col},
 				End:   Position{Row: m.row, Col: m.col - max(m.command.Count, 1)},
 			}
+			return executeCmd(*m.command)
 		case "c":
 			if m.command.Action == ActionChange {
 				m.CursorStart()
@@ -286,42 +374,67 @@ func (m *Model) normalUpdate(msg tea.Msg) tea.Cmd {
 			m.command.Action = ActionDelete
 		case "y":
 			m.command.Action = ActionYank
+		case "t", "T", "f", "F":
+			m.command.Buffer = msg.String()
+			switch msg.String() {
+			case "t":
+				m.command.Seeking = SeekForwardUntil
+			case "T":
+				m.command.Seeking = SeekBackwardUntil
+			case "f":
+				m.command.Seeking = SeekForwardTo
+			case "F":
+				m.command.Seeking = SeekBackwardTo
+			}
 		case "r":
 			m.command.Action = ActionReplace
 		case "i":
+			if m.command.Action != ActionMove {
+				m.command.Buffer = "i"
+				m.command.Seeking = SeekInner
+				return nil
+			}
 			m.command.Range = Range{
 				Start: Position{Row: m.row, Col: m.col},
 				End:   Position{Row: m.row, Col: m.col},
 			}
-			cmd = m.SetMode(ModeInsert)
+			return tea.Sequentially(executeCmd(*m.command), m.SetMode(ModeInsert))
 		case "I":
 			m.command.Range = Range{
 				Start: Position{Row: m.row, Col: m.col},
 				End:   Position{Row: m.row, Col: 0},
 			}
-			cmd = m.SetMode(ModeInsert)
+			return tea.Sequentially(executeCmd(*m.command), m.SetMode(ModeInsert))
 		case "a":
+			if m.command.Action != ActionMove {
+				m.command.Buffer = "a"
+				m.command.Seeking = SeekAround
+				return nil
+			}
+
 			m.command.Range = Range{
 				Start: Position{Row: m.row, Col: m.col},
 				End:   Position{Row: m.row, Col: m.col + 1},
 			}
-			cmd = m.SetMode(ModeInsert)
+			return tea.Sequentially(executeCmd(*m.command), m.SetMode(ModeInsert))
 		case "A":
 			m.command.Range = Range{
 				Start: Position{Row: m.row, Col: m.col},
 				End:   Position{Row: m.row, Col: len(m.value[m.row]) + 1},
 			}
-			cmd = m.SetMode(ModeInsert)
+			return tea.Sequentially(executeCmd(*m.command), m.SetMode(ModeInsert))
 		case "^":
 			m.command.Range = Range{
 				Start: Position{m.row, m.col},
 				End:   Position{m.row, 0},
 			}
+			return executeCmd(*m.command)
 		case "$":
 			m.command.Range = Range{
 				Start: Position{m.row, m.col},
 				End:   Position{m.row, len(m.value[m.row])},
 			}
+			return executeCmd(*m.command)
 		case "e", "E":
 			end := m.findWordEndRight(max(m.command.Count, 1), msg.String() == "E")
 			if m.command.Action == ActionDelete {
@@ -331,16 +444,19 @@ func (m *Model) normalUpdate(msg tea.Msg) tea.Cmd {
 				Start: Position{m.row, m.col},
 				End:   end,
 			}
+			return executeCmd(*m.command)
 		case "w", "W":
 			m.command.Range = Range{
 				Start: Position{m.row, m.col},
 				End:   m.findWordStartRight(max(m.command.Count, 1), msg.String() == "W"),
 			}
+			return executeCmd(*m.command)
 		case "b", "B":
 			m.command.Range = Range{
 				Start: Position{m.row, m.col},
 				End:   m.findWordLeft(max(m.command.Count, 1), msg.String() == "B"),
 			}
+			return executeCmd(*m.command)
 		case "h", "l":
 			direction := 1
 			if msg.String() == "h" {
@@ -351,6 +467,7 @@ func (m *Model) normalUpdate(msg tea.Msg) tea.Cmd {
 				Start: Position{m.row, m.col},
 				End:   Position{m.row, clamp(m.col+(direction*max(m.command.Count, 1)), 0, len(m.value[m.row]))},
 			}
+			return executeCmd(*m.command)
 		case "j", "k":
 			direction := 1
 			if msg.String() == "k" {
@@ -379,6 +496,7 @@ func (m *Model) normalUpdate(msg tea.Msg) tea.Cmd {
 				Start: Position{m.row, m.col},
 				End:   Position{row, col},
 			}
+			return executeCmd(*m.command)
 		case "C":
 			m.deleteAfterCursor()
 			m.command = &NormalCommand{}
@@ -390,6 +508,7 @@ func (m *Model) normalUpdate(msg tea.Msg) tea.Cmd {
 		case "J":
 			m.CursorEnd()
 			m.mergeLineBelow(m.row)
+			m.command = &NormalCommand{}
 			return nil
 		case "p":
 			cmd = Paste
@@ -399,25 +518,70 @@ func (m *Model) normalUpdate(msg tea.Msg) tea.Cmd {
 			m.lastCharOffset = 0
 		}
 
-		if strings.ContainsAny(msg.String(), "iIaAeEwWbBhjklp$^xX") || execute {
-			switch m.command.Action {
-			case ActionDelete:
-				m.deleteRange(m.command.Range)
-			case ActionChange:
-				m.deleteRange(m.command.Range)
-				cmd = m.SetMode(ModeInsert)
-			case ActionMove:
-				m.row = clamp(m.command.Range.End.Row, 0, len(m.value)-1)
-				m.col = clamp(m.command.Range.End.Col, 0, len(m.value[m.row]))
-			}
-			m.command = &NormalCommand{}
+	case executeMsg:
+		switch m.command.Action {
+		case ActionDelete:
+			m.deleteRange(m.command.Range)
+		case ActionChange:
+			m.deleteRange(m.command.Range)
+			cmd = m.SetMode(ModeInsert)
+		case ActionMove:
+			m.row = clamp(m.command.Range.End.Row, 0, len(m.value)-1)
+			m.col = clamp(m.command.Range.End.Col, 0, len(m.value[m.row]))
 		}
+		m.command = &NormalCommand{}
 
 	case pasteMsg:
 		m.handlePaste(string(msg))
 	}
 
 	return cmd
+}
+
+func (m *Model) findCharLeft(r rune) Position {
+	col := m.col
+
+	for col > 0 {
+		col--
+		if m.value[m.row][col] == r {
+			return Position{m.row, col}
+		}
+	}
+	return Position{m.row, m.col}
+}
+
+func (m *Model) findCharRight(r rune) Position {
+	col := m.col
+
+	for col < len(m.value[m.row]) {
+		col++
+		if m.value[m.row][col] == r {
+			return Position{m.row, col}
+		}
+	}
+	return Position{m.row, m.col}
+}
+
+func (m *Model) findPairRange(r rune) Range {
+	var startRune, endRune rune
+
+	switch r {
+	case '(', ')':
+		startRune, endRune = '(', ')'
+	case '{', '}':
+		startRune, endRune = '{', '}'
+	case '[', ']':
+		startRune, endRune = '[', ']'
+	case '<', '>':
+		startRune, endRune = '<', '>'
+	case '"', '\'':
+		startRune, endRune = r, r
+	}
+
+	return Range{
+		Start: m.findCharLeft(startRune),
+		End:   m.findCharRight(endRune),
+	}
 }
 
 // findWordLeft locates the start of the word on the left of the current word.
@@ -546,6 +710,21 @@ func (m *Model) deleteRange(r Range) {
 	maxCol = clamp(maxCol, 0, len(m.value[r.Start.Row]))
 
 	if r.Start.Row == r.End.Row {
+		// If the action is delete and from a seek action, we need to delete
+		// the range inclusively.
+		if m.command.IsSeeking() {
+			if m.command.IsSeekingForward() {
+				maxCol = min(maxCol+1, len(m.value[r.Start.Row]))
+			} else if m.command.IsSeekingBackward() {
+				minCol = max(minCol-1, 0)
+			} else if m.command.Seeking == SeekAround {
+				maxCol = min(maxCol+1, len(m.value[r.Start.Row]))
+				minCol = max(minCol-1, 0)
+			} else if m.command.Seeking == SeekInner {
+				maxCol = min(maxCol+1, len(m.value[r.Start.Row]))
+			}
+		}
+
 		m.value[r.Start.Row] = append(m.value[r.Start.Row][:minCol], m.value[r.Start.Row][maxCol:]...)
 		m.SetCursor(minCol)
 		return
