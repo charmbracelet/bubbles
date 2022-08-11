@@ -566,6 +566,11 @@ func (m *Model) findPairRange(r rune) Range {
 	var startRune, endRune rune
 
 	switch r {
+	case 'w', 'W':
+		return Range{
+			Start: m.findWordLeft(0, r == 'W'),
+			End:   m.findWordEndRight(1, true),
+		}
 	case '(', ')':
 		startRune, endRune = '(', ')'
 	case '{', '}':
@@ -576,6 +581,12 @@ func (m *Model) findPairRange(r rune) Range {
 		startRune, endRune = '<', '>'
 	case '"', '\'':
 		startRune, endRune = r, r
+	default:
+		m.command = &NormalCommand{}
+		return Range{
+			Start: Position{m.row, m.col},
+			End:   Position{m.row, m.col},
+		}
 	}
 
 	return Range{
@@ -717,10 +728,7 @@ func (m *Model) deleteRange(r Range) {
 				maxCol = min(maxCol+1, len(m.value[r.Start.Row]))
 			} else if m.command.IsSeekingBackward() {
 				minCol = max(minCol-1, 0)
-			} else if m.command.Seeking == SeekAround {
-				maxCol = min(maxCol+1, len(m.value[r.Start.Row]))
-				minCol = max(minCol-1, 0)
-			} else if m.command.Seeking == SeekInner {
+			} else if m.command.Seeking == SeekAround || m.command.Seeking == SeekInner {
 				maxCol = min(maxCol+1, len(m.value[r.Start.Row]))
 			}
 		}
