@@ -246,6 +246,10 @@ func (m *Model) normalUpdate(msg tea.Msg) tea.Cmd {
 			if len(msg.Runes) <= 0 {
 				m.command = &NormalCommand{}
 			}
+			if msg.Runes[0] == 'w' || msg.Runes[0] == 'W' {
+				m.command.Range = m.findPairRange(msg.Runes[0])
+				return executeCmd(*m.command)
+			}
 			switch m.command.Buffer {
 			case "a":
 				m.command.Range = m.findPairRange(msg.Runes[0])
@@ -554,10 +558,10 @@ func (m *Model) findCharRight(r rune) Position {
 	col := m.col
 
 	for col < len(m.value[m.row]) {
-		col++
 		if m.value[m.row][col] == r {
 			return Position{m.row, col}
 		}
+		col++
 	}
 	return Position{m.row, m.col}
 }
@@ -602,6 +606,13 @@ func (m *Model) findWordLeft(count int, ignorePunctuation bool) Position {
 	wordBreak := isSoftWordBreak
 	if ignorePunctuation {
 		wordBreak = isWordBreak
+	}
+
+	if count == 0 {
+		if wordBreak(m.value[m.row][m.col-1]) {
+			return Position{m.row, m.col}
+		}
+		count = 1
 	}
 
 	row, col := m.row, m.col
