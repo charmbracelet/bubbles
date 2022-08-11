@@ -238,8 +238,6 @@ func (m *Model) insertUpdate(msg tea.Msg) tea.Cmd {
 }
 
 func (m *Model) normalUpdate(msg tea.Msg) tea.Cmd {
-	var cmd tea.Cmd
-
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		if m.command.IsSeeking() {
@@ -302,6 +300,11 @@ func (m *Model) normalUpdate(msg tea.Msg) tea.Cmd {
 			m.command = &NormalCommand{}
 			break
 		}
+
+		if !strings.ContainsAny(msg.String(), "jk") {
+			m.lastCharOffset = 0
+		}
+
 		switch msg.String() {
 		case "esc":
 			m.command = &NormalCommand{}
@@ -466,7 +469,6 @@ func (m *Model) normalUpdate(msg tea.Msg) tea.Cmd {
 			if msg.String() == "h" {
 				direction = -1
 			}
-			m.lastCharOffset = 0
 			m.command.Range = Range{
 				Start: Position{m.row, m.col},
 				End:   Position{m.row, clamp(m.col+(direction*max(m.command.Count, 1)), 0, len(m.value[m.row]))},
@@ -515,20 +517,15 @@ func (m *Model) normalUpdate(msg tea.Msg) tea.Cmd {
 			m.command = &NormalCommand{}
 			return nil
 		case "p":
-			cmd = Paste
+			return Paste
 		}
-
-		if !strings.ContainsAny(msg.String(), "jk") {
-			m.lastCharOffset = 0
-		}
-
 	case executeMsg:
 		switch m.command.Action {
 		case ActionDelete:
 			m.deleteRange(m.command.Range)
 		case ActionChange:
 			m.deleteRange(m.command.Range)
-			cmd = m.SetMode(ModeInsert)
+			return m.SetMode(ModeInsert)
 		case ActionMove:
 			m.row = clamp(m.command.Range.End.Row, 0, len(m.value)-1)
 			m.col = clamp(m.command.Range.End.Col, 0, len(m.value[m.row]))
@@ -539,7 +536,7 @@ func (m *Model) normalUpdate(msg tea.Msg) tea.Cmd {
 		m.handlePaste(string(msg))
 	}
 
-	return cmd
+	return nil
 }
 
 func (m *Model) findCharLeft(r rune) Position {
