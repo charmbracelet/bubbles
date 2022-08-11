@@ -437,7 +437,7 @@ func (m *Model) normalUpdate(msg tea.Msg) tea.Cmd {
 			return executeCmd(*m.command)
 		case "e", "E":
 			end := m.findWordEndRight(max(m.command.Count, 1), msg.String() == "E")
-			if m.command.Action == ActionDelete {
+			if m.command.Action == ActionDelete || m.command.Action == ActionChange {
 				end.Col = min(end.Col+1, len(m.value[end.Row]))
 			}
 			m.command.Range = Range{
