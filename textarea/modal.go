@@ -241,53 +241,7 @@ func (m *Model) normalUpdate(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		if m.command.IsSeeking() {
-			if len(msg.Runes) <= 0 {
-				m.command = &NormalCommand{}
-			}
-			if msg.Runes[0] == 'w' || msg.Runes[0] == 'W' {
-				m.command.Range = m.findPairRange(msg.Runes[0])
-				return executeCmd(*m.command)
-			}
-			switch m.command.Buffer {
-			case "a":
-				m.command.Range = m.findPairRange(msg.Runes[0])
-				return executeCmd(*m.command)
-			case "i":
-				pr := m.findPairRange(msg.Runes[0])
-
-				pr.Start.Col++
-				pr.End.Col--
-
-				m.command.Range = pr
-				return executeCmd(*m.command)
-			case "f":
-				end := m.findCharRight(msg.Runes[0])
-				m.command.Range = Range{
-					Start: Position{m.row, m.col},
-					End:   end,
-				}
-			case "F":
-				start := m.findCharLeft(msg.Runes[0])
-				m.command.Range = Range{
-					Start: start,
-					End:   Position{m.row, m.col},
-				}
-			case "t":
-				end := m.findCharRight(msg.Runes[0])
-				end.Col--
-				m.command.Range = Range{
-					Start: Position{m.row, m.col},
-					End:   end,
-				}
-			case "T":
-				start := m.findCharLeft(msg.Runes[0])
-				start.Col++
-				m.command.Range = Range{
-					Start: start,
-					End:   Position{m.row, m.col},
-				}
-			}
-			return executeCmd(*m.command)
+			return m.seekingUpdate(msg)
 		}
 
 		if m.command.Action == ActionReplace {
@@ -328,6 +282,15 @@ func (m *Model) normalUpdate(msg tea.Msg) tea.Cmd {
 				m.command.Buffer = v
 				m.command.Count = count
 			}
+		case "o":
+			m.CursorEnd()
+			m.splitLine(m.row, m.col)
+			return m.SetMode(ModeInsert)
+		case "O":
+			m.CursorStart()
+			m.splitLine(m.row, m.col)
+			m.CursorUp()
+			return m.SetMode(ModeInsert)
 		case "G":
 			var row int
 			if m.command.Count > 0 {
@@ -335,14 +298,20 @@ func (m *Model) normalUpdate(msg tea.Msg) tea.Cmd {
 			} else {
 				row = len(m.value) - 1
 			}
-			m.row = clamp(row, 0, len(m.value)-1)
+			m.command.Range = Range{
+				Start: Position{Row: row, Col: m.col},
+				End:   Position{Row: clamp(row, 0, len(m.value)-1), Col: m.col},
+			}
 			return executeCmd(*m.command)
 		case "g":
 			if m.command.Buffer == "g" {
-				m.row = clamp(m.command.Count-1, 0, len(m.value)-1)
+				m.command.Range = Range{
+					Start: Position{Row: 0, Col: m.col},
+					End:   Position{Row: 0, Col: clamp(m.col, 0, len(m.value[0]))},
+				}
 				return executeCmd(*m.command)
 			}
-			m.command = &NormalCommand{Buffer: "g"}
+			m.command.Buffer = "g"
 		case "x":
 			m.command.Action = ActionDelete
 			m.command.Range = Range{
@@ -527,8 +496,9 @@ func (m *Model) normalUpdate(msg tea.Msg) tea.Cmd {
 			m.deleteRange(m.command.Range)
 			return m.SetMode(ModeInsert)
 		case ActionMove:
-			m.row = clamp(m.command.Range.End.Row, 0, len(m.value)-1)
-			m.col = clamp(m.command.Range.End.Col, 0, len(m.value[m.row]))
+			row := clamp(m.command.Range.End.Row, 0, len(m.value)-1)
+			m.row = row
+			m.col = clamp(m.command.Range.End.Col, 0, len(m.value[row]))
 		}
 		m.command = &NormalCommand{}
 
@@ -537,6 +507,56 @@ func (m *Model) normalUpdate(msg tea.Msg) tea.Cmd {
 	}
 
 	return nil
+}
+
+func (m *Model) seekingUpdate(msg tea.KeyMsg) tea.Cmd {
+	if len(msg.Runes) <= 0 {
+		m.command = &NormalCommand{}
+	}
+	if msg.Runes[0] == 'w' || msg.Runes[0] == 'W' {
+		m.command.Range = m.findPairRange(msg.Runes[0])
+		return executeCmd(*m.command)
+	}
+	switch m.command.Buffer {
+	case "a":
+		m.command.Range = m.findPairRange(msg.Runes[0])
+		return executeCmd(*m.command)
+	case "i":
+		pr := m.findPairRange(msg.Runes[0])
+
+		pr.Start.Col++
+		pr.End.Col--
+
+		m.command.Range = pr
+		return executeCmd(*m.command)
+	case "f":
+		end := m.findCharRight(msg.Runes[0])
+		m.command.Range = Range{
+			Start: Position{m.row, m.col},
+			End:   end,
+		}
+	case "F":
+		start := m.findCharLeft(msg.Runes[0])
+		m.command.Range = Range{
+			Start: start,
+			End:   Position{m.row, m.col},
+		}
+	case "t":
+		end := m.findCharRight(msg.Runes[0])
+		end.Col--
+		m.command.Range = Range{
+			Start: Position{m.row, m.col},
+			End:   end,
+		}
+	case "T":
+		start := m.findCharLeft(msg.Runes[0])
+		start.Col++
+		m.command.Range = Range{
+			Start: start,
+			End:   Position{m.row, m.col},
+		}
+	}
+	return executeCmd(*m.command)
 }
 
 func (m *Model) findCharLeft(r rune) Position {
