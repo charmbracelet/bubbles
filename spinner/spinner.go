@@ -83,6 +83,17 @@ var (
 		Frames: []string{"☱", "☲", "☴", "☲"},
 		FPS:    time.Second / 3, //nolint:gomnd
 	}
+	Faces = Spinner{
+		Frames: []string{"🙃", "🙂", "😶", "😶‍🌫️", "😮"},
+		FPS:	time.Second / 5
+	}
+	Languages = Spinner{
+		Frames: []string{
+			// these symbols require a nerd font
+			"", "", "", "", "", "", "", "", "", "", "", "", "" ,"",
+		},
+		FPS:	time.Second / 4
+	}
 )
 
 // Model contains the state for the spinner. Use NewModel to create new models
