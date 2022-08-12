@@ -42,15 +42,17 @@ func TestSpinnerNew(t *testing.T) {
 	})
 
 	tests := map[string]spinner.Spinner{
-		"Line":    spinner.Line,
-		"Dot":     spinner.Dot,
-		"MiniDot": spinner.MiniDot,
-		"Jump":    spinner.Jump,
-		"Pulse":   spinner.Pulse,
-		"Points":  spinner.Points,
-		"Globe":   spinner.Globe,
-		"Moon":    spinner.Moon,
-		"Monkey":  spinner.Monkey,
+		"Line":      spinner.Line,
+		"Dot":       spinner.Dot,
+		"MiniDot":   spinner.MiniDot,
+		"Jump":      spinner.Jump,
+		"Pulse":     spinner.Pulse,
+		"Points":    spinner.Points,
+		"Globe":     spinner.Globe,
+		"Moon":      spinner.Moon,
+		"Monkey":    spinner.Monkey,
+		"Languages": spinner.Languages,
+		"Faces":     spinner.Faces,
 	}
 
 	for name, s := range tests {
