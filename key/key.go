@@ -130,9 +130,10 @@ type Help struct {
 
 // Matches checks if the given KeyMsg matches the given bindings.
 func Matches(k tea.KeyMsg, b ...Binding) bool {
+	keys := k.String()
 	for _, binding := range b {
 		for _, v := range binding.keys {
-			if k.String() == v && binding.Enabled() {
+			if keys == v && binding.Enabled() {
 				return true
 			}
 		}
