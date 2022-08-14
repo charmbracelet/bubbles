@@ -547,6 +547,30 @@ func (m *Model) deleteWordRight() {
 	m.SetCursor(oldCol)
 }
 
+// characterRight moves the cursor one character to the right.
+func (m *Model) characterRight() {
+	if m.col < len(m.value[m.row]) {
+		m.SetCursor(m.col + 1)
+	} else {
+		if m.row < len(m.value)-1 {
+			m.row++
+			m.CursorStart()
+		}
+	}
+}
+
+// characterLeft moves the cursor one character to the left.
+func (m *Model) characterLeft() {
+	if m.col == 0 && m.row != 0 {
+		m.row--
+		m.CursorEnd()
+		return
+	}
+	if m.col > 0 {
+		m.SetCursor(m.col - 1)
+	}
+}
+
 // wordLeft moves the cursor one word to the left. Returns whether or not the
 // cursor blink should be reset. If input is masked, move input to the start
 // so as not to reveal word breaks in the masked input.
@@ -774,14 +798,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		case key.Matches(msg, m.KeyMap.LineStart):
 			m.CursorStart()
 		case key.Matches(msg, m.KeyMap.CharacterForward):
-			if m.col < len(m.value[m.row]) {
-				m.SetCursor(m.col + 1)
-			} else {
-				if m.row < len(m.value)-1 {
-					m.row++
-					m.CursorStart()
-				}
-			}
+			m.characterRight()
 		case key.Matches(msg, m.KeyMap.LineNext):
 			m.CursorDown()
 		case key.Matches(msg, m.KeyMap.WordForward):
@@ -789,14 +806,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		case key.Matches(msg, m.KeyMap.Paste):
 			return m, Paste
 		case key.Matches(msg, m.KeyMap.CharacterBackward):
-			if m.col == 0 && m.row != 0 {
-				m.row--
-				m.CursorEnd()
-				break
-			}
-			if m.col > 0 {
-				m.SetCursor(m.col - 1)
-			}
+			m.characterLeft()
 		case key.Matches(msg, m.KeyMap.LinePrevious):
 			m.CursorUp()
 		case key.Matches(msg, m.KeyMap.WordBackward):
