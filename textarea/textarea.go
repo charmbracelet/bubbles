@@ -50,6 +50,8 @@ type KeyMap struct {
 	UppercaseWordForward  key.Binding
 	LowercaseWordForward  key.Binding
 	CapitalizeWordForward key.Binding
+
+	TransposeCharacterBackward key.Binding
 }
 
 // DefaultKeyMap is the default set of key bindings for navigating and acting
@@ -75,6 +77,8 @@ var DefaultKeyMap = KeyMap{
 	CapitalizeWordForward: key.NewBinding(key.WithKeys("alt+c")),
 	LowercaseWordForward:  key.NewBinding(key.WithKeys("alt+l")),
 	UppercaseWordForward:  key.NewBinding(key.WithKeys("alt+u")),
+
+	TransposeCharacterBackward: key.NewBinding(key.WithKeys("ctrl+t")),
 }
 
 // LineInfo is a helper for keeping track of line information regarding
@@ -481,6 +485,24 @@ func (m *Model) deleteAfterCursor() {
 	m.SetCursor(len(m.value[m.row]))
 }
 
+// transposeLeft exchanges the runes at the cursor and immediately
+// before. No-op if the cursor is at the beginning of the line.  If
+// the cursor is not at the end of the line yet, moves the cursor to
+// the right.
+func (m *Model) transposeLeft() {
+	if m.col == 0 || len(m.value[m.row]) < 2 {
+		return
+	}
+	if m.col >= len(m.value[m.row]) {
+		m.SetCursor(m.col - 1)
+	}
+	m.value[m.row][m.col-1], m.value[m.row][m.col] =
+		m.value[m.row][m.col], m.value[m.row][m.col-1]
+	if m.col < len(m.value[m.row]) {
+		m.SetCursor(m.col + 1)
+	}
+}
+
 // deleteWordLeft deletes the word left to the cursor. Returns whether or not
 // the cursor blink should be reset.
 func (m *Model) deleteWordLeft() {
@@ -847,6 +869,8 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.uppercaseRight()
 		case key.Matches(msg, m.KeyMap.CapitalizeWordForward):
 			m.capitalizeRight()
+		case key.Matches(msg, m.KeyMap.TransposeCharacterBackward):
+			m.transposeLeft()
 
 		default:
 			if m.CharLimit > 0 && rw.StringWidth(m.Value()) >= m.CharLimit {
