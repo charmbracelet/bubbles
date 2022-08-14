@@ -135,6 +135,11 @@ type Model struct {
 	// General settings.
 
 	// Prompt is printed at the beginning of each line.
+	//
+	// When changing the value of Prompt after the model has been
+	// initialized, ensure that SetWidth() gets called afterwards.
+	//
+	// See also SetPromptFunc().
 	Prompt string
 
 	// Placeholder is the text displayed when the user
@@ -167,6 +172,13 @@ type Model struct {
 	// CharLimit is the maximum number of characters this input element will
 	// accept. If 0 or less, there's no limit.
 	CharLimit int
+
+	// If promptFunc is set, it replaces Prompt as a generator for
+	// prompt strings at the beginning of each line.
+	promptFunc func(line int) string
+
+	// promptWidth is the width of the prompt.
+	promptWidth int
 
 	// width is the maximum number of characters that can be displayed at once.
 	// If 0 or less this setting is ignored.
@@ -785,8 +797,24 @@ func (m *Model) SetWidth(w int) {
 	// Account for base style borders and padding.
 	inputWidth -= m.style.Base.GetHorizontalFrameSize()
 
-	inputWidth -= rw.StringWidth(m.Prompt)
+	if m.promptFunc == nil {
+		m.promptWidth = rw.StringWidth(m.Prompt)
+	}
+
+	inputWidth -= m.promptWidth
 	m.width = clamp(inputWidth, minWidth, maxWidth)
+}
+
+// SetPromptFunc supersedes the Prompt field and sets a dynamic prompt
+// instead.
+// If the function returns a prompt that is shorter than the
+// specified promptWidth, it will be padded to the left.
+// If it returns a prompt that is longer, display artifacts
+// may occur; the caller is responsible for computing an adequate
+// promptWidth.
+func (m *Model) SetPromptFunc(promptWidth int, fn func(lineIdx int) string) {
+	m.promptFunc = fn
+	m.promptWidth = promptWidth
 }
 
 // Height returns the current height of the textarea.
@@ -950,6 +978,7 @@ func (m Model) View() string {
 
 	var newLines int
 
+	displayLine := 0
 	for l, line := range m.value {
 		wrappedLines := wrap(line, m.width)
 
@@ -960,7 +989,10 @@ func (m Model) View() string {
 		}
 
 		for wl, wrappedLine := range wrappedLines {
-			s.WriteString(style.Render(m.style.Prompt.Render(m.Prompt)))
+			prompt := m.getPromptString(displayLine)
+			prompt = m.style.Prompt.Render(prompt)
+			s.WriteString(style.Render(prompt))
+			displayLine++
 
 			if m.ShowLineNumbers {
 				if wl == 0 {
@@ -1009,7 +1041,10 @@ func (m Model) View() string {
 	// Always show at least `m.Height` lines at all times.
 	// To do this we can simply pad out a few extra new lines in the view.
 	for i := 0; i < m.height; i++ {
-		s.WriteString(m.style.Prompt.Render(m.Prompt))
+		prompt := m.getPromptString(displayLine)
+		prompt = m.style.Prompt.Render(prompt)
+		s.WriteString(prompt)
+		displayLine++
 
 		if m.ShowLineNumbers {
 			lineNumber := m.style.EndOfBuffer.Render((fmt.Sprintf(m.lineNumberFormat, string(m.EndOfBufferCharacter))))
@@ -1022,6 +1057,19 @@ func (m Model) View() string {
 	return m.style.Base.Render(m.viewport.View())
 }
 
+func (m Model) getPromptString(displayLine int) (prompt string) {
+	prompt = m.Prompt
+	if m.promptFunc == nil {
+		return prompt
+	}
+	prompt = m.promptFunc(displayLine)
+	pl := rw.StringWidth(prompt)
+	if pl < m.promptWidth {
+		prompt = fmt.Sprintf("%*s%s", m.promptWidth-pl, "", prompt)
+	}
+	return prompt
+}
+
 // placeholderView returns the prompt and placeholder view, if any.
 func (m Model) placeholderView() string {
 	var (
@@ -1030,7 +1078,8 @@ func (m Model) placeholderView() string {
 		style = m.style.Placeholder.Inline(true)
 	)
 
-	prompt := m.style.Prompt.Render(m.Prompt)
+	prompt := m.getPromptString(0)
+	prompt = m.style.Prompt.Render(prompt)
 	s.WriteString(m.style.CursorLine.Render(prompt))
 
 	if m.ShowLineNumbers {
@@ -1047,6 +1096,8 @@ func (m Model) placeholderView() string {
 	// The rest of the new lines
 	for i := 1; i < m.height; i++ {
 		s.WriteRune('\n')
+		prompt := m.getPromptString(i)
+		prompt = m.style.Prompt.Render(prompt)
 		s.WriteString(prompt)
 
 		if m.ShowLineNumbers {
