@@ -46,6 +46,10 @@ type KeyMap struct {
 	Paste                   key.Binding
 	WordBackward            key.Binding
 	WordForward             key.Binding
+
+	UppercaseWordForward  key.Binding
+	LowercaseWordForward  key.Binding
+	CapitalizeWordForward key.Binding
 }
 
 // DefaultKeyMap is the default set of key bindings for navigating and acting
@@ -67,6 +71,10 @@ var DefaultKeyMap = KeyMap{
 	LineStart:               key.NewBinding(key.WithKeys("home", "ctrl+a")),
 	LineEnd:                 key.NewBinding(key.WithKeys("end", "ctrl+e")),
 	Paste:                   key.NewBinding(key.WithKeys("ctrl+v")),
+
+	CapitalizeWordForward: key.NewBinding(key.WithKeys("alt+c")),
+	LowercaseWordForward:  key.NewBinding(key.WithKeys("alt+l")),
+	UppercaseWordForward:  key.NewBinding(key.WithKeys("alt+u")),
 }
 
 // LineInfo is a helper for keeping track of line information regarding
@@ -598,20 +606,54 @@ func (m *Model) wordLeft() {
 // cursor blink should be reset. If the input is masked, move input to the end
 // so as not to reveal word breaks in the masked input.
 func (m *Model) wordRight() {
+	m.doWordRight(func(int, int) { /* nothing */ })
+}
+
+func (m *Model) doWordRight(fn func(charIdx int, pos int)) {
 	// Skip spaces forward.
 	for {
 		if m.col < len(m.value[m.row]) && !unicode.IsSpace(m.value[m.row][m.col]) {
 			break
 		}
+		if m.row == len(m.value)-1 && m.col == len(m.value[m.row]) {
+			// End of text.
+			break
+		}
 		m.characterRight()
 	}
 
+	charIdx := 0
 	for m.col < len(m.value[m.row]) {
 		if unicode.IsSpace(m.value[m.row][m.col]) {
 			break
 		}
+		fn(charIdx, m.col)
 		m.SetCursor(m.col + 1)
+		charIdx++
 	}
+}
+
+// uppercaseRight changes the word to the right to uppercase.
+func (m *Model) uppercaseRight() {
+	m.doWordRight(func(_ int, i int) {
+		m.value[m.row][i] = unicode.ToUpper(m.value[m.row][i])
+	})
+}
+
+// lowercaseRight changes the word to the right to lowercase.
+func (m *Model) lowercaseRight() {
+	m.doWordRight(func(_ int, i int) {
+		m.value[m.row][i] = unicode.ToLower(m.value[m.row][i])
+	})
+}
+
+// capitalizeRight changes the word to the right to title case.
+func (m *Model) capitalizeRight() {
+	m.doWordRight(func(charIdx int, i int) {
+		if charIdx == 0 {
+			m.value[m.row][i] = unicode.ToTitle(m.value[m.row][i])
+		}
+	})
 }
 
 // LineInfo returns the number of characters from the start of the
@@ -798,6 +840,14 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.CursorUp()
 		case key.Matches(msg, m.KeyMap.WordBackward):
 			m.wordLeft()
+
+		case key.Matches(msg, m.KeyMap.LowercaseWordForward):
+			m.lowercaseRight()
+		case key.Matches(msg, m.KeyMap.UppercaseWordForward):
+			m.uppercaseRight()
+		case key.Matches(msg, m.KeyMap.CapitalizeWordForward):
+			m.capitalizeRight()
+
 		default:
 			if m.CharLimit > 0 && rw.StringWidth(m.Value()) >= m.CharLimit {
 				break
