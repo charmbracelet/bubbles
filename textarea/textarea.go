@@ -8,6 +8,7 @@ import (
 	"github.com/atotto/clipboard"
 	"github.com/charmbracelet/bubbles/cursor"
 	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/runeutil"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -212,6 +213,9 @@ type Model struct {
 	// viewport is the vertically-scrollable viewport of the multi-line text
 	// input.
 	viewport *viewport.Model
+
+	// rune sanitizer for input.
+	rsan runeutil.Sanitizer
 }
 
 // New creates a new model with default settings.
@@ -283,26 +287,98 @@ func (m *Model) SetValue(s string) {
 
 // InsertString inserts a string at the cursor position.
 func (m *Model) InsertString(s string) {
-	lines := strings.Split(s, "\n")
-	for l, line := range lines {
-		for _, rune := range line {
-			m.InsertRune(rune)
-		}
-		if l != len(lines)-1 {
-			m.InsertRune('\n')
-		}
-	}
+	m.insertRunesFromUserInput([]rune(s))
 }
 
 // InsertRune inserts a rune at the cursor position.
 func (m *Model) InsertRune(r rune) {
-	if r == '\n' {
-		m.splitLine(m.row, m.col)
+	m.insertRunesFromUserInput([]rune{r})
+}
+
+// insertRunesFromUserInput inserts runes at the current cursor position.
+func (m *Model) insertRunesFromUserInput(runes []rune) {
+	// Clean up any special characters in the input provided by the
+	// clipboard. This avoids bugs due to e.g. tab characters and
+	// whatnot.
+	runes = m.san().Sanitize(runes)
+
+	var availSpace int
+	if m.CharLimit > 0 {
+		availSpace = m.CharLimit - m.Length()
+		// If the char limit's been reached, cancel.
+		if availSpace <= 0 {
+			return
+		}
+		// If there's not enough space to paste the whole thing cut the pasted
+		// runes down so they'll fit.
+		if availSpace < len(runes) {
+			runes = runes[:len(runes)-availSpace]
+		}
+	}
+
+	// Split the input into lines.
+	var lines [][]rune
+	lstart := 0
+	for i := 0; i < len(runes); i++ {
+		if runes[i] == '\n' {
+			lines = append(lines, runes[lstart:i])
+			lstart = i + 1
+		}
+	}
+	if lstart < len(runes) {
+		// The last line did not end with a newline character.
+		// Take it now.
+		lines = append(lines, runes[lstart:])
+	}
+
+	// Obey the maximum height limit.
+	if len(m.value)+len(lines)-1 > maxHeight {
+		allowedHeight := max(0, maxHeight-len(m.value)+1)
+		lines = lines[:allowedHeight]
+	}
+
+	if len(lines) == 0 {
+		// Nothing left to insert.
 		return
 	}
 
-	m.value[m.row] = append(m.value[m.row][:m.col], append([]rune{r}, m.value[m.row][m.col:]...)...)
-	m.col++
+	// Save the reminder of the original line at the current
+	// cursor position.
+	tail := make([]rune, len(m.value[m.row][m.col:]))
+	copy(tail, m.value[m.row][m.col:])
+
+	// Paste the first line at the current cursor position.
+	m.value[m.row] = append(m.value[m.row][:m.col], lines[0]...)
+	m.col += len(lines[0])
+
+	if numExtraLines := len(lines) - 1; numExtraLines > 0 {
+		// Add the new lines.
+		// We try to reuse the slice if there's already space.
+		var newGrid [][]rune
+		if cap(m.value) >= len(m.value)+numExtraLines {
+			// Can reuse the extra space.
+			newGrid = m.value[:len(m.value)+numExtraLines]
+		} else {
+			// No space left; need a new slice.
+			newGrid = make([][]rune, len(m.value)+numExtraLines)
+			copy(newGrid, m.value[:m.row+1])
+		}
+		// Add all the rows that were after the cursor in the original
+		// grid at the end of the new grid.
+		copy(newGrid[m.row+1+numExtraLines:], m.value[m.row+1:])
+		m.value = newGrid
+		// Insert all the new lines in the middle.
+		for _, l := range lines[1:] {
+			m.row++
+			m.value[m.row] = l
+			m.col = len(l)
+		}
+	}
+
+	// Finally add the tail at the end of the last line inserted.
+	m.value[m.row] = append(m.value[m.row], tail...)
+
+	m.SetCursor(m.col)
 }
 
 // Value returns the value of the text input.
@@ -326,6 +402,7 @@ func (m *Model) Length() int {
 	for _, row := range m.value {
 		l += rw.StringWidth(string(row))
 	}
+	// We add len(m.value) to include the newline characters.
 	return l + len(m.value) - 1
 }
 
@@ -456,50 +533,14 @@ func (m *Model) Reset() {
 	m.SetCursor(0)
 }
 
-// handle a clipboard paste event, if supported.
-func (m *Model) handlePaste(v string) {
-	paste := []rune(v)
-
-	var availSpace int
-	if m.CharLimit > 0 {
-		availSpace = m.CharLimit - m.Length()
+// rsan initializes or retrieves the rune sanitizer.
+func (m *Model) san() runeutil.Sanitizer {
+	if m.rsan == nil {
+		// Textinput has all its input on a single line so collapse
+		// newlines/tabs to single spaces.
+		m.rsan = runeutil.NewSanitizer()
 	}
-
-	// If the char limit's been reached cancel
-	if m.CharLimit > 0 && availSpace <= 0 {
-		return
-	}
-
-	// If there's not enough space to paste the whole thing cut the pasted
-	// runes down so they'll fit
-	if m.CharLimit > 0 && availSpace < len(paste) {
-		paste = paste[:len(paste)-availSpace]
-	}
-
-	// Stuff before and after the cursor
-	head := m.value[m.row][:m.col]
-	tailSrc := m.value[m.row][m.col:]
-	tail := make([]rune, len(tailSrc))
-	copy(tail, tailSrc)
-
-	// Insert pasted runes
-	for _, r := range paste {
-		head = append(head, r)
-		m.col++
-		if m.CharLimit > 0 {
-			availSpace--
-			if availSpace <= 0 {
-				break
-			}
-		}
-	}
-
-	// Put it all back together
-	value := append(head, tail...)
-	m.SetValue(string(value))
-
-	// Reset blink state if necessary and run overflow checks
-	m.SetCursor(m.col + len(paste))
+	return m.rsan
 }
 
 // deleteBeforeCursor deletes all text before the cursor. Returns whether or
@@ -936,17 +977,11 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.transposeLeft()
 
 		default:
-			if m.CharLimit > 0 && rw.StringWidth(m.Value()) >= m.CharLimit {
-				break
-			}
-
-			m.col = min(m.col, len(m.value[m.row]))
-			m.value[m.row] = append(m.value[m.row][:m.col], append(msg.Runes, m.value[m.row][m.col:]...)...)
-			m.SetCursor(m.col + len(msg.Runes))
+			m.insertRunesFromUserInput(msg.Runes)
 		}
 
 	case pasteMsg:
-		m.handlePaste(string(msg))
+		m.insertRunesFromUserInput([]rune(msg))
 
 	case pasteErrMsg:
 		m.Err = msg

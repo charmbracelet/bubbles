@@ -8,6 +8,7 @@ import (
 	"github.com/atotto/clipboard"
 	"github.com/charmbracelet/bubbles/cursor"
 	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/runeutil"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	rw "github.com/mattn/go-runewidth"
@@ -129,6 +130,9 @@ type Model struct {
 	// error returned by the function. If the function is not defined, all
 	// input is considered valid.
 	Validate ValidateFunc
+
+	// rune sanitizer for input.
+	rsan runeutil.Sanitizer
 }
 
 // New creates a new model with default settings.
@@ -154,8 +158,15 @@ var NewModel = New
 
 // SetValue sets the value of the text input.
 func (m *Model) SetValue(s string) {
+	// Clean up any special characters in the input provided by the
+	// caller. This avoids bugs due to e.g. tab characters and whatnot.
+	runes := m.san().Sanitize([]rune(s))
+	m.setValueInternal(runes)
+}
+
+func (m *Model) setValueInternal(runes []rune) {
 	if m.Validate != nil {
-		if err := m.Validate(s); err != nil {
+		if err := m.Validate(string(runes)); err != nil {
 			m.Err = err
 			return
 		}
@@ -164,7 +175,6 @@ func (m *Model) SetValue(s string) {
 	empty := len(m.value) == 0
 	m.Err = nil
 
-	runes := []rune(s)
 	if m.CharLimit > 0 && len(runes) > m.CharLimit {
 		m.value = runes[:m.CharLimit]
 	} else {
@@ -228,24 +238,37 @@ func (m *Model) Reset() {
 	m.SetCursor(0)
 }
 
-// handle a clipboard paste event, if supported.
-func (m *Model) handlePaste(v string) {
-	paste := []rune(v)
+// rsan initializes or retrieves the rune sanitizer.
+func (m *Model) san() runeutil.Sanitizer {
+	if m.rsan == nil {
+		// Textinput has all its input on a single line so collapse
+		// newlines/tabs to single spaces.
+		m.rsan = runeutil.NewSanitizer(
+			runeutil.ReplaceTabs(" "), runeutil.ReplaceNewlines(" "))
+	}
+	return m.rsan
+}
+
+func (m *Model) insertRunesFromUserInput(v []rune) {
+	// Clean up any special characters in the input provided by the
+	// clipboard. This avoids bugs due to e.g. tab characters and
+	// whatnot.
+	paste := m.san().Sanitize(v)
 
 	var availSpace int
 	if m.CharLimit > 0 {
 		availSpace = m.CharLimit - len(m.value)
-	}
 
-	// If the char limit's been reached cancel
-	if m.CharLimit > 0 && availSpace <= 0 {
-		return
-	}
+		// If the char limit's been reached, cancel.
+		if availSpace <= 0 {
+			return
+		}
 
-	// If there's not enough space to paste the whole thing cut the pasted
-	// runes down so they'll fit
-	if m.CharLimit > 0 && availSpace < len(paste) {
-		paste = paste[:len(paste)-availSpace]
+		// If there's not enough space to paste the whole thing cut the pasted
+		// runes down so they'll fit.
+		if availSpace < len(paste) {
+			paste = paste[:len(paste)-availSpace]
+		}
 	}
 
 	// Stuff before and after the cursor
@@ -270,13 +293,11 @@ func (m *Model) handlePaste(v string) {
 
 	// Put it all back together
 	value := append(head, tail...)
-	m.SetValue(string(value))
+	m.setValueInternal(value)
 
 	if m.Err != nil {
 		m.pos = oldPos
 	}
-
-	m.SetCursor(m.pos)
 }
 
 // If a max width is defined, perform some logic to treat the visible area
@@ -555,22 +576,12 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		case key.Matches(msg, m.KeyMap.DeleteWordForward):
 			m.deleteWordForward()
 		default:
-			// Input a regular character
-			if m.CharLimit <= 0 || len(m.value) < m.CharLimit {
-				runes := msg.Runes
-
-				value := make([]rune, len(m.value))
-				copy(value, m.value)
-				value = append(value[:m.pos], append(runes, value[m.pos:]...)...)
-				m.SetValue(string(value))
-				if m.Err == nil {
-					m.SetCursor(m.pos + len(runes))
-				}
-			}
+			// Input one or more regular characters.
+			m.insertRunesFromUserInput(msg.Runes)
 		}
 
 	case pasteMsg:
-		m.handlePaste(string(msg))
+		m.insertRunesFromUserInput([]rune(msg))
 
 	case pasteErrMsg:
 		m.Err = msg
