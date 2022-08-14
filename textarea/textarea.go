@@ -560,11 +560,15 @@ func (m *Model) characterRight() {
 }
 
 // characterLeft moves the cursor one character to the left.
-func (m *Model) characterLeft() {
+// If insideLine is set, the cursor is moved to the last
+// character in the previous line, instead of one past that.
+func (m *Model) characterLeft(insideLine bool) {
 	if m.col == 0 && m.row != 0 {
 		m.row--
 		m.CursorEnd()
-		return
+		if !insideLine {
+			return
+		}
 	}
 	if m.col > 0 {
 		m.SetCursor(m.col - 1)
@@ -575,27 +579,18 @@ func (m *Model) characterLeft() {
 // cursor blink should be reset. If input is masked, move input to the start
 // so as not to reveal word breaks in the masked input.
 func (m *Model) wordLeft() {
-	if m.col == 0 || len(m.value[m.row]) == 0 {
-		return
-	}
-
-	i := m.col - 1
-	for i >= 0 {
-		if unicode.IsSpace(m.value[m.row][min(i, len(m.value[m.row])-1)]) {
-			m.SetCursor(m.col - 1)
-			i--
-		} else {
+	for {
+		m.characterLeft(true /* insideLine */)
+		if m.col < len(m.value[m.row]) && !unicode.IsSpace(m.value[m.row][m.col]) {
 			break
 		}
 	}
 
-	for i >= 0 {
-		if !unicode.IsSpace(m.value[m.row][min(i, len(m.value[m.row])-1)]) {
-			m.SetCursor(m.col - 1)
-			i--
-		} else {
+	for m.col > 0 {
+		if unicode.IsSpace(m.value[m.row][m.col-1]) {
 			break
 		}
+		m.SetCursor(m.col - 1)
 	}
 }
 
@@ -603,27 +598,19 @@ func (m *Model) wordLeft() {
 // cursor blink should be reset. If the input is masked, move input to the end
 // so as not to reveal word breaks in the masked input.
 func (m *Model) wordRight() {
-	if m.col >= len(m.value[m.row]) || len(m.value[m.row]) == 0 {
-		return
-	}
-
-	i := m.col
-	for i < len(m.value[m.row]) {
-		if unicode.IsSpace(m.value[m.row][i]) {
-			m.SetCursor(m.col + 1)
-			i++
-		} else {
+	// Skip spaces forward.
+	for {
+		if m.col < len(m.value[m.row]) && !unicode.IsSpace(m.value[m.row][m.col]) {
 			break
 		}
+		m.characterRight()
 	}
 
-	for i < len(m.value[m.row]) {
-		if !unicode.IsSpace(m.value[m.row][i]) {
-			m.SetCursor(m.col + 1)
-			i++
-		} else {
+	for m.col < len(m.value[m.row]) {
+		if unicode.IsSpace(m.value[m.row][m.col]) {
 			break
 		}
+		m.SetCursor(m.col + 1)
 	}
 }
 
@@ -806,7 +793,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		case key.Matches(msg, m.KeyMap.Paste):
 			return m, Paste
 		case key.Matches(msg, m.KeyMap.CharacterBackward):
-			m.characterLeft()
+			m.characterLeft(false /* insideLine */)
 		case key.Matches(msg, m.KeyMap.LinePrevious):
 			m.CursorUp()
 		case key.Matches(msg, m.KeyMap.WordBackward):
