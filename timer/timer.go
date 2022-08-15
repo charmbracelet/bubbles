@@ -24,8 +24,8 @@ func nextID() int {
 func nextCycleID() int {
 	idMtx.Lock()
 	defer idMtx.Unlock()
-	lastID++
-	return lastID
+	lastCycleId++
+	return lastCycleId
 }
 
 // Authors note with regard to start and stop commands:
