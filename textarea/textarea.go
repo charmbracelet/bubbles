@@ -271,13 +271,13 @@ func (m Model) Value() string {
 		return ""
 	}
 
-	var v string
+	var v strings.Builder
 	for _, l := range m.value {
-		v += string(l)
-		v += "\n"
+		v.WriteString(string(l))
+		v.WriteByte('\n')
 	}
 
-	return strings.TrimSuffix(v, "\n")
+	return strings.TrimSuffix(v.String(), "\n")
 }
 
 // Length returns the number of characters currently in the text input.
