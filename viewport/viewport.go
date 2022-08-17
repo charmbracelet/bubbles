@@ -350,18 +350,10 @@ func (m Model) View() string {
 		return strings.Repeat("\n", max(0, m.Height-1))
 	}
 
-	lines := m.visibleLines()
-
-	// Fill empty space with newlines
-	extraLines := ""
-	if len(lines) < m.Height {
-		extraLines = strings.Repeat("\n", max(0, m.Height-len(lines)))
-	}
-
 	return m.Style.Copy().
-		UnsetWidth().
-		UnsetHeight().
-		Render(strings.Join(lines, "\n") + extraLines)
+		Width(m.Width - m.Style.GetHorizontalFrameSize()).
+		Height(m.Height - m.Style.GetVerticalFrameSize()).
+		Render(strings.Join(m.visibleLines(), "\n"))
 }
 
 func clamp(v, low, high int) int {
