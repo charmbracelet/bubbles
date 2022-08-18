@@ -203,7 +203,7 @@ func (m Model) FullHelpView(groups [][]key.Binding) string {
 
 		// Column
 		totalWidth += lipgloss.Width(col)
-		if totalWidth > m.Width {
+		if m.Width > 0 && totalWidth > m.Width {
 			break
 		}
 
@@ -212,7 +212,7 @@ func (m Model) FullHelpView(groups [][]key.Binding) string {
 		// Separator
 		if i < len(group)-1 {
 			totalWidth += sepWidth
-			if totalWidth > m.Width {
+			if m.Width > 0 && totalWidth > m.Width {
 				break
 			}
 		}
