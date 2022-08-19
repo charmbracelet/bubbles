@@ -46,6 +46,12 @@ type KeyMap struct {
 	Paste                   key.Binding
 	WordBackward            key.Binding
 	WordForward             key.Binding
+
+	UppercaseWordForward  key.Binding
+	LowercaseWordForward  key.Binding
+	CapitalizeWordForward key.Binding
+
+	TransposeCharacterBackward key.Binding
 }
 
 // DefaultKeyMap is the default set of key bindings for navigating and acting
@@ -67,6 +73,12 @@ var DefaultKeyMap = KeyMap{
 	LineStart:               key.NewBinding(key.WithKeys("home", "ctrl+a")),
 	LineEnd:                 key.NewBinding(key.WithKeys("end", "ctrl+e")),
 	Paste:                   key.NewBinding(key.WithKeys("ctrl+v")),
+
+	CapitalizeWordForward: key.NewBinding(key.WithKeys("alt+c")),
+	LowercaseWordForward:  key.NewBinding(key.WithKeys("alt+l")),
+	UppercaseWordForward:  key.NewBinding(key.WithKeys("alt+u")),
+
+	TransposeCharacterBackward: key.NewBinding(key.WithKeys("ctrl+t")),
 }
 
 // LineInfo is a helper for keeping track of line information regarding
@@ -473,6 +485,24 @@ func (m *Model) deleteAfterCursor() {
 	m.SetCursor(len(m.value[m.row]))
 }
 
+// transposeLeft exchanges the runes at the cursor and immediately
+// before. No-op if the cursor is at the beginning of the line.  If
+// the cursor is not at the end of the line yet, moves the cursor to
+// the right.
+func (m *Model) transposeLeft() {
+	if m.col == 0 || len(m.value[m.row]) < 2 {
+		return
+	}
+	if m.col >= len(m.value[m.row]) {
+		m.SetCursor(m.col - 1)
+	}
+	m.value[m.row][m.col-1], m.value[m.row][m.col] =
+		m.value[m.row][m.col], m.value[m.row][m.col-1]
+	if m.col < len(m.value[m.row]) {
+		m.SetCursor(m.col + 1)
+	}
+}
+
 // deleteWordLeft deletes the word left to the cursor. Returns whether or not
 // the cursor blink should be reset.
 func (m *Model) deleteWordLeft() {
@@ -547,31 +577,50 @@ func (m *Model) deleteWordRight() {
 	m.SetCursor(oldCol)
 }
 
+// characterRight moves the cursor one character to the right.
+func (m *Model) characterRight() {
+	if m.col < len(m.value[m.row]) {
+		m.SetCursor(m.col + 1)
+	} else {
+		if m.row < len(m.value)-1 {
+			m.row++
+			m.CursorStart()
+		}
+	}
+}
+
+// characterLeft moves the cursor one character to the left.
+// If insideLine is set, the cursor is moved to the last
+// character in the previous line, instead of one past that.
+func (m *Model) characterLeft(insideLine bool) {
+	if m.col == 0 && m.row != 0 {
+		m.row--
+		m.CursorEnd()
+		if !insideLine {
+			return
+		}
+	}
+	if m.col > 0 {
+		m.SetCursor(m.col - 1)
+	}
+}
+
 // wordLeft moves the cursor one word to the left. Returns whether or not the
 // cursor blink should be reset. If input is masked, move input to the start
 // so as not to reveal word breaks in the masked input.
 func (m *Model) wordLeft() {
-	if m.col == 0 || len(m.value[m.row]) == 0 {
-		return
-	}
-
-	i := m.col - 1
-	for i >= 0 {
-		if unicode.IsSpace(m.value[m.row][min(i, len(m.value[m.row])-1)]) {
-			m.SetCursor(m.col - 1)
-			i--
-		} else {
+	for {
+		m.characterLeft(true /* insideLine */)
+		if m.col < len(m.value[m.row]) && !unicode.IsSpace(m.value[m.row][m.col]) {
 			break
 		}
 	}
 
-	for i >= 0 {
-		if !unicode.IsSpace(m.value[m.row][min(i, len(m.value[m.row])-1)]) {
-			m.SetCursor(m.col - 1)
-			i--
-		} else {
+	for m.col > 0 {
+		if unicode.IsSpace(m.value[m.row][m.col-1]) {
 			break
 		}
+		m.SetCursor(m.col - 1)
 	}
 }
 
@@ -579,28 +628,54 @@ func (m *Model) wordLeft() {
 // cursor blink should be reset. If the input is masked, move input to the end
 // so as not to reveal word breaks in the masked input.
 func (m *Model) wordRight() {
-	if m.col >= len(m.value[m.row]) || len(m.value[m.row]) == 0 {
-		return
-	}
+	m.doWordRight(func(int, int) { /* nothing */ })
+}
 
-	i := m.col
-	for i < len(m.value[m.row]) {
-		if unicode.IsSpace(m.value[m.row][i]) {
-			m.SetCursor(m.col + 1)
-			i++
-		} else {
+func (m *Model) doWordRight(fn func(charIdx int, pos int)) {
+	// Skip spaces forward.
+	for {
+		if m.col < len(m.value[m.row]) && !unicode.IsSpace(m.value[m.row][m.col]) {
 			break
 		}
-	}
-
-	for i < len(m.value[m.row]) {
-		if !unicode.IsSpace(m.value[m.row][i]) {
-			m.SetCursor(m.col + 1)
-			i++
-		} else {
+		if m.row == len(m.value)-1 && m.col == len(m.value[m.row]) {
+			// End of text.
 			break
 		}
+		m.characterRight()
 	}
+
+	charIdx := 0
+	for m.col < len(m.value[m.row]) {
+		if unicode.IsSpace(m.value[m.row][m.col]) {
+			break
+		}
+		fn(charIdx, m.col)
+		m.SetCursor(m.col + 1)
+		charIdx++
+	}
+}
+
+// uppercaseRight changes the word to the right to uppercase.
+func (m *Model) uppercaseRight() {
+	m.doWordRight(func(_ int, i int) {
+		m.value[m.row][i] = unicode.ToUpper(m.value[m.row][i])
+	})
+}
+
+// lowercaseRight changes the word to the right to lowercase.
+func (m *Model) lowercaseRight() {
+	m.doWordRight(func(_ int, i int) {
+		m.value[m.row][i] = unicode.ToLower(m.value[m.row][i])
+	})
+}
+
+// capitalizeRight changes the word to the right to title case.
+func (m *Model) capitalizeRight() {
+	m.doWordRight(func(charIdx int, i int) {
+		if charIdx == 0 {
+			m.value[m.row][i] = unicode.ToTitle(m.value[m.row][i])
+		}
+	})
 }
 
 // LineInfo returns the number of characters from the start of the
@@ -774,14 +849,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		case key.Matches(msg, m.KeyMap.LineStart):
 			m.CursorStart()
 		case key.Matches(msg, m.KeyMap.CharacterForward):
-			if m.col < len(m.value[m.row]) {
-				m.SetCursor(m.col + 1)
-			} else {
-				if m.row < len(m.value)-1 {
-					m.row++
-					m.CursorStart()
-				}
-			}
+			m.characterRight()
 		case key.Matches(msg, m.KeyMap.LineNext):
 			m.CursorDown()
 		case key.Matches(msg, m.KeyMap.WordForward):
@@ -789,18 +857,21 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		case key.Matches(msg, m.KeyMap.Paste):
 			return m, Paste
 		case key.Matches(msg, m.KeyMap.CharacterBackward):
-			if m.col == 0 && m.row != 0 {
-				m.row--
-				m.CursorEnd()
-				break
-			}
-			if m.col > 0 {
-				m.SetCursor(m.col - 1)
-			}
+			m.characterLeft(false /* insideLine */)
 		case key.Matches(msg, m.KeyMap.LinePrevious):
 			m.CursorUp()
 		case key.Matches(msg, m.KeyMap.WordBackward):
 			m.wordLeft()
+
+		case key.Matches(msg, m.KeyMap.LowercaseWordForward):
+			m.lowercaseRight()
+		case key.Matches(msg, m.KeyMap.UppercaseWordForward):
+			m.uppercaseRight()
+		case key.Matches(msg, m.KeyMap.CapitalizeWordForward):
+			m.capitalizeRight()
+		case key.Matches(msg, m.KeyMap.TransposeCharacterBackward):
+			m.transposeLeft()
+
 		default:
 			if m.CharLimit > 0 && rw.StringWidth(m.Value()) >= m.CharLimit {
 				break
