@@ -59,11 +59,11 @@ func DefaultKeyMap() KeyMap {
 		),
 		PageUp: key.NewBinding(
 			key.WithKeys("b", "pgup"),
-			key.WithHelp("b", "page up"),
+			key.WithHelp("b/pgup", "page up"),
 		),
 		PageDown: key.NewBinding(
-			key.WithKeys("f", "pgup", spacebar),
-			key.WithHelp("f", "page down"),
+			key.WithKeys("f", "pgdown", spacebar),
+			key.WithHelp("f/pgdn", "page down"),
 		),
 		HalfPageUp: key.NewBinding(
 			key.WithKeys("u", "ctrl+u"),
