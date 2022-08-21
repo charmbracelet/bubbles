@@ -186,7 +186,7 @@ func New() Model {
 		PlaceholderStyle:    lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
 		ShowCompletions:     false,
 		CompletionStyle:     lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
-		AcceptCompletionKey: tea.KeyRight,
+		AcceptCompletionKey: tea.KeyTab,
 
 		id:         nextID(),
 		value:      nil,
@@ -630,10 +630,8 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	key, ok := msg.(tea.KeyMsg)
 	if ok && key.Type == m.AcceptCompletionKey {
 		if m.isCompletionActive {
-			if m.pos >= len(m.value) - 1 {
-				m.value = []rune(m.availableCompletion)
-				m.cursorEnd()
-			}
+			m.value = []rune(m.availableCompletion)
+			m.cursorEnd()
 		}
 	}
 
