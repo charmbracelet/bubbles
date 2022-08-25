@@ -133,11 +133,23 @@ type Model struct {
 	Err error
 
 	// General settings.
-	Prompt               string
-	Placeholder          string
-	ShowLineNumbers      bool
+
+	// Prompt is printed at the beginning of each line.
+	Prompt string
+
+	// Placeholder is the text displayed when the user
+	// hasn't entered anything yet.
+	Placeholder string
+
+	// ShowLineNumbers, if enabled, causes line numbers to be printed
+	// after the prompt.
+	ShowLineNumbers bool
+
+	// EndOfBufferCharacter is displayed at the end of the input.
 	EndOfBufferCharacter rune
-	KeyMap               KeyMap
+
+	// KeyMap encodes the keybindings recognized by the widget.
+	KeyMap KeyMap
 
 	// Styling. FocusedStyle and BlurredStyle are used to style the textarea in
 	// focused and blurred states.
