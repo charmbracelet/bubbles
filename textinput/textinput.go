@@ -53,6 +53,7 @@ type KeyMap struct {
 	LineStart               key.Binding
 	LineEnd                 key.Binding
 	Paste                   key.Binding
+	ToggleOverwriteMode     key.Binding
 }
 
 // DefaultKeyMap is the default set of key bindings for navigating and acting
@@ -71,6 +72,7 @@ var DefaultKeyMap = KeyMap{
 	LineStart:               key.NewBinding(key.WithKeys("home", "ctrl+a")),
 	LineEnd:                 key.NewBinding(key.WithKeys("end", "ctrl+e")),
 	Paste:                   key.NewBinding(key.WithKeys("ctrl+v")),
+	ToggleOverwriteMode:     key.NewBinding(key.WithKeys("insert")),
 }
 
 // Model is the Bubble Tea model for this text input element.
@@ -116,6 +118,9 @@ type Model struct {
 	// focus indicates whether user input focus should be on this input
 	// component. When false, ignore keyboard input and hide the cursor.
 	focus bool
+
+	// Overwrite mode.
+	overwrite bool
 
 	// Cursor position.
 	pos int
@@ -555,18 +560,31 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			return m, Paste
 		case key.Matches(msg, m.KeyMap.DeleteWordForward):
 			m.deleteWordForward()
+		case key.Matches(msg, m.KeyMap.ToggleOverwriteMode):
+			m.overwrite = !m.overwrite
 		default:
 			// Input a regular character
-			if m.CharLimit <= 0 || len(m.value) < m.CharLimit {
-				runes := msg.Runes
-
-				value := make([]rune, len(m.value))
-				copy(value, m.value)
-				value = append(value[:m.pos], append(runes, value[m.pos:]...)...)
-				m.SetValue(string(value))
-				if m.Err == nil {
-					m.SetCursor(m.pos + len(runes))
+			runes := msg.Runes
+			if m.overwrite {
+				if m.CharLimit <= 0 || m.pos+len(runes) < m.CharLimit {
+					value := m.value
+					j := 0
+					for ; j < len(runes) && m.pos+j < len(value); j++ {
+						value[m.pos+j] = runes[j]
+					}
+					value = append(m.value, runes[j:]...)
+					m.SetValue(string(value))
 				}
+			} else {
+				if m.CharLimit <= 0 || len(m.value)+len(runes) < m.CharLimit {
+					value := make([]rune, len(m.value)+len(runes))
+					copy(value, m.value)
+					value = append(value[:m.pos], append(runes, value[m.pos:]...)...)
+					m.SetValue(string(value))
+				}
+			}
+			if m.Err == nil {
+				m.SetCursor(m.pos + len(runes))
 			}
 		}
 

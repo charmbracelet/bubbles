@@ -48,6 +48,7 @@ type KeyMap struct {
 	WordForward             key.Binding
 	InputBegin              key.Binding
 	InputEnd                key.Binding
+	ToggleOverwriteMode     key.Binding
 
 	UppercaseWordForward  key.Binding
 	LowercaseWordForward  key.Binding
@@ -77,6 +78,7 @@ var DefaultKeyMap = KeyMap{
 	Paste:                   key.NewBinding(key.WithKeys("ctrl+v")),
 	InputBegin:              key.NewBinding(key.WithKeys("alt+<", "ctrl+home")),
 	InputEnd:                key.NewBinding(key.WithKeys("alt+>", "ctrl+end")),
+	ToggleOverwriteMode:     key.NewBinding(key.WithKeys("insert")),
 
 	CapitalizeWordForward: key.NewBinding(key.WithKeys("alt+c")),
 	LowercaseWordForward:  key.NewBinding(key.WithKeys("alt+l")),
@@ -195,6 +197,9 @@ type Model struct {
 	// focus indicates whether user input focus should be on this input
 	// component. When false, ignore keyboard input and hide the cursor.
 	focus bool
+
+	// overwrite indicates whether overwrite mode is currently enabled.
+	overwrite bool
 
 	// Cursor column.
 	col int
@@ -935,13 +940,23 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		case key.Matches(msg, m.KeyMap.TransposeCharacterBackward):
 			m.transposeLeft()
 
-		default:
-			if m.CharLimit > 0 && rw.StringWidth(m.Value()) >= m.CharLimit {
-				break
-			}
+		case key.Matches(msg, m.KeyMap.ToggleOverwriteMode):
+			m.overwrite = !m.overwrite
 
-			m.col = min(m.col, len(m.value[m.row]))
-			m.value[m.row] = append(m.value[m.row][:m.col], append(msg.Runes, m.value[m.row][m.col:]...)...)
+		default:
+			if !m.overwrite {
+				if m.CharLimit > 0 && rw.StringWidth(m.Value()) >= m.CharLimit {
+					break
+				}
+				m.col = min(m.col, len(m.value[m.row]))
+				m.value[m.row] = append(m.value[m.row][:m.col], append(msg.Runes, m.value[m.row][m.col:]...)...)
+			} else {
+				j := 0
+				for ; j < len(msg.Runes) && m.col+j < len(m.value[m.row]); j++ {
+					m.value[m.row][m.col+j] = msg.Runes[j]
+				}
+				m.value[m.row] = append(m.value[m.row], msg.Runes[j:]...)
+			}
 			m.SetCursor(m.col + len(msg.Runes))
 		}
 
