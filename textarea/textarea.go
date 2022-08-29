@@ -46,6 +46,8 @@ type KeyMap struct {
 	Paste                   key.Binding
 	WordBackward            key.Binding
 	WordForward             key.Binding
+	InputBegin              key.Binding
+	InputEnd                key.Binding
 
 	UppercaseWordForward  key.Binding
 	LowercaseWordForward  key.Binding
@@ -73,6 +75,8 @@ var DefaultKeyMap = KeyMap{
 	LineStart:               key.NewBinding(key.WithKeys("home", "ctrl+a")),
 	LineEnd:                 key.NewBinding(key.WithKeys("end", "ctrl+e")),
 	Paste:                   key.NewBinding(key.WithKeys("ctrl+v")),
+	InputBegin:              key.NewBinding(key.WithKeys("alt+<", "ctrl+home")),
+	InputEnd:                key.NewBinding(key.WithKeys("alt+>", "ctrl+end")),
 
 	CapitalizeWordForward: key.NewBinding(key.WithKeys("alt+c")),
 	LowercaseWordForward:  key.NewBinding(key.WithKeys("alt+l")),
@@ -737,6 +741,18 @@ func (m Model) Width() int {
 	return m.width
 }
 
+// moveToBegin moves the cursor to the beginning of the input.
+func (m *Model) moveToBegin() {
+	m.row = 0
+	m.SetCursor(0)
+}
+
+// moveToEnd moves the cursor to the end of the input.
+func (m *Model) moveToEnd() {
+	m.row = len(m.value) - 1
+	m.SetCursor(len(m.value[m.row]))
+}
+
 // SetWidth sets the width of the textarea to fit exactly within the given width.
 // This means that the textarea will account for the width of the prompt and
 // whether or not line numbers are being shown.
@@ -862,7 +878,10 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.CursorUp()
 		case key.Matches(msg, m.KeyMap.WordBackward):
 			m.wordLeft()
-
+		case key.Matches(msg, m.KeyMap.InputBegin):
+			m.moveToBegin()
+		case key.Matches(msg, m.KeyMap.InputEnd):
+			m.moveToEnd()
 		case key.Matches(msg, m.KeyMap.LowercaseWordForward):
 			m.lowercaseRight()
 		case key.Matches(msg, m.KeyMap.UppercaseWordForward):
