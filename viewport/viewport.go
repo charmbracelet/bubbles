@@ -349,10 +349,11 @@ func (m Model) View() string {
 		// position anything below this view properly.
 		return strings.Repeat("\n", max(0, m.Height-1))
 	}
-
+	contentWidth := m.Width - m.Style.GetHorizontalFrameSize()
+	contentHeight := m.Height - m.Style.GetVerticalFrameSize()
 	return m.Style.Copy().
-		Width(m.Width - m.Style.GetHorizontalFrameSize()).
-		Height(m.Height - m.Style.GetVerticalFrameSize()).
+		UnsetWidth().MaxWidth(contentWidth).            // truncate long lines.
+		Height(contentHeight).MaxHeight(contentHeight). // pad to height then truncate.
 		Render(strings.Join(m.visibleLines(), "\n"))
 }
 
