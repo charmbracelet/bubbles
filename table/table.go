@@ -291,6 +291,12 @@ func (m Model) Cursor() int {
 	return m.cursor
 }
 
+// SetCursor sets the cursor position in the table.
+func (m *Model) SetCursor(n int) {
+	m.cursor = clamp(n, 0, len(m.rows)-1)
+	m.UpdateViewport()
+}
+
 // MoveUp moves the selection up by any number of row.
 // It can not go above the first row.
 func (m *Model) MoveUp(n int) {
