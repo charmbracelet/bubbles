@@ -349,12 +349,24 @@ func (m Model) View() string {
 		// position anything below this view properly.
 		return strings.Repeat("\n", max(0, m.Height-1))
 	}
-	contentWidth := m.Width - m.Style.GetHorizontalFrameSize()
-	contentHeight := m.Height - m.Style.GetVerticalFrameSize()
-	return m.Style.Copy().
-		UnsetWidth().MaxWidth(contentWidth).            // truncate long lines.
-		Height(contentHeight).MaxHeight(contentHeight). // pad to height then truncate.
+
+	w, h := m.Width, m.Height
+	if sw := m.Style.GetWidth(); sw != 0 {
+		w = min(w, sw)
+	}
+	if sh := m.Style.GetHeight(); sh != 0 {
+		h = min(h, sh)
+	}
+	contentWidth := w - m.Style.GetHorizontalFrameSize()
+	contentHeight := h - m.Style.GetVerticalFrameSize()
+	contents := lipgloss.NewStyle().
+		Height(contentHeight).    // pad to height.
+		MaxHeight(contentHeight). // truncate height if taller.
+		MaxWidth(contentWidth).   // truncate width.
 		Render(strings.Join(m.visibleLines(), "\n"))
+	return m.Style.Copy().
+		UnsetWidth().UnsetHeight(). // Style size already applied in contents.
+		Render(contents)
 }
 
 func clamp(v, low, high int) int {
