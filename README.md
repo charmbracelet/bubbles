@@ -53,6 +53,15 @@ options.
 * [Example code, chat input](https://github.com/charmbracelet/bubbletea/tree/master/examples/chat/main.go)
 * [Example code, story time input](https://github.com/charmbracelet/bubbletea/tree/master/examples/textarea/main.go)
 
+## Table
+
+<img src="https://stuff.charm.sh/bubbles-examples/table.gif" width="400" alt="Table Example">
+
+A component for displaying and navigating tabular data (columns and rows).
+Supports vertical scrolling and many customization options.
+
+* [Example code, countries and populations](https://github.com/charmbracelet/bubbletea/tree/master/examples/table/main.go)
+
 ## Progress
 
 <picture>
