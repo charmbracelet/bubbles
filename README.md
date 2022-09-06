@@ -26,8 +26,8 @@ applications. These components are used in production in [Glow][glow],
 A spinner, useful for indicating that some kind an operation is happening.
 There are a couple default ones, but you can also pass your own ”frames.”
 
-* [Example code, basic spinner](https://github.com/charmbracelet/tea/tree/master/examples/spinner/main.go)
-* [Example code, various spinners](https://github.com/charmbracelet/tea/tree/master/examples/spinners/main.go)
+* [Example code, basic spinner](https://github.com/charmbracelet/bubbletea/tree/master/examples/spinner/main.go)
+* [Example code, various spinners](https://github.com/charmbracelet/bubbletea/tree/master/examples/spinners/main.go)
 
 
 ## Text Input
@@ -38,8 +38,8 @@ A text input field, akin to an `<input type="text">` in HTML. Supports unicode,
 pasting, in-place scrolling when the value exceeds the width of the element and
 the common, and many customization options.
 
-* [Example code, one field](https://github.com/charmbracelet/tea/tree/master/examples/textinput/main.go)
-* [Example code, many fields](https://github.com/charmbracelet/tea/tree/master/examples/textinputs/main.go)
+* [Example code, one field](https://github.com/charmbracelet/bubbletea/tree/master/examples/textinput/main.go)
+* [Example code, many fields](https://github.com/charmbracelet/bubbletea/tree/master/examples/textinputs/main.go)
 
 ## Text Area
 
@@ -50,9 +50,8 @@ spans multiple lines. Supports unicode, pasting, vertical scrolling when the
 value exceeds the width and height of the element,  and many customization
 options.
 
-* [Example code, chat input](https://github.com/charmbracelet/tea/tree/master/examples/chat/main.go)
-* [Example code, story time input](https://github.com/charmbracelet/tea/tree/master/examples/textarea/main.go)
-
+* [Example code, chat input](https://github.com/charmbracelet/bubbletea/tree/master/examples/chat/main.go)
+* [Example code, story time input](https://github.com/charmbracelet/bubbletea/tree/master/examples/textarea/main.go)
 
 ## Progress
 
@@ -97,7 +96,7 @@ A viewport for vertically scrolling content. Optionally includes standard
 pager keybindings and mouse wheel support. A high performance mode is available
 for applications which make use of the alternate screen buffer.
 
-* [Example code](https://github.com/charmbracelet/tea/tree/master/examples/pager/main.go)
+* [Example code](https://github.com/charmbracelet/bubbletea/tree/master/examples/pager/main.go)
 
 This component is well complemented with [Reflow][reflow] for ANSI-aware
 indenting and text wrapping.
@@ -118,9 +117,9 @@ Features pagination, fuzzy filtering, auto-generated help, an activity spinner,
 and status messages, all of which can be enabled and disabled as needed.
 Extrapolated from [Glow][glow].
 
-* [Example code, default list](https://github.com/charmbracelet/tea/tree/master/examples/list-default/main.go)
-* [Example code, simple list](https://github.com/charmbracelet/tea/tree/master/examples/list-simple/main.go)
-* [Example code, all features](https://github.com/charmbracelet/tea/tree/master/examples/list-fancy/main.go)
+* [Example code, default list](https://github.com/charmbracelet/bubbletea/tree/master/examples/list-default/main.go)
+* [Example code, simple list](https://github.com/charmbracelet/bubbletea/tree/master/examples/list-simple/main.go)
+* [Example code, all features](https://github.com/charmbracelet/bubbletea/tree/master/examples/list-fancy/main.go)
 
 
 ## Timer
@@ -228,7 +227,7 @@ If you’ve built a Bubble you think should be listed here,
 
 ## License
 
-[MIT](https://github.com/charmbracelet/teaparty/raw/master/LICENSE)
+[MIT](https://github.com/charmbracelet/bubbletea/raw/master/LICENSE)
 
 
 ***
