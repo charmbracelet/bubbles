@@ -200,9 +200,8 @@ func (m *Model) SetChar(char string) {
 
 // View displays the cursor.
 func (m Model) View() string {
-	style := m.TextStyle.Inline(true)
-	if !m.Blink {
-		style = m.Style.Inline(true).Reverse(true)
+	if m.Blink {
+		return m.TextStyle.Inline(true).Render(m.char)
 	}
-	return style.Render(m.char)
+	return m.Style.Inline(true).Reverse(true).Render(m.char)
 }
