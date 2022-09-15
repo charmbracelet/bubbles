@@ -169,7 +169,7 @@ func (m Model) Focused() bool {
 }
 
 // Focus sets the focus state on the model. When the model is in focus it can
-// receive keyboard input and the cursor will be hidden.
+// receive keyboard input and the cursor will be shown.
 func (m *Model) Focus() tea.Cmd {
 	m.focus = true
 	return m.Cursor.Focus()

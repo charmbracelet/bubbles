@@ -208,8 +208,7 @@ func Tick() tea.Msg {
 
 // Option is used to set options in New. For example:
 //
-//    spinner := New(WithSpinner(Dot))
-//
+//	spinner := New(WithSpinner(Dot))
 type Option func(*Model)
 
 // WithSpinner is an option to set the spinner.

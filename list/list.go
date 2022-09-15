@@ -526,7 +526,7 @@ func (m Model) FilterValue() string {
 // SettingFilter returns whether or not the user is currently editing the
 // filter value. It's purely a convenience method for the following:
 //
-//     m.FilterState() == Filtering
+//	m.FilterState() == Filtering
 //
 // It's included here because it's a common thing to check for when
 // implementing this component.
@@ -537,8 +537,7 @@ func (m Model) SettingFilter() bool {
 // IsFiltered returns whether or not the list is currently filtered.
 // It's purely a convenience method for the following:
 //
-//	 m.FilterState() == FilterApplied
-//
+//	m.FilterState() == FilterApplied
 func (m Model) IsFiltered() bool {
 	return m.filterState == FilterApplied
 }
