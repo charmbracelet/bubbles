@@ -183,18 +183,18 @@ type Model struct {
 func New(items []Item, delegate ItemDelegate, width, height int) Model {
 	styles := DefaultStyles()
 
-	sp := spinner.NewModel()
+	sp := spinner.New()
 	sp.Spinner = spinner.Line
 	sp.Style = styles.Spinner
 
-	filterInput := textinput.NewModel()
+	filterInput := textinput.New()
 	filterInput.Prompt = "Filter: "
 	filterInput.PromptStyle = styles.FilterPrompt
 	filterInput.CursorStyle = styles.FilterCursor
 	filterInput.CharLimit = 64
 	filterInput.Focus()
 
-	p := paginator.NewModel()
+	p := paginator.New()
 	p.Type = paginator.Dots
 	p.ActiveDot = styles.ActivePaginationDot.String()
 	p.InactiveDot = styles.InactivePaginationDot.String()
@@ -221,7 +221,7 @@ func New(items []Item, delegate ItemDelegate, width, height int) Model {
 		items:     items,
 		Paginator: p,
 		spinner:   sp,
-		Help:      help.NewModel(),
+		Help:      help.New(),
 	}
 
 	m.updatePagination()
@@ -526,7 +526,7 @@ func (m Model) FilterValue() string {
 // SettingFilter returns whether or not the user is currently editing the
 // filter value. It's purely a convenience method for the following:
 //
-//     m.FilterState() == Filtering
+//	m.FilterState() == Filtering
 //
 // It's included here because it's a common thing to check for when
 // implementing this component.
@@ -537,8 +537,7 @@ func (m Model) SettingFilter() bool {
 // IsFiltered returns whether or not the list is currently filtered.
 // It's purely a convenience method for the following:
 //
-//	 m.FilterState() == FilterApplied
-//
+//	m.FilterState() == FilterApplied
 func (m Model) IsFiltered() bool {
 	return m.filterState == FilterApplied
 }
