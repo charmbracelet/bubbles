@@ -183,18 +183,18 @@ type Model struct {
 func New(items []Item, delegate ItemDelegate, width, height int) Model {
 	styles := DefaultStyles()
 
-	sp := spinner.NewModel()
+	sp := spinner.New()
 	sp.Spinner = spinner.Line
 	sp.Style = styles.Spinner
 
-	filterInput := textinput.NewModel()
+	filterInput := textinput.New()
 	filterInput.Prompt = "Filter: "
 	filterInput.PromptStyle = styles.FilterPrompt
 	filterInput.CursorStyle = styles.FilterCursor
 	filterInput.CharLimit = 64
 	filterInput.Focus()
 
-	p := paginator.NewModel()
+	p := paginator.New()
 	p.Type = paginator.Dots
 	p.ActiveDot = styles.ActivePaginationDot.String()
 	p.InactiveDot = styles.InactivePaginationDot.String()
@@ -221,7 +221,7 @@ func New(items []Item, delegate ItemDelegate, width, height int) Model {
 		items:     items,
 		Paginator: p,
 		spinner:   sp,
-		Help:      help.NewModel(),
+		Help:      help.New(),
 	}
 
 	m.updatePagination()

@@ -37,13 +37,12 @@ const (
 	defaultDamping   = 1.0
 )
 
-// Option is used to set options in NewModel. For example:
+// Option is used to set options in New. For example:
 //
-//     progress := NewModel(
-//	       WithRamp("#ff0000", "#0000ff"),
-//	       WithoutPercentage(),
-//     )
-//
+//	    progress := New(
+//		       WithRamp("#ff0000", "#0000ff"),
+//		       WithoutPercentage(),
+//	    )
 type Option func(*Model)
 
 // WithDefaultGradient sets a gradient fill with default colors.

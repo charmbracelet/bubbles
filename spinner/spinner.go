@@ -85,7 +85,7 @@ var (
 	}
 )
 
-// Model contains the state for the spinner. Use NewModel to create new models
+// Model contains the state for the spinner. Use New to create new models
 // rather than using Model as a struct literal.
 type Model struct {
 	// Spinner settings to use. See type Spinner.
