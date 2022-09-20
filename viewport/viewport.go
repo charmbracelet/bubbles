@@ -7,6 +7,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/mattn/go-runewidth"
 )
 
 // New returns a new model with the given width and height as well as default
@@ -132,7 +133,7 @@ func (m Model) visibleLines() (lines []string) {
 	if m.indent > 0 {
 		cutLines := make([]string, len(lines))
 		for i := range lines {
-			cutLines[i] = getStringWithIndent(lines[i], m.indent)
+			cutLines[i] = runewidth.TruncateLeft(lines[i], m.indent, "")
 		}
 
 		return cutLines
@@ -309,7 +310,7 @@ func ViewUp(m Model, lines []string) tea.Cmd {
 // Must be set before `MoveLeft` or `MoveRight` is used.
 // If 0 or negative, left/right movement doesn't work.
 func (m *Model) SetHorizontalStep(n int) {
-	if n < 1 {
+	if n < 0 {
 		n = 0
 	}
 
@@ -468,17 +469,4 @@ func max(a, b int) int {
 		return a
 	}
 	return b
-}
-
-func getStringWithIndent(s string, indent int) string {
-	if indent == 0 {
-		return s
-	}
-
-	r := []rune(s)
-	if indent > len(r) {
-		return ""
-	}
-
-	return string(r[indent:])
 }
