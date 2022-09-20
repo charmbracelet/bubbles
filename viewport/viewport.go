@@ -10,6 +10,10 @@ import (
 	"github.com/mattn/go-runewidth"
 )
 
+const (
+	defaultHorizontalStep = 5
+)
+
 // New returns a new model with the given width and height as well as default
 // key mappings.
 func New(width, height int) (m Model) {
@@ -68,7 +72,7 @@ func (m *Model) setInitialValues() {
 	m.MouseWheelEnabled = true
 	m.MouseWheelDelta = 3
 	m.initialized = true
-	m.horizontalStep = 5
+	m.horizontalStep = defaultHorizontalStep
 }
 
 // Init exists to satisfy the tea.Model interface for composability purposes.
