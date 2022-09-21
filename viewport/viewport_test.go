@@ -292,4 +292,69 @@ func TestVisibleLines(t *testing.T) {
 			t.Errorf("%dth list item should the the same as %dth default list item", lastItem, defaultLastItem)
 		}
 	})
+
+	t.Run("list: with 2 cells symbols: horizontal scroll", func(t *testing.T) {
+		t.Parallel()
+
+		initList := []string{
+			"あいうえお",
+			"Aあいうえお",
+			"あいうえお",
+			"Aあいうえお",
+		}
+		numberOfLines := len(initList)
+
+		m := New(10, numberOfLines)
+		m.lines = initList
+
+		// default list
+		list := m.visibleLines()
+		if len(list) != numberOfLines {
+			t.Errorf("list should have %d lines, got %d", numberOfLines, len(list))
+		}
+
+		lastItem := numberOfLines - 1
+		initLastItem := len(initList) - 1
+		if list[lastItem] != initList[initLastItem] {
+			t.Errorf("%dth list item should the the same as %dth default list item", lastItem, initLastItem)
+		}
+
+		// move right
+		m.MoveRight()
+		list = m.visibleLines()
+
+		for i := range list {
+			if i == 0 || i == 2 {
+				cutLine := " えお"
+				if list[i] != cutLine {
+					t.Errorf("line must be `%s`, get `%s`", cutLine, list[i])
+				}
+
+				continue
+			}
+			cutLine := "うえお"
+			if list[i] != cutLine {
+				t.Errorf("line must be `%s`, get `%s`", cutLine, list[i])
+			}
+		}
+
+		// move left
+		m.MoveLeft()
+		list = m.visibleLines()
+		for i := range list {
+			if list[i] != initList[i] {
+				t.Errorf("line must be `%s`, get `%s`", list[i], initList[i])
+			}
+		}
+
+		// move left second times do not change lites if indent == 0
+		m.indent = 0
+		m.MoveLeft()
+		list = m.visibleLines()
+		for i := range list {
+			if list[i] != initList[i] {
+				t.Errorf("line must be `%s`, get `%s`", list[i], initList[i])
+			}
+		}
+	})
 }
