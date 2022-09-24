@@ -7,29 +7,29 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-type FileNameStyles struct {
-	FileNotSelected lipgloss.Style
-	FileRegular     lipgloss.Style
-	FileDirectory   lipgloss.Style
-	FileSymLink     lipgloss.Style
-	FileBlockDevice lipgloss.Style
-	FileSelected    lipgloss.Style
-	FilterMatch     lipgloss.Style
+type fileNameStyles struct {
+	fileNotSelected lipgloss.Style
+	fileRegular     lipgloss.Style
+	fileDirectory   lipgloss.Style
+	fileSymLink     lipgloss.Style
+	fileBlockDevice lipgloss.Style
+	fileSelected    lipgloss.Style
+	filterMatch     lipgloss.Style
 }
 
-func newFileNameStyles() (s FileNameStyles) {
-	s.FileNotSelected = lipgloss.NewStyle()
-	s.FileRegular = lipgloss.NewStyle()
-	s.FileDirectory = lipgloss.NewStyle().Bold(true).
+func newFileNameStyles() (s fileNameStyles) {
+	s.fileNotSelected = lipgloss.NewStyle()
+	s.fileRegular = lipgloss.NewStyle()
+	s.fileDirectory = lipgloss.NewStyle().Bold(true).
 		Foreground(lipgloss.Color("32"))
-	s.FileSymLink = lipgloss.NewStyle().Bold(true).
+	s.fileSymLink = lipgloss.NewStyle().Bold(true).
 		Foreground(lipgloss.Color("36"))
-	s.FileBlockDevice = lipgloss.NewStyle().Bold(true).
+	s.fileBlockDevice = lipgloss.NewStyle().Bold(true).
 		Foreground(lipgloss.Color("33")).
 		Background(lipgloss.Color("40"))
-	s.FileSelected = lipgloss.NewStyle().
+	s.fileSelected = lipgloss.NewStyle().
 		Background(lipgloss.Color("#FFFF00"))
-	s.FilterMatch = lipgloss.NewStyle().Underline(true)
+	s.filterMatch = lipgloss.NewStyle().Underline(true)
 	return s
 }
 

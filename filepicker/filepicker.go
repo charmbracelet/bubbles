@@ -64,7 +64,7 @@ type (
 	}
 
 	itemDelegate struct {
-		styles      FileNameStyles
+		styles      fileNameStyles
 		defDelegate list.DefaultDelegate
 		dualPane    bool
 	}
@@ -127,40 +127,40 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, lstItem list.
 	} else if isSelected && m.FilterState() != list.Filtering {
 		if isFiltered {
 			// Highlight matches
-			unmatched := s.FileSelected.Inline(true)
-			matched := unmatched.Copy().Inherit(s.FilterMatch)
+			unmatched := s.fileSelected.Inline(true)
+			matched := unmatched.Copy().Inherit(s.filterMatch)
 			fileName = lipgloss.StyleRunes(fileName, matchedRunes, matched, unmatched)
 		}
-		fileName = s.FileSelected.Render(fileName)
+		fileName = s.fileSelected.Render(fileName)
 	} else {
 		if isFiltered {
 			// Highlight matches
-			unmatched := s.FileRegular.Inline(true)
-			matched := unmatched.Copy().Inherit(s.FilterMatch)
+			unmatched := s.fileRegular.Inline(true)
+			matched := unmatched.Copy().Inherit(s.filterMatch)
 			fileName = lipgloss.StyleRunes(fileName, matchedRunes, matched, unmatched)
 		}
-		fileName = s.FileRegular.Render(fileName)
+		fileName = s.fileRegular.Render(fileName)
 	}
 
 	var fn func(str string) string
 	if i.Entry == nil {
-		fn = s.FileRegular.Render
+		fn = s.fileRegular.Render
 		fmt.Fprint(w, fn(fileName))
 		return
 	}
 	switch mode := i.Entry.Type(); {
 	case isDir(i.Entry, i.Dir):
-		fn = s.FileDirectory.Render
+		fn = s.fileDirectory.Render
 	case mode&os.ModeSymlink != 0:
-		fn = s.FileSymLink.Render
+		fn = s.fileSymLink.Render
 	case mode&os.ModeDevice != 0:
-		fn = s.FileBlockDevice.Render
+		fn = s.fileBlockDevice.Render
 	default:
-		fn = s.FileRegular.Render
+		fn = s.fileRegular.Render
 	}
 	if index == m.Index() {
 		fileName = fn(fileName)
-		fn = s.FileSelected.Render
+		fn = s.fileSelected.Render
 	}
 
 	fmt.Fprint(w, fn(fileName))
