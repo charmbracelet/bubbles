@@ -109,8 +109,7 @@ func (m *Model) SetStyles(s Styles) {
 
 // Option is used to set options in New. For example:
 //
-//    table := New(WithColumns([]Column{{Title: "ID", Width: 10}}))
-//
+//	table := New(WithColumns([]Column{{Title: "ID", Width: 10}}))
 type Option func(*Model)
 
 // New creates a new model for the table widget.
