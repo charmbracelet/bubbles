@@ -4,7 +4,7 @@ go 1.13
 
 require (
 	github.com/atotto/clipboard v0.1.4
-	github.com/charmbracelet/bubbletea v0.21.0
+	github.com/charmbracelet/bubbletea v0.22.1
 	github.com/charmbracelet/harmonica v0.2.0
 	github.com/charmbracelet/lipgloss v0.6.0
 	github.com/kylelemons/godebug v1.1.0 // indirect
