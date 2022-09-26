@@ -240,9 +240,8 @@ func Sync(m Model) tea.Cmd {
 // number of lines. Use Model.ViewDown to get the lines that should be rendered.
 // For example:
 //
-//     lines := model.ViewDown(1)
-//     cmd := ViewDown(m, lines)
-//
+//	lines := model.ViewDown(1)
+//	cmd := ViewDown(m, lines)
 func ViewDown(m Model, lines []string) tea.Cmd {
 	if len(lines) == 0 {
 		return nil

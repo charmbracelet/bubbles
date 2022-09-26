@@ -65,10 +65,9 @@ func (m Model) ItemsOnPage(totalItems int) int {
 // of the slice you're rendering and you'll receive the start and end bounds
 // corresponding the to pagination. For example:
 //
-//     bunchOfStuff := []stuff{...}
-//     start, end := model.GetSliceBounds(len(bunchOfStuff))
-//     sliceToRender := bunchOfStuff[start:end]
-//
+//	bunchOfStuff := []stuff{...}
+//	start, end := model.GetSliceBounds(len(bunchOfStuff))
+//	sliceToRender := bunchOfStuff[start:end]
 func (m *Model) GetSliceBounds(length int) (start int, end int) {
 	start = m.Page * m.PerPage
 	end = min(m.Page*m.PerPage+m.PerPage, length)
