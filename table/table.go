@@ -280,6 +280,12 @@ func (m *Model) SetRows(r []Row) {
 	m.UpdateViewport()
 }
 
+// SetColumns set a new columns state.
+func (m *Model) SetColumns(c []Column) {
+	m.cols = c
+	m.UpdateViewport()
+}
+
 // SetWidth sets the width of the viewport of the table.
 func (m *Model) SetWidth(w int) {
 	m.viewport.Width = w
@@ -326,7 +332,6 @@ func (m *Model) MoveUp(n int) {
 		m.viewport.YOffset = clamp(m.viewport.YOffset+n, 1, m.viewport.Height)
 	}
 	m.UpdateViewport()
-
 }
 
 // MoveDown moves the selection down by any number of row.
