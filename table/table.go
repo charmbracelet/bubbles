@@ -131,6 +131,10 @@ func New(opts ...Option) Model {
 	return m
 }
 
+func (m *Model) SetHighPerformanceRendering(val bool) {
+	m.viewport.HighPerformanceRendering = val
+}
+
 // WithColumns sets the table columns (headers).
 func WithColumns(cols []Column) Option {
 	return func(m *Model) {
@@ -186,7 +190,10 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		return m, nil
 	}
 
-	var cmds []tea.Cmd
+	var (
+		cmd tea.Cmd
+		cmds []tea.Cmd
+	)
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
@@ -210,7 +217,14 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		case key.Matches(msg, m.KeyMap.GotoBottom):
 			m.GotoBottom()
 		}
+	case tea.WindowSizeMsg:
+		if m.viewport.HighPerformanceRendering {
+			cmds = append(cmds,viewport.Sync(m.viewport))
+		}
 	}
+
+	m.viewport, cmd = m.viewport.Update(msg)
+	cmds = append(cmds, cmd)
 
 	return m, tea.Batch(cmds...)
 }
