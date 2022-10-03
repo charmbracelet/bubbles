@@ -289,11 +289,13 @@ func (m *Model) Blur() {
 }
 
 // View renders the component.
-func (m Model) View() string {
+func (m *Model) View() string {
 	builder := strings.Builder{}
-	builder.WriteString(m.headersView())
+	header := m.headersView()
+	body := lipgloss.JoinVertical(lipgloss.Left, m.view.Output...)
+	builder.WriteString(header)
 	builder.WriteRune('\n')
-	builder.WriteString(lipgloss.JoinVertical(lipgloss.Center, m.view.Output...))
+	builder.WriteString(body)
 	return builder.String()
 }
 
