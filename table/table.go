@@ -436,7 +436,7 @@ func (m Model) headersView() string {
 func (m *Model) renderRow(rowID int) string {
 	var s = make([]string, len(m.cols))
 	cell := 0
-	for i, value := range m.rows[rowID][m.view.XOffset : m.view.XOffset+m.view.Width] {
+	for i, value := range m.rows[rowID][m.view.XOffset:clamp(m.view.XOffset+m.view.Width, 0, len(m.rows[0]))] {
 		style := lipgloss.NewStyle().Width(m.cols[i].Width).MaxWidth(m.cols[i].Width).Inline(true)
 		renderedCell := m.styles.Cell.Render(style.Render(runewidth.Truncate(value, m.cols[i].Width, "…")))
 		s[cell] = renderedCell
