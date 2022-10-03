@@ -16,7 +16,9 @@ type Model struct {
 
 	cols   []Column
 	rows   []Row
-	cursor int
+	row int
+	col int
+	xOffset int
 	focus  bool
 	styles Styles
 
@@ -115,7 +117,9 @@ type Option func(*Model)
 // New creates a new model for the table widget.
 func New(opts ...Option) Model {
 	m := Model{
-		cursor:   0,
+		row:   0,
+		col: 0,
+		xOffset: 0,
 		viewport: viewport.New(0, 20),
 
 		KeyMap: DefaultKeyMap(),
@@ -254,7 +258,7 @@ func (m *Model) UpdateViewport() {
 // SelectedRow returns the selected row.
 // You can cast it to your own implementation.
 func (m Model) SelectedRow() Row {
-	return m.rows[m.cursor]
+	return m.rows[m.row]
 }
 
 // SetRows set a new rows state.
@@ -287,40 +291,40 @@ func (m Model) Width() int {
 
 // Cursor returns the index of the selected row.
 func (m Model) Cursor() int {
-	return m.cursor
+	return clamp(m.row + m.viewport.YOffset, 0, len(m.rows) - 1)
 }
 
 // SetCursor sets the cursor position in the table.
 func (m *Model) SetCursor(n int) {
-	m.cursor = clamp(n, 0, len(m.rows)-1)
+	m.row = clamp(n, 0, len(m.rows)-1)
 	m.UpdateViewport()
 }
 
 // MoveUp moves the selection up by any number of row.
 // It can not go above the first row.
 func (m *Model) MoveUp(n int) {
-	m.cursor = clamp(m.cursor-n, 0, len(m.rows)-1)
+	m.row = clamp(m.row-n, 0, len(m.rows)-1)
 	m.UpdateViewport()
 
-	if m.cursor < m.viewport.YOffset {
-		m.viewport.SetYOffset(m.cursor)
+	if m.row < m.viewport.YOffset {
+		m.viewport.SetYOffset(m.row)
 	}
 }
 
 // MoveDown moves the selection down by any number of row.
 // It can not go below the last row.
 func (m *Model) MoveDown(n int) {
-	m.cursor = clamp(m.cursor+n, 0, len(m.rows)-1)
+	m.row = clamp(m.row+n, 0, len(m.rows)-1)
 	m.UpdateViewport()
 
-	if m.cursor > (m.viewport.YOffset + (m.viewport.Height - 1)) {
-		m.viewport.SetYOffset(m.cursor - (m.viewport.Height - 1))
+	if m.row > (m.viewport.YOffset + (m.viewport.Height - 1)) {
+		m.viewport.SetYOffset(m.row - (m.viewport.Height - 1))
 	}
 }
 
 // GotoTop moves the selection to the first row.
 func (m *Model) GotoTop() {
-	m.MoveUp(m.cursor)
+	m.MoveUp(m.row + m.viewport.y)
 }
 
 // GotoBottom moves the selection to the last row.
@@ -332,7 +336,7 @@ func (m *Model) GotoBottom() {
 // default for getting all the rows and the given separator for the fields on
 // each row.
 func (m *Model) FromValues(value, separator string) {
-	rows := []Row{}
+	var rows []Row
 	for _, line := range strings.Split(value, "\n") {
 		r := Row{}
 		for _, field := range strings.Split(line, separator) {
@@ -346,7 +350,7 @@ func (m *Model) FromValues(value, separator string) {
 
 func (m Model) headersView() string {
 	var s = make([]string, 0, len(m.cols))
-	for _, col := range m.cols {
+	for _, col := range m.cols[m.xOffset:m.xOffset+m.viewport.Width] {
 		style := lipgloss.NewStyle().Width(col.Width).MaxWidth(col.Width).Inline(true)
 		renderedCell := style.Render(runewidth.Truncate(col.Title, col.Width, "…"))
 		s = append(s, m.styles.Header.Render(renderedCell))
@@ -356,7 +360,7 @@ func (m Model) headersView() string {
 
 func (m *Model) renderRow(rowID int) string {
 	var s = make([]string, 0, len(m.cols))
-	for i, value := range m.rows[rowID] {
+	for i, value := range m.rows[rowID][m.xOffset:m.xOffset+m.viewport.Width] {
 		style := lipgloss.NewStyle().Width(m.cols[i].Width).MaxWidth(m.cols[i].Width).Inline(true)
 		renderedCell := m.styles.Cell.Render(style.Render(runewidth.Truncate(value, m.cols[i].Width, "…")))
 		s = append(s, renderedCell)
@@ -364,7 +368,7 @@ func (m *Model) renderRow(rowID int) string {
 
 	row := lipgloss.JoinHorizontal(lipgloss.Left, s...)
 
-	if rowID == m.cursor {
+	if rowID == m.row {
 		return m.styles.Selected.Render(row)
 	}
 
