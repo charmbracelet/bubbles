@@ -304,7 +304,7 @@ func (m *Model) View() string {
 func (m *Model) UpdateViewport() {
 	renderedRows := &m.view.Output
 	x := 0
-	for i := m.view.YOffset; i < m.view.YOffset+m.view.Height; i++ {
+	for i := m.view.YOffset; i < m.view.YOffset+m.view.Height-1; i++ {
 		(*renderedRows)[x] = m.renderRow(i)
 		x++
 	}
