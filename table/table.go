@@ -420,7 +420,7 @@ func (m *Model) FromValues(value, separator string) {
 }
 
 func (m Model) headersView() string {
-	var s = make([]string, 0, len(m.cols))
+	var s = make([]string, len(m.cols))
 
 	cell := 0
 	for _, col := range m.cols[m.view.XOffset:clamp(m.view.XOffset+m.view.Width, 0, len(m.rows[0]))] {
