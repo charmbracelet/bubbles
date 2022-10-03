@@ -423,7 +423,7 @@ func (m Model) headersView() string {
 	var s = make([]string, 0, len(m.cols))
 
 	cell := 0
-	for _, col := range m.cols[m.view.XOffset : m.view.XOffset+m.view.Width] {
+	for _, col := range m.cols[m.view.XOffset:clamp(m.view.XOffset+m.view.Width, 0, len(m.rows[0]))] {
 		style := lipgloss.NewStyle().Width(col.Width).MaxWidth(col.Width).Inline(true)
 		renderedCell := style.Render(runewidth.Truncate(col.Title, col.Width, "…"))
 		s[cell] = m.styles.Header.Render(renderedCell)
