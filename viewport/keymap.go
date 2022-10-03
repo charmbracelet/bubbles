@@ -1,6 +1,6 @@
 package viewport
 
-import "github.com/charmbracelet/bubbles/key"
+import "github.com/mathaou/bubbles/key"
 
 const spacebar = " "
 

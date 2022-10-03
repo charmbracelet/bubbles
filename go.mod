@@ -1,4 +1,4 @@
-module github.com/charmbracelet/bubbles
+module github.com/mathaou/bubbles
 
 go 1.13
 
