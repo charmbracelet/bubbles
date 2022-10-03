@@ -290,26 +290,10 @@ func (m *Model) Blur() {
 
 // View renders the component.
 func (m Model) View() string {
-	var header string
-	var body string
-	chans := make(chan bool, 2)
-	go func(h *string) {
-		*h = m.headersView()
-		chans <- true
-	}(&header)
-
-	go func(b *string) {
-		*b = lipgloss.JoinVertical(lipgloss.Top, m.view.Output...)
-		chans <- true
-	}(&body)
-
-	<-chans
-	<-chans
-
 	builder := strings.Builder{}
-	builder.WriteString(header)
+	builder.WriteString(m.headersView())
 	builder.WriteRune('\n')
-	builder.WriteString(body)
+	builder.WriteString(lipgloss.JoinVertical(lipgloss.Center, m.view.Output...))
 	return builder.String()
 }
 
