@@ -304,6 +304,14 @@ func (m Model) SelectedRow() Row {
 	return m.rows[m.row]
 }
 
+func (m *Model) SelectedCell() string {
+	if m.selectCell {
+		return m.rows[m.row][m.col]
+	}
+
+	return ""
+}
+
 // SetRows set a new rows state.
 func (m *Model) SetRows(r []Row) {
 	m.rows = r
