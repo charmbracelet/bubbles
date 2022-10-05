@@ -252,7 +252,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 }
 
 // Focused returns the focus state of the table.
-func (m Model) Focused() bool {
+func (m *Model) Focused() bool {
 	return m.focus
 }
 
@@ -300,7 +300,7 @@ func (m *Model) ToggleCellSelect() {
 
 // SelectedRow returns the selected row.
 // You can cast it to your own implementation.
-func (m Model) SelectedRow() Row {
+func (m *Model) SelectedRow() Row {
 	return m.rows[m.row]
 }
 
@@ -328,23 +328,39 @@ func (m *Model) SetHeight(h int) {
 }
 
 // Height returns the viewport height of the table.
-func (m Model) Height() int {
+func (m *Model) Height() int {
 	return m.view.Height
 }
 
 // Width returns the viewport width of the table.
-func (m Model) Width() int {
+func (m *Model) Width() int {
 	return m.view.Width
 }
 
 // RowIndex returns the index of the selected row.
-func (m Model) RowIndex() int {
+func (m *Model) Cursor() int {
 	return clamp(m.row+m.view.YOffset, 0, len(m.rows)-1)
 }
 
-// SetCursor sets the cursor position in the table.
-func (m *Model) setRowIndex(n int) {
+func (m *Model) RowIndex() int {
+	return clamp(m.row+m.view.YOffset, 0, len(m.rows)-1)
+}
+
+func (m *Model) SetRowIndex(n int) {
 	m.row = clamp(n, 0, len(m.rows)-1)
+}
+
+// SetCursor sets the cursor position in the table.
+func (m *Model) SetCursor(n int) {
+	m.row = clamp(n, 0, len(m.rows)-1)
+}
+
+func (m *Model) ColIndex() int {
+	return clamp(m.col+m.view.XOffset, 0, len(m.rows[0])-1)
+}
+
+func (m *Model) SetColIndex(n int) {
+	m.col = clamp(n, 0, len(m.rows[0])-1)
 }
 
 // MoveUp moves the selection up by any number of row.
@@ -420,7 +436,7 @@ func (m *Model) FromValues(value, separator string) {
 	m.SetRows(rows)
 }
 
-func (m Model) headersView() string {
+func (m *Model) headersView() string {
 	var s = make([]string, len(m.cols))
 
 	cell := 0
