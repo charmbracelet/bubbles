@@ -6,9 +6,9 @@ import (
 	"unicode"
 
 	"github.com/atotto/clipboard"
+	"github.com/charmbracelet/bubbles/internal/cursor"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/mathaou/bubbles/internal/cursor"
 	rw "github.com/mattn/go-runewidth"
 )
 

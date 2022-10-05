@@ -6,11 +6,11 @@ import (
 	"unicode"
 
 	"github.com/atotto/clipboard"
+	"github.com/charmbracelet/bubbles/internal/cursor"
+	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/mathaou/bubbles/internal/cursor"
-	"github.com/mathaou/bubbles/key"
-	"github.com/mathaou/bubbles/viewport"
 	rw "github.com/mattn/go-runewidth"
 )
 
