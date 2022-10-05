@@ -140,7 +140,7 @@ func New(opts ...Option) Model {
 		view: tableModel{
 			XOffset: 0,
 			YOffset: 0,
-			Width:   20,
+			Width:   8, // arbitrary, looks nice
 			Height:  20,
 		},
 		KeyMap: DefaultKeyMap(),
@@ -406,7 +406,7 @@ func (m *Model) MoveRight(n int) {
 			m.view.XOffset = m.col - (m.view.Width - 1)
 		}
 	} else {
-		if m.view.XOffset+n < m.view.Width-len(m.rows[0])-1 {
+		if m.view.XOffset+n <= len(m.rows[0])-m.view.Width && !(m.view.Width > len(m.rows[0])-1) {
 			m.view.XOffset = clamp(m.view.XOffset+n, 0, len(m.rows[0])-1)
 		}
 	}
