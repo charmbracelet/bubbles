@@ -406,7 +406,7 @@ func (m *Model) MoveRight(n int) {
 			m.view.XOffset = m.col - (m.view.Width - 1)
 		}
 	} else {
-		m.view.XOffset = clamp(m.view.XOffset+n, 0, len(m.rows[0])-m.view.Width)
+		m.view.XOffset = clamp(m.view.XOffset+n, 0, len(m.rows[0])-1)
 	}
 }
 
