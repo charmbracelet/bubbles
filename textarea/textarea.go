@@ -494,6 +494,10 @@ func (m *Model) handlePaste(v string) {
 		}
 	}
 
+	// Put it all back together
+	value := append(head, tail...)
+	m.SetValue(string(value))
+
 	// Reset blink state if necessary and run overflow checks
 	m.SetCursor(m.col + len(paste))
 }
