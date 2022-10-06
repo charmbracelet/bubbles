@@ -123,6 +123,7 @@ type Style struct {
 	CursorLineNumber lipgloss.Style
 	EndOfBuffer      lipgloss.Style
 	LineNumber       lipgloss.Style
+	Header           lipgloss.Style
 	Placeholder      lipgloss.Style
 	Prompt           lipgloss.Style
 	Text             lipgloss.Style
@@ -141,6 +142,10 @@ type Model struct {
 	//
 	// See also SetPromptFunc().
 	Prompt string
+
+	// Header is the text displayed above the TextArea input if the
+	// value is not empty.
+	Header string
 
 	// Placeholder is the text displayed when the user
 	// hasn't entered anything yet.
@@ -257,6 +262,7 @@ func DefaultStyles() (Style, Style) {
 		CursorLineNumber: lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "240"}),
 		EndOfBuffer:      lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "254", Dark: "0"}),
 		LineNumber:       lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "249", Dark: "7"}),
+		Header:           lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
 		Placeholder:      lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
 		Prompt:           lipgloss.NewStyle().Foreground(lipgloss.Color("7")),
 		Text:             lipgloss.NewStyle(),
@@ -267,6 +273,7 @@ func DefaultStyles() (Style, Style) {
 		CursorLineNumber: lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "249", Dark: "7"}),
 		EndOfBuffer:      lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "254", Dark: "0"}),
 		LineNumber:       lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "249", Dark: "7"}),
+		Header:           lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
 		Placeholder:      lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
 		Prompt:           lipgloss.NewStyle().Foreground(lipgloss.Color("7")),
 		Text:             lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "245", Dark: "7"}),
