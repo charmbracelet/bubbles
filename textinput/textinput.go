@@ -122,6 +122,7 @@ func (m *Model) SetValue(s string) {
 		}
 	}
 
+	empty := len(m.value) == 0
 	m.Err = nil
 
 	runes := []rune(s)
@@ -130,7 +131,7 @@ func (m *Model) SetValue(s string) {
 	} else {
 		m.value = runes
 	}
-	if m.pos > len(m.value) {
+	if (m.pos == 0 && empty) || m.pos > len(m.value) {
 		m.SetCursor(len(m.value))
 	}
 	m.handleOverflow()
