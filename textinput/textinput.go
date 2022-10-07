@@ -7,6 +7,7 @@ import (
 
 	"github.com/atotto/clipboard"
 	"github.com/charmbracelet/bubbles/cursor"
+	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	rw "github.com/mattn/go-runewidth"
@@ -36,6 +37,41 @@ const (
 
 // ValidateFunc is a function that returns an error if the input is invalid.
 type ValidateFunc func(string) error
+
+// KeyMap is the key bindings for different actions within the textinput.
+type KeyMap struct {
+	CharacterForward        key.Binding
+	CharacterBackward       key.Binding
+	WordForward             key.Binding
+	WordBackward            key.Binding
+	DeleteWordBackward      key.Binding
+	DeleteWordForward       key.Binding
+	DeleteAfterCursor       key.Binding
+	DeleteBeforeCursor      key.Binding
+	DeleteCharacterBackward key.Binding
+	DeleteCharacterForward  key.Binding
+	LineStart               key.Binding
+	LineEnd                 key.Binding
+	Paste                   key.Binding
+}
+
+// DefaultKeyMap is the default set of key bindings for navigating and acting
+// upon the textinput.
+var DefaultKeyMap = KeyMap{
+	CharacterForward:        key.NewBinding(key.WithKeys("right", "ctrl+f")),
+	CharacterBackward:       key.NewBinding(key.WithKeys("left", "ctrl+b")),
+	WordForward:             key.NewBinding(key.WithKeys("alt+right", "alt+f")),
+	WordBackward:            key.NewBinding(key.WithKeys("alt+left", "alt+b")),
+	DeleteWordBackward:      key.NewBinding(key.WithKeys("alt+backspace", "ctrl+w")),
+	DeleteWordForward:       key.NewBinding(key.WithKeys("alte+delete", "alt+d")),
+	DeleteAfterCursor:       key.NewBinding(key.WithKeys("ctrl+k")),
+	DeleteBeforeCursor:      key.NewBinding(key.WithKeys("ctrl+u")),
+	DeleteCharacterBackward: key.NewBinding(key.WithKeys("backspace", "ctrl+h")),
+	DeleteCharacterForward:  key.NewBinding(key.WithKeys("delete", "ctrl+d")),
+	LineStart:               key.NewBinding(key.WithKeys("home", "ctrl+a")),
+	LineEnd:                 key.NewBinding(key.WithKeys("end", "ctrl+e")),
+	Paste:                   key.NewBinding(key.WithKeys("ctrl+v")),
+}
 
 // Model is the Bubble Tea model for this text input element.
 type Model struct {
@@ -71,6 +107,9 @@ type Model struct {
 	// viewport. If 0 or less this setting is ignored.
 	Width int
 
+	// KeyMap encodes the keybindings recognized by the widget.
+	KeyMap KeyMap
+
 	// Underlying text value.
 	value []rune
 
@@ -101,6 +140,7 @@ func New() Model {
 		CharLimit:        0,
 		PlaceholderStyle: lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
 		Cursor:           cursor.New(),
+		KeyMap:           DefaultKeyMap,
 
 		value: nil,
 		focus: false,
@@ -300,8 +340,8 @@ func (m *Model) deleteAfterCursor() {
 	m.SetCursor(len(m.value))
 }
 
-// deleteWordLeft deletes the word left to the cursor.
-func (m *Model) deleteWordLeft() {
+// deleteWordBackward deletes the word left to the cursor.
+func (m *Model) deleteWordBackward() {
 	if m.pos == 0 || len(m.value) == 0 {
 		return
 	}
@@ -344,10 +384,10 @@ func (m *Model) deleteWordLeft() {
 	}
 }
 
-// deleteWordRight deletes the word right to the cursor If input is masked
+// deleteWordForward deletes the word right to the cursor If input is masked
 // delete everything after the cursor so as not to reveal word breaks in the
 // masked input.
-func (m *Model) deleteWordRight() {
+func (m *Model) deleteWordForward() {
 	if m.pos >= len(m.value) || len(m.value) == 0 {
 		return
 	}
@@ -385,9 +425,9 @@ func (m *Model) deleteWordRight() {
 	m.SetCursor(oldPos)
 }
 
-// wordLeft moves the cursor one word to the left. If input is masked, move
+// wordBackward moves the cursor one word to the left. If input is masked, move
 // input to the start so as not to reveal word breaks in the masked input.
-func (m *Model) wordLeft() {
+func (m *Model) wordBackward() {
 	if m.pos == 0 || len(m.value) == 0 {
 		return
 	}
@@ -417,9 +457,9 @@ func (m *Model) wordLeft() {
 	}
 }
 
-// wordRight moves the cursor one word to the right. If the input is masked,
+// wordForward moves the cursor one word to the right. If the input is masked,
 // move input to the end so as not to reveal word breaks in the masked input.
-func (m *Model) wordRight() {
+func (m *Model) wordForward() {
 	if m.pos >= len(m.value) || len(m.value) == 0 {
 		return
 	}
@@ -473,68 +513,49 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		switch msg.Type {
-		case tea.KeyBackspace, tea.KeyCtrlH: // delete character before cursor
+		switch {
+		case key.Matches(msg, m.KeyMap.DeleteWordBackward):
 			m.Err = nil
-
-			if msg.Alt {
-				m.deleteWordLeft()
-			} else {
-				if len(m.value) > 0 {
-					m.value = append(m.value[:max(0, m.pos-1)], m.value[m.pos:]...)
-					if m.pos > 0 {
-						m.SetCursor(m.pos - 1)
-					}
+			m.deleteWordBackward()
+		case key.Matches(msg, m.KeyMap.DeleteCharacterBackward):
+			m.Err = nil
+			if len(m.value) > 0 {
+				m.value = append(m.value[:max(0, m.pos-1)], m.value[m.pos:]...)
+				if m.pos > 0 {
+					m.SetCursor(m.pos - 1)
 				}
 			}
-		case tea.KeyLeft, tea.KeyCtrlB:
-			if msg.Alt { // alt+left arrow, back one word
-				m.wordLeft()
-				break
-			}
-			if m.pos > 0 { // left arrow, ^F, back one character
+		case key.Matches(msg, m.KeyMap.WordBackward):
+			m.wordBackward()
+		case key.Matches(msg, m.KeyMap.CharacterBackward):
+			if m.pos > 0 {
 				m.SetCursor(m.pos - 1)
 			}
-		case tea.KeyRight, tea.KeyCtrlF:
-			if msg.Alt { // alt+right arrow, forward one word
-				m.wordRight()
-				break
-			}
-			if m.pos < len(m.value) { // right arrow, ^F, forward one character
+		case key.Matches(msg, m.KeyMap.WordForward):
+			m.wordForward()
+		case key.Matches(msg, m.KeyMap.CharacterForward):
+			if m.pos < len(m.value) {
 				m.SetCursor(m.pos + 1)
 			}
-		case tea.KeyCtrlW: // ^W, delete word left of cursor
-			m.deleteWordLeft()
-		case tea.KeyHome, tea.KeyCtrlA: // ^A, go to beginning
+		case key.Matches(msg, m.KeyMap.DeleteWordBackward):
+			m.deleteWordBackward()
+		case key.Matches(msg, m.KeyMap.LineStart):
 			m.CursorStart()
-		case tea.KeyDelete, tea.KeyCtrlD: // ^D, delete char under cursor
+		case key.Matches(msg, m.KeyMap.DeleteCharacterForward):
 			if len(m.value) > 0 && m.pos < len(m.value) {
 				m.value = append(m.value[:m.pos], m.value[m.pos+1:]...)
 			}
-		case tea.KeyCtrlE, tea.KeyEnd: // ^E, go to end
+		case key.Matches(msg, m.KeyMap.LineEnd):
 			m.CursorEnd()
-		case tea.KeyCtrlK: // ^K, kill text after cursor
+		case key.Matches(msg, m.KeyMap.DeleteAfterCursor):
 			m.deleteAfterCursor()
-		case tea.KeyCtrlU: // ^U, kill text before cursor
+		case key.Matches(msg, m.KeyMap.DeleteBeforeCursor):
 			m.deleteBeforeCursor()
-		case tea.KeyCtrlV: // ^V paste
+		case key.Matches(msg, m.KeyMap.Paste):
 			return m, Paste
-		case tea.KeyRunes, tea.KeySpace: // input regular characters
-			if msg.Alt && len(msg.Runes) == 1 {
-				if msg.Runes[0] == 'd' { // alt+d, delete word right of cursor
-					m.deleteWordRight()
-					break
-				}
-				if msg.Runes[0] == 'b' { // alt+b, back one word
-					m.wordLeft()
-					break
-				}
-				if msg.Runes[0] == 'f' { // alt+f, forward one word
-					m.wordRight()
-					break
-				}
-			}
-
+		case key.Matches(msg, m.KeyMap.DeleteWordForward):
+			m.deleteWordForward()
+		default:
 			// Input a regular character
 			if m.CharLimit <= 0 || len(m.value) < m.CharLimit {
 				runes := msg.Runes
