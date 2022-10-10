@@ -30,6 +30,11 @@ type Model struct {
 	styles     Styles
 }
 
+const (
+	tableModelInitialWidth  = 8
+	tableModelInitialHeight = 20
+)
+
 // Row represents one line in the table. Each index is a cell.
 type Row []string
 
@@ -140,8 +145,8 @@ func New(opts ...Option) Model {
 		view: tableModel{
 			XOffset: 0,
 			YOffset: 0,
-			Width:   8, // arbitrary, looks nice
-			Height:  20,
+			Width:   tableModelInitialWidth, // arbitrary, looks nice
+			Height:  tableModelInitialHeight,
 		},
 		KeyMap: DefaultKeyMap(),
 		styles: DefaultStyles(),
@@ -214,7 +219,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		cmds []tea.Cmd
 	)
 
-	// TODO: mouse support is only easy to do when in ALT mode
+	// mouse support is only easy to do when in ALT mode
 	// there may be a PR in the future to add both at the same time as an option
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
@@ -232,9 +237,9 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		case key.Matches(msg, m.KeyMap.PageDown):
 			m.MoveDown(m.view.Height)
 		case key.Matches(msg, m.KeyMap.HalfPageUp):
-			m.MoveUp(m.view.Height / 2)
+			m.MoveUp(m.view.Height / 2) //nolint:gomnd
 		case key.Matches(msg, m.KeyMap.HalfPageDown):
-			m.MoveDown(m.view.Height / 2)
+			m.MoveDown(m.view.Height / 2) //nolint:gomnd
 		case key.Matches(msg, m.KeyMap.LineDown):
 			m.MoveDown(1)
 		case key.Matches(msg, m.KeyMap.GotoTop):
@@ -270,7 +275,7 @@ func (m *Model) Blur() {
 // View renders the component.
 func (m *Model) View() string {
 	builder := strings.Builder{}
-	completedSections := make(chan bool, 2)
+	completedSections := make(chan bool, 2) //nolint:gomnd
 	var (
 		header string
 		body   string
@@ -294,6 +299,7 @@ func (m *Model) View() string {
 	return builder.String()
 }
 
+// ToggleCellSelect allows the controlling application to toggle row vs. single cell select mode
 func (m *Model) ToggleCellSelect() {
 	m.selectCell = !m.selectCell
 }
@@ -304,6 +310,7 @@ func (m *Model) SelectedRow() Row {
 	return m.rows[m.row]
 }
 
+// SelectedCell returns the currently selected cell's data
 func (m *Model) SelectedCell() string {
 	if m.selectCell {
 		return m.rows[m.row][m.col]
@@ -337,28 +344,32 @@ func (m *Model) Width() int {
 	return m.view.Width
 }
 
-// RowIndex returns the index of the selected row.
+// Cursor returns the index of the selected row. DEPRECATED
 func (m *Model) Cursor() int {
 	return clamp(m.row+m.view.YOffset, 0, len(m.rows)-1)
 }
 
+// RowIndex performs the same function as Cursor, but clarifies the API
 func (m *Model) RowIndex() int {
 	return clamp(m.row+m.view.YOffset, 0, len(m.rows)-1)
 }
 
+// SetRowIndex performs the same function as SetCursor, but clarifies the API
 func (m *Model) SetRowIndex(n int) {
 	m.row = clamp(n, 0, len(m.rows)-1)
 }
 
-// SetCursor sets the cursor position in the table.
+// SetCursor sets the cursor position in the table. DEPRECATED
 func (m *Model) SetCursor(n int) {
 	m.row = clamp(n, 0, len(m.rows)-1)
 }
 
+// ColIndex returns the current position of the horizontal cursor
 func (m *Model) ColIndex() int {
 	return clamp(m.col+m.view.XOffset, 0, len(m.rows[0])-1)
 }
 
+// SetColIndex sets the horizontal cursor position
 func (m *Model) SetColIndex(n int) {
 	m.col = clamp(n, 0, len(m.rows[0])-1)
 }
@@ -373,6 +384,7 @@ func (m *Model) MoveUp(n int) {
 	}
 }
 
+// MoveLeft moves the cursor left AND/OR shifts the visible columns left
 func (m *Model) MoveLeft(n int) {
 	if m.selectCell {
 		m.col = clamp(m.col-n, 0, len(m.rows[0])-1)
@@ -382,7 +394,7 @@ func (m *Model) MoveLeft(n int) {
 		}
 	} else {
 		if m.view.XOffset > 0 {
-			m.view.XOffset -= 1
+			m.view.XOffset--
 		}
 	}
 }
@@ -397,6 +409,7 @@ func (m *Model) MoveDown(n int) {
 	}
 }
 
+// MoveRight moves the cursor right AND/OR shifts the visible columns right
 func (m *Model) MoveRight(n int) {
 	if m.selectCell {
 		// rather big assumption that all rows will have same number of elements
@@ -426,7 +439,7 @@ func (m *Model) GotoBottom() {
 // default for getting all the rows and the given separator for the fields on
 // each row.
 func (m *Model) FromValues(value, separator string) {
-	var rows []Row
+	var rows []Row //nolint:prealloc
 	for _, line := range strings.Split(value, "\n") {
 		r := Row{}
 		for _, field := range strings.Split(line, separator) {
