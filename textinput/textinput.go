@@ -95,8 +95,8 @@ func (c CursorMode) String() string {
 type ValidateFunc func(string) error
 
 type completionMsg struct {
-		textInputId		int
-		completion		string
+	textInputId int
+	completion  string
 }
 
 // Model is the Bubble Tea model for this text input element.
@@ -159,15 +159,15 @@ type Model struct {
 
 	// cursorMode determines the behavior of the cursor
 	cursorMode CursorMode
-	
+
 	// Should the input suggest to complete
-	ShowCompletions     bool
-	
+	ShowCompletions bool
+
 	// Key to be pressed in order to accept the complete suggestion, defaults to right-arrow
-	AcceptCompletionKey 	tea.KeyType
-	
-	isCompletionActive		bool
-	availableCompletion		string
+	AcceptCompletionKey tea.KeyType
+
+	isCompletionActive  bool
+	availableCompletion string
 
 	// Validate is a function that checks whether or not the text within the
 	// input is valid. If it is not valid, the `Err` field will be set to the
@@ -625,7 +625,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	}
 
 	var resetBlink bool
-	
+
 	// Need to check for completion before, because key is configurable and might be double assigned
 	key, ok := msg.(tea.KeyMsg)
 	if ok && key.Type == m.AcceptCompletionKey {
@@ -755,7 +755,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 	case pasteErrMsg:
 		m.Err = msg
-		
+
 	case completionMsg:
 		if msg.textInputId == m.id {
 			m.availableCompletion = msg.completion
@@ -913,20 +913,28 @@ func max(a, b int) int {
 
 func (m Model) completionView(offset int) string {
 	var (
-		view  string
+		view       string
 		completion = m.availableCompletion
-		value = m.value
-		style = m.PlaceholderStyle.Inline(true).Render
+		value      = m.value
+		style      = m.PlaceholderStyle.Inline(true).Render
 	)
 
-	if (m.isCompletionActive && len(value) < len(completion)) {
-		return style(completion[len(m.value) + offset:])
+	if m.isCompletionActive && len(value) < len(completion) {
+		return style(completion[len(m.value)+offset:])
 	}
 	return view
 }
 
+func (m *Model) CanBeCompleted() bool {
+	return m.isCompletionActive
+}
+
+func (m *Model) AvailableCompletion() string {
+	return m.availableCompletion
+}
+
 func (m *Model) checkIfCanBeCompleted() {
-	if(m.ShowCompletions) {
+	if m.ShowCompletions {
 		lowerValue := strings.ToLower(string(m.value))
 		lowerAutocomplete := strings.ToLower(m.availableCompletion)
 		if len(lowerValue) > 0 && strings.HasPrefix(lowerAutocomplete, lowerValue) {
@@ -943,6 +951,6 @@ func (m *Model) checkIfCanBeCompleted() {
 func (m *Model) NewCompletionMsg(completion string) completionMsg {
 	return completionMsg{
 		textInputId: m.id,
-		completion: completion,
+		completion:  completion,
 	}
 }
