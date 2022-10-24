@@ -233,11 +233,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 If you’ve built a Bubble you think should be listed here,
 [let us know](mailto:vt100@charm.sh).
 
+## Feedback
+
+We’d love to hear your thoughts on this project. Feel free to drop us a note!
+
+* [Twitter](https://twitter.com/charmcli)
+* [The Fediverse](https://mastodon.social/@charmcli)
+* [Discord](https://charm.sh/chat)
 
 ## License
 
 [MIT](https://github.com/charmbracelet/bubbletea/raw/master/LICENSE)
-
 
 ***
 
@@ -246,5 +252,3 @@ Part of [Charm](https://charm.sh).
 <a href="https://charm.sh/"><img alt="The Charm logo" src="https://stuff.charm.sh/charm-badge.jpg" width="400"></a>
 
 Charm热爱开源 • Charm loves open source
-
-[charm]: https://charm.sh/
