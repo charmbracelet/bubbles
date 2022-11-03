@@ -207,6 +207,16 @@ func (m *Model) LineUp(n int) (lines []string) {
 	return m.visibleLines()
 }
 
+// TotalLineCount returns the total number of lines (both hidden and visible) within the viewport.
+func (m Model) TotalLineCount() int {
+	return len(m.lines)
+}
+
+// VisibleLineCount returns the number of the visible lines within the viewport.
+func (m Model) VisibleLineCount() int {
+	return len(m.visibleLines())
+}
+
 // GotoTop sets the viewport to the top position.
 func (m *Model) GotoTop() (lines []string) {
 	if m.AtTop() {
