@@ -242,7 +242,13 @@ func (m Model) View() string {
 // columns and rows.
 func (m *Model) UpdateViewport() {
 	renderedRows := make([]string, 0, len(m.rows))
-	for i := range m.rows {
+
+	// Render only rows from: m.cursor-m.viewport.Height to: m.cursor+m.viewport.Height
+	// Constant runtime, independent of number of rows in a table.
+	// Limits the numer of renderedRows to a maximum of 2*m.viewport.Height
+	start := clamp(m.cursor-m.viewport.Height, 0, len(m.rows))
+	end := clamp(m.cursor+m.viewport.Height, m.cursor, len(m.rows))
+	for i := start; i < end; i++ {
 		renderedRows = append(renderedRows, m.renderRow(i))
 	}
 
