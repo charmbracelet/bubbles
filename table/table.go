@@ -21,6 +21,11 @@ type Model struct {
 	styles Styles
 
 	viewport viewport.Model
+	renderedLines
+}
+
+type renderedLines struct {
+	start, end int
 }
 
 // Row represents one line in the table.
@@ -246,9 +251,13 @@ func (m *Model) UpdateViewport() {
 	// Render only rows from: m.cursor-m.viewport.Height to: m.cursor+m.viewport.Height
 	// Constant runtime, independent of number of rows in a table.
 	// Limits the numer of renderedRows to a maximum of 2*m.viewport.Height
-	start := clamp(m.cursor-m.viewport.Height, 0, len(m.rows))
-	end := clamp(m.cursor+m.viewport.Height, m.cursor, len(m.rows))
-	for i := start; i < end; i++ {
+	if m.cursor >= 0 {
+		m.renderedLines.start = clamp(m.cursor-m.viewport.Height, 0, m.cursor)
+	} else {
+		m.renderedLines.start = 0
+	}
+	m.renderedLines.end = clamp(m.cursor+m.viewport.Height, m.cursor, len(m.rows))
+	for i := m.renderedLines.start; i < m.renderedLines.end; i++ {
 		renderedRows = append(renderedRows, m.renderRow(i))
 	}
 
@@ -306,11 +315,16 @@ func (m *Model) SetCursor(n int) {
 // It can not go above the first row.
 func (m *Model) MoveUp(n int) {
 	m.cursor = clamp(m.cursor-n, 0, len(m.rows)-1)
+	switch {
+	case m.renderedLines.start == 0:
+		m.viewport.SetYOffset(clamp(m.viewport.YOffset, 0, m.cursor))
+	case m.renderedLines.start < m.viewport.Height:
+		m.viewport.SetYOffset(clamp(m.viewport.YOffset+n, 0, m.cursor))
+	case m.viewport.YOffset >= 1:
+		m.viewport.YOffset = clamp(m.viewport.YOffset+n, 1, m.viewport.Height)
+	}
 	m.UpdateViewport()
 
-	if m.cursor < m.viewport.YOffset {
-		m.viewport.SetYOffset(m.cursor)
-	}
 }
 
 // MoveDown moves the selection down by any number of row.
@@ -319,8 +333,14 @@ func (m *Model) MoveDown(n int) {
 	m.cursor = clamp(m.cursor+n, 0, len(m.rows)-1)
 	m.UpdateViewport()
 
-	if m.cursor > (m.viewport.YOffset + (m.viewport.Height - 1)) {
-		m.viewport.SetYOffset(m.cursor - (m.viewport.Height - 1))
+	switch {
+	case m.renderedLines.end == len(m.rows):
+		m.viewport.SetYOffset(clamp(m.viewport.YOffset-n, 1, m.viewport.Height))
+	case m.cursor > (m.renderedLines.end-m.renderedLines.start)/2:
+		m.viewport.SetYOffset(clamp(m.viewport.YOffset-n, 1, m.cursor))
+	case m.viewport.YOffset > 1:
+	case m.cursor > m.viewport.YOffset+m.viewport.Height-1:
+		m.viewport.SetYOffset(clamp(m.viewport.YOffset+1, 0, 1))
 	}
 }
 
