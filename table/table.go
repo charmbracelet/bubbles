@@ -269,6 +269,11 @@ func (m Model) SelectedRow() Row {
 	return m.rows[m.cursor]
 }
 
+// Rows returns the current rows.
+func (m Model) Rows() []Row {
+	return m.rows
+}
+
 // SetRows set a new rows state.
 func (m *Model) SetRows(r []Row) {
 	m.rows = r
