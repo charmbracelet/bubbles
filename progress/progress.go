@@ -237,7 +237,7 @@ func (m *Model) SetSpringOptions(frequency, damping float64) {
 //
 // If you're rendering with ViewAs you won't need this.
 func (m Model) Percent() float64 {
-	return m.targetPercent
+	return m.percentShown
 }
 
 // SetPercent sets the percentage state of the model as well as a command
