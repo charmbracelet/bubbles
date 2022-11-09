@@ -7,6 +7,11 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/mattn/go-runewidth"
+)
+
+const (
+	defaultHorizontalStep = 5
 )
 
 // New returns a new model with the given width and height as well as default
@@ -52,6 +57,10 @@ type Model struct {
 	// which is usually via the alternate screen buffer.
 	HighPerformanceRendering bool
 
+	// horizontal step represents the step of indent we add with one move left or right.
+	horizontalStep int
+
+	indent      int
 	initialized bool
 	lines       []string
 }
@@ -61,6 +70,7 @@ func (m *Model) setInitialValues() {
 	m.MouseWheelEnabled = true
 	m.MouseWheelDelta = 3
 	m.initialized = true
+	m.horizontalStep = defaultHorizontalStep
 }
 
 // Init exists to satisfy the tea.Model interface for composability purposes.
@@ -122,6 +132,16 @@ func (m Model) visibleLines() (lines []string) {
 		bottom := clamp(m.YOffset+m.Height, top, len(m.lines))
 		lines = m.lines[top:bottom]
 	}
+
+	if m.indent > 0 {
+		cutLines := make([]string, len(lines))
+		for i := range lines {
+			cutLines[i] = runewidth.TruncateLeft(lines[i], m.indent, "")
+		}
+
+		return cutLines
+	}
+
 	return lines
 }
 
@@ -271,6 +291,36 @@ func ViewUp(m Model, lines []string) tea.Cmd {
 	return tea.ScrollUp(lines, top, bottom)
 }
 
+// SetHorizontalStep is a setter for `horizontalStep`.
+// Must be set before `MoveLeft` or `MoveRight` is used.
+// If 0 or negative, left/right movement doesn't work.
+func (m *Model) SetHorizontalStep(n int) {
+	if n < 0 {
+		n = 0
+	}
+
+	m.horizontalStep = n
+}
+
+// MoveLeft moves all lines to set runes left.
+// If current indent is 0, it doesn't work.
+func (m *Model) MoveLeft() {
+	m.indent -= m.horizontalStep
+	if m.indent < 0 {
+		m.indent = 0
+	}
+}
+
+// MoveRight moves all lines to set runes right.
+func (m *Model) MoveRight() {
+	m.indent += m.horizontalStep
+}
+
+// Resets lines indent to zero.
+func (m *Model) ResetIndent() {
+	m.indent = 0
+}
+
 // Update handles standard message-based viewport updates.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	var cmd tea.Cmd
@@ -325,6 +375,12 @@ func (m Model) updateAsModel(msg tea.Msg) (Model, tea.Cmd) {
 			if m.HighPerformanceRendering {
 				cmd = ViewUp(m, lines)
 			}
+
+		case key.Matches(msg, m.KeyMap.Left):
+			m.MoveLeft()
+
+		case key.Matches(msg, m.KeyMap.Right):
+			m.MoveRight()
 		}
 
 	case tea.MouseMsg:
