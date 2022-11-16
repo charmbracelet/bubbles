@@ -179,8 +179,29 @@ type Model struct {
 	delegate ItemDelegate
 }
 
+type ListOption func(*Model)
+
+func WithSize(width, height int) ListOption {
+	return func(m *Model) {
+		m.width = width
+		m.height = height
+	}
+}
+
+func WithItems(i ...Item) ListOption {
+	return func(m *Model) {
+		m.items = i
+	}
+}
+
+func WithDelegate(d ItemDelegate) ListOption {
+	return func(m *Model) {
+		m.delegate = d
+	}
+}
+
 // New returns a new model with sensible defaults.
-func New(items []Item, delegate ItemDelegate, width, height int) Model {
+func New(opts ...ListOption) Model {
 	styles := DefaultStyles()
 
 	sp := spinner.New()
@@ -215,13 +236,17 @@ func New(items []Item, delegate ItemDelegate, width, height int) Model {
 		FilterInput:           filterInput,
 		StatusMessageLifetime: time.Second,
 
-		width:     width,
-		height:    height,
-		delegate:  delegate,
-		items:     items,
 		Paginator: p,
 		spinner:   sp,
 		Help:      help.New(),
+	}
+
+	for _, opt := range opts {
+		opt(&m)
+	}
+
+	if m.delegate == nil {
+		m.delegate = NewDefaultDelegate()
 	}
 
 	m.updatePagination()
