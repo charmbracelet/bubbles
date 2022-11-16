@@ -231,7 +231,7 @@ func New(items []Item, delegate ItemDelegate, width, height int) Model {
 
 // NewModel returns a new model with sensible defaults.
 //
-// Deprecated. Use New instead.
+// Deprecated: use [New] instead.
 var NewModel = New
 
 // SetFilteringEnabled enables or disables filtering. Note that this is different
