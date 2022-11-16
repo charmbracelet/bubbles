@@ -53,15 +53,15 @@ type Model struct {
 	// KeyMap encodes the keybindings recognized by the widget.
 	KeyMap KeyMap
 
-	// Deprecated: customize KeyMap instead.
+	// Deprecated: customize [KeyMap] instead.
 	UsePgUpPgDownKeys bool
-	// Deprecated: customize KeyMap instead.
+	// Deprecated: customize [KeyMap] instead.
 	UseLeftRightKeys bool
-	// Deprecated: customize KeyMap instead.
+	// Deprecated: customize [KeyMap] instead.
 	UseUpDownKeys bool
-	// Deprecated: customize KeyMap instead.
+	// Deprecated: customize [KeyMap] instead.
 	UseHLKeys bool
-	// Deprecated: customize KeyMap instead.
+	// Deprecated: customize [KeyMap] instead.
 	UseJKKeys bool
 }
 
@@ -141,7 +141,7 @@ func New() Model {
 
 // NewModel creates a new model with defaults.
 //
-// Deprecated. Use New instead.
+// Deprecated: use [New] instead.
 var NewModel = New
 
 // Update is the Tea update function which binds keystrokes to pagination.

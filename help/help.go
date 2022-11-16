@@ -92,7 +92,7 @@ func New() Model {
 
 // NewModel creates a new help view with some useful defaults.
 //
-// Deprecated. Use New instead.
+// Deprecated: use [New] instead.
 var NewModel = New
 
 // Update helps satisfy the Bubble Tea Model interface. It's a no-op.

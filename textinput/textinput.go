@@ -84,8 +84,7 @@ type Model struct {
 	EchoCharacter rune
 	Cursor        cursor.Model
 
-	// Deprecated: use cursor.BlinkSpeed instead.
-	// This is unused and will be removed in the future.
+	// Deprecated: use [cursor.BlinkSpeed] instead.
 	BlinkSpeed time.Duration
 
 	// Styles. These will be applied as inline styles.
@@ -150,7 +149,7 @@ func New() Model {
 
 // NewModel creates a new model with default settings.
 //
-// Deprecated. Use New instead.
+// Deprecated: Use [New] instead.
 var NewModel = New
 
 // SetValue sets the value of the text input.

@@ -124,7 +124,7 @@ func New(opts ...Option) Model {
 
 // NewModel returns a model with default values.
 //
-// Deprecated. Use New instead.
+// Deprecated: use [New] instead.
 var NewModel = New
 
 // TickMsg indicates that the timer has ticked and we should render a frame.
@@ -201,7 +201,7 @@ func (m Model) tick(id, tag int) tea.Cmd {
 // Tick is the command used to advance the spinner one frame. Use this command
 // to effectively start the spinner.
 //
-// This method is deprecated. Use Model.Tick instead.
+// Deprecated: Use [Model.Tick] instead.
 func Tick() tea.Msg {
 	return TickMsg{Time: time.Now()}
 }
