@@ -179,8 +179,13 @@ type Model struct {
 	delegate ItemDelegate
 }
 
+// ListOption is a functional argument used when initializing a list. For
+// an example, see [New].
 type ListOption func(*Model)
 
+// WithSize initializes a list with the given size.
+//
+//	New(WithSize(80, 40))
 func WithSize(width, height int) ListOption {
 	return func(m *Model) {
 		m.width = width
@@ -188,19 +193,28 @@ func WithSize(width, height int) ListOption {
 	}
 }
 
+// WithItems initializes a list with the given items.
+//
+//	New(WithItems(thisItem, thatItem))
 func WithItems(i ...Item) ListOption {
 	return func(m *Model) {
 		m.items = i
 	}
 }
 
+// WithDelegate is a initializes a list with the given delegate.
+//
+//	New(WithDelegate(myCustomDelegate))
 func WithDelegate(d ItemDelegate) ListOption {
 	return func(m *Model) {
 		m.delegate = d
 	}
 }
 
-// New returns a new model with sensible defaults.
+// New returns a new model with sensible defaults. You can optionally pass
+// ListOptions to initialzize with some defaults.
+//
+//	New(WithSize(80, 40), WithDelegate(myCustomDelegate))
 func New(opts ...ListOption) Model {
 	styles := DefaultStyles()
 
