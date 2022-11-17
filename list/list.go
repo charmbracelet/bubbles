@@ -569,7 +569,7 @@ func (m *Model) ToggleSpinner() tea.Cmd {
 // StartSpinner starts the spinner. Note that this returns a command.
 func (m *Model) StartSpinner() tea.Cmd {
 	m.showSpinner = true
-	return spinner.Tick
+	return m.spinner.Tick
 }
 
 // StopSpinner stops the spinner.
