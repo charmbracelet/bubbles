@@ -247,7 +247,7 @@ func (m *Model) UpdateViewport() {
 
 	// Render only rows from: m.cursor-m.viewport.Height to: m.cursor+m.viewport.Height
 	// Constant runtime, independent of number of rows in a table.
-	// Limits the numer of renderedRows to a maximum of 2*m.viewport.Height
+	// Limits the number of renderedRows to a maximum of 2*m.viewport.Height
 	if m.cursor >= 0 {
 		m.start = clamp(m.cursor-m.viewport.Height, 0, m.cursor)
 	} else {
