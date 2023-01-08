@@ -598,7 +598,7 @@ func (m Model) View() string {
 		return m.placeholderView()
 	}
 
-	styleText := m.TextStyle.Inline(true).Render
+	styleText := m.TextStyle.Background(m.BackgroundStyle.GetBackground()).Inline(true).Render
 
 	value := m.value[m.offset:m.offsetRight]
 	pos := max(0, m.pos-m.offset)
