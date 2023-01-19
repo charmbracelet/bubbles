@@ -147,8 +147,7 @@ func (m *Model) ViewDown() []string {
 		return nil
 	}
 
-	m.SetYOffset(m.YOffset + m.Height)
-	return m.visibleLines()
+	return m.LineDown(m.Height)
 }
 
 // ViewUp moves the view up by one height of the viewport. Basically, "page up".
@@ -157,8 +156,7 @@ func (m *Model) ViewUp() []string {
 		return nil
 	}
 
-	m.SetYOffset(m.YOffset - m.Height)
-	return m.visibleLines()
+	return m.LineUp(m.Height)
 }
 
 // HalfViewDown moves the view down by half the height of the viewport.
@@ -167,8 +165,7 @@ func (m *Model) HalfViewDown() (lines []string) {
 		return nil
 	}
 
-	m.SetYOffset(m.YOffset + m.Height/2)
-	return m.visibleLines()
+	return m.LineDown(m.Height / 2)
 }
 
 // HalfViewUp moves the view up by half the height of the viewport.
@@ -177,8 +174,7 @@ func (m *Model) HalfViewUp() (lines []string) {
 		return nil
 	}
 
-	m.SetYOffset(m.YOffset - m.Height/2)
-	return m.visibleLines()
+	return m.LineUp(m.Height / 2)
 }
 
 // LineDown moves the view down by the given number of lines.
