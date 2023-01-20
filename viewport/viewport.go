@@ -147,8 +147,7 @@ func (m *Model) ViewDown() []string {
 		return nil
 	}
 
-	m.SetYOffset(m.YOffset + m.Height)
-	return m.visibleLines()
+	return m.LineDown(m.Height)
 }
 
 // ViewUp moves the view up by one height of the viewport. Basically, "page up".
@@ -157,8 +156,7 @@ func (m *Model) ViewUp() []string {
 		return nil
 	}
 
-	m.SetYOffset(m.YOffset - m.Height)
-	return m.visibleLines()
+	return m.LineUp(m.Height)
 }
 
 // HalfViewDown moves the view down by half the height of the viewport.
@@ -167,8 +165,7 @@ func (m *Model) HalfViewDown() (lines []string) {
 		return nil
 	}
 
-	m.SetYOffset(m.YOffset + m.Height/2)
-	return m.visibleLines()
+	return m.LineDown(m.Height / 2)
 }
 
 // HalfViewUp moves the view up by half the height of the viewport.
@@ -177,13 +174,12 @@ func (m *Model) HalfViewUp() (lines []string) {
 		return nil
 	}
 
-	m.SetYOffset(m.YOffset - m.Height/2)
-	return m.visibleLines()
+	return m.LineUp(m.Height / 2)
 }
 
 // LineDown moves the view down by the given number of lines.
 func (m *Model) LineDown(n int) (lines []string) {
-	if m.AtBottom() || n == 0 {
+	if m.AtBottom() || n == 0 || len(m.lines) == 0 {
 		return nil
 	}
 
@@ -191,20 +187,28 @@ func (m *Model) LineDown(n int) (lines []string) {
 	// greater than the number of lines we actually have left before we reach
 	// the bottom.
 	m.SetYOffset(m.YOffset + n)
-	return m.visibleLines()
+
+	// Gather lines to send off for performance scrolling.
+	bottom := clamp(m.YOffset+m.Height, 0, len(m.lines))
+	top := clamp(m.YOffset+m.Height-n, 0, bottom)
+	return m.lines[top:bottom]
 }
 
 // LineUp moves the view down by the given number of lines. Returns the new
 // lines to show.
 func (m *Model) LineUp(n int) (lines []string) {
-	if m.AtTop() || n == 0 {
+	if m.AtTop() || n == 0 || len(m.lines) == 0 {
 		return nil
 	}
 
 	// Make sure the number of lines by which we're going to scroll isn't
 	// greater than the number of lines we are from the top.
 	m.SetYOffset(m.YOffset - n)
-	return m.visibleLines()
+
+	// Gather lines to send off for performance scrolling.
+	top := max(0, m.YOffset)
+	bottom := clamp(m.YOffset+n, 0, m.maxYOffset())
+	return m.lines[top:bottom]
 }
 
 // TotalLineCount returns the total number of lines (both hidden and visible) within the viewport.
