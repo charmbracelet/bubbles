@@ -624,7 +624,7 @@ func (m *Model) deleteWordRight() {
 
 	oldCol := m.col
 
-	for m.col+1 < len(m.value[m.row]) && unicode.IsSpace(m.value[m.row][m.col+1]) {
+	for m.col < len(m.value[m.row]) && unicode.IsSpace(m.value[m.row][m.col]) {
 		// ignore series of whitespace after cursor
 		m.SetCursor(m.col + 1)
 	}
