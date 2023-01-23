@@ -26,8 +26,8 @@ applications. These components are used in production in [Glow][glow],
 A spinner, useful for indicating that some kind an operation is happening.
 There are a couple default ones, but you can also pass your own ”frames.”
 
-* [Example code, basic spinner](https://github.com/charmbracelet/tea/tree/master/examples/spinner/main.go)
-* [Example code, various spinners](https://github.com/charmbracelet/tea/tree/master/examples/spinners/main.go)
+* [Example code, basic spinner](https://github.com/charmbracelet/bubbletea/tree/master/examples/spinner/main.go)
+* [Example code, various spinners](https://github.com/charmbracelet/bubbletea/tree/master/examples/spinners/main.go)
 
 
 ## Text Input
@@ -38,8 +38,8 @@ A text input field, akin to an `<input type="text">` in HTML. Supports unicode,
 pasting, in-place scrolling when the value exceeds the width of the element and
 the common, and many customization options.
 
-* [Example code, one field](https://github.com/charmbracelet/tea/tree/master/examples/textinput/main.go)
-* [Example code, many fields](https://github.com/charmbracelet/tea/tree/master/examples/textinputs/main.go)
+* [Example code, one field](https://github.com/charmbracelet/bubbletea/tree/master/examples/textinput/main.go)
+* [Example code, many fields](https://github.com/charmbracelet/bubbletea/tree/master/examples/textinputs/main.go)
 
 ## Text Area
 
@@ -50,9 +50,17 @@ spans multiple lines. Supports unicode, pasting, vertical scrolling when the
 value exceeds the width and height of the element,  and many customization
 options.
 
-* [Example code, chat input](https://github.com/charmbracelet/tea/tree/master/examples/chat/main.go)
-* [Example code, story time input](https://github.com/charmbracelet/tea/tree/master/examples/textarea/main.go)
+* [Example code, chat input](https://github.com/charmbracelet/bubbletea/tree/master/examples/chat/main.go)
+* [Example code, story time input](https://github.com/charmbracelet/bubbletea/tree/master/examples/textarea/main.go)
 
+## Table
+
+<img src="https://stuff.charm.sh/bubbles-examples/table.gif" width="400" alt="Table Example">
+
+A component for displaying and navigating tabular data (columns and rows).
+Supports vertical scrolling and many customization options.
+
+* [Example code, countries and populations](https://github.com/charmbracelet/bubbletea/tree/master/examples/table/main.go)
 
 ## Progress
 
@@ -83,13 +91,13 @@ logic and visualize pagination however you like.
 
 ## Viewport
 
-<img src="https://stuff.charm.sh/bubbles-examples/viewport.gif?0" width="600" alt="Viewport Example">
+<img src="https://stuff.charm.sh/bubbles-examples/viewport.gif" width="600" alt="Viewport Example">
 
 A viewport for vertically scrolling content. Optionally includes standard
 pager keybindings and mouse wheel support. A high performance mode is available
 for applications which make use of the alternate screen buffer.
 
-* [Example code](https://github.com/charmbracelet/tea/tree/master/examples/pager/main.go)
+* [Example code](https://github.com/charmbracelet/bubbletea/tree/master/examples/pager/main.go)
 
 This component is well complemented with [Reflow][reflow] for ANSI-aware
 indenting and text wrapping.
@@ -106,9 +114,9 @@ Features pagination, fuzzy filtering, auto-generated help, an activity spinner,
 and status messages, all of which can be enabled and disabled as needed.
 Extrapolated from [Glow][glow].
 
-* [Example code, default list](https://github.com/charmbracelet/tea/tree/master/examples/list-default/main.go)
-* [Example code, simple list](https://github.com/charmbracelet/tea/tree/master/examples/list-simple/main.go)
-* [Example code, all features](https://github.com/charmbracelet/tea/tree/master/examples/list-fancy/main.go)
+* [Example code, default list](https://github.com/charmbracelet/bubbletea/tree/master/examples/list-default/main.go)
+* [Example code, simple list](https://github.com/charmbracelet/bubbletea/tree/master/examples/list-simple/main.go)
+* [Example code, all features](https://github.com/charmbracelet/bubbletea/tree/master/examples/list-fancy/main.go)
 
 
 ## Timer
@@ -209,11 +217,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 If you’ve built a Bubble you think should be listed here,
 [let us know](mailto:vt100@charm.sh).
 
+## Feedback
+
+We’d love to hear your thoughts on this project. Feel free to drop us a note!
+
+* [Twitter](https://twitter.com/charmcli)
+* [The Fediverse](https://mastodon.social/@charmcli)
+* [Discord](https://charm.sh/chat)
 
 ## License
 
-[MIT](https://github.com/charmbracelet/teaparty/raw/master/LICENSE)
-
+[MIT](https://github.com/charmbracelet/bubbletea/raw/master/LICENSE)
 
 ***
 
@@ -222,5 +236,3 @@ Part of [Charm](https://charm.sh).
 <a href="https://charm.sh/"><img alt="The Charm logo" src="https://stuff.charm.sh/charm-badge.jpg" width="400"></a>
 
 Charm热爱开源 • Charm loves open source
-
-[charm]: https://charm.sh/
