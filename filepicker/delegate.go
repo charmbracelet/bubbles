@@ -28,7 +28,7 @@ func newFileNameStyles() (s fileNameStyles) {
 		Foreground(lipgloss.Color("33")).
 		Background(lipgloss.Color("40"))
 	s.fileSelected = lipgloss.NewStyle().
-		Background(lipgloss.Color("#FFFF00"))
+		Background(lipgloss.Color("#FFFF00")).Foreground(lipgloss.Color("#000000"))
 	s.filterMatch = lipgloss.NewStyle().Underline(true)
 	return s
 }
