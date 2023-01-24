@@ -325,7 +325,7 @@ func (m *Model) insertRunesFromUserInput(runes []rune) {
 			lstart = i + 1
 		}
 	}
-	if lstart < len(runes) {
+	if lstart <= len(runes) {
 		// The last line did not end with a newline character.
 		// Take it now.
 		lines = append(lines, runes[lstart:])
