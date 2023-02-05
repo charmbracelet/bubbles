@@ -321,7 +321,11 @@ func (m *Model) insertRunesFromUserInput(runes []rune) {
 	lstart := 0
 	for i := 0; i < len(runes); i++ {
 		if runes[i] == '\n' {
-			lines = append(lines, runes[lstart:i])
+			// Queue a line to become a new row in the text area below.
+			// Beware to clamp the max capacity of the slice, to ensure no
+			// data from different rows get overwritten when later edits
+			// will modify this line.
+			lines = append(lines, runes[lstart:i:i])
 			lstart = i + 1
 		}
 	}
