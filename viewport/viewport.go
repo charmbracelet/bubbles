@@ -68,7 +68,7 @@ func (m Model) Init() tea.Cmd {
 	return nil
 }
 
-// AtTop returns whether or not the viewport is in the very top position.
+// AtTop returns whether or not the viewport is at the very top position.
 func (m Model) AtTop() bool {
 	return m.YOffset <= 0
 }

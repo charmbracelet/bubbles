@@ -26,7 +26,7 @@ const (
 	EchoNormal EchoMode = iota
 
 	// EchoPassword displays the EchoCharacter mask instead of actual
-	// characters.  This is commonly used for password fields.
+	// characters. This is commonly used for password fields.
 	EchoPassword
 
 	// EchoNone displays nothing as characters are entered. This is commonly
@@ -404,7 +404,7 @@ func (m *Model) deleteWordBackward() {
 	}
 }
 
-// deleteWordForward deletes the word right to the cursor If input is masked
+// deleteWordForward deletes the word right to the cursor. If input is masked
 // delete everything after the cursor so as not to reveal word breaks in the
 // masked input.
 func (m *Model) deleteWordForward() {

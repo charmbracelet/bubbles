@@ -346,7 +346,7 @@ func (m *Model) insertRunesFromUserInput(runes []rune) {
 		return
 	}
 
-	// Save the reminder of the original line at the current
+	// Save the remainder of the original line at the current
 	// cursor position.
 	tail := make([]rune, len(m.value[m.row][m.col:]))
 	copy(tail, m.value[m.row][m.col:])
@@ -431,7 +431,7 @@ func (m *Model) CursorDown() {
 		m.row++
 		m.col = 0
 	} else {
-		// Move the cursor to the start of the next line. So that we can get
+		// Move the cursor to the start of the next line so that we can get
 		// the line information. We need to add 2 columns to account for the
 		// trailing space wrapping.
 		m.col = min(li.StartColumn+li.Width+2, len(m.value[m.row])-1)
@@ -520,7 +520,7 @@ func (m *Model) Focus() tea.Cmd {
 	return m.Cursor.Focus()
 }
 
-// Blur removes the focus state on the model.  When the model is blurred it can
+// Blur removes the focus state on the model. When the model is blurred it can
 // not receive keyboard input and the cursor will be hidden.
 func (m *Model) Blur() {
 	m.focus = false
@@ -537,7 +537,7 @@ func (m *Model) Reset() {
 	m.SetCursor(0)
 }
 
-// rsan initializes or retrieves the rune sanitizer.
+// san initializes or retrieves the rune sanitizer.
 func (m *Model) san() runeutil.Sanitizer {
 	if m.rsan == nil {
 		// Textinput has all its input on a single line so collapse
@@ -827,12 +827,12 @@ func (m *Model) moveToEnd() {
 // whether or not line numbers are being shown.
 //
 // Ensure that SetWidth is called after setting the Prompt and ShowLineNumbers,
-// If it important that the width of the textarea be exactly the given width
+// It is important that the width of the textarea be exactly the given width
 // and no more.
 func (m *Model) SetWidth(w int) {
 	m.viewport.Width = clamp(w, minWidth, maxWidth)
 
-	// Since the width of the textarea input is dependant on the width of the
+	// Since the width of the textarea input is dependent on the width of the
 	// prompt and line numbers, we need to calculate it by subtracting.
 	inputWidth := w
 	if m.ShowLineNumbers {
@@ -1167,7 +1167,7 @@ func (m Model) cursorLineNumber() int {
 	return line
 }
 
-// mergeLineBelow merges the current line with the line below.
+// mergeLineBelow merges the current line the cursor is on with the line below.
 func (m *Model) mergeLineBelow(row int) {
 	if row >= len(m.value)-1 {
 		return

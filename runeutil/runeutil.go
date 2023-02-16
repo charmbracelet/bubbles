@@ -32,7 +32,7 @@ func NewSanitizer(opts ...Option) Sanitizer {
 	return &s
 }
 
-// Option is the type of an option that can be passed to Sanitize().
+// Option is the type of option that can be passed to Sanitize().
 type Option func(sanitizer) sanitizer
 
 // ReplaceTabs replaces tabs by the specified string.

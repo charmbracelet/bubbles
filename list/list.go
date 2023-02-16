@@ -24,7 +24,7 @@ import (
 
 // Item is an item that appears in the list.
 type Item interface {
-	// Filter value is the value we use when filtering against this item when
+	// FilterValue is the value we use when filtering against this item when
 	// we're filtering the list.
 	FilterValue() string
 }
@@ -291,7 +291,7 @@ func (m Model) ShowStatusBar() bool {
 	return m.showStatusBar
 }
 
-// SetStatusBarItemName defines a replacement for the items identifier.
+// SetStatusBarItemName defines a replacement for the item's identifier.
 // Defaults to item/items.
 func (m *Model) SetStatusBarItemName(singular, plural string) {
 	m.itemNameSingular = singular
@@ -303,7 +303,7 @@ func (m Model) StatusBarItemName() (string, string) {
 	return m.itemNameSingular, m.itemNamePlural
 }
 
-// SetShowPagination hides or shoes the paginator. Note that pagination will
+// SetShowPagination hides or shows the paginator. Note that pagination will
 // still be active, it simply won't be displayed.
 func (m *Model) SetShowPagination(v bool) {
 	m.showPagination = v
@@ -331,7 +331,7 @@ func (m Model) Items() []Item {
 	return m.items
 }
 
-// Set the items available in the list. This returns a command.
+// SetItems sets the items available in the list. This returns a command.
 func (m *Model) SetItems(i []Item) tea.Cmd {
 	var cmd tea.Cmd
 	m.items = i
@@ -362,7 +362,7 @@ func (m *Model) ResetFilter() {
 	m.resetFiltering()
 }
 
-// Replace an item at the given index. This returns a command.
+// SetItem replaces an item at the given index. This returns a command.
 func (m *Model) SetItem(index int, item Item) tea.Cmd {
 	var cmd tea.Cmd
 	m.items[index] = item
@@ -375,8 +375,8 @@ func (m *Model) SetItem(index int, item Item) tea.Cmd {
 	return cmd
 }
 
-// Insert an item at the given index. If index is out of the upper bound, the
-// item will be appended. This returns a command.
+// InsertItem inserts an item at the given index. If the index is out of the upper bound,
+// the item will be appended. This returns a command.
 func (m *Model) InsertItem(index int, item Item) tea.Cmd {
 	var cmd tea.Cmd
 	m.items = insertItemIntoSlice(m.items, item, index)
@@ -404,7 +404,7 @@ func (m *Model) RemoveItem(index int) {
 	m.updatePagination()
 }
 
-// Set the item delegate.
+// SetDelegate sets the item delegate.
 func (m *Model) SetDelegate(d ItemDelegate) {
 	m.delegate = d
 	m.updatePagination()
@@ -418,7 +418,7 @@ func (m Model) VisibleItems() []Item {
 	return m.items
 }
 
-// SelectedItems returns the current selected item in the list.
+// SelectedItem returns the current selected item in the list.
 func (m Model) SelectedItem() Item {
 	i := m.Index()
 
@@ -557,7 +557,7 @@ func (m *Model) SetSpinner(spinner spinner.Spinner) {
 	m.spinner.Spinner = spinner
 }
 
-// Toggle the spinner. Note that this also returns a command.
+// ToggleSpinner toggles the spinner. Note that this also returns a command.
 func (m *Model) ToggleSpinner() tea.Cmd {
 	if !m.showSpinner {
 		return m.StartSpinner()
@@ -577,8 +577,8 @@ func (m *Model) StopSpinner() {
 	m.showSpinner = false
 }
 
-// Helper for disabling the keybindings used for quitting, in case you want to
-// handle this elsewhere in your application.
+// DisableQuitKeybindings is a helper for disabling the keybindings used for quitting,
+// in case you want to handle this elsewhere in your application.
 func (m *Model) DisableQuitKeybindings() {
 	m.disableQuitKeybindings = true
 	m.KeyMap.Quit.SetEnabled(false)
@@ -646,7 +646,7 @@ func (m Model) itemsAsFilterItems() filteredItems {
 			item: item,
 		}
 	}
-	return filteredItems(fi)
+	return fi
 }
 
 // Set keybindings according to the filter state.

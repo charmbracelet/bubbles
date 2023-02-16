@@ -322,7 +322,7 @@ func TestVerticalNavigationKeepsCursorHorizontalPosition(t *testing.T) {
 	if lineInfo.CharOffset != 4 || lineInfo.ColumnOffset != 2 {
 		t.Log(lineInfo.CharOffset)
 		t.Log(lineInfo.ColumnOffset)
-		t.Fatal("Expected cursor to be on the fourth character because there two double width runes on the first line.")
+		t.Fatal("Expected cursor to be on the fourth character because there are two double width runes on the first line.")
 	}
 
 	downMsg := tea.KeyMsg{Type: tea.KeyDown, Alt: false, Runes: []rune{}}

@@ -96,7 +96,7 @@ func WithWidth(w int) Option {
 }
 
 // WithSpringOptions sets the initial frequency and damping options for the
-// progressbar's built-in spring-based animation. Frequency corresponds to
+// progress bar's built-in spring-based animation. Frequency corresponds to
 // speed, and damping to bounciness. For details see:
 //
 // https://github.com/charmbracelet/harmonica
@@ -136,7 +136,7 @@ type Model struct {
 	Full      rune
 	FullColor string
 
-	// "Empty" sections of progress bar.
+	// "Empty" sections of the progress bar.
 	Empty      rune
 	EmptyColor string
 
@@ -194,12 +194,12 @@ func New(opts ...Option) Model {
 // Deprecated: use [New] instead.
 var NewModel = New
 
-// Init exists satisfy the tea.Model interface.
+// Init exists to satisfy the tea.Model interface.
 func (m Model) Init() tea.Cmd {
 	return nil
 }
 
-// Update is used to animation the progress bar during transitions. Use
+// Update is used to animate the progress bar during transitions. Use
 // SetPercent to create the command you'll need to trigger the animation.
 //
 // If you're rendering with ViewAs you won't need this.
@@ -266,7 +266,7 @@ func (m *Model) DecrPercent(v float64) tea.Cmd {
 	return m.SetPercent(m.Percent() - v)
 }
 
-// View renders the an animated progress bar in its current state. To render
+// View renders an animated progress bar in its current state. To render
 // a static progress bar based on your own calculations use ViewAs instead.
 func (m Model) View() string {
 	return m.ViewAs(m.percentShown)
@@ -336,7 +336,7 @@ func (m Model) percentageView(percent float64) string {
 func (m *Model) setRamp(colorA, colorB string, scaled bool) {
 	// In the event of an error colors here will default to black. For
 	// usability's sake, and because such an error is only cosmetic, we're
-	// ignoring the error for sake of usability.
+	// ignoring the error.
 	a, _ := colorful.Hex(colorA)
 	b, _ := colorful.Hex(colorB)
 

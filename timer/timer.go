@@ -55,11 +55,11 @@ type StartStopMsg struct {
 
 // TickMsg is a message that is sent on every timer tick.
 type TickMsg struct {
-	// ID is the identifier of the stopwatch that send the message. This makes
+	// ID is the identifier of the timer that sends the message. This makes
 	// it possible to determine which timer a tick belongs to when there
 	// are multiple timers running.
 	//
-	// Note, however, that a timer will reject ticks from other stopwatches, so
+	// Note, however, that a timer will reject ticks from other timers, so
 	// it's safe to flow all TickMsgs through all timers and have them still
 	// behave appropriately.
 	ID int
