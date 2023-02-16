@@ -146,7 +146,7 @@ func (m *Model) SetMode(mode Mode) tea.Cmd {
 	return nil
 }
 
-// BlinkCmd is an command used to manage cursor blinking.
+// BlinkCmd is a command used to manage cursor blinking.
 func (m *Model) BlinkCmd() tea.Cmd {
 	if m.mode != CursorBlink {
 		return nil

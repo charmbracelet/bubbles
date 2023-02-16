@@ -1,4 +1,4 @@
-// Package paginator provides a Bubble Tea package for calulating pagination
+// Package paginator provides a Bubble Tea package for calculating pagination
 // and rendering pagination info. Note that this package does not render actual
 // pages: it's purely for handling keystrokes related to pagination, and
 // rendering pagination status.
@@ -66,7 +66,7 @@ type Model struct {
 }
 
 // SetTotalPages is a helper function for calculating the total number of pages
-// from a given number of items. It's use is optional since this pager can be
+// from a given number of items. Its use is optional since this pager can be
 // used for other things beyond navigating sets. Note that it both returns the
 // number of total pages and alters the model.
 func (m *Model) SetTotalPages(items int) int {
@@ -93,7 +93,7 @@ func (m Model) ItemsOnPage(totalItems int) int {
 
 // GetSliceBounds is a helper function for paginating slices. Pass the length
 // of the slice you're rendering and you'll receive the start and end bounds
-// corresponding the to pagination. For example:
+// corresponding to the pagination. For example:
 //
 //	bunchOfStuff := []stuff{...}
 //	start, end := model.GetSliceBounds(len(bunchOfStuff))
@@ -104,7 +104,7 @@ func (m *Model) GetSliceBounds(length int) (start int, end int) {
 	return start, end
 }
 
-// PrevPage is a number function for navigating one page backward. It will not
+// PrevPage is a helper function for navigating one page backward. It will not
 // page beyond the first page (i.e. page 0).
 func (m *Model) PrevPage() {
 	if m.Page > 0 {

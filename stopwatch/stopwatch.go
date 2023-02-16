@@ -22,7 +22,7 @@ func nextID() int {
 
 // TickMsg is a message that is sent on every timer tick.
 type TickMsg struct {
-	// ID is the identifier of the stopwatch that send the message. This makes
+	// ID is the identifier of the stopwatch that sends the message. This makes
 	// it possible to determine which stopwatch a tick belongs to when there
 	// are multiple stopwatches running.
 	//
@@ -99,7 +99,7 @@ func (m Model) Toggle() tea.Cmd {
 	return m.Start()
 }
 
-// Reset restes the stopwatch to 0.
+// Reset resets the stopwatch to 0.
 func (m Model) Reset() tea.Cmd {
 	return func() tea.Msg {
 		return ResetMsg{ID: m.id}

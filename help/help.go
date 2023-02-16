@@ -21,7 +21,7 @@ type KeyMap interface {
 	// which the help items are returned here.
 	ShortHelp() []key.Binding
 
-	// MoreHelp returns an extended group of help items, grouped by columns.
+	// FullHelp returns an extended group of help items, grouped by columns.
 	// The help bubble will render the help in the order in which the help
 	// items are returned here.
 	FullHelp() [][]key.Binding
