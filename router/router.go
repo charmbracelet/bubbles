@@ -13,8 +13,9 @@ type Screen struct {
 
 // Model stores different screens and the currently focused screens
 type Model struct {
-	screens []Screen
-	current int
+	screens     []Screen
+	current     int
+	initialized []bool
 }
 
 // New creates a new empty Model
@@ -25,9 +26,11 @@ func New() Model {
 // NewWithScreens creates a new model with an array of Screen
 func NewWithScreens(screens []Screen) Model {
 	current := 0
+	initialized := make([]bool, len(screens))
 	return Model{
 		screens,
 		current,
+		initialized,
 	}
 }
 
@@ -43,11 +46,25 @@ func (m Model) updateCurrent(msg tea.Msg) (Model, tea.Cmd) {
 // AddScreen adds a new screen to the router
 func (m *Model) AddScreen(model tea.Model, binding key.Binding) {
 	m.screens = append(m.screens, Screen{model, binding})
+	m.initialized = append(m.initialized, false)
+}
+
+// setCurrent sets the current screen to the given integer and initializes the screen if not already initailized
+func (m *Model) setCurrent(current int) tea.Cmd {
+	if len(m.screens) >= m.current {
+		return nil
+	}
+	m.current = current
+	if !m.initialized[m.current] {
+		m.initialized[m.current] = true
+		return m.screens[m.current].model.Init()
+	}
+	return nil
 }
 
 // Init implements tea.Model
-func (Model) Init() tea.Cmd {
-	return nil
+func (m *Model) Init() tea.Cmd {
+	return m.setCurrent(0) // assumes that there is atleast one screen
 }
 
 // Update implements tea.Model
@@ -56,7 +73,10 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	case tea.KeyMsg:
 		for i, screen := range m.screens {
 			if key.Matches(msg, screen.binding) {
-				m.current = i
+				cmd := m.setCurrent(i)
+				if cmd != nil {
+					return m, cmd
+				}
 				break
 			}
 		}
