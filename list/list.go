@@ -87,7 +87,7 @@ type Rank struct {
 // DefaultFilter uses the sahilm/fuzzy to filter through the list.
 // This is set by default.
 func DefaultFilter(term string, targets []string) []Rank {
-	var ranks = fuzzy.Find(term, targets)
+	ranks := fuzzy.Find(term, targets)
 	sort.Stable(ranks)
 	result := make([]Rank, len(ranks))
 	for i, r := range ranks {
@@ -255,12 +255,40 @@ func (m *Model) SetShowTitle(v bool) {
 	m.updatePagination()
 }
 
+// SetFilterText explicitly sets the filter text without relying on user input.
+// It also sets the filterState to a sane default of FilterApplied, but this
+// can be changed with SetFilterState
+func (m *Model) SetFilterText(filter string) {
+	m.filterState = Filtering
+	m.FilterInput.SetValue(filter)
+	cmd := tea.Cmd(filterItems(*m))
+	msg := cmd()
+	fmm, _ := msg.(FilterMatchesMsg)
+	m.filteredItems = filteredItems(fmm)
+	m.filterState = FilterApplied
+	m.Paginator.Page = 0
+	m.cursor = 0
+	m.FilterInput.CursorEnd()
+	m.updatePagination()
+	m.updateKeybindings()
+}
+
+// Helper method for setting the filtering state manually
+func (m *Model) SetFilterState(state FilterState) {
+	m.Paginator.Page = 0
+	m.cursor = 0
+	m.filterState = Filtering
+	m.FilterInput.CursorEnd()
+	m.FilterInput.Focus()
+	m.updateKeybindings()
+}
+
 // ShowTitle returns whether or not the title bar is set to be rendered.
 func (m Model) ShowTitle() bool {
 	return m.showTitle
 }
 
-// SetShowFilter shows or hides the filer bar. Note that this does not disable
+// SetShowFilter shows or hides the filter bar. Note that this does not disable
 // filtering, it simply hides the built-in filter view. This allows you to
 // use the FilterInput to render the filtering UI differently without having to
 // re-implement filtering from scratch.
