@@ -261,7 +261,7 @@ func (m *Model) SetShowTitle(v bool) {
 func (m *Model) SetFilterText(filter string) {
 	m.filterState = Filtering
 	m.FilterInput.SetValue(filter)
-	cmd := tea.Cmd(filterItems(*m))
+	cmd := filterItems(*m)
 	msg := cmd()
 	fmm, _ := msg.(FilterMatchesMsg)
 	m.filteredItems = filteredItems(fmm)
