@@ -277,7 +277,7 @@ func (m *Model) SetFilterText(filter string) {
 func (m *Model) SetFilterState(state FilterState) {
 	m.Paginator.Page = 0
 	m.cursor = 0
-	m.filterState = Filtering
+	m.filterState = state
 	m.FilterInput.CursorEnd()
 	m.FilterInput.Focus()
 	m.updateKeybindings()
