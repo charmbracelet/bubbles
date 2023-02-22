@@ -10,16 +10,17 @@ import (
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/bubbles/help"
-	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/paginator"
-	"github.com/charmbracelet/bubbles/spinner"
-	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/muesli/reflow/ansi"
 	"github.com/muesli/reflow/truncate"
 	"github.com/sahilm/fuzzy"
+
+	"github.com/charmbracelet/bubbles/help"
+	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/paginator"
+	"github.com/charmbracelet/bubbles/spinner"
+	"github.com/charmbracelet/bubbles/textinput"
 )
 
 // Item is an item that appears in the list.
@@ -277,7 +278,7 @@ func (m *Model) SetFilterText(filter string) {
 func (m *Model) SetFilterState(state FilterState) {
 	m.Paginator.Page = 0
 	m.cursor = 0
-	m.filterState = Filtering
+	m.filterState = state
 	m.FilterInput.CursorEnd()
 	m.FilterInput.Focus()
 	m.updateKeybindings()
