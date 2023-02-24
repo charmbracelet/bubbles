@@ -111,18 +111,20 @@ func (m *Model) SetContent(s string) {
 // maxYOffset returns the maximum possible value of the y-offset based on the
 // viewport's content and set height.
 func (m Model) maxYOffset() int {
-	return max(0, len(m.lines)-m.Height)
+	height := m.Height - m.Style.GetVerticalFrameSize()
+	return clamp(len(m.lines)-height, 0, len(m.lines)-1)
 }
 
 // visibleLines returns the lines that should currently be visible in the
 // viewport.
-func (m Model) visibleLines() (lines []string) {
-	if len(m.lines) > 0 {
-		top := max(0, m.YOffset)
-		bottom := clamp(m.YOffset+m.Height, top, len(m.lines))
-		lines = m.lines[top:bottom]
+func (m Model) visibleLines() []string {
+	verticalSpace := m.Height - m.Style.GetVerticalFrameSize()
+	if verticalSpace <= 0 || len(m.lines) <= 0 {
+		return []string{}
 	}
-	return lines
+	top := clamp(m.YOffset, 0, len(m.lines)-1)
+	bottom := min(top+verticalSpace, len(m.lines))
+	return m.lines[top:bottom]
 }
 
 // scrollArea returns the scrollable boundaries for high performance rendering.
