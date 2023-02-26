@@ -299,10 +299,15 @@ func (m Model) barView(b *strings.Builder, percent float64, textWidth int) {
 	if m.useRamp {
 		// Gradient fill
 		for i := 0; i < fw; i++ {
-			if m.scaleRamp {
-				p = float64(i) / float64(fw)
+			if fw == 1 {
+				// this is up for debate: in a gradient of width=1, should the
+				// single character rendered be the first color, the last color
+				// or exactly 50% inbetween? I opted for 50%
+				p = 0.5
+			} else if m.scaleRamp {
+				p = float64(i) / float64(fw-1)
 			} else {
-				p = float64(i) / float64(tw)
+				p = float64(i) / float64(tw-1)
 			}
 			c := m.rampColorA.BlendLuv(m.rampColorB, p).Hex()
 			b.WriteString(termenv.
