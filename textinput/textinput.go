@@ -94,7 +94,6 @@ type Model struct {
 	// https://github.com/charmbracelet/lipgloss
 	PromptStyle      lipgloss.Style
 	TextStyle        lipgloss.Style
-	BackgroundStyle  lipgloss.Style
 	PlaceholderStyle lipgloss.Style
 	CursorStyle      lipgloss.Style
 
