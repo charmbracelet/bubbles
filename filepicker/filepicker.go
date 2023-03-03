@@ -77,24 +77,26 @@ var DefaultKeyMap = KeyMap{
 
 // Styles defines the possible customizations for styles in the file picker.
 type Styles struct {
-	Cursor     lipgloss.Style
-	Symlink    lipgloss.Style
-	Directory  lipgloss.Style
-	File       lipgloss.Style
-	Permission lipgloss.Style
-	Selected   lipgloss.Style
-	FileSize   lipgloss.Style
+	Cursor         lipgloss.Style
+	Symlink        lipgloss.Style
+	Directory      lipgloss.Style
+	File           lipgloss.Style
+	Permission     lipgloss.Style
+	Selected       lipgloss.Style
+	FileSize       lipgloss.Style
+	EmptyDirectory lipgloss.Style
 }
 
 // DefaultStyles defines the default styling for the file picker.
 var DefaultStyles = Styles{
-	Cursor:     lipgloss.NewStyle().Foreground(lipgloss.Color("212")),
-	Symlink:    lipgloss.NewStyle().Foreground(lipgloss.Color("36")),
-	Directory:  lipgloss.NewStyle().Foreground(lipgloss.Color("99")),
-	File:       lipgloss.NewStyle(),
-	Permission: lipgloss.NewStyle().Foreground(lipgloss.Color("244")),
-	Selected:   lipgloss.NewStyle().Foreground(lipgloss.Color("212")).Bold(true),
-	FileSize:   lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Width(fileSizeWidth).Align(lipgloss.Right),
+	Cursor:         lipgloss.NewStyle().Foreground(lipgloss.Color("212")),
+	Symlink:        lipgloss.NewStyle().Foreground(lipgloss.Color("36")),
+	Directory:      lipgloss.NewStyle().Foreground(lipgloss.Color("99")),
+	File:           lipgloss.NewStyle(),
+	Permission:     lipgloss.NewStyle().Foreground(lipgloss.Color("244")),
+	Selected:       lipgloss.NewStyle().Foreground(lipgloss.Color("212")).Bold(true),
+	FileSize:       lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Width(fileSizeWidth).Align(lipgloss.Right),
+	EmptyDirectory: lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Padding(0, 2).SetString("Bummer. No Files Found."),
 }
 
 // Model represents a file picker.
@@ -313,7 +315,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 // View returns the view of the file picker.
 func (m Model) View() string {
 	if len(m.files) == 0 {
-		return "Bummer. No files found."
+		return m.Styles.EmptyDirectory.String()
 	}
 	var s strings.Builder
 
