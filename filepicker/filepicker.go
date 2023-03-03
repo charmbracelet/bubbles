@@ -58,7 +58,7 @@ type KeyMap struct {
 	PageUp   key.Binding
 	PageDown key.Binding
 	Back     key.Binding
-	Enter    key.Binding
+	Open     key.Binding
 	Select   key.Binding
 }
 
@@ -71,7 +71,7 @@ var DefaultKeyMap = KeyMap{
 	PageUp:   key.NewBinding(key.WithKeys("K", "pgup"), key.WithHelp("pgup", "page up")),
 	PageDown: key.NewBinding(key.WithKeys("J", "pgdown"), key.WithHelp("pgdown", "page down")),
 	Back:     key.NewBinding(key.WithKeys("h", "backspace", "left", "esc"), key.WithHelp("h", "back")),
-	Enter:    key.NewBinding(key.WithKeys("l", "right", "enter"), key.WithHelp("l", "enter")),
+	Open:     key.NewBinding(key.WithKeys("l", "right", "enter"), key.WithHelp("l", "enter")),
 	Select:   key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "select")),
 }
 
@@ -264,7 +264,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				m.max = m.Height - 1
 			}
 			return m, readDir(m.Path, m.ShowHidden)
-		case key.Matches(msg, m.KeyMap.Enter):
+		case key.Matches(msg, m.KeyMap.Open):
 			if len(m.files) == 0 {
 				break
 			}
