@@ -1,6 +1,6 @@
 module github.com/charmbracelet/bubbles
 
-go 1.13
+go 1.16
 
 require (
 	github.com/atotto/clipboard v0.1.4
