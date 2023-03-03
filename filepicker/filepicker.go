@@ -48,6 +48,7 @@ type readDirMsg []os.DirEntry
 
 const marginBottom = 5
 const fileSizeWidth = 8
+const paddingLeft = 2
 
 // KeyMap defines key bindings for each user action.
 type KeyMap struct {
@@ -96,7 +97,7 @@ var DefaultStyles = Styles{
 	Permission:     lipgloss.NewStyle().Foreground(lipgloss.Color("244")),
 	Selected:       lipgloss.NewStyle().Foreground(lipgloss.Color("212")).Bold(true),
 	FileSize:       lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Width(fileSizeWidth).Align(lipgloss.Right),
-	EmptyDirectory: lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Padding(0, 2).SetString("Bummer. No Files Found."),
+	EmptyDirectory: lipgloss.NewStyle().Foreground(lipgloss.Color("240")).PaddingLeft(paddingLeft).SetString("Bummer. No Files Found."),
 }
 
 // Model represents a file picker.
