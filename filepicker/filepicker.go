@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
@@ -13,31 +14,39 @@ import (
 	"github.com/dustin/go-humanize"
 )
 
+var (
+	lastID int
+	idMtx  sync.Mutex
+)
+
+// Return the next ID we should use on the Model.
+func nextID() int {
+	idMtx.Lock()
+	defer idMtx.Unlock()
+	lastID++
+	return lastID
+}
+
 // New returns a new filepicker model with default styling and key bindings.
 func New() Model {
 	return Model{
-		Path:          ".",
-		Cursor:        ">",
-		selected:      0,
-		ShowHidden:    false,
-		DirAllowed:    false,
-		FileAllowed:   true,
-		AutoHeight:    true,
-		Height:        0,
-		max:           0,
-		min:           0,
-		selectedStack: newStack(),
-		minStack:      newStack(),
-		maxStack:      newStack(),
-		KeyMap:        DefaultKeyMap,
-		Styles:        DefaultStyles,
+		id:               nextID(),
+		currentDirectory: ".",
+		Cursor:           ">",
+		selected:         0,
+		ShowHidden:       false,
+		DirAllowed:       false,
+		FileAllowed:      true,
+		AutoHeight:       true,
+		Height:           0,
+		max:              0,
+		min:              0,
+		selectedStack:    newStack(),
+		minStack:         newStack(),
+		maxStack:         newStack(),
+		KeyMap:           DefaultKeyMap,
+		Styles:           DefaultStyles,
 	}
-}
-
-// FileSelectedMsg is the msg that is return when a user makes a valid
-// selection on a file.
-type FileSelectedMsg struct {
-	Path string
 }
 
 type errorMsg struct {
@@ -72,7 +81,7 @@ var DefaultKeyMap = KeyMap{
 	PageUp:   key.NewBinding(key.WithKeys("K", "pgup"), key.WithHelp("pgup", "page up")),
 	PageDown: key.NewBinding(key.WithKeys("J", "pgdown"), key.WithHelp("pgdown", "page down")),
 	Back:     key.NewBinding(key.WithKeys("h", "backspace", "left", "esc"), key.WithHelp("h", "back")),
-	Open:     key.NewBinding(key.WithKeys("l", "right", "enter"), key.WithHelp("l", "enter")),
+	Open:     key.NewBinding(key.WithKeys("l", "right", "enter"), key.WithHelp("l", "open")),
 	Select:   key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "select")),
 }
 
@@ -102,8 +111,13 @@ var DefaultStyles = Styles{
 
 // Model represents a file picker.
 type Model struct {
+	id int
+
+	// currentDirectory is the path which the user has selected with the file picker.
+	Path             string
+	currentDirectory string
+
 	KeyMap      KeyMap
-	Path        string
 	files       []os.DirEntry
 	ShowHidden  bool
 	DirAllowed  bool
@@ -190,7 +204,7 @@ func readDir(path string, showHidden bool) tea.Cmd {
 
 // Init initializes the file picker model.
 func (m Model) Init() tea.Cmd {
-	return readDir(m.Path, m.ShowHidden)
+	return readDir(m.currentDirectory, m.ShowHidden)
 }
 
 // Update handles user interactions within the file picker model.
@@ -256,7 +270,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				m.max = m.min + m.Height
 			}
 		case key.Matches(msg, m.KeyMap.Back):
-			m.Path = filepath.Dir(m.Path)
+			m.currentDirectory = filepath.Dir(m.currentDirectory)
 			if m.selectedStack.Length() > 0 {
 				m.selected, m.min, m.max = m.popView()
 			} else {
@@ -264,7 +278,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				m.min = 0
 				m.max = m.Height - 1
 			}
-			return m, readDir(m.Path, m.ShowHidden)
+			return m, readDir(m.currentDirectory, m.ShowHidden)
 		case key.Matches(msg, m.KeyMap.Open):
 			if len(m.files) == 0 {
 				break
@@ -279,7 +293,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			isDir := f.IsDir()
 
 			if isSymlink {
-				symlinkPath, _ := filepath.EvalSymlinks(filepath.Join(m.Path, f.Name()))
+				symlinkPath, _ := filepath.EvalSymlinks(filepath.Join(m.currentDirectory, f.Name()))
 				info, err := os.Stat(symlinkPath)
 				if err != nil {
 					break
@@ -291,10 +305,8 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 			if (!isDir && m.FileAllowed) || (isDir && m.DirAllowed) {
 				if key.Matches(msg, m.KeyMap.Select) {
-					selectedFile := filepath.Join(m.Path, f.Name())
-					return m, func() tea.Msg {
-						return FileSelectedMsg{selectedFile}
-					}
+					// Select the current path as the selection
+					m.Path = filepath.Join(m.currentDirectory, f.Name())
 				}
 			}
 
@@ -302,12 +314,12 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				break
 			}
 
-			m.Path = filepath.Join(m.Path, f.Name())
+			m.currentDirectory = filepath.Join(m.currentDirectory, f.Name())
 			m.pushView()
 			m.selected = 0
 			m.min = 0
 			m.max = m.Height - 1
-			return m, readDir(m.Path, m.ShowHidden)
+			return m, readDir(m.currentDirectory, m.ShowHidden)
 		}
 	}
 	return m, nil
@@ -335,7 +347,7 @@ func (m Model) View() string {
 		name := f.Name()
 
 		if isSymlink {
-			symlinkPath, _ = filepath.EvalSymlinks(filepath.Join(m.Path, name))
+			symlinkPath, _ = filepath.EvalSymlinks(filepath.Join(m.currentDirectory, name))
 		}
 
 		if m.selected == i {
@@ -364,4 +376,46 @@ func (m Model) View() string {
 	}
 
 	return s.String()
+}
+
+// HasSelectedFile returns whether a user has selected a file (on this msg).
+func (m Model) DidSelectFile(msg tea.Msg) (bool, string) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		// If the msg does not match the Select keymap then this could not have been a selection.
+		if !key.Matches(msg, m.KeyMap.Select) {
+			return false, ""
+		}
+
+		// The key press was a selection, let's confirm whether the current file could
+		// be selected or used for navigating deeper into the stack.
+		f := m.files[m.selected]
+		info, err := f.Info()
+		if err != nil {
+			return false, ""
+		}
+		isSymlink := info.Mode()&os.ModeSymlink != 0
+		isDir := f.IsDir()
+
+		if isSymlink {
+			symlinkPath, _ := filepath.EvalSymlinks(filepath.Join(m.currentDirectory, f.Name()))
+			info, err := os.Stat(symlinkPath)
+			if err != nil {
+				break
+			}
+			if info.IsDir() {
+				isDir = true
+			}
+		}
+
+		if (!isDir && m.FileAllowed) || (isDir && m.DirAllowed) && m.Path != "" {
+			return true, m.Path
+		}
+
+		// If the msg was not a KeyMsg, then the file could not have been selected this iteration.
+		// Only a KeyMsg can select a file.
+	default:
+		return false, ""
+	}
+	return false, ""
 }
