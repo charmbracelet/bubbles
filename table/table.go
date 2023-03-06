@@ -252,6 +252,7 @@ func (m *Model) UpdateViewport() {
 		m.start = 0
 	}
 	m.end = clamp(m.cursor+m.viewport.Height, m.cursor, len(m.rows))
+
 	for i := m.start; i < m.end; i++ {
 		renderedRows = append(renderedRows, m.renderRow(i))
 	}
@@ -317,14 +318,25 @@ func (m Model) Cursor() int {
 
 // SetCursor sets the cursor position in the table.
 func (m *Model) SetCursor(n int) {
-	m.cursor = clamp(n, 0, len(m.rows)-1)
-	m.UpdateViewport()
+	n = clamp(n, 0, len(m.rows)-1)
+	if m.cursor == n {
+		return
+	}
+
+	if m.cursor < n {
+		m.MoveDown(n - m.cursor)
+		return
+	}
+
+	m.MoveUp(m.cursor - n)
 }
 
 // MoveUp moves the selection up by any number of rows.
 // It can not go above the first row.
 func (m *Model) MoveUp(n int) {
 	m.cursor = clamp(m.cursor-n, 0, len(m.rows)-1)
+	m.UpdateViewport()
+
 	switch {
 	case m.start == 0:
 		m.viewport.SetYOffset(clamp(m.viewport.YOffset, 0, m.cursor))
@@ -333,7 +345,6 @@ func (m *Model) MoveUp(n int) {
 	case m.viewport.YOffset >= 1:
 		m.viewport.YOffset = clamp(m.viewport.YOffset+n, 1, m.viewport.Height)
 	}
-	m.UpdateViewport()
 }
 
 // MoveDown moves the selection down by any number of rows.
