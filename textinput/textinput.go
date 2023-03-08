@@ -64,7 +64,7 @@ var DefaultKeyMap = KeyMap{
 	WordForward:             key.NewBinding(key.WithKeys("alt+right", "alt+f")),
 	WordBackward:            key.NewBinding(key.WithKeys("alt+left", "alt+b")),
 	DeleteWordBackward:      key.NewBinding(key.WithKeys("alt+backspace", "ctrl+w")),
-	DeleteWordForward:       key.NewBinding(key.WithKeys("alte+delete", "alt+d")),
+	DeleteWordForward:       key.NewBinding(key.WithKeys("alt+delete", "alt+d")),
 	DeleteAfterCursor:       key.NewBinding(key.WithKeys("ctrl+k")),
 	DeleteBeforeCursor:      key.NewBinding(key.WithKeys("ctrl+u")),
 	DeleteCharacterBackward: key.NewBinding(key.WithKeys("backspace", "ctrl+h")),
