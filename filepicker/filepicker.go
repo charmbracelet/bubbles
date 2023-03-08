@@ -31,7 +31,7 @@ func nextID() int {
 func New() Model {
 	return Model{
 		id:               nextID(),
-		currentDirectory: ".",
+		CurrentDirectory: ".",
 		Cursor:           ">",
 		selected:         0,
 		ShowHidden:       false,
@@ -115,7 +115,7 @@ type Model struct {
 
 	// currentDirectory is the path which the user has selected with the file picker.
 	Path             string
-	currentDirectory string
+	CurrentDirectory string
 
 	KeyMap      KeyMap
 	files       []os.DirEntry
@@ -204,7 +204,7 @@ func readDir(path string, showHidden bool) tea.Cmd {
 
 // Init initializes the file picker model.
 func (m Model) Init() tea.Cmd {
-	return readDir(m.currentDirectory, m.ShowHidden)
+	return readDir(m.CurrentDirectory, m.ShowHidden)
 }
 
 // Update handles user interactions within the file picker model.
@@ -270,7 +270,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				m.max = m.min + m.Height
 			}
 		case key.Matches(msg, m.KeyMap.Back):
-			m.currentDirectory = filepath.Dir(m.currentDirectory)
+			m.CurrentDirectory = filepath.Dir(m.CurrentDirectory)
 			if m.selectedStack.Length() > 0 {
 				m.selected, m.min, m.max = m.popView()
 			} else {
@@ -278,7 +278,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				m.min = 0
 				m.max = m.Height - 1
 			}
-			return m, readDir(m.currentDirectory, m.ShowHidden)
+			return m, readDir(m.CurrentDirectory, m.ShowHidden)
 		case key.Matches(msg, m.KeyMap.Open):
 			if len(m.files) == 0 {
 				break
@@ -293,7 +293,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			isDir := f.IsDir()
 
 			if isSymlink {
-				symlinkPath, _ := filepath.EvalSymlinks(filepath.Join(m.currentDirectory, f.Name()))
+				symlinkPath, _ := filepath.EvalSymlinks(filepath.Join(m.CurrentDirectory, f.Name()))
 				info, err := os.Stat(symlinkPath)
 				if err != nil {
 					break
@@ -306,7 +306,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			if (!isDir && m.FileAllowed) || (isDir && m.DirAllowed) {
 				if key.Matches(msg, m.KeyMap.Select) {
 					// Select the current path as the selection
-					m.Path = filepath.Join(m.currentDirectory, f.Name())
+					m.Path = filepath.Join(m.CurrentDirectory, f.Name())
 				}
 			}
 
@@ -314,12 +314,12 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				break
 			}
 
-			m.currentDirectory = filepath.Join(m.currentDirectory, f.Name())
+			m.CurrentDirectory = filepath.Join(m.CurrentDirectory, f.Name())
 			m.pushView()
 			m.selected = 0
 			m.min = 0
 			m.max = m.Height - 1
-			return m, readDir(m.currentDirectory, m.ShowHidden)
+			return m, readDir(m.CurrentDirectory, m.ShowHidden)
 		}
 	}
 	return m, nil
@@ -347,7 +347,7 @@ func (m Model) View() string {
 		name := f.Name()
 
 		if isSymlink {
-			symlinkPath, _ = filepath.EvalSymlinks(filepath.Join(m.currentDirectory, name))
+			symlinkPath, _ = filepath.EvalSymlinks(filepath.Join(m.CurrentDirectory, name))
 		}
 
 		if m.selected == i {
@@ -398,7 +398,7 @@ func (m Model) DidSelectFile(msg tea.Msg) (bool, string) {
 		isDir := f.IsDir()
 
 		if isSymlink {
-			symlinkPath, _ := filepath.EvalSymlinks(filepath.Join(m.currentDirectory, f.Name()))
+			symlinkPath, _ := filepath.EvalSymlinks(filepath.Join(m.CurrentDirectory, f.Name()))
 			info, err := os.Stat(symlinkPath)
 			if err != nil {
 				break
