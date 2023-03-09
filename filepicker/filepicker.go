@@ -212,6 +212,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case readDirMsg:
 		m.files = msg
+		m.max = m.Height
 	case tea.WindowSizeMsg:
 		if m.AutoHeight {
 			m.Height = msg.Height - marginBottom
