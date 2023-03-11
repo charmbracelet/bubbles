@@ -269,9 +269,8 @@ func (m Model) SelectedRow() Row {
 	// Check if the cursor is within bounds else return  nil
 	if m.cursor < len(m.rows) && m.cursor >= 0 {
 		return m.rows[m.cursor]
-	} else {
-		return nil
 	}
+	return nil
 }
 
 // Rows returns the current rows.
