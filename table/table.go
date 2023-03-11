@@ -266,7 +266,12 @@ func (m *Model) UpdateViewport() {
 // SelectedRow returns the selected row.
 // You can cast it to your own implementation.
 func (m Model) SelectedRow() Row {
-	return m.rows[m.cursor]
+	// Check if the cursor is within bounds else return  nil
+	if m.cursor < len(m.rows) && m.cursor >= 0 {
+		return m.rows[m.cursor]
+	} else {
+		return nil
+	}
 }
 
 // Rows returns the current rows.
