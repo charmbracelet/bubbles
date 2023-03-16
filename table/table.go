@@ -240,6 +240,16 @@ func (m Model) View() string {
 	return m.headersView() + "\n" + m.viewport.View()
 }
 
+// TableBodyView renders rows with data.
+func (m Model) TableBodyView() string {
+	return m.viewport.View()
+}
+
+// HeadersView renders table header
+func (m Model) HeadersView() string {
+	return m.headersView()
+}
+
 // UpdateViewport updates the list content based on the previously defined
 // columns and rows.
 func (m *Model) UpdateViewport() {
@@ -290,6 +300,11 @@ func (m *Model) SetColumns(c []Column) {
 	m.UpdateViewport()
 }
 
+// Columns returns the current cols.
+func (m Model) Columns() []Column {
+	return m.cols
+}
+
 // SetWidth sets the width of the viewport of the table.
 func (m *Model) SetWidth(w int) {
 	m.viewport.Width = w
@@ -298,6 +313,13 @@ func (m *Model) SetWidth(w int) {
 
 // SetHeight sets the height of the viewport of the table.
 func (m *Model) SetHeight(h int) {
+	m.viewport.Height = h
+	m.UpdateViewport()
+}
+
+// SetSize sets the width and the height of the viewport.
+func (m *Model) SetSize(w, h int) {
+	m.viewport.Width = w
 	m.viewport.Height = h
 	m.UpdateViewport()
 }
