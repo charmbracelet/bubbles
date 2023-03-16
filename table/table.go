@@ -91,6 +91,7 @@ func DefaultKeyMap() KeyMap {
 type Styles struct {
 	Header   lipgloss.Style
 	Cell     lipgloss.Style
+	Row      lipgloss.Style
 	Selected lipgloss.Style
 }
 
@@ -100,6 +101,7 @@ func DefaultStyles() Styles {
 		Selected: lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("212")),
 		Header:   lipgloss.NewStyle().Bold(true).Padding(0, 1),
 		Cell:     lipgloss.NewStyle().Padding(0, 1),
+		Row: lipgloss.NewStyle(),
 	}
 }
 
@@ -405,7 +407,7 @@ func (m *Model) renderRow(rowID int) string {
 		return m.styles.Selected.Render(row)
 	}
 
-	return row
+	return m.styles.Row.Render(row)
 }
 
 func max(a, b int) int {
