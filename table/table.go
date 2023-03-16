@@ -23,6 +23,8 @@ type Model struct {
 	viewport viewport.Model
 	start    int
 	end      int
+
+	rowHeight int
 }
 
 // Row represents one line in the table.
@@ -122,6 +124,8 @@ func New(opts ...Option) Model {
 
 		KeyMap: DefaultKeyMap(),
 		styles: DefaultStyles(),
+
+		rowHeight: 1,
 	}
 
 	for _, opt := range opts {
@@ -179,6 +183,13 @@ func WithStyles(s Styles) Option {
 func WithKeyMap(km KeyMap) Option {
 	return func(m *Model) {
 		m.KeyMap = km
+	}
+}
+
+// WithRowHeight sets the height of the row.
+func WithRowHeight(h int) Option {
+	return func(m *Model) {
+		m.rowHeight = h
 	}
 }
 
@@ -244,16 +255,17 @@ func (m Model) View() string {
 // columns and rows.
 func (m *Model) UpdateViewport() {
 	renderedRows := make([]string, 0, len(m.rows))
+	rowsInViewport := m.viewport.Height / m.rowHeight
 
-	// Render only rows from: m.cursor-m.viewport.Height to: m.cursor+m.viewport.Height
+	// Render only rows from: m.cursor-rowsInViewport to: m.cursor+rowsInViewport
 	// Constant runtime, independent of number of rows in a table.
-	// Limits the number of renderedRows to a maximum of 2*m.viewport.Height
+	// Limits the number of renderedRows to a maximum of 2*rowsInViewport
 	if m.cursor >= 0 {
-		m.start = clamp(m.cursor-m.viewport.Height, 0, m.cursor)
+		m.start = clamp(m.cursor-rowsInViewport, 0, m.cursor)
 	} else {
 		m.start = 0
 	}
-	m.end = clamp(m.cursor+m.viewport.Height, m.cursor, len(m.rows))
+	m.end = clamp(m.cursor+rowsInViewport, m.cursor, len(m.rows))
 	for i := m.start; i < m.end; i++ {
 		renderedRows = append(renderedRows, m.renderRow(i))
 	}
@@ -326,14 +338,15 @@ func (m *Model) SetCursor(n int) {
 // MoveUp moves the selection up by any number of rows.
 // It can not go above the first row.
 func (m *Model) MoveUp(n int) {
+	rowsInViewport := m.viewport.Height / m.rowHeight
 	m.cursor = clamp(m.cursor-n, 0, len(m.rows)-1)
 	switch {
 	case m.start == 0:
 		m.viewport.SetYOffset(clamp(m.viewport.YOffset, 0, m.cursor))
-	case m.start < m.viewport.Height:
+	case m.start < rowsInViewport:
 		m.viewport.SetYOffset(clamp(m.viewport.YOffset+n, 0, m.cursor))
 	case m.viewport.YOffset >= 1:
-		m.viewport.YOffset = clamp(m.viewport.YOffset+n, 1, m.viewport.Height)
+		m.viewport.YOffset = clamp(m.viewport.YOffset+n, 1, rowsInViewport)
 	}
 	m.UpdateViewport()
 }
@@ -341,16 +354,17 @@ func (m *Model) MoveUp(n int) {
 // MoveDown moves the selection down by any number of rows.
 // It can not go below the last row.
 func (m *Model) MoveDown(n int) {
+	rowsInViewport := m.viewport.Height / m.rowHeight
 	m.cursor = clamp(m.cursor+n, 0, len(m.rows)-1)
 	m.UpdateViewport()
 
 	switch {
 	case m.end == len(m.rows):
-		m.viewport.SetYOffset(clamp(m.viewport.YOffset-n, 1, m.viewport.Height))
+		m.viewport.SetYOffset(clamp(m.viewport.YOffset-n, 1, rowsInViewport))
 	case m.cursor > (m.end-m.start)/2:
 		m.viewport.SetYOffset(clamp(m.viewport.YOffset-n, 1, m.cursor))
 	case m.viewport.YOffset > 1:
-	case m.cursor > m.viewport.YOffset+m.viewport.Height-1:
+	case m.cursor > m.viewport.YOffset+rowsInViewport-1:
 		m.viewport.SetYOffset(clamp(m.viewport.YOffset+1, 0, 1))
 	}
 }
