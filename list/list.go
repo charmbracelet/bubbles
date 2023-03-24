@@ -132,8 +132,9 @@ type Model struct {
 	itemNameSingular string
 	itemNamePlural   string
 
-	Title  string
-	Styles Styles
+	Title             string
+	Styles            Styles
+	InfiniteScrolling bool
 
 	// Key mappings for navigating the list.
 	KeyMap KeyMap
@@ -459,6 +460,13 @@ func (m *Model) CursorUp() {
 
 	// If we're at the start, stop
 	if m.cursor < 0 && m.Paginator.Page == 0 {
+		// if infinite scrolling is enabled, go to the last item
+		if m.InfiniteScrolling {
+			m.Paginator.Page = m.Paginator.TotalPages - 1
+			m.cursor = m.Paginator.ItemsOnPage(len(m.VisibleItems())) - 1
+			return
+		}
+
 		m.cursor = 0
 		return
 	}
@@ -501,6 +509,12 @@ func (m *Model) CursorDown() {
 	}
 
 	m.cursor = itemsOnPage - 1
+
+	// if infinite scrolling is enabled, go to the first item
+	if m.InfiniteScrolling {
+		m.Paginator.Page = 0
+		m.cursor = 0
+	}
 }
 
 // PrevPage moves to the previous page, if available.
