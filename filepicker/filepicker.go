@@ -33,6 +33,7 @@ func New() Model {
 		id:               nextID(),
 		CurrentDirectory: ".",
 		Cursor:           ">",
+		AllowedTypes:     []string{},
 		selected:         0,
 		ShowHidden:       false,
 		DirAllowed:       false,
@@ -87,35 +88,47 @@ var DefaultKeyMap = KeyMap{
 
 // Styles defines the possible customizations for styles in the file picker.
 type Styles struct {
-	Cursor         lipgloss.Style
-	Symlink        lipgloss.Style
-	Directory      lipgloss.Style
-	File           lipgloss.Style
-	Permission     lipgloss.Style
-	Selected       lipgloss.Style
-	FileSize       lipgloss.Style
-	EmptyDirectory lipgloss.Style
+	DisabledCursor   lipgloss.Style
+	Cursor           lipgloss.Style
+	Symlink          lipgloss.Style
+	Directory        lipgloss.Style
+	File             lipgloss.Style
+	DisabledFile     lipgloss.Style
+	Permission       lipgloss.Style
+	Selected         lipgloss.Style
+	DisabledSelected lipgloss.Style
+	FileSize         lipgloss.Style
+	EmptyDirectory   lipgloss.Style
 }
 
 // DefaultStyles defines the default styling for the file picker.
 var DefaultStyles = Styles{
-	Cursor:         lipgloss.NewStyle().Foreground(lipgloss.Color("212")),
-	Symlink:        lipgloss.NewStyle().Foreground(lipgloss.Color("36")),
-	Directory:      lipgloss.NewStyle().Foreground(lipgloss.Color("99")),
-	File:           lipgloss.NewStyle(),
-	Permission:     lipgloss.NewStyle().Foreground(lipgloss.Color("244")),
-	Selected:       lipgloss.NewStyle().Foreground(lipgloss.Color("212")).Bold(true),
-	FileSize:       lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Width(fileSizeWidth).Align(lipgloss.Right),
-	EmptyDirectory: lipgloss.NewStyle().Foreground(lipgloss.Color("240")).PaddingLeft(paddingLeft).SetString("Bummer. No Files Found."),
+	DisabledCursor:   lipgloss.NewStyle().Foreground(lipgloss.Color("247")),
+	Cursor:           lipgloss.NewStyle().Foreground(lipgloss.Color("212")),
+	Symlink:          lipgloss.NewStyle().Foreground(lipgloss.Color("36")),
+	Directory:        lipgloss.NewStyle().Foreground(lipgloss.Color("99")),
+	File:             lipgloss.NewStyle(),
+	DisabledFile:     lipgloss.NewStyle().Foreground(lipgloss.Color("243")),
+	DisabledSelected: lipgloss.NewStyle().Foreground(lipgloss.Color("247")),
+	Permission:       lipgloss.NewStyle().Foreground(lipgloss.Color("244")),
+	Selected:         lipgloss.NewStyle().Foreground(lipgloss.Color("212")).Bold(true),
+	FileSize:         lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Width(fileSizeWidth).Align(lipgloss.Right),
+	EmptyDirectory:   lipgloss.NewStyle().Foreground(lipgloss.Color("240")).PaddingLeft(paddingLeft).SetString("Bummer. No Files Found."),
 }
 
 // Model represents a file picker.
 type Model struct {
 	id int
 
-	// currentDirectory is the path which the user has selected with the file picker.
-	Path             string
+	// Path is the path which the user has selected with the file picker.
+	Path string
+
+	// CurrentDirectory is the directory that the user is currently in.
 	CurrentDirectory string
+
+	// AllowedTypes specifies which file types the user may select.
+	// If empty the user may select any file.
+	AllowedTypes []string
 
 	KeyMap      KeyMap
 	files       []os.DirEntry
@@ -351,12 +364,18 @@ func (m Model) View() string {
 			symlinkPath, _ = filepath.EvalSymlinks(filepath.Join(m.CurrentDirectory, name))
 		}
 
+		disabled := !m.canSelect(name) && !f.IsDir()
+
 		if m.selected == i {
 			selected := fmt.Sprintf(" %s %"+fmt.Sprint(m.Styles.FileSize.GetWidth())+"s %s", info.Mode().String(), size, name)
 			if isSymlink {
 				selected = fmt.Sprintf("%s → %s", selected, symlinkPath)
 			}
-			s.WriteString(m.Styles.Cursor.Render(m.Cursor) + m.Styles.Selected.Render(selected))
+			if disabled {
+				s.WriteString(m.Styles.DisabledSelected.Render(m.Cursor) + m.Styles.DisabledSelected.Render(selected))
+			} else {
+				s.WriteString(m.Styles.Cursor.Render(m.Cursor) + m.Styles.Selected.Render(selected))
+			}
 			s.WriteRune('\n')
 			continue
 		}
@@ -366,6 +385,8 @@ func (m Model) View() string {
 			style = m.Styles.Directory
 		} else if isSymlink {
 			style = m.Styles.Symlink
+		} else if disabled {
+			style = m.Styles.DisabledFile
 		}
 
 		fileName := style.Render(name)
@@ -379,8 +400,27 @@ func (m Model) View() string {
 	return s.String()
 }
 
-// HasSelectedFile returns whether a user has selected a file (on this msg).
+// DidSelectFile returns whether a user has selected a file (on this msg).
 func (m Model) DidSelectFile(msg tea.Msg) (bool, string) {
+	didSelect, path := m.didSelectFile(msg)
+	if didSelect && m.canSelect(path) {
+		return true, path
+	}
+	return false, ""
+}
+
+// DidSelectDisabledFile returns whether a user tried to select a disabled file
+// (on this msg). This is necessary only if you would like to warn the user that
+// they tried to select a disabled file.
+func (m Model) DidSelectDisabledFile(msg tea.Msg) (bool, string) {
+	didSelect, path := m.didSelectFile(msg)
+	if didSelect && !m.canSelect(path) {
+		return true, path
+	}
+	return false, ""
+}
+
+func (m Model) didSelectFile(msg tea.Msg) (bool, string) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		// If the msg does not match the Select keymap then this could not have been a selection.
@@ -419,4 +459,17 @@ func (m Model) DidSelectFile(msg tea.Msg) (bool, string) {
 		return false, ""
 	}
 	return false, ""
+}
+
+func (m Model) canSelect(file string) bool {
+	if len(m.AllowedTypes) <= 0 {
+		return true
+	}
+
+	for _, ext := range m.AllowedTypes {
+		if strings.HasSuffix(file, ext) {
+			return true
+		}
+	}
+	return false
 }
