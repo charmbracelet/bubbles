@@ -191,7 +191,7 @@ func New(items []Item, delegate ItemDelegate, width, height int) Model {
 	filterInput := textinput.New()
 	filterInput.Prompt = "Filter: "
 	filterInput.PromptStyle = styles.FilterPrompt
-	filterInput.CursorStyle = styles.FilterCursor
+	filterInput.Cursor.Style = styles.FilterCursor
 	filterInput.CharLimit = 64
 	filterInput.Focus()
 

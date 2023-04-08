@@ -95,7 +95,9 @@ type Model struct {
 	PromptStyle      lipgloss.Style
 	TextStyle        lipgloss.Style
 	PlaceholderStyle lipgloss.Style
-	CursorStyle      lipgloss.Style
+
+	// Deprecated: use Cursor.Style instead.
+	CursorStyle lipgloss.Style
 
 	// CharLimit is the maximum amount of characters this input element will
 	// accept. If 0 or less, there's no limit.
