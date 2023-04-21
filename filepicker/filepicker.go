@@ -56,9 +56,11 @@ type errorMsg struct {
 
 type readDirMsg []os.DirEntry
 
-const marginBottom = 5
-const fileSizeWidth = 8
-const paddingLeft = 2
+const (
+	marginBottom  = 6
+	fileSizeWidth = 8
+	paddingLeft   = 2
+)
 
 // KeyMap defines key bindings for each user action.
 type KeyMap struct {
@@ -380,7 +382,7 @@ func (m Model) View() string {
 			continue
 		}
 
-		var style = m.Styles.File
+		style := m.Styles.File
 		if f.IsDir() {
 			style = m.Styles.Directory
 		} else if isSymlink {
