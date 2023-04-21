@@ -386,6 +386,7 @@ func (m Model) View() string {
 		}
 	}
 	m.writePanes = append(m.writePanes, paneWriter(m))
+
 	s.WriteString(lipgloss.JoinHorizontal(lipgloss.Top,
 		singlePaneStyle.Render(
 			m.writePanes[len(m.writePanes)-1],
