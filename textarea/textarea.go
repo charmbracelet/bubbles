@@ -21,8 +21,8 @@ const (
 	defaultHeight    = 6
 	defaultWidth     = 40
 	defaultCharLimit = 400
-	maxHeight        = 99
-	maxWidth         = 500
+	defaultMaxHeight = 99
+	defaultMaxWidth  = 500
 )
 
 // Internal messages for clipboard operations.
@@ -174,6 +174,14 @@ type Model struct {
 	// accept. If 0 or less, there's no limit.
 	CharLimit int
 
+	// MaxHeight is the maximum height of the text area in rows. If 0 or less,
+	// there's no limit.
+	MaxHeight int
+
+	// MaxWidth is the maximum width of the text area in columns. If 0 or less,
+	// there's no limit.
+	MaxWidth int
+
 	// If promptFunc is set, it replaces Prompt as a generator for
 	// prompt strings at the beginning of each line.
 	promptFunc func(line int) string
@@ -228,6 +236,8 @@ func New() Model {
 
 	m := Model{
 		CharLimit:            defaultCharLimit,
+		MaxHeight:            defaultMaxHeight,
+		MaxWidth:             defaultMaxWidth,
 		Prompt:               lipgloss.ThickBorder().Left + " ",
 		style:                &blurredStyle,
 		FocusedStyle:         focusedStyle,
@@ -237,7 +247,7 @@ func New() Model {
 		Cursor:               cur,
 		KeyMap:               DefaultKeyMap,
 
-		value:            make([][]rune, minHeight, maxHeight),
+		value:            make([][]rune, minHeight, defaultMaxHeight),
 		focus:            false,
 		col:              0,
 		row:              0,
@@ -336,8 +346,8 @@ func (m *Model) insertRunesFromUserInput(runes []rune) {
 	}
 
 	// Obey the maximum height limit.
-	if len(m.value)+len(lines)-1 > maxHeight {
-		allowedHeight := max(0, maxHeight-len(m.value)+1)
+	if m.MaxHeight > 0 && len(m.value)+len(lines)-1 > m.MaxHeight {
+		allowedHeight := max(0, m.MaxHeight-len(m.value)+1)
 		lines = lines[:allowedHeight]
 	}
 
@@ -530,7 +540,11 @@ func (m *Model) Blur() {
 
 // Reset sets the input to its default state with no input.
 func (m *Model) Reset() {
-	m.value = make([][]rune, minHeight, maxHeight)
+	startCap := m.MaxHeight
+	if startCap <= 0 {
+		startCap = defaultMaxHeight
+	}
+	m.value = make([][]rune, minHeight, startCap)
 	m.col = 0
 	m.row = 0
 	m.viewport.GotoTop()
@@ -830,7 +844,11 @@ func (m *Model) moveToEnd() {
 // It is important that the width of the textarea be exactly the given width
 // and no more.
 func (m *Model) SetWidth(w int) {
-	m.viewport.Width = clamp(w, minWidth, maxWidth)
+	if m.MaxWidth > 0 {
+		m.viewport.Width = clamp(w, minWidth, m.MaxWidth)
+	} else {
+		m.viewport.Width = max(w, minWidth)
+	}
 
 	// Since the width of the textarea input is dependent on the width of the
 	// prompt and line numbers, we need to calculate it by subtracting.
@@ -847,7 +865,11 @@ func (m *Model) SetWidth(w int) {
 	}
 
 	inputWidth -= m.promptWidth
-	m.width = clamp(inputWidth, minWidth, maxWidth)
+	if m.MaxWidth > 0 {
+		m.width = clamp(inputWidth, minWidth, m.MaxWidth)
+	} else {
+		m.width = max(inputWidth, minWidth)
+	}
 }
 
 // SetPromptFunc supersedes the Prompt field and sets a dynamic prompt
@@ -869,8 +891,13 @@ func (m Model) Height() int {
 
 // SetHeight sets the height of the textarea.
 func (m *Model) SetHeight(h int) {
-	m.height = clamp(h, minHeight, maxHeight)
-	m.viewport.Height = clamp(h, minHeight, maxHeight)
+	if m.MaxHeight > 0 {
+		m.height = clamp(h, minHeight, m.MaxHeight)
+		m.viewport.Height = clamp(h, minHeight, m.MaxHeight)
+	} else {
+		m.height = max(h, minHeight)
+		m.viewport.Height = max(h, minHeight)
+	}
 }
 
 // Update is the Bubble Tea update loop.
@@ -940,7 +967,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			}
 			m.deleteWordRight()
 		case key.Matches(msg, m.KeyMap.InsertNewline):
-			if len(m.value) >= maxHeight {
+			if m.MaxHeight > 0 && len(m.value) >= m.MaxHeight {
 				return m, nil
 			}
 			m.col = clamp(m.col, 0, len(m.value[m.row]))
