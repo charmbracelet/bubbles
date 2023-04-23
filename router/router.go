@@ -1,3 +1,6 @@
+// package router provides a simple router for bubbletea applications
+// The router is based on a history stack (similar to browser history)
+// and allows for navigating between screens both programmatically and using keybindings too.
 package router
 
 import (
