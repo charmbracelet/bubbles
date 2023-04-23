@@ -7,71 +7,101 @@ import (
 
 // Screen represents a model with a particular binding to trigger it
 type Screen struct {
-	model   tea.Model
-	binding key.Binding
-  initialized bool
+	model       tea.Model
+	binding     key.Binding
+	initialized bool
 }
 
 // Model stores different screens and the currently focused screens
 type Model struct {
-	screens     []Screen
-	current     int
+	screens     map[string]Screen
+	initialPath string
+	history     []string
 }
 
 // New creates a new empty Model
-func New() Model {
-	return Model{}
+func New(initialPath string) Model {
+	return Model{initialPath: initialPath}
 }
 
 // NewWithScreens creates a new model with an array of Screen
-func NewWithScreens(screens []Screen) Model {
-	current := 0
+func NewWithScreens(screens map[string]Screen, initialPath string) Model {
+	history := make([]string, 0)
+	history = append(history, initialPath)
 	return Model{
 		screens,
-		current,
+		initialPath,
+		history,
 	}
 }
 
+func (m Model) current() string {
+	return m.history[len(m.history)-1]
+}
+
 func (m Model) updateCurrent(msg tea.Msg) (Model, tea.Cmd) {
-	if len(m.screens) <= m.current {
+	if _, ok := m.screens[m.current()]; !ok {
 		return m, nil
 	}
 	var cmd tea.Cmd
-	m.screens[m.current].model, cmd = m.screens[m.current].model.Update(msg)
+	screen := m.screens[m.current()]
+	screen.model, cmd = m.screens[m.current()].model.Update(msg)
+	m.screens[m.current()] = screen
 	return m, cmd
 }
 
 // AddScreen adds a new screen to the router
-func (m *Model) AddScreen(model tea.Model, binding key.Binding) {
-  initialized := false
-	m.screens = append(m.screens, Screen{model, binding, initialized})
+func (m *Model) AddScreen(model tea.Model, path string, binding key.Binding) {
+	initialized := false
+	m.screens[path] = Screen{model, binding, initialized}
 }
 
-// setCurrent sets the current screen to the given integer and initializes the screen if not already initailized
-func (m *Model) setCurrent(current int) tea.Cmd {
-	if len(m.screens) >= m.current {
+// Navigates to a screen by path (replacing top of history)
+func (m *Model) NavigateTo(path string) tea.Cmd {
+	m.history[len(m.history)-1] = path
+	return m.initCurrent()
+}
+
+// Navigates to a screen by path (pushing an element to history)
+func (m *Model) Push(path string) tea.Cmd {
+	m.history = append(m.history, path)
+	return m.initCurrent()
+}
+
+func (m *Model) Pop() tea.Cmd {
+	if len(m.history) == 1 {
 		return nil
 	}
-	m.current = current
-	if !m.screens[m.current].initialized {
-		m.screens[m.current].initialized = true
-		return m.screens[m.current].model.Init()
+	m.history = m.history[:len(m.history)-1]
+	return m.initCurrent()
+}
+
+// initCurrent sets the current screen to the given integer and initializes the screen if not already initailized
+func (m *Model) initCurrent() tea.Cmd {
+	if _, ok := m.screens[m.current()]; !ok {
+		return nil
+	}
+	if !m.screens[m.current()].initialized {
+		currentScreen := m.screens[m.current()]
+		currentScreen.initialized = true
+		m.screens[m.current()] = currentScreen
+		return m.screens[m.current()].model.Init()
 	}
 	return nil
 }
 
 // Init implements tea.Model
 func (m *Model) Init() tea.Cmd {
-	return m.setCurrent(0) // assumes that there is atleast one screen
+	return m.NavigateTo(m.initialPath)
 }
 
 // Update implements tea.Model
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		for i, screen := range m.screens {
+		for path, screen := range m.screens {
 			if key.Matches(msg, screen.binding) {
-				cmd := m.setCurrent(i)
+				cmd := m.NavigateTo(path)
 				if cmd != nil {
 					return m, cmd
 				}
@@ -85,5 +115,5 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 // View implements tea.Model
 func (m Model) View() string {
-	return m.screens[m.current].model.View()
+	return m.screens[m.current()].model.View()
 }
