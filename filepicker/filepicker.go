@@ -138,7 +138,7 @@ type Model struct {
 	DirAllowed  bool
 	FileAllowed bool
 
-	FileSelcted   string
+	FileSelected  string
 	selected      int
 	selectedStack stack
 
