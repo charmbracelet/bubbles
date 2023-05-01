@@ -516,7 +516,8 @@ func (m Model) echoTransform(v string) string {
 		return strings.Repeat(string(m.EchoCharacter), rw.StringWidth(v))
 	case EchoNone:
 		return ""
-
+	case EchoNormal:
+		return v
 	default:
 		return v
 	}
