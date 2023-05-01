@@ -423,6 +423,9 @@ func (m Model) DidSelectDisabledFile(msg tea.Msg) (bool, string) {
 }
 
 func (m Model) didSelectFile(msg tea.Msg) (bool, string) {
+	if len(m.files) == 0 {
+		return false, ""
+	}
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		// If the msg does not match the Select keymap then this could not have been a selection.
