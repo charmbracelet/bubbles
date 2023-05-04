@@ -2,6 +2,7 @@ package filepicker
 
 import (
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
@@ -216,33 +217,57 @@ func readDir(path string, showHidden bool) tea.Cmd {
 			return errorMsg{err}
 		}
 
-		sort.Slice(dirEntries, func(i, j int) bool {
-			if dirEntries[i].IsDir() == dirEntries[j].IsDir() {
-				return dirEntries[i].Name() < dirEntries[j].Name()
-			}
-			return dirEntries[i].IsDir()
-		})
+		//sort.Slice(dirEntries, func(i, j int) bool {
+		//	if dirEntries[i].IsDir() == dirEntries[j].IsDir() {
+		//		return dirEntries[i].Name() < dirEntries[j].Name()
+		//	}
+		//	return dirEntries[i].IsDir()
+		//})
 
-		if showHidden {
-			return readDirMsg(dirEntries)
-		}
+		//if showHidden {
+		//	return readDirMsg(dirEntries)
+		//}
 
-		var sanitizedDirEntries []os.DirEntry
-		for _, dirEntry := range dirEntries {
-			isHidden, _ := IsHidden(dirEntry.Name())
-			if isHidden {
-				continue
-			}
-			sanitizedDirEntries = append(sanitizedDirEntries, dirEntry)
-		}
-		return readDirMsg(sanitizedDirEntries)
+		//var sanitizedDirEntries []os.DirEntry
+		//for _, dirEntry := range dirEntries {
+		//	isHidden, _ := IsHidden(dirEntry.Name())
+		//	if isHidden {
+		//		continue
+		//	}
+		//	sanitizedDirEntries = append(sanitizedDirEntries, dirEntry)
+		//}
+		//return readDirMsg(sanitizedDirEntries)
+		return readDirMsg(getCleanDirEntries(dirEntries, showHidden))
 	}
+}
+
+func getCleanDirEntries(dirEntries []fs.DirEntry, showHidden bool) []os.DirEntry {
+	sort.Slice(dirEntries, func(i, j int) bool {
+		if dirEntries[i].IsDir() == dirEntries[j].IsDir() {
+			return dirEntries[i].Name() < dirEntries[j].Name()
+		}
+		return dirEntries[i].IsDir()
+	})
+
+	if showHidden {
+		return readDirMsg(dirEntries)
+	}
+
+	var sanitizedDirEntries []os.DirEntry
+	for _, dirEntry := range dirEntries {
+		isHidden, _ := IsHidden(dirEntry.Name())
+		if isHidden {
+			continue
+		}
+		sanitizedDirEntries = append(sanitizedDirEntries, dirEntry)
+	}
+	return sanitizedDirEntries
 }
 
 // Init initializes the file picker model.
 func (m Model) Init() tea.Cmd {
-	singlePaneStyle = singlePaneStyle.Height(m.Height - 4)
-	dualPaneStyle = dualPaneStyle.Height(m.Height - 4)
+	singlePaneStyle = singlePaneStyle.Height(m.Height - 2)
+	dualPaneStyle = dualPaneStyle.Height(m.Height - 2)
 	return readDir(m.CurrentDirectory, m.ShowHidden)
 }
 
@@ -371,6 +396,11 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 // View returns the view of the file picker.
 func (m Model) View() string {
+	lPane := New()
+	lPane.CurrentDirectory = filepath.Dir(m.CurrentDirectory)
+	lPane.max = m.Height - 1
+	lPaneDirEntries, _ := os.ReadDir(lPane.CurrentDirectory)
+	lPane.files = getCleanDirEntries(lPaneDirEntries, lPane.ShowHidden)
 	if len(m.files) == 0 {
 		return m.Styles.EmptyDirectory.String()
 	}
