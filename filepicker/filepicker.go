@@ -45,10 +45,8 @@ func nextID() int {
 
 // New returns a new filepicker model with default styling and key bindings.
 func New() Model {
-	// pwd, _ := os.Getwd() // to access root dir
 	return Model{
-		id: nextID(),
-		// CurrentDirectory: pwd, // to access root dir
+		id:               nextID(),
 		CurrentDirectory: ".",
 		Cursor:           ">",
 		AllowedTypes:     []string{},
@@ -66,7 +64,6 @@ func New() Model {
 		KeyMap:           DefaultKeyMap,
 		Styles:           DefaultStyles,
 		DualPane:         false,
-		writePanes:       []string{},
 	}
 }
 
@@ -173,8 +170,7 @@ type Model struct {
 	Cursor string
 	Styles Styles
 
-	DualPane   bool
-	writePanes []string
+	DualPane bool
 }
 
 type stack struct {
@@ -216,27 +212,6 @@ func readDir(path string, showHidden bool) tea.Cmd {
 		if err != nil {
 			return errorMsg{err}
 		}
-
-		//sort.Slice(dirEntries, func(i, j int) bool {
-		//	if dirEntries[i].IsDir() == dirEntries[j].IsDir() {
-		//		return dirEntries[i].Name() < dirEntries[j].Name()
-		//	}
-		//	return dirEntries[i].IsDir()
-		//})
-
-		//if showHidden {
-		//	return readDirMsg(dirEntries)
-		//}
-
-		//var sanitizedDirEntries []os.DirEntry
-		//for _, dirEntry := range dirEntries {
-		//	isHidden, _ := IsHidden(dirEntry.Name())
-		//	if isHidden {
-		//		continue
-		//	}
-		//	sanitizedDirEntries = append(sanitizedDirEntries, dirEntry)
-		//}
-		//return readDirMsg(sanitizedDirEntries)
 		return readDirMsg(getCleanDirEntries(dirEntries, showHidden))
 	}
 }
@@ -340,7 +315,6 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		case key.Matches(msg, m.KeyMap.Back):
 			m.CurrentDirectory = filepath.Dir(m.CurrentDirectory)
 			if m.selectedStack.Length() > 0 {
-				m.writePanes = m.writePanes[:len(m.writePanes)-1]
 				m.selected, m.min, m.max = m.popView()
 			} else {
 				m.selected = 0
@@ -381,7 +355,6 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			if !isDir {
 				break
 			}
-			m.writePanes = append(m.writePanes, paneWriter(m)) // saves current pane for right pane
 
 			m.CurrentDirectory = filepath.Join(m.CurrentDirectory, f.Name())
 			m.pushView()
@@ -396,21 +369,15 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 // View returns the view of the file picker.
 func (m Model) View() string {
-	lPane := New()
-	lPane.CurrentDirectory = filepath.Dir(m.CurrentDirectory)
-	lPane.max = m.Height - 1
-	lPaneDirEntries, _ := os.ReadDir(lPane.CurrentDirectory)
-	lPane.files = getCleanDirEntries(lPaneDirEntries, lPane.ShowHidden)
 	if len(m.files) == 0 {
 		return m.Styles.EmptyDirectory.String()
 	}
 	var s strings.Builder
 	if m.selectedStack.Length() > 0 {
-		if m.DualPane && len(m.writePanes) > 0 {
-
+		if m.DualPane {
 			s.WriteString(lipgloss.JoinHorizontal(lipgloss.Top,
 				dualPaneStyle.Render(
-					m.writePanes[len(m.writePanes)-1],
+					lPaneWriter(m.CurrentDirectory, m.Height),
 				),
 				dualPaneStyle.Render(
 					paneWriter(m),
@@ -419,15 +386,28 @@ func (m Model) View() string {
 			return s.String()
 		}
 	}
-	m.writePanes = append(m.writePanes, paneWriter(m))
 
 	s.WriteString(lipgloss.JoinHorizontal(lipgloss.Top,
 		singlePaneStyle.Render(
-			m.writePanes[len(m.writePanes)-1],
+			paneWriter(m),
 		),
 	),
 	)
 	return s.String()
+}
+
+func lPaneWriter(curDir string, height int) string {
+	lPane := New()
+	lPane.CurrentDirectory = filepath.Dir(curDir)
+	lPane.max = height - 1
+	lPaneDirEntries, _ := os.ReadDir(lPane.CurrentDirectory)
+	lPane.files = getCleanDirEntries(lPaneDirEntries, lPane.ShowHidden)
+	for i, f := range lPane.files {
+		if f.Name() == filepath.Base(curDir) {
+			lPane.selected = i
+		}
+	}
+	return paneWriter(lPane)
 }
 
 func paneWriter(m Model) string {
