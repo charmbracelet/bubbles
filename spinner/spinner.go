@@ -83,6 +83,10 @@ var (
 		Frames: []string{"☱", "☲", "☴", "☲"},
 		FPS:    time.Second / 3, //nolint:gomnd
 	}
+	Ellipsis = Spinner{
+		Frames: []string{"", ".", "..", "..."},
+		FPS:    time.Second / 3, //nolint:gomnd
+	}
 )
 
 // Model contains the state for the spinner. Use New to create new models
