@@ -595,7 +595,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	m.Cursor, cmd = m.Cursor.Update(msg)
 	cmds = append(cmds, cmd)
 
-	if oldPos != m.pos {
+	if oldPos != m.pos && m.Cursor.Mode() == cursor.CursorBlink {
 		m.Cursor.Blink = false
 		cmds = append(cmds, m.Cursor.BlinkCmd())
 	}
