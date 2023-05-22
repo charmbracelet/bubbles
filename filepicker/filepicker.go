@@ -22,17 +22,6 @@ var (
 	idMtx  sync.Mutex
 
 	listWidth, listHeight, _ = terminal.GetSize(0)
-	singlePaneStyle          = lipgloss.NewStyle().
-					Border(lipgloss.NormalBorder(), false, false, false, false).
-					MarginRight(2).
-					Height(listHeight - 2).
-					Width(listWidth - 2)
-
-	dualPaneStyle = lipgloss.NewStyle().
-			Border(lipgloss.NormalBorder(), false, true, false, false).
-			MarginRight(2).
-			Height(listHeight - 2).
-			Width(listWidth/2 - 2)
 )
 
 // Return the next ID we should use on the Model.
@@ -118,6 +107,8 @@ type Styles struct {
 	DisabledSelected lipgloss.Style
 	FileSize         lipgloss.Style
 	EmptyDirectory   lipgloss.Style
+	SinglePaneStyle  lipgloss.Style
+	DualPaneStyle    lipgloss.Style
 }
 
 // DefaultStyles defines the default styling for the file picker.
@@ -133,6 +124,17 @@ var DefaultStyles = Styles{
 	Selected:         lipgloss.NewStyle().Foreground(lipgloss.Color("212")).Bold(true),
 	FileSize:         lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Width(fileSizeWidth).Align(lipgloss.Right),
 	EmptyDirectory:   lipgloss.NewStyle().Foreground(lipgloss.Color("240")).PaddingLeft(paddingLeft).SetString("Bummer. No Files Found."),
+	SinglePaneStyle: lipgloss.NewStyle().
+		Border(lipgloss.NormalBorder(), false, false, false, false).
+		MarginRight(2).
+		Height(listHeight - 2).
+		Width(listWidth - 2),
+
+	DualPaneStyle: lipgloss.NewStyle().
+		Border(lipgloss.NormalBorder(), false, true, false, false).
+		MarginRight(2).
+		Height(listHeight - 2).
+		Width(listWidth/2 - 2),
 }
 
 // Model represents a file picker.
@@ -241,8 +243,8 @@ func getCleanDirEntries(dirEntries []fs.DirEntry, showHidden bool) []os.DirEntry
 
 // Init initializes the file picker model.
 func (m Model) Init() tea.Cmd {
-	singlePaneStyle = singlePaneStyle.Height(m.Height - 2)
-	dualPaneStyle = dualPaneStyle.Height(m.Height - 2)
+	m.Styles.SinglePaneStyle = m.Styles.SinglePaneStyle.Height(m.Height - 2)
+	m.Styles.DualPaneStyle = m.Styles.DualPaneStyle.Height(m.Height - 2)
 	return readDir(m.CurrentDirectory, m.ShowHidden)
 }
 
@@ -253,13 +255,13 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		m.files = msg
 		m.max = m.Height - 1
 	case tea.WindowSizeMsg:
-		listWidth, listHeight, _ = terminal.GetSize(0)
+		listWidth, _, _ = terminal.GetSize(0)
 		if m.AutoHeight {
 			m.Height = msg.Height - marginBottom
 		}
 		m.max = m.Height - 1
-		singlePaneStyle = singlePaneStyle.Height(m.Height - 2).Width(listWidth - 2)
-		dualPaneStyle = dualPaneStyle.Height(m.Height - 2).Width(listWidth/2 - 2)
+		m.Styles.SinglePaneStyle = m.Styles.SinglePaneStyle.Height(m.Height - 2).Width(listWidth - 2)
+		m.Styles.DualPaneStyle = m.Styles.DualPaneStyle.Height(m.Height - 2).Width(listWidth/2 - 2)
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, m.KeyMap.GoToTop):
@@ -369,17 +371,25 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 // View returns the view of the file picker.
 func (m Model) View() string {
-	if len(m.files) == 0 {
-		return m.Styles.EmptyDirectory.String()
-	}
 	var s strings.Builder
 	if m.selectedStack.Length() > 0 {
 		if m.DualPane {
+			if len(m.files) == 0 {
+				s.WriteString(lipgloss.JoinHorizontal(lipgloss.Top,
+					m.Styles.DualPaneStyle.Render(
+						lPaneWriter(m.CurrentDirectory, m.Height),
+					),
+					m.Styles.DualPaneStyle.Render(
+						m.Styles.EmptyDirectory.String(),
+					),
+				))
+				return s.String()
+			}
 			s.WriteString(lipgloss.JoinHorizontal(lipgloss.Top,
-				dualPaneStyle.Render(
+				m.Styles.DualPaneStyle.Render(
 					lPaneWriter(m.CurrentDirectory, m.Height),
 				),
-				dualPaneStyle.Render(
+				m.Styles.DualPaneStyle.Render(
 					paneWriter(m),
 				),
 			))
@@ -387,8 +397,12 @@ func (m Model) View() string {
 		}
 	}
 
+	if len(m.files) == 0 {
+		return m.Styles.EmptyDirectory.String()
+	}
+
 	s.WriteString(lipgloss.JoinHorizontal(lipgloss.Top,
-		singlePaneStyle.Render(
+		m.Styles.SinglePaneStyle.Render(
 			paneWriter(m),
 		),
 	),
