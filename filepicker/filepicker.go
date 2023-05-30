@@ -13,6 +13,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/dustin/go-humanize"
 	"golang.org/x/crypto/ssh/terminal"
+	"golang.org/x/term"
 
 	"github.com/charmbracelet/bubbles/key"
 )
@@ -21,7 +22,7 @@ var (
 	lastID int
 	idMtx  sync.Mutex
 
-	listWidth, listHeight, _ = terminal.GetSize(0)
+	listWidth, listHeight, _ = term.GetSize(0)
 )
 
 // Return the next ID we should use on the Model.
