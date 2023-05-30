@@ -17,6 +17,23 @@ import (
 var (
 	lastID int
 	idMtx  sync.Mutex
+
+	//listWidth, listHeight, _ = terminal.GetSize(0)
+	//// docStyle                 = lipgloss.NewStyle().Margin(1, 2)
+	//// itemStyle                = lipgloss.NewStyle().PaddingLeft(4)
+	//singlePaneStyle = lipgloss.NewStyle().
+	//		Border(lipgloss.NormalBorder(), false, false, false, false).
+	//		MarginRight(2).
+	//		Height(listHeight - 2).
+	//		Width(listWidth - 2)
+
+	// dualPaneStyle = lipgloss.NewStyle().
+	//		Border(lipgloss.NormalBorder(), false, true, false, false).
+	//		MarginRight(2).
+	//		Height(listHeight - 2).
+	//		Width(listWidth/2 - 2)
+
+	// parentDir []Model
 )
 
 // Return the next ID we should use on the Model.
@@ -28,10 +45,11 @@ func nextID() int {
 }
 
 // New returns a new filepicker model with default styling and key bindings.
-func New() Model {
+func New(dualPane bool) Model {
+	pwd, _ := os.Getwd()
 	return Model{
 		id:               nextID(),
-		CurrentDirectory: ".",
+		CurrentDirectory: pwd,
 		Cursor:           ">",
 		AllowedTypes:     []string{},
 		selected:         0,
@@ -47,6 +65,7 @@ func New() Model {
 		maxStack:         newStack(),
 		KeyMap:           DefaultKeyMap,
 		Styles:           DefaultStyles,
+		DualPane:         dualPane,
 	}
 }
 
@@ -152,6 +171,8 @@ type Model struct {
 
 	Cursor string
 	Styles Styles
+
+	DualPane bool
 }
 
 type stack struct {
@@ -163,10 +184,10 @@ type stack struct {
 func newStack() stack {
 	slice := make([]int, 0)
 	return stack{
-		Push: func(i int) {
+		Push: func(i int) { // adds to stack
 			slice = append(slice, i)
 		},
-		Pop: func() int {
+		Pop: func() int { // removes last stack
 			res := slice[len(slice)-1]
 			slice = slice[:len(slice)-1]
 			return res
@@ -295,11 +316,23 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				m.max = m.Height - 1
 			}
 			return m, readDir(m.CurrentDirectory, m.ShowHidden)
+			//if m.selectedStack.Length() > 0 {
+			//	rtnDir := Model{}
+			//	if m.selectedStack.Length() != 1 {
+			//		rtnDir = parentDir[len(parentDir)-1]
+			//		parentDir = parentDir[0 : len(parentDir)-1]
+			//	}
+			//	return rtnDir, readDir(m.CurrentDirectory, m.ShowHidden)
+			//} else {
+			//	m.selected = 0
+			//	m.min = 0
+			//	m.max = m.Height - 1
+			//	return m, readDir(m.CurrentDirectory, m.ShowHidden)
+			//	}
 		case key.Matches(msg, m.KeyMap.Open):
 			if len(m.files) == 0 {
 				break
 			}
-
 			f := m.files[m.selected]
 			info, err := f.Info()
 			if err != nil {
@@ -307,7 +340,9 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			}
 			isSymlink := info.Mode()&os.ModeSymlink != 0
 			isDir := f.IsDir()
-
+			//if isDir {
+			//	parentDir = append(parentDir, m) // store current dir model
+			//}
 			if isSymlink {
 				symlinkPath, _ := filepath.EvalSymlinks(filepath.Join(m.CurrentDirectory, f.Name()))
 				info, err := os.Stat(symlinkPath)
@@ -316,6 +351,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				}
 				if info.IsDir() {
 					isDir = true
+					// parentDir = append(parentDir, m) // store current dir model
 				}
 			}
 
@@ -399,6 +435,7 @@ func (m Model) View() string {
 		s.WriteRune('\n')
 	}
 
+	// log.Printf("parentDir len: %v | m.FileSelected: %v", len(parentDir), m.FileSelected)
 	return s.String()
 }
 
