@@ -241,6 +241,8 @@ func readDir(path string, showHidden bool) tea.Cmd {
 
 // Init initializes the file picker model.
 func (m Model) Init() tea.Cmd {
+	singlePaneStyle = singlePaneStyle.Height(m.Height - 4)
+	dualPaneStyle = dualPaneStyle.Height(m.Height - 4)
 	return readDir(m.CurrentDirectory, m.ShowHidden)
 }
 
@@ -255,7 +257,19 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		if m.AutoHeight {
 			m.Height = msg.Height - marginBottom
 		}
-		m.max = m.Height - 1
+		m.max = m.Height
+		singlePaneStyle = singlePaneStyle.Height(m.Height - 4).Width(listWidth - 2)
+		dualPaneStyle = dualPaneStyle.Height(m.Height - 4).Width(listWidth/2 - 2)
+		// singlePaneStyle = lipgloss.NewStyle().
+		//	Border(lipgloss.NormalBorder(), false, false, false, false).
+		//	MarginRight(2).
+		//	Height(m.Height - 5).
+		//	Width(listWidth - 2)
+		// dualPaneStyle = lipgloss.NewStyle().
+		//	Border(lipgloss.NormalBorder(), false, true, false, false).
+		//	MarginRight(2).
+		//	Height(m.Height - 5).
+		//	Width(listWidth/2 - 2)
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, m.KeyMap.GoToTop):
