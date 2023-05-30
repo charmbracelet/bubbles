@@ -87,8 +87,22 @@ type Rank struct {
 // DefaultFilter uses the sahilm/fuzzy to filter through the list.
 // This is set by default.
 func DefaultFilter(term string, targets []string) []Rank {
-	var ranks = fuzzy.Find(term, targets)
+	ranks := fuzzy.Find(term, targets)
 	sort.Stable(ranks)
+	result := make([]Rank, len(ranks))
+	for i, r := range ranks {
+		result[i] = Rank{
+			Index:          r.Index,
+			MatchedIndexes: r.MatchedIndexes,
+		}
+	}
+	return result
+}
+
+// UnsortedFilter uses the sahilm/fuzzy to filter through the list. It does not
+// sort the results.
+func UnsortedFilter(term string, targets []string) []Rank {
+	ranks := fuzzy.FindNoSort(term, targets)
 	result := make([]Rank, len(ranks))
 	for i, r := range ranks {
 		result[i] = Rank{
