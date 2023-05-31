@@ -118,6 +118,15 @@ Extrapolated from [Glow][glow].
 * [Example code, simple list](https://github.com/charmbracelet/bubbletea/tree/master/examples/list-simple/main.go)
 * [Example code, all features](https://github.com/charmbracelet/bubbletea/tree/master/examples/list-fancy/main.go)
 
+## File Picker
+
+<img src="https://vhs.charm.sh/vhs-yET2HNiJNEbyqaVfYuLnY.gif" width="600" alt="File picker example">
+
+A customizable component for picking a file from the file system. Navigate
+through directories and select files, optionally limit to certain file
+extensions.
+
+* [Example code](https://github.com/charmbracelet/bubbletea/tree/master/examples/file-picker/main.go)
 
 ## Timer
 
