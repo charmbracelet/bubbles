@@ -13,7 +13,6 @@ require (
 	github.com/muesli/reflow v0.3.0
 	github.com/muesli/termenv v0.15.1
 	github.com/sahilm/fuzzy v0.1.0
-	golang.org/x/crypto v0.8.0
 	golang.org/x/term v0.7.0
 )
 

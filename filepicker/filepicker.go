@@ -12,7 +12,6 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/dustin/go-humanize"
-	"golang.org/x/crypto/ssh/terminal"
 	"golang.org/x/term"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -256,7 +255,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		m.files = msg
 		m.max = m.Height - 1
 	case tea.WindowSizeMsg:
-		listWidth, _, _ = terminal.GetSize(0)
+		listWidth, _, _ = term.GetSize(0)
 		if m.AutoHeight {
 			m.Height = msg.Height - marginBottom
 		}
