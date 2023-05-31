@@ -54,7 +54,10 @@ type errorMsg struct {
 	err error
 }
 
-type readDirMsg []os.DirEntry
+type readDirMsg struct {
+	id      int
+	entries []os.DirEntry
+}
 
 const (
 	marginBottom  = 5
@@ -187,7 +190,7 @@ func (m Model) popView() (int, int, int) {
 	return m.selectedStack.Pop(), m.minStack.Pop(), m.maxStack.Pop()
 }
 
-func readDir(path string, showHidden bool) tea.Cmd {
+func (m Model) readDir(path string, showHidden bool) tea.Cmd {
 	return func() tea.Msg {
 		dirEntries, err := os.ReadDir(path)
 		if err != nil {
@@ -202,7 +205,7 @@ func readDir(path string, showHidden bool) tea.Cmd {
 		})
 
 		if showHidden {
-			return readDirMsg(dirEntries)
+			return readDirMsg{id: m.id, entries: dirEntries}
 		}
 
 		var sanitizedDirEntries []os.DirEntry
@@ -213,20 +216,23 @@ func readDir(path string, showHidden bool) tea.Cmd {
 			}
 			sanitizedDirEntries = append(sanitizedDirEntries, dirEntry)
 		}
-		return readDirMsg(sanitizedDirEntries)
+		return readDirMsg{id: m.id, entries: sanitizedDirEntries}
 	}
 }
 
 // Init initializes the file picker model.
 func (m Model) Init() tea.Cmd {
-	return readDir(m.CurrentDirectory, m.ShowHidden)
+	return m.readDir(m.CurrentDirectory, m.ShowHidden)
 }
 
 // Update handles user interactions within the file picker model.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case readDirMsg:
-		m.files = msg
+		if msg.id != m.id {
+			break
+		}
+		m.files = msg.entries
 		m.max = m.Height - 1
 	case tea.WindowSizeMsg:
 		if m.AutoHeight {
@@ -294,7 +300,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				m.min = 0
 				m.max = m.Height - 1
 			}
-			return m, readDir(m.CurrentDirectory, m.ShowHidden)
+			return m, m.readDir(m.CurrentDirectory, m.ShowHidden)
 		case key.Matches(msg, m.KeyMap.Open):
 			if len(m.files) == 0 {
 				break
@@ -335,7 +341,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.selected = 0
 			m.min = 0
 			m.max = m.Height - 1
-			return m, readDir(m.CurrentDirectory, m.ShowHidden)
+			return m, m.readDir(m.CurrentDirectory, m.ShowHidden)
 		}
 	}
 	return m, nil
