@@ -50,9 +50,9 @@ func New() Model {
 		selectedStack:    newStack(),
 		minStack:         newStack(),
 		maxStack:         newStack(),
-		KeyMap:           DefaultKeyMap,
-		Styles:           DefaultStyles,
 		DualPane:         false,
+		KeyMap:           DefaultKeyMap(),
+		Styles:           DefaultStyles(),
 	}
 }
 
@@ -60,7 +60,10 @@ type errorMsg struct {
 	err error
 }
 
-type readDirMsg []os.DirEntry
+type readDirMsg struct {
+	id      int
+	entries []os.DirEntry
+}
 
 const (
 	marginBottom  = 5
@@ -82,16 +85,18 @@ type KeyMap struct {
 }
 
 // DefaultKeyMap defines the default keybindings.
-var DefaultKeyMap = KeyMap{
-	GoToTop:  key.NewBinding(key.WithKeys("g"), key.WithHelp("g", "first")),
-	GoToLast: key.NewBinding(key.WithKeys("G"), key.WithHelp("G", "last")),
-	Down:     key.NewBinding(key.WithKeys("j", "down", "ctrl+n"), key.WithHelp("j", "down")),
-	Up:       key.NewBinding(key.WithKeys("k", "up", "ctrl+p"), key.WithHelp("k", "up")),
-	PageUp:   key.NewBinding(key.WithKeys("K", "pgup"), key.WithHelp("pgup", "page up")),
-	PageDown: key.NewBinding(key.WithKeys("J", "pgdown"), key.WithHelp("pgdown", "page down")),
-	Back:     key.NewBinding(key.WithKeys("h", "backspace", "left", "esc"), key.WithHelp("h", "back")),
-	Open:     key.NewBinding(key.WithKeys("l", "right", "enter"), key.WithHelp("l", "open")),
-	Select:   key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "select")),
+func DefaultKeyMap() KeyMap {
+	return KeyMap{
+		GoToTop:  key.NewBinding(key.WithKeys("g"), key.WithHelp("g", "first")),
+		GoToLast: key.NewBinding(key.WithKeys("G"), key.WithHelp("G", "last")),
+		Down:     key.NewBinding(key.WithKeys("j", "down", "ctrl+n"), key.WithHelp("j", "down")),
+		Up:       key.NewBinding(key.WithKeys("k", "up", "ctrl+p"), key.WithHelp("k", "up")),
+		PageUp:   key.NewBinding(key.WithKeys("K", "pgup"), key.WithHelp("pgup", "page up")),
+		PageDown: key.NewBinding(key.WithKeys("J", "pgdown"), key.WithHelp("pgdown", "page down")),
+		Back:     key.NewBinding(key.WithKeys("h", "backspace", "left", "esc"), key.WithHelp("h", "back")),
+		Open:     key.NewBinding(key.WithKeys("l", "right", "enter"), key.WithHelp("l", "open")),
+		Select:   key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "select")),
+	}
 }
 
 // Styles defines the possible customizations for styles in the file picker.
@@ -112,29 +117,36 @@ type Styles struct {
 }
 
 // DefaultStyles defines the default styling for the file picker.
-var DefaultStyles = Styles{
-	DisabledCursor:   lipgloss.NewStyle().Foreground(lipgloss.Color("247")),
-	Cursor:           lipgloss.NewStyle().Foreground(lipgloss.Color("212")),
-	Symlink:          lipgloss.NewStyle().Foreground(lipgloss.Color("36")),
-	Directory:        lipgloss.NewStyle().Foreground(lipgloss.Color("99")),
-	File:             lipgloss.NewStyle(),
-	DisabledFile:     lipgloss.NewStyle().Foreground(lipgloss.Color("243")),
-	DisabledSelected: lipgloss.NewStyle().Foreground(lipgloss.Color("247")),
-	Permission:       lipgloss.NewStyle().Foreground(lipgloss.Color("244")),
-	Selected:         lipgloss.NewStyle().Foreground(lipgloss.Color("212")).Bold(true),
-	FileSize:         lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Width(fileSizeWidth).Align(lipgloss.Right),
-	EmptyDirectory:   lipgloss.NewStyle().Foreground(lipgloss.Color("240")).PaddingLeft(paddingLeft).SetString("Bummer. No Files Found."),
-	SinglePaneStyle: lipgloss.NewStyle().
-		Border(lipgloss.NormalBorder(), false, false, false, false).
-		MarginRight(2).
-		Height(listHeight - 2).
-		Width(listWidth - 2),
+func DefaultStyles() Styles {
+	return DefaultStylesWithRenderer(lipgloss.DefaultRenderer())
+}
 
-	DualPaneStyle: lipgloss.NewStyle().
-		Border(lipgloss.NormalBorder(), false, true, false, false).
-		MarginRight(2).
-		Height(listHeight - 2).
-		Width(listWidth/2 - 2),
+// DefaultStylesWithRenderer defines the default styling for the file picker,
+// with a given Lip Gloss renderer.
+func DefaultStylesWithRenderer(r *lipgloss.Renderer) Styles {
+	return Styles{
+		DisabledCursor:   r.NewStyle().Foreground(lipgloss.Color("247")),
+		Cursor:           r.NewStyle().Foreground(lipgloss.Color("212")),
+		Symlink:          r.NewStyle().Foreground(lipgloss.Color("36")),
+		Directory:        r.NewStyle().Foreground(lipgloss.Color("99")),
+		File:             r.NewStyle(),
+		DisabledFile:     r.NewStyle().Foreground(lipgloss.Color("243")),
+		DisabledSelected: r.NewStyle().Foreground(lipgloss.Color("247")),
+		Permission:       r.NewStyle().Foreground(lipgloss.Color("244")),
+		Selected:         r.NewStyle().Foreground(lipgloss.Color("212")).Bold(true),
+		FileSize:         r.NewStyle().Foreground(lipgloss.Color("240")).Width(fileSizeWidth).Align(lipgloss.Right),
+		EmptyDirectory:   r.NewStyle().Foreground(lipgloss.Color("240")).PaddingLeft(paddingLeft).SetString("Bummer. No Files Found."),
+		SinglePaneStyle: r.NewStyle().
+			Border(lipgloss.NormalBorder(), false, false, false, false).
+			MarginRight(2).
+			Height(listHeight - 2).
+			Width(listWidth - 2),
+		DualPaneStyle: r.NewStyle().
+			Border(lipgloss.NormalBorder(), false, true, false, false).
+			MarginRight(2).
+			Height(listHeight - 2).
+			Width(listWidth/2 - 2),
+	}
 }
 
 // Model represents a file picker.
@@ -208,13 +220,33 @@ func (m Model) popView() (int, int, int) {
 	return m.selectedStack.Pop(), m.minStack.Pop(), m.maxStack.Pop()
 }
 
-func readDir(path string, showHidden bool) tea.Cmd {
+func (m Model) readDir(path string, showHidden bool) tea.Cmd {
 	return func() tea.Msg {
 		dirEntries, err := os.ReadDir(path)
 		if err != nil {
 			return errorMsg{err}
 		}
-		return readDirMsg(getCleanDirEntries(dirEntries, showHidden))
+
+		sort.Slice(dirEntries, func(i, j int) bool {
+			if dirEntries[i].IsDir() == dirEntries[j].IsDir() {
+				return dirEntries[i].Name() < dirEntries[j].Name()
+			}
+			return dirEntries[i].IsDir()
+		})
+
+		if showHidden {
+			return readDirMsg{id: m.id, entries: dirEntries}
+		}
+
+		var sanitizedDirEntries []os.DirEntry
+		for _, dirEntry := range dirEntries {
+			isHidden, _ := IsHidden(dirEntry.Name())
+			if isHidden {
+				continue
+			}
+			sanitizedDirEntries = append(sanitizedDirEntries, dirEntry)
+		}
+		return readDirMsg{id: m.id, entries: sanitizedDirEntries}
 	}
 }
 
@@ -227,7 +259,7 @@ func getCleanDirEntries(dirEntries []fs.DirEntry, showHidden bool) []os.DirEntry
 	})
 
 	if showHidden {
-		return readDirMsg(dirEntries)
+		return dirEntries
 	}
 
 	var sanitizedDirEntries []os.DirEntry
@@ -245,14 +277,17 @@ func getCleanDirEntries(dirEntries []fs.DirEntry, showHidden bool) []os.DirEntry
 func (m Model) Init() tea.Cmd {
 	m.Styles.SinglePaneStyle = m.Styles.SinglePaneStyle.Height(m.Height - 2)
 	m.Styles.DualPaneStyle = m.Styles.DualPaneStyle.Height(m.Height - 2)
-	return readDir(m.CurrentDirectory, m.ShowHidden)
+	return m.readDir(m.CurrentDirectory, m.ShowHidden)
 }
 
 // Update handles user interactions within the file picker model.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case readDirMsg:
-		m.files = msg
+		if msg.id != m.id {
+			break
+		}
+		m.files = msg.entries
 		m.max = m.Height - 1
 	case tea.WindowSizeMsg:
 		listWidth, _, _ = term.GetSize(0)
@@ -323,7 +358,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				m.min = 0
 				m.max = m.Height - 1
 			}
-			return m, readDir(m.CurrentDirectory, m.ShowHidden)
+			return m, m.readDir(m.CurrentDirectory, m.ShowHidden)
 		case key.Matches(msg, m.KeyMap.Open):
 			if len(m.files) == 0 {
 				break
@@ -363,7 +398,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.selected = 0
 			m.min = 0
 			m.max = m.Height - 1
-			return m, readDir(m.CurrentDirectory, m.ShowHidden)
+			return m, m.readDir(m.CurrentDirectory, m.ShowHidden)
 		}
 	}
 	return m, nil
