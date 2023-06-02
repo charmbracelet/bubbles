@@ -2,7 +2,6 @@ package filepicker
 
 import (
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
@@ -136,19 +135,9 @@ func DefaultStylesWithRenderer(r *lipgloss.Renderer) Styles {
 		Selected:         r.NewStyle().Foreground(lipgloss.Color("212")).Bold(true),
 		FileSize:         r.NewStyle().Foreground(lipgloss.Color("240")).Width(fileSizeWidth).Align(lipgloss.Right),
 		EmptyDirectory:   r.NewStyle().Foreground(lipgloss.Color("240")).PaddingLeft(paddingLeft).SetString("Bummer. No Files Found."),
-		SinglePaneStyle: r.NewStyle().
-			MarginRight(2).
-			Height(listHeight - 2).
-			Width(listWidth - 2),
-		LeftPaneStyle: r.NewStyle().
-			Border(lipgloss.NormalBorder(), false, true, false, false).
-			MarginRight(2).
-			Height(listHeight - 2).
-			Width(listWidth/2 - 2),
-		RightPaneStyle: r.NewStyle().
-			MarginRight(2).
-			Height(listHeight - 2).
-			Width(listWidth/2 - 2),
+		SinglePaneStyle:  r.NewStyle().MarginRight(2).Height(listHeight - 2).Width(listWidth - 2),
+		LeftPaneStyle:    r.NewStyle().Border(lipgloss.NormalBorder(), false, true, false, false).MarginRight(2).Height(listHeight - 2).Width(listWidth/2 - 2),
+		RightPaneStyle:   r.NewStyle().MarginRight(2).Height(listHeight - 2).Width(listWidth/2 - 2),
 	}
 }
 
@@ -230,30 +219,13 @@ func (m Model) readDir(path string, showHidden bool) tea.Cmd {
 			return errorMsg{err}
 		}
 
-		sort.Slice(dirEntries, func(i, j int) bool {
-			if dirEntries[i].IsDir() == dirEntries[j].IsDir() {
-				return dirEntries[i].Name() < dirEntries[j].Name()
-			}
-			return dirEntries[i].IsDir()
-		})
+		sanitizedDirEntries := getCleanDirEntries(dirEntries, showHidden)
 
-		if showHidden {
-			return readDirMsg{id: m.id, entries: dirEntries}
-		}
-
-		var sanitizedDirEntries []os.DirEntry
-		for _, dirEntry := range dirEntries {
-			isHidden, _ := IsHidden(dirEntry.Name())
-			if isHidden {
-				continue
-			}
-			sanitizedDirEntries = append(sanitizedDirEntries, dirEntry)
-		}
 		return readDirMsg{id: m.id, entries: sanitizedDirEntries}
 	}
 }
 
-func getCleanDirEntries(dirEntries []fs.DirEntry, showHidden bool) []os.DirEntry {
+func getCleanDirEntries(dirEntries []os.DirEntry, showHidden bool) []os.DirEntry {
 	sort.Slice(dirEntries, func(i, j int) bool {
 		if dirEntries[i].IsDir() == dirEntries[j].IsDir() {
 			return dirEntries[i].Name() < dirEntries[j].Name()
@@ -265,7 +237,7 @@ func getCleanDirEntries(dirEntries []fs.DirEntry, showHidden bool) []os.DirEntry
 		return dirEntries
 	}
 
-	var sanitizedDirEntries []os.DirEntry
+	sanitizedDirEntries := []os.DirEntry{}
 	for _, dirEntry := range dirEntries {
 		isHidden, _ := IsHidden(dirEntry.Name())
 		if isHidden {
@@ -414,24 +386,13 @@ func (m Model) View() string {
 	var s strings.Builder
 	if m.selectedStack.Length() > 0 {
 		if m.DualPane {
-			if len(m.files) == 0 {
-				s.WriteString(lipgloss.JoinHorizontal(lipgloss.Top,
-					m.Styles.LeftPaneStyle.Render(
-						lPaneWriter(m.CurrentDirectory, m.Height),
-					),
-					m.Styles.RightPaneStyle.Render(
-						m.Styles.EmptyDirectory.String(),
-					),
-				))
-				return s.String()
+			rPane := m.Styles.EmptyDirectory.String()
+			if len(m.files) > 0 {
+				rPane = paneWriter(m)
 			}
 			s.WriteString(lipgloss.JoinHorizontal(lipgloss.Top,
-				m.Styles.LeftPaneStyle.Render(
-					lPaneWriter(m.CurrentDirectory, m.Height),
-				),
-				m.Styles.RightPaneStyle.Render(
-					paneWriter(m),
-				),
+				m.Styles.LeftPaneStyle.Render(lPaneWriter(m.CurrentDirectory, m.Height)),
+				m.Styles.RightPaneStyle.Render(rPane),
 			))
 			return s.String()
 		}
@@ -442,11 +403,8 @@ func (m Model) View() string {
 	}
 
 	s.WriteString(lipgloss.JoinHorizontal(lipgloss.Top,
-		m.Styles.SinglePaneStyle.Render(
-			paneWriter(m),
-		),
-	),
-	)
+		m.Styles.SinglePaneStyle.Render(paneWriter(m)),
+	))
 	return s.String()
 }
 
