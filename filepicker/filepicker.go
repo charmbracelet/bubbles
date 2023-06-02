@@ -17,8 +17,9 @@ import (
 )
 
 var (
-	lastID                   int
-	idMtx                    sync.Mutex
+	lastID int
+	idMtx  sync.Mutex
+
 	listWidth, listHeight, _ = term.GetSize(0)
 )
 
@@ -135,9 +136,19 @@ func DefaultStylesWithRenderer(r *lipgloss.Renderer) Styles {
 		Selected:         r.NewStyle().Foreground(lipgloss.Color("212")).Bold(true),
 		FileSize:         r.NewStyle().Foreground(lipgloss.Color("240")).Width(fileSizeWidth).Align(lipgloss.Right),
 		EmptyDirectory:   r.NewStyle().Foreground(lipgloss.Color("240")).PaddingLeft(paddingLeft).SetString("Bummer. No Files Found."),
-		SinglePaneStyle:  r.NewStyle().MarginRight(2).Height(listHeight - 2).Width(listWidth - 2),
-		LeftPaneStyle:    r.NewStyle().MarginRight(2).Height(listHeight-2).Width(listWidth/2-2).Border(lipgloss.NormalBorder(), false, true, false, false),
-		RightPaneStyle:   r.NewStyle().MarginRight(2).Height(listHeight - 2).Width(listWidth/2 - 2),
+		SinglePaneStyle: r.NewStyle().
+			MarginRight(2).
+			Height(listHeight - 2).
+			Width(listWidth - 2),
+		LeftPaneStyle: r.NewStyle().
+			Border(lipgloss.NormalBorder(), false, true, false, false).
+			MarginRight(2).
+			Height(listHeight - 2).
+			Width(listWidth/2 - 2),
+		RightPaneStyle: r.NewStyle().
+			MarginRight(2).
+			Height(listHeight - 2).
+			Width(listWidth/2 - 2),
 	}
 }
 
@@ -219,8 +230,25 @@ func (m Model) readDir(path string, showHidden bool) tea.Cmd {
 			return errorMsg{err}
 		}
 
-		sanitizedDirEntries := getCleanDirEntries(dirEntries, showHidden)
+		sort.Slice(dirEntries, func(i, j int) bool {
+			if dirEntries[i].IsDir() == dirEntries[j].IsDir() {
+				return dirEntries[i].Name() < dirEntries[j].Name()
+			}
+			return dirEntries[i].IsDir()
+		})
 
+		if showHidden {
+			return readDirMsg{id: m.id, entries: dirEntries}
+		}
+
+		var sanitizedDirEntries []os.DirEntry
+		for _, dirEntry := range dirEntries {
+			isHidden, _ := IsHidden(dirEntry.Name())
+			if isHidden {
+				continue
+			}
+			sanitizedDirEntries = append(sanitizedDirEntries, dirEntry)
+		}
 		return readDirMsg{id: m.id, entries: sanitizedDirEntries}
 	}
 }
@@ -386,16 +414,24 @@ func (m Model) View() string {
 	var s strings.Builder
 	if m.selectedStack.Length() > 0 {
 		if m.DualPane {
-			rPane := m.Styles.EmptyDirectory.String()
-			if len(m.files) > 0 {
-				rPane = paneWriter(m)
+			if len(m.files) == 0 {
+				s.WriteString(lipgloss.JoinHorizontal(lipgloss.Top,
+					m.Styles.LeftPaneStyle.Render(
+						lPaneWriter(m.CurrentDirectory, m.Height),
+					),
+					m.Styles.RightPaneStyle.Render(
+						m.Styles.EmptyDirectory.String(),
+					),
+				))
+				return s.String()
 			}
-
 			s.WriteString(lipgloss.JoinHorizontal(lipgloss.Top,
 				m.Styles.LeftPaneStyle.Render(
 					lPaneWriter(m.CurrentDirectory, m.Height),
 				),
-				m.Styles.RightPaneStyle.Render(rPane),
+				m.Styles.RightPaneStyle.Render(
+					paneWriter(m),
+				),
 			))
 			return s.String()
 		}
