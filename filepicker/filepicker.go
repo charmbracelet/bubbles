@@ -237,7 +237,7 @@ func getCleanDirEntries(dirEntries []os.DirEntry, showHidden bool) []os.DirEntry
 		return dirEntries
 	}
 
-	sanitizedDirEntries := []os.DirEntry{}
+	var sanitizedDirEntries []os.DirEntry
 	for _, dirEntry := range dirEntries {
 		isHidden, _ := IsHidden(dirEntry.Name())
 		if isHidden {
