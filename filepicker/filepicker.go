@@ -2,6 +2,7 @@ package filepicker
 
 import (
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
@@ -17,9 +18,8 @@ import (
 )
 
 var (
-	lastID int
-	idMtx  sync.Mutex
-
+	lastID                   int
+	idMtx                    sync.Mutex
 	listWidth, listHeight, _ = term.GetSize(0)
 )
 
@@ -253,7 +253,7 @@ func (m Model) readDir(path string, showHidden bool) tea.Cmd {
 	}
 }
 
-func getCleanDirEntries(dirEntries []os.DirEntry, showHidden bool) []os.DirEntry {
+func getCleanDirEntries(dirEntries []fs.DirEntry, showHidden bool) []os.DirEntry {
 	sort.Slice(dirEntries, func(i, j int) bool {
 		if dirEntries[i].IsDir() == dirEntries[j].IsDir() {
 			return dirEntries[i].Name() < dirEntries[j].Name()
