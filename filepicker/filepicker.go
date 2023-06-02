@@ -2,7 +2,6 @@ package filepicker
 
 import (
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
@@ -49,9 +48,9 @@ func New() Model {
 		selectedStack:    newStack(),
 		minStack:         newStack(),
 		maxStack:         newStack(),
-		DualPane:         false,
 		KeyMap:           DefaultKeyMap(),
 		Styles:           DefaultStyles(),
+		DualPane:         false,
 	}
 }
 
@@ -226,7 +225,7 @@ func (m Model) readDir(path string, showHidden bool) tea.Cmd {
 	}
 }
 
-func getCleanDirEntries(dirEntries []fs.DirEntry, showHidden bool) []os.DirEntry {
+func getCleanDirEntries(dirEntries []os.DirEntry, showHidden bool) []os.DirEntry {
 	sort.Slice(dirEntries, func(i, j int) bool {
 		if dirEntries[i].IsDir() == dirEntries[j].IsDir() {
 			return dirEntries[i].Name() < dirEntries[j].Name()
@@ -238,7 +237,7 @@ func getCleanDirEntries(dirEntries []fs.DirEntry, showHidden bool) []os.DirEntry
 		return dirEntries
 	}
 
-	var sanitizedDirEntries []os.DirEntry
+	sanitizedDirEntries := []os.DirEntry{}
 	for _, dirEntry := range dirEntries {
 		isHidden, _ := IsHidden(dirEntry.Name())
 		if isHidden {
