@@ -1,6 +1,10 @@
 package table
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/charmbracelet/lipgloss"
+)
 
 func TestFromValues(t *testing.T) {
 	input := "foo1,bar1\nfoo2,bar2\nfoo3,bar3"
@@ -51,4 +55,76 @@ func deepEqual(a, b []Row) bool {
 		}
 	}
 	return true
+}
+
+var (
+	modelCols = []Column{
+		{Title: "col1", Width: 10},
+		{Title: "col2", Width: 10},
+		{Title: "col3", Width: 10},
+	}
+)
+
+func TestRenderRow(t *testing.T) {
+	type testcase struct {
+		m           *Model
+		rowID       int
+		expectedRow string
+		name        string
+	}
+	testcases := []testcase{
+		{
+			m: &Model{
+				rows: []Row{
+					[]string{"valuea1", "valuea2", "valuea3"},
+				},
+				cols:   modelCols,
+				cursor: -1,
+				styles: Styles{
+					Cell: lipgloss.NewStyle(),
+				},
+			},
+			rowID:       0,
+			expectedRow: "valuea1   valuea2   valuea3   ",
+			name:        "simple row",
+		},
+		{
+			m: &Model{
+				rows: []Row{
+					[]string{"valuea11111", "valuea22222", "valuea33333"},
+				},
+				cols:   modelCols,
+				cursor: -1,
+				styles: Styles{
+					Cell: lipgloss.NewStyle(),
+				},
+			},
+			rowID:       0,
+			expectedRow: "valuea111…valuea222…valuea333…",
+			name:        "simple row with truncations",
+		},
+		{
+			m: &Model{
+				rows: []Row{
+					[]string{"valuea1111", "valuea2222", "valuea3333"},
+				},
+				cols:   modelCols,
+				cursor: -1,
+				styles: Styles{
+					Cell: lipgloss.NewStyle(),
+				},
+			},
+			rowID:       0,
+			expectedRow: "valuea1111valuea2222valuea3333",
+			name:        "simple row avoiding truncations",
+		},
+	}
+	for _, testcase := range testcases {
+		t.Run(testcase.name, func(t *testing.T) {
+			row := testcase.m.renderRow(testcase.rowID)
+			if row != testcase.expectedRow {
+				t.Fatalf("expected row contents |%s|, got |%s|", testcase.expectedRow, row)
+			}
+		})
+	}
 }
