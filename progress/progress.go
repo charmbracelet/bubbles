@@ -211,8 +211,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		// If we've more or less reached equilibrium, stop updating.
-		dist := math.Abs(m.percentShown - m.targetPercent)
-		if dist < 0.001 && m.velocity < 0.01 {
+		if !m.IsAnimating() {
 			return m, nil
 		}
 
@@ -360,6 +359,12 @@ func max(a, b int) int {
 		return a
 	}
 	return b
+}
+
+// IsAnimating returns false if the progress bar reached equilibrium and is no longer animating.
+func (m *Model) IsAnimating() bool {
+	dist := math.Abs(m.percentShown - m.targetPercent)
+	return !(dist < 0.001 && m.velocity < 0.01)
 }
 
 func min(a, b int) int {
