@@ -12,7 +12,7 @@ require (
 	github.com/mattn/go-runewidth v0.0.14
 	github.com/muesli/reflow v0.3.0
 	github.com/muesli/termenv v0.15.1
-	github.com/sahilm/fuzzy v0.1.0
+	github.com/sahilm/fuzzy v0.1.1-0.20230530133925-c48e322e2a8f
 )
 
 require (
