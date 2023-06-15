@@ -373,9 +373,10 @@ func (m Model) View() string {
 	contentWidth := w - m.Style.GetHorizontalFrameSize()
 	contentHeight := h - m.Style.GetVerticalFrameSize()
 	contents := lipgloss.NewStyle().
+		Width(contentWidth).      // pad to width.
 		Height(contentHeight).    // pad to height.
 		MaxHeight(contentHeight). // truncate height if taller.
-		MaxWidth(contentWidth).   // truncate width.
+		MaxWidth(contentWidth).   // truncate width if wider.
 		Render(strings.Join(m.visibleLines(), "\n"))
 	return m.Style.Copy().
 		UnsetWidth().UnsetHeight(). // Style size already applied in contents.
