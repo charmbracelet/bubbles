@@ -275,7 +275,7 @@ func (m Model) ShowTitle() bool {
 	return m.showTitle
 }
 
-// SetShowFilter shows or hides the filer bar. Note that this does not disable
+// SetShowFilter shows or hides the filter bar. Note that this does not disable
 // filtering, it simply hides the built-in filter view. This allows you to
 // use the FilterInput to render the filtering UI differently without having to
 // re-implement filtering from scratch.
