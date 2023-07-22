@@ -1218,11 +1218,11 @@ func filterItems(m Model) tea.Cmd {
 			return FilterMatchesMsg(m.itemsAsFilterItems()) // return nothing
 		}
 
-		targets := []string{}
 		items := m.items
+		targets := make([]string, len(items))
 
-		for _, t := range items {
-			targets = append(targets, t.FilterValue())
+		for i, t := range items {
+			targets[i] = t.FilterValue()
 		}
 
 		filterMatches := []filteredItem{}
