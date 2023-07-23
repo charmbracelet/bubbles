@@ -1,6 +1,9 @@
 package table
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestFromValues(t *testing.T) {
 	input := "foo1,bar1\nfoo2,bar2\nfoo3,bar3"
@@ -51,4 +54,48 @@ func deepEqual(a, b []Row) bool {
 		}
 	}
 	return true
+}
+
+func TestRenderCell(t *testing.T) {
+	const expected = "rendered"
+
+	styles := DefaultStyles()
+
+	styles.RenderCell = func(value string, rowID, columnID int) string {
+		switch {
+		case rowID != 0:
+			t.Fatalf("Invalid rowID: %d", rowID)
+		case columnID != 0:
+			t.Fatalf("Invalid columnID: %d", columnID)
+		}
+
+		return expected
+	}
+
+	table := New(
+		WithColumns([]Column{{Title: "Foo", Width: 100}}),
+		WithRows([]Row{{"unexpected"}}),
+		WithStyles(styles),
+	)
+
+	rendered := table.View()
+
+	if !strings.Contains(rendered, expected) {
+		t.Fatalf("Expected: %q in \n%s", expected, rendered)
+	}
+}
+
+func TestCellDefault(t *testing.T) {
+	const expected = "rendered"
+
+	table := New(
+		WithColumns([]Column{{Title: "Foo", Width: 100}}),
+		WithRows([]Row{{expected}}),
+	)
+
+	rendered := table.View()
+
+	if !strings.Contains(rendered, expected) {
+		t.Fatalf("Expected: %q in \n%s", expected, rendered)
+	}
 }
