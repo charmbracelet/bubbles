@@ -93,15 +93,15 @@ type Styles struct {
 	Cell     lipgloss.Style
 	Selected lipgloss.Style
 
-	GetCellStyle func(rowID, cellID int) lipgloss.Style
+	RenderCell func(value string, rowID int, columnID int) string
 }
 
-func (s Styles) getForCell(rowID, cellID int) lipgloss.Style {
-	if s.GetCellStyle != nil {
-		return s.GetCellStyle(rowID, cellID)
+func (s Styles) renderCell(value string, rowID int, columnID int) string {
+	if s.RenderCell != nil {
+		return s.RenderCell(value, rowID, columnID)
 	}
 
-	return s.Cell
+	return s.Cell.Render(value)
 }
 
 // DefaultStyles returns a set of default style definitions for this table.
@@ -404,7 +404,8 @@ func (m *Model) renderRow(rowID int) string {
 	for i, value := range m.rows[rowID] {
 		style := lipgloss.NewStyle().Width(m.cols[i].Width).MaxWidth(m.cols[i].Width).Inline(true)
 
-		renderedCell := m.styles.getForCell(rowID, i).Render(style.Render(runewidth.Truncate(value, m.cols[i].Width, "…")))
+		renderedCell := style.Render(runewidth.Truncate(value, m.cols[i].Width, "…"))
+		renderedCell = m.styles.renderCell(renderedCell, rowID, i)
 		s = append(s, renderedCell)
 	}
 
