@@ -67,6 +67,8 @@ func TestRenderCell(t *testing.T) {
 			t.Fatalf("Invalid rowID: %d", position.RowID)
 		case position.Column != 0:
 			t.Fatalf("Invalid columnID: %d", position.Column)
+		case !position.IsRowSelected:
+			t.Fatalf("Invalid IsRowSelected: %t", position.IsRowSelected)
 		}
 
 		return expected
