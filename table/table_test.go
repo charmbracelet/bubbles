@@ -61,12 +61,12 @@ func TestRenderCell(t *testing.T) {
 
 	styles := DefaultStyles()
 
-	styles.RenderCell = func(value string, rowID, columnID int) string {
+	styles.RenderCell = func(model Model, value string, position CellPosition) string {
 		switch {
-		case rowID != 0:
-			t.Fatalf("Invalid rowID: %d", rowID)
-		case columnID != 0:
-			t.Fatalf("Invalid columnID: %d", columnID)
+		case position.RowID != 0:
+			t.Fatalf("Invalid rowID: %d", position.RowID)
+		case position.Column != 0:
+			t.Fatalf("Invalid columnID: %d", position.Column)
 		}
 
 		return expected
