@@ -321,6 +321,16 @@ func (m *Model) SetCursor(n int) {
 	m.UpdateViewport()
 }
 
+// Start returns the index of the first rendered row.
+func (m *Model) Start() int {
+	return m.start
+}
+
+// End returns the index of the last rendered row.
+func (m *Model) End() int {
+	return m.end
+}
+
 // MoveUp moves the selection up by any number of rows.
 // It can not go above the first row.
 func (m *Model) MoveUp(n int) {
