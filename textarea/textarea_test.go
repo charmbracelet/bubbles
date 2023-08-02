@@ -428,7 +428,7 @@ func TestRendersEndOfLineBuffer(t *testing.T) {
 	}
 }
 
-func newTextArea() Model {
+func newTextArea() *Model {
 	textarea := New()
 
 	textarea.Prompt = "> "
