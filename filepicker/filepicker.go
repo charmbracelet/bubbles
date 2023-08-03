@@ -27,9 +27,19 @@ func nextID() int {
 	return lastID
 }
 
+// Option is used to set options in New.
+type Option func(*Model)
+
+// WithRenderer sets the Lip Gloss renderer for the filepicker.
+func WithRenderer(r *lipgloss.Renderer) Option {
+	return func(m *Model) {
+		m.re = r
+	}
+}
+
 // New returns a new filepicker model with default styling and key bindings.
-func New() Model {
-	return Model{
+func New(opts ...Option) Model {
+	m := Model{
 		id:               nextID(),
 		CurrentDirectory: ".",
 		Cursor:           ">",
@@ -46,8 +56,19 @@ func New() Model {
 		minStack:         newStack(),
 		maxStack:         newStack(),
 		KeyMap:           DefaultKeyMap(),
-		Styles:           DefaultStyles(),
 	}
+
+	for _, opt := range opts {
+		opt(&m)
+	}
+
+	if m.re == nil {
+		m.re = lipgloss.DefaultRenderer()
+	}
+
+	m.Styles = DefaultStyles().Renderer(m.re)
+
+	return m
 }
 
 type errorMsg struct {
@@ -108,32 +129,51 @@ type Styles struct {
 	EmptyDirectory   lipgloss.Style
 }
 
+// Renderer returns a new Styles copy with the given Lip Gloss renderer.
+func (s Styles) Renderer(re *lipgloss.Renderer) Styles {
+	s.DisabledCursor = s.DisabledCursor.Copy().Renderer(re)
+	s.Cursor = s.Cursor.Copy().Renderer(re)
+	s.Symlink = s.Symlink.Copy().Renderer(re)
+	s.Directory = s.Directory.Copy().Renderer(re)
+	s.File = s.File.Copy().Renderer(re)
+	s.DisabledFile = s.DisabledFile.Copy().Renderer(re)
+	s.Permission = s.Permission.Copy().Renderer(re)
+	s.Selected = s.Selected.Copy().Renderer(re)
+	s.DisabledSelected = s.DisabledSelected.Copy().Renderer(re)
+	s.FileSize = s.FileSize.Copy().Renderer(re)
+	s.EmptyDirectory = s.EmptyDirectory.Copy().Renderer(re)
+	return s
+}
+
 // DefaultStyles defines the default styling for the file picker.
 func DefaultStyles() Styles {
-	return DefaultStylesWithRenderer(lipgloss.DefaultRenderer())
+	return Styles{
+		DisabledCursor:   lipgloss.NewStyle().Foreground(lipgloss.Color("247")),
+		Cursor:           lipgloss.NewStyle().Foreground(lipgloss.Color("212")),
+		Symlink:          lipgloss.NewStyle().Foreground(lipgloss.Color("36")),
+		Directory:        lipgloss.NewStyle().Foreground(lipgloss.Color("99")),
+		File:             lipgloss.NewStyle(),
+		DisabledFile:     lipgloss.NewStyle().Foreground(lipgloss.Color("243")),
+		DisabledSelected: lipgloss.NewStyle().Foreground(lipgloss.Color("247")),
+		Permission:       lipgloss.NewStyle().Foreground(lipgloss.Color("244")),
+		Selected:         lipgloss.NewStyle().Foreground(lipgloss.Color("212")).Bold(true),
+		FileSize:         lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Width(fileSizeWidth).Align(lipgloss.Right),
+		EmptyDirectory:   lipgloss.NewStyle().Foreground(lipgloss.Color("240")).PaddingLeft(paddingLeft).SetString("Bummer. No Files Found."),
+	}
 }
 
 // DefaultStylesWithRenderer defines the default styling for the file picker,
 // with a given Lip Gloss renderer.
+//
+// Deprecated: use Styles.Renderer instead.
 func DefaultStylesWithRenderer(r *lipgloss.Renderer) Styles {
-	return Styles{
-		DisabledCursor:   r.NewStyle().Foreground(lipgloss.Color("247")),
-		Cursor:           r.NewStyle().Foreground(lipgloss.Color("212")),
-		Symlink:          r.NewStyle().Foreground(lipgloss.Color("36")),
-		Directory:        r.NewStyle().Foreground(lipgloss.Color("99")),
-		File:             r.NewStyle(),
-		DisabledFile:     r.NewStyle().Foreground(lipgloss.Color("243")),
-		DisabledSelected: r.NewStyle().Foreground(lipgloss.Color("247")),
-		Permission:       r.NewStyle().Foreground(lipgloss.Color("244")),
-		Selected:         r.NewStyle().Foreground(lipgloss.Color("212")).Bold(true),
-		FileSize:         r.NewStyle().Foreground(lipgloss.Color("240")).Width(fileSizeWidth).Align(lipgloss.Right),
-		EmptyDirectory:   r.NewStyle().Foreground(lipgloss.Color("240")).PaddingLeft(paddingLeft).SetString("Bummer. No Files Found."),
-	}
+	return DefaultStyles().Renderer(r)
 }
 
 // Model represents a file picker.
 type Model struct {
 	id int
+	re *lipgloss.Renderer
 
 	// Path is the path which the user has selected with the file picker.
 	Path string

@@ -149,25 +149,52 @@ type Model struct {
 	suggestions            [][]rune
 	matchedSuggestions     [][]rune
 	currentSuggestionIndex int
+
+	// The lipgloss renderer used for the styles.
+	re *lipgloss.Renderer
+}
+
+// Option is used to set options in New.
+type Option func(*Model)
+
+// WithRenderer sets the Lip Gloss renderer for the textinput model.
+func WithRenderer(r *lipgloss.Renderer) Option {
+	return func(m *Model) {
+		m.re = r
+	}
 }
 
 // New creates a new model with default settings.
-func New() Model {
-	return Model{
-		Prompt:           "> ",
-		EchoCharacter:    '*',
-		CharLimit:        0,
-		PlaceholderStyle: lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
-		ShowSuggestions:  false,
-		CompletionStyle:  lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
-		Cursor:           cursor.New(),
-		KeyMap:           DefaultKeyMap,
+func New(opts ...Option) Model {
+	m := Model{
+		Prompt:          "> ",
+		EchoCharacter:   '*',
+		CharLimit:       0,
+		ShowSuggestions: false,
+		Cursor:          cursor.New(),
+		KeyMap:          DefaultKeyMap,
 
 		suggestions: [][]rune{},
 		value:       nil,
 		focus:       false,
 		pos:         0,
 	}
+
+	for _, opt := range opts {
+		opt(&m)
+	}
+
+	if m.re == nil {
+		m.re = lipgloss.DefaultRenderer()
+	}
+
+	m.CompletionStyle = m.re.NewStyle().Foreground(lipgloss.Color("240"))
+	m.PromptStyle = m.re.NewStyle()
+	m.TextStyle = m.re.NewStyle()
+	m.PlaceholderStyle = m.re.NewStyle().Foreground(lipgloss.Color("240"))
+	m.CursorStyle = m.re.NewStyle()
+
+	return m
 }
 
 // NewModel creates a new model with default settings.

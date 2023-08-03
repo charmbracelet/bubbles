@@ -23,6 +23,10 @@ type Model struct {
 	viewport viewport.Model
 	start    int
 	end      int
+
+	// The renderer is used to render the table styles. If nil, the default
+	// renderer will be used.
+	re *lipgloss.Renderer
 }
 
 // Row represents one line in the table.
@@ -94,6 +98,14 @@ type Styles struct {
 	Selected lipgloss.Style
 }
 
+// Renderer returns a copy of Styles with the given Lip Gloss renderer set.
+func (s Styles) Renderer(r *lipgloss.Renderer) Styles {
+	s.Header = s.Header.Copy().Renderer(r)
+	s.Cell = s.Cell.Copy().Renderer(r)
+	s.Selected = s.Selected.Copy().Renderer(r)
+	return s
+}
+
 // DefaultStyles returns a set of default style definitions for this table.
 func DefaultStyles() Styles {
 	return Styles{
@@ -114,6 +126,13 @@ func (m *Model) SetStyles(s Styles) {
 //	table := New(WithColumns([]Column{{Title: "ID", Width: 10}}))
 type Option func(*Model)
 
+// WithRenderer sets the Lip Gloss renderer for the table model.
+func WithRenderer(r *lipgloss.Renderer) Option {
+	return func(m *Model) {
+		m.re = r
+	}
+}
+
 // New creates a new model for the table widget.
 func New(opts ...Option) Model {
 	m := Model{
@@ -121,13 +140,17 @@ func New(opts ...Option) Model {
 		viewport: viewport.New(0, 20),
 
 		KeyMap: DefaultKeyMap(),
-		styles: DefaultStyles(),
 	}
 
 	for _, opt := range opts {
 		opt(&m)
 	}
 
+	if m.re == nil {
+		m.re = lipgloss.DefaultRenderer()
+	}
+
+	m.styles = DefaultStyles().Renderer(m.re)
 	m.UpdateViewport()
 
 	return m

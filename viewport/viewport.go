@@ -11,11 +11,32 @@ import (
 
 // New returns a new model with the given width and height as well as default
 // key mappings.
-func New(width, height int) (m Model) {
+func New(width, height int, opts ...Option) (m Model) {
 	m.Width = width
 	m.Height = height
+
+	for _, opt := range opts {
+		opt(&m)
+	}
+
+	if m.re == nil {
+		m.re = lipgloss.DefaultRenderer()
+	}
+
+	m.Style = m.re.NewStyle()
+
 	m.setInitialValues()
 	return m
+}
+
+// Option is used to set options in New.
+type Option func(*Model)
+
+// WithRenderer sets the Lip Gloss renderer for the viewport model.
+func WithRenderer(r *lipgloss.Renderer) Option {
+	return func(m *Model) {
+		m.re = r
+	}
 }
 
 // Model is the Bubble Tea model for this viewport element.
@@ -54,6 +75,9 @@ type Model struct {
 
 	initialized bool
 	lines       []string
+
+	// The lipgloss renderer used for the styles.
+	re *lipgloss.Renderer
 }
 
 func (m *Model) setInitialValues() {
