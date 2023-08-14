@@ -40,8 +40,8 @@ const (
 type ValidateFunc func(string) error
 
 // Triggered when a completion is requested.
-type completionMsg struct {
-	completion string
+type suggestionsMsg struct {
+	suggestions []string
 }
 
 // KeyMap is the key bindings for different actions within the textinput.
@@ -60,6 +60,8 @@ type KeyMap struct {
 	LineEnd                 key.Binding
 	Paste                   key.Binding
 	AcceptCompletion        key.Binding
+	NextSuggestion          key.Binding
+	PrevSuggestion          key.Binding
 }
 
 // DefaultKeyMap is the default set of key bindings for navigating and acting
@@ -79,6 +81,8 @@ var DefaultKeyMap = KeyMap{
 	LineEnd:                 key.NewBinding(key.WithKeys("end", "ctrl+e")),
 	Paste:                   key.NewBinding(key.WithKeys("ctrl+v")),
 	AcceptCompletion:        key.NewBinding(key.WithKeys("tab")),
+	NextSuggestion:          key.NewBinding(key.WithKeys("down", "ctrl+n")),
+	PrevSuggestion:          key.NewBinding(key.WithKeys("up", "ctrl+p")),
 }
 
 // Model is the Bubble Tea model for this text input element.
@@ -144,11 +148,12 @@ type Model struct {
 	rsan runeutil.Sanitizer
 
 	// Should the input suggest to complete
-	ShowCompletions bool
+	ShowSuggestions bool
 
 	// The completion to show
-	isCompletionActive  bool
-	availableCompletion string
+	isSuggestionActive     bool
+	availableSuggestions   []string
+	currentSuggestionIndex int
 }
 
 // New creates a new model with default settings.
@@ -158,7 +163,7 @@ func New() Model {
 		EchoCharacter:    '*',
 		CharLimit:        0,
 		PlaceholderStyle: lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
-		ShowCompletions:  false,
+		ShowSuggestions:  false,
 		CompletionStyle:  lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
 		Cursor:           cursor.New(),
 		KeyMap:           DefaultKeyMap,
@@ -549,8 +554,8 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	// Need to check for completion before, because key is configurable and might be double assigned
 	keyMsg, ok := msg.(tea.KeyMsg)
 	if ok && key.Matches(keyMsg, m.KeyMap.AcceptCompletion) {
-		if m.isCompletionActive {
-			m.value = []rune(m.availableCompletion)
+		if m.isSuggestionActive {
+			m.value = []rune(m.availableSuggestions[m.currentSuggestionIndex])
 			m.CursorEnd()
 		}
 	}
@@ -603,6 +608,10 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			return m, Paste
 		case key.Matches(msg, m.KeyMap.DeleteWordForward):
 			m.deleteWordForward()
+		case key.Matches(msg, m.KeyMap.NextSuggestion):
+			m.nextSuggestion()
+		case key.Matches(msg, m.KeyMap.PrevSuggestion):
+			m.previousSuggestion()
 		default:
 			// Input one or more regular characters.
 			m.insertRunesFromUserInput(msg.Runes)
@@ -618,8 +627,8 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	case pasteErrMsg:
 		m.Err = msg
 
-	case completionMsg:
-		m.availableCompletion = msg.completion
+	case suggestionsMsg:
+		m.availableSuggestions = msg.suggestions
 		m.checkIfCanBeCompleted()
 	}
 
@@ -648,7 +657,7 @@ func (m Model) View() string {
 	styleText := m.TextStyle.Inline(true).Render
 
 	value := m.value[m.offset:m.offsetRight]
-	completion := m.availableCompletion
+	completion := m.availableSuggestions[m.currentSuggestionIndex]
 	pos := max(0, m.pos-m.offset)
 	v := styleText(m.echoTransform(string(value[:pos])))
 
@@ -659,7 +668,7 @@ func (m Model) View() string {
 		v += styleText(m.echoTransform(string(value[pos+1:]))) // text after cursor
 		v += m.completionView(0)                               // suggested completion
 	} else {
-		if m.isCompletionActive {
+		if m.isSuggestionActive {
 			if len(value) < len(completion) {
 				m.Cursor.TextStyle = m.CompletionStyle
 				m.Cursor.SetChar(m.echoTransform(string(completion[pos])))
@@ -773,42 +782,62 @@ func (m *Model) SetCursorMode(mode CursorMode) tea.Cmd {
 func (m Model) completionView(offset int) string {
 	var (
 		view       string
-		completion = m.availableCompletion
+		suggestion = m.availableSuggestions[m.currentSuggestionIndex]
 		value      = m.value
 		style      = m.PlaceholderStyle.Inline(true).Render
 	)
 
-	if m.isCompletionActive && len(value) < len(completion) {
-		return style(completion[len(m.value)+offset:])
+	if m.isSuggestionActive && len(value) < len(suggestion) {
+		return style(suggestion[len(m.value)+offset:])
 	}
 	return view
 }
 
 func (m *Model) CanBeCompleted() bool {
-	return m.isCompletionActive
+	return m.isSuggestionActive
 }
 
-func (m *Model) AvailableCompletion() string {
-	return m.availableCompletion
+func (m *Model) AvailableSuggestions() []string {
+	return m.availableSuggestions
+}
+
+func (m *Model) CurrentSuggestions() string {
+	return m.availableSuggestions[m.currentSuggestionIndex]
 }
 
 func (m *Model) checkIfCanBeCompleted() {
-	if m.ShowCompletions {
+	if m.ShowSuggestions {
 		lowerValue := strings.ToLower(string(m.value))
-		lowerAutocomplete := strings.ToLower(m.availableCompletion)
+		lowerAutocomplete := strings.ToLower(m.availableSuggestions[m.currentSuggestionIndex])
 		if len(lowerValue) > 0 && strings.HasPrefix(lowerAutocomplete, lowerValue) {
-			m.isCompletionActive = true
+			m.isSuggestionActive = true
 		} else {
-			m.isCompletionActive = false
+			m.isSuggestionActive = false
 		}
 	} else {
-		m.isCompletionActive = false
+		m.isSuggestionActive = false
 	}
 }
 
+func (m *Model) nextSuggestion() {
+	m.currentSuggestionIndex = (m.currentSuggestionIndex + 1)
+	if m.currentSuggestionIndex >= len(m.availableSuggestions) {
+		m.currentSuggestionIndex = 0
+	}
+	m.checkIfCanBeCompleted()
+}
+
+func (m *Model) previousSuggestion() {
+	m.currentSuggestionIndex = (m.currentSuggestionIndex - 1)
+	if m.currentSuggestionIndex < 0 {
+		m.currentSuggestionIndex = len(m.availableSuggestions) - 1
+	}
+	m.checkIfCanBeCompleted()
+}
+
 // Generates a Msg that can be used to set this textinput's completion suggestion
-func (m *Model) NewCompletionMsg(completion string) completionMsg {
-	return completionMsg{
-		completion: completion,
+func (m *Model) NewSuggestionsMsg(suggestions []string) suggestionsMsg {
+	return suggestionsMsg{
+		suggestions,
 	}
 }
