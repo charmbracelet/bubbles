@@ -39,6 +39,11 @@ const (
 // ValidateFunc is a function that returns an error if the input is invalid.
 type ValidateFunc func(string) error
 
+// Triggered when a completion is requested.
+type completionMsg struct {
+	completion string
+}
+
 // KeyMap is the key bindings for different actions within the textinput.
 type KeyMap struct {
 	CharacterForward        key.Binding
@@ -54,6 +59,7 @@ type KeyMap struct {
 	LineStart               key.Binding
 	LineEnd                 key.Binding
 	Paste                   key.Binding
+	AcceptCompletion        key.Binding
 }
 
 // DefaultKeyMap is the default set of key bindings for navigating and acting
@@ -72,6 +78,7 @@ var DefaultKeyMap = KeyMap{
 	LineStart:               key.NewBinding(key.WithKeys("home", "ctrl+a")),
 	LineEnd:                 key.NewBinding(key.WithKeys("end", "ctrl+e")),
 	Paste:                   key.NewBinding(key.WithKeys("ctrl+v")),
+	AcceptCompletion:        key.NewBinding(key.WithKeys("tab")),
 }
 
 // Model is the Bubble Tea model for this text input element.
@@ -95,6 +102,7 @@ type Model struct {
 	PromptStyle      lipgloss.Style
 	TextStyle        lipgloss.Style
 	PlaceholderStyle lipgloss.Style
+	CompletionStyle  lipgloss.Style
 
 	// Deprecated: use Cursor.Style instead.
 	CursorStyle lipgloss.Style
@@ -134,6 +142,13 @@ type Model struct {
 
 	// rune sanitizer for input.
 	rsan runeutil.Sanitizer
+
+	// Should the input suggest to complete
+	ShowCompletions bool
+
+	// The completion to show
+	isCompletionActive  bool
+	availableCompletion string
 }
 
 // New creates a new model with default settings.
@@ -143,6 +158,8 @@ func New() Model {
 		EchoCharacter:    '*',
 		CharLimit:        0,
 		PlaceholderStyle: lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
+		ShowCompletions:  false,
+		CompletionStyle:  lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
 		Cursor:           cursor.New(),
 		KeyMap:           DefaultKeyMap,
 
@@ -529,6 +546,15 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		return m, nil
 	}
 
+	// Need to check for completion before, because key is configurable and might be double assigned
+	keyMsg, ok := msg.(tea.KeyMsg)
+	if ok && key.Matches(keyMsg, m.KeyMap.AcceptCompletion) {
+		if m.isCompletionActive {
+			m.value = []rune(m.availableCompletion)
+			m.CursorEnd()
+		}
+	}
+
 	// Let's remember where the position of the cursor currently is so that if
 	// the cursor position changes, we can reset the blink.
 	oldPos := m.pos //nolint
@@ -580,6 +606,10 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		default:
 			// Input one or more regular characters.
 			m.insertRunesFromUserInput(msg.Runes)
+
+			// Check again if can be completed
+			// because value might be something that does not match the completion prefix
+			m.checkIfCanBeCompleted()
 		}
 
 	case pasteMsg:
@@ -587,6 +617,10 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 	case pasteErrMsg:
 		m.Err = msg
+
+	case completionMsg:
+		m.availableCompletion = msg.completion
+		m.checkIfCanBeCompleted()
 	}
 
 	var cmds []tea.Cmd
@@ -614,6 +648,7 @@ func (m Model) View() string {
 	styleText := m.TextStyle.Inline(true).Render
 
 	value := m.value[m.offset:m.offsetRight]
+	completion := m.availableCompletion
 	pos := max(0, m.pos-m.offset)
 	v := styleText(m.echoTransform(string(value[:pos])))
 
@@ -622,9 +657,22 @@ func (m Model) View() string {
 		m.Cursor.SetChar(char)
 		v += m.Cursor.View()                                   // cursor and text under it
 		v += styleText(m.echoTransform(string(value[pos+1:]))) // text after cursor
+		v += m.completionView(0)                               // suggested completion
 	} else {
-		m.Cursor.SetChar(" ")
-		v += m.Cursor.View()
+		if m.isCompletionActive {
+			if len(value) < len(completion) {
+				m.Cursor.TextStyle = m.CompletionStyle
+				m.Cursor.SetChar(m.echoTransform(string(completion[pos])))
+				v += m.Cursor.View()
+				v += m.completionView(1)
+			} else {
+				m.Cursor.SetChar(" ")
+				v += m.Cursor.View()
+			}
+		} else {
+			m.Cursor.SetChar(" ")
+			v += m.Cursor.View()
+		}
 	}
 
 	// If a max width and background color were set fill the empty spaces with
@@ -720,4 +768,47 @@ func (m Model) CursorMode() CursorMode {
 // Deprecated: use cursor.SetMode().
 func (m *Model) SetCursorMode(mode CursorMode) tea.Cmd {
 	return m.Cursor.SetMode(cursor.Mode(mode))
+}
+
+func (m Model) completionView(offset int) string {
+	var (
+		view       string
+		completion = m.availableCompletion
+		value      = m.value
+		style      = m.PlaceholderStyle.Inline(true).Render
+	)
+
+	if m.isCompletionActive && len(value) < len(completion) {
+		return style(completion[len(m.value)+offset:])
+	}
+	return view
+}
+
+func (m *Model) CanBeCompleted() bool {
+	return m.isCompletionActive
+}
+
+func (m *Model) AvailableCompletion() string {
+	return m.availableCompletion
+}
+
+func (m *Model) checkIfCanBeCompleted() {
+	if m.ShowCompletions {
+		lowerValue := strings.ToLower(string(m.value))
+		lowerAutocomplete := strings.ToLower(m.availableCompletion)
+		if len(lowerValue) > 0 && strings.HasPrefix(lowerAutocomplete, lowerValue) {
+			m.isCompletionActive = true
+		} else {
+			m.isCompletionActive = false
+		}
+	} else {
+		m.isCompletionActive = false
+	}
+}
+
+// Generates a Msg that can be used to set this textinput's completion suggestion
+func (m *Model) NewCompletionMsg(completion string) completionMsg {
+	return completionMsg{
+		completion: completion,
+	}
 }
