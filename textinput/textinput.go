@@ -40,7 +40,7 @@ const (
 type ValidateFunc func(string) error
 
 // Triggered when a completion is requested.
-type suggestionsMsg struct {
+type SuggestionsMsg struct {
 	suggestions []string
 }
 
@@ -627,7 +627,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	case pasteErrMsg:
 		m.Err = msg
 
-	case suggestionsMsg:
+	case SuggestionsMsg:
 		m.availableSuggestions = msg.suggestions
 		m.checkIfCanBeCompleted()
 	}
@@ -793,15 +793,18 @@ func (m Model) completionView(offset int) string {
 	return view
 }
 
+// Returns true if there is a suggestion is available to autocomplete to.
 func (m *Model) CanBeCompleted() bool {
 	return m.isSuggestionActive
 }
 
+// Returns the currently available suggestions
 func (m *Model) AvailableSuggestions() []string {
 	return m.availableSuggestions
 }
 
-func (m *Model) CurrentSuggestions() string {
+// Return the currently selected suggestion
+func (m *Model) CurrentSuggestion() string {
 	return m.availableSuggestions[m.currentSuggestionIndex]
 }
 
@@ -836,8 +839,8 @@ func (m *Model) previousSuggestion() {
 }
 
 // Generates a Msg that can be used to set this textinput's completion suggestion
-func (m *Model) NewSuggestionsMsg(suggestions []string) suggestionsMsg {
-	return suggestionsMsg{
+func (m *Model) NewSuggestionsMsg(suggestions []string) SuggestionsMsg {
+	return SuggestionsMsg{
 		suggestions,
 	}
 }
