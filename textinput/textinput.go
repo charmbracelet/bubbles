@@ -148,6 +148,11 @@ type Model struct {
 	// input.
 	Suggestions []string
 
+	// OnAcceptSuggestion is a function that is called when a suggestion is
+	// accepted. It is passed the currrent value and the suggestion that was
+	// accepted and should return the new value of the input.
+	OnAcceptSuggestions func(string, string) string
+
 	matchedSuggestions     []string
 	currentSuggestionIndex int
 }
@@ -160,9 +165,13 @@ func New() Model {
 		CharLimit:        0,
 		PlaceholderStyle: lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
 		ShowSuggestions:  false,
-		CompletionStyle:  lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
-		Cursor:           cursor.New(),
-		KeyMap:           DefaultKeyMap,
+		Suggestions:      []string{},
+		OnAcceptSuggestions: func(v string, s string) string {
+			return s
+		},
+		CompletionStyle: lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
+		Cursor:          cursor.New(),
+		KeyMap:          DefaultKeyMap,
 
 		value: nil,
 		focus: false,
@@ -557,7 +566,8 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	keyMsg, ok := msg.(tea.KeyMsg)
 	if ok && key.Matches(keyMsg, m.KeyMap.AcceptSuggestion) {
 		if m.canAcceptSuggestion() {
-			m.value = []rune(m.matchedSuggestions[m.currentSuggestionIndex])
+			newValue := m.OnAcceptSuggestions(string(m.value), m.matchedSuggestions[m.currentSuggestionIndex])
+			m.value = []rune(newValue)
 			m.CursorEnd()
 		}
 	}
