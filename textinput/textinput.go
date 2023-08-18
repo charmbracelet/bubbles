@@ -33,17 +33,10 @@ const (
 	// EchoNone displays nothing as characters are entered. This is commonly
 	// seen for password fields on the command line.
 	EchoNone
-
-	// EchoOnEdit.
 )
 
 // ValidateFunc is a function that returns an error if the input is invalid.
 type ValidateFunc func(string) error
-
-// Triggered when a completion is requested.
-type SuggestionsMsg struct {
-	suggestions []string
-}
 
 // KeyMap is the key bindings for different actions within the textinput.
 type KeyMap struct {
@@ -60,7 +53,7 @@ type KeyMap struct {
 	LineStart               key.Binding
 	LineEnd                 key.Binding
 	Paste                   key.Binding
-	AcceptCompletion        key.Binding
+	AcceptSuggestion        key.Binding
 	NextSuggestion          key.Binding
 	PrevSuggestion          key.Binding
 }
@@ -81,7 +74,7 @@ var DefaultKeyMap = KeyMap{
 	LineStart:               key.NewBinding(key.WithKeys("home", "ctrl+a")),
 	LineEnd:                 key.NewBinding(key.WithKeys("end", "ctrl+e")),
 	Paste:                   key.NewBinding(key.WithKeys("ctrl+v")),
-	AcceptCompletion:        key.NewBinding(key.WithKeys("tab")),
+	AcceptSuggestion:        key.NewBinding(key.WithKeys("tab")),
 	NextSuggestion:          key.NewBinding(key.WithKeys("down", "ctrl+n")),
 	PrevSuggestion:          key.NewBinding(key.WithKeys("up", "ctrl+p")),
 }
@@ -151,9 +144,11 @@ type Model struct {
 	// Should the input suggest to complete
 	ShowSuggestions bool
 
-	// The completion to show
-	availableSuggestions   []string
-	matchingSuggestions    []string
+	// Suggestions is a list of suggestions that may be used to complete the
+	// input.
+	Suggestions []string
+
+	matchedSuggestions     []string
 	currentSuggestionIndex int
 }
 
@@ -260,6 +255,12 @@ func (m *Model) Blur() {
 func (m *Model) Reset() {
 	m.value = nil
 	m.SetCursor(0)
+}
+
+// SetSuggestions sets the suggestions for the input.
+func (m *Model) SetSuggestions(suggestions []string) {
+	m.Suggestions = suggestions
+	m.refreshMatchingSuggestions()
 }
 
 // rsan initializes or retrieves the rune sanitizer.
@@ -554,9 +555,9 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 	// Need to check for completion before, because key is configurable and might be double assigned
 	keyMsg, ok := msg.(tea.KeyMsg)
-	if ok && key.Matches(keyMsg, m.KeyMap.AcceptCompletion) {
-		if m.CanBeCompleted() {
-			m.value = []rune(m.matchingSuggestions[m.currentSuggestionIndex])
+	if ok && key.Matches(keyMsg, m.KeyMap.AcceptSuggestion) {
+		if m.canAcceptSuggestion() {
+			m.value = []rune(m.matchedSuggestions[m.currentSuggestionIndex])
 			m.CursorEnd()
 		}
 	}
@@ -627,10 +628,6 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 	case pasteErrMsg:
 		m.Err = msg
-
-	case SuggestionsMsg:
-		m.availableSuggestions = msg.suggestions
-		m.refreshMatchingSuggestions()
 	}
 
 	var cmds []tea.Cmd
@@ -668,8 +665,8 @@ func (m Model) View() string {
 		v += styleText(m.echoTransform(string(value[pos+1:]))) // text after cursor
 		v += m.completionView(0)                               // suggested completion
 	} else {
-		if m.CanBeCompleted() {
-			completion := m.matchingSuggestions[m.currentSuggestionIndex]
+		if m.canAcceptSuggestion() {
+			completion := m.matchedSuggestions[m.currentSuggestionIndex]
 			if len(value) < len(completion) {
 				m.Cursor.TextStyle = m.CompletionStyle
 				m.Cursor.SetChar(m.echoTransform(string(completion[pos])))
@@ -787,8 +784,8 @@ func (m Model) completionView(offset int) string {
 		style = m.PlaceholderStyle.Inline(true).Render
 	)
 
-	if m.CanBeCompleted() {
-		suggestion := m.matchingSuggestions[m.currentSuggestionIndex]
+	if m.canAcceptSuggestion() {
+		suggestion := m.matchedSuggestions[m.currentSuggestionIndex]
 		if len(value) < len(suggestion) {
 			return style(suggestion[len(m.value)+offset:])
 		}
@@ -796,57 +793,57 @@ func (m Model) completionView(offset int) string {
 	return view
 }
 
-// Returns true if there is a suggestion is available to autocomplete to.
-func (m *Model) CanBeCompleted() bool {
-	return len(m.matchingSuggestions) > 0
-}
-
-// Returns the currently available suggestions
+// AvailableSuggestions returns the list of available suggestions.
 func (m *Model) AvailableSuggestions() []string {
-	return m.availableSuggestions
+	return m.Suggestions
 }
 
-// Return the currently selected suggestion
+// CurrentSuggestion returns the currently selected suggestion.
 func (m *Model) CurrentSuggestion() string {
-	return m.matchingSuggestions[m.currentSuggestionIndex]
+	return m.matchedSuggestions[m.currentSuggestionIndex]
 }
 
-// update matching suggestions to include only the ones that have a prefix matching the current value
-func (m *Model) refreshMatchingSuggestions() {
-	if m.ShowSuggestions {
-		if len(m.value) > 0 && len(m.availableSuggestions) > 0 {
-			matchingSuggestions := []string{}
-			for _, s := range m.availableSuggestions {
-				if strings.HasPrefix(strings.ToLower(s), strings.ToLower(string(m.value))) {
-					matchingSuggestions = append(matchingSuggestions, s)
-				}
-			}
-			if !reflect.DeepEqual(matchingSuggestions, m.matchingSuggestions) {
-				m.currentSuggestionIndex = 0
-			}
+// canAcceptSuggestion returns whether there is an acceptable suggestion to
+// autocomplete the current value.
+func (m *Model) canAcceptSuggestion() bool {
+	return len(m.matchedSuggestions) > 0
+}
 
-			m.matchingSuggestions = matchingSuggestions
+// refreshMatchingSuggestions refreshes the list of matching suggestions.
+func (m *Model) refreshMatchingSuggestions() {
+	if !m.ShowSuggestions {
+		return
+	}
+
+	if len(m.value) <= 0 || len(m.Suggestions) <= 0 {
+		return
+	}
+
+	matches := []string{}
+	for _, s := range m.Suggestions {
+		if strings.HasPrefix(strings.ToLower(s), strings.ToLower(string(m.value))) {
+			matches = append(matches, s)
 		}
 	}
+	if !reflect.DeepEqual(matches, m.matchedSuggestions) {
+		m.currentSuggestionIndex = 0
+	}
+
+	m.matchedSuggestions = matches
 }
 
+// nextSuggestion selects the next suggestion.
 func (m *Model) nextSuggestion() {
 	m.currentSuggestionIndex = (m.currentSuggestionIndex + 1)
-	if m.currentSuggestionIndex >= len(m.matchingSuggestions) {
+	if m.currentSuggestionIndex >= len(m.matchedSuggestions) {
 		m.currentSuggestionIndex = 0
 	}
 }
 
+// previousSuggestion selects the previous suggestion.
 func (m *Model) previousSuggestion() {
 	m.currentSuggestionIndex = (m.currentSuggestionIndex - 1)
 	if m.currentSuggestionIndex < 0 {
-		m.currentSuggestionIndex = len(m.matchingSuggestions) - 1
-	}
-}
-
-// Generates a Msg that can be used to set this textinput's completion suggestion
-func (m *Model) NewSuggestionsMsg(suggestions []string) SuggestionsMsg {
-	return SuggestionsMsg{
-		suggestions,
+		m.currentSuggestionIndex = len(m.matchedSuggestions) - 1
 	}
 }
