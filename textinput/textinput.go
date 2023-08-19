@@ -5,7 +5,6 @@ import (
 	"strings"
 	"time"
 	"unicode"
-	"unicode/utf8"
 
 	"github.com/atotto/clipboard"
 	"github.com/charmbracelet/bubbles/cursor"
@@ -147,14 +146,14 @@ type Model struct {
 
 	// Suggestions is a list of suggestions that may be used to complete the
 	// input.
-	Suggestions []string
+	Suggestions [][]rune
 
 	// OnAcceptSuggestion is a function that is called when a suggestion is
 	// accepted. It is passed the currrent value and the suggestion that was
 	// accepted and should return the new value of the input.
-	OnAcceptSuggestions func(string, string) string
+	OnAcceptSuggestions func([]rune, []rune) []rune
 
-	matchedSuggestions     []string
+	matchedSuggestions     [][]rune
 	currentSuggestionIndex int
 }
 
@@ -166,9 +165,11 @@ func New() Model {
 		CharLimit:        0,
 		PlaceholderStyle: lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
 		ShowSuggestions:  false,
-		Suggestions:      []string{},
-		OnAcceptSuggestions: func(v string, s string) string {
-			return s
+		Suggestions:      [][]rune{},
+		OnAcceptSuggestions: func(v []rune, s []rune) []rune {
+			v = append(v, s[len(v):]...)
+
+			return v
 		},
 		CompletionStyle: lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
 		Cursor:          cursor.New(),
@@ -269,7 +270,12 @@ func (m *Model) Reset() {
 
 // SetSuggestions sets the suggestions for the input.
 func (m *Model) SetSuggestions(suggestions []string) {
-	m.Suggestions = suggestions
+	m.Suggestions = [][]rune{}
+
+	for _, s := range suggestions {
+		m.Suggestions = append(m.Suggestions, []rune(s))
+	}
+
 	m.refreshMatchingSuggestions()
 }
 
@@ -567,8 +573,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	keyMsg, ok := msg.(tea.KeyMsg)
 	if ok && key.Matches(keyMsg, m.KeyMap.AcceptSuggestion) {
 		if m.canAcceptSuggestion() {
-			newValue := m.OnAcceptSuggestions(string(m.value), m.matchedSuggestions[m.currentSuggestionIndex])
-			m.value = []rune(newValue)
+			m.value = m.OnAcceptSuggestions(m.value, m.matchedSuggestions[m.currentSuggestionIndex])
 			m.CursorEnd()
 		}
 	}
@@ -678,9 +683,9 @@ func (m Model) View() string {
 	} else {
 		if m.canAcceptSuggestion() {
 			suggestion := m.matchedSuggestions[m.currentSuggestionIndex]
-			if rw.StringWidth(string(value)) < rw.StringWidth(suggestion) {
+			if len(value) < len(suggestion) {
 				m.Cursor.TextStyle = m.CompletionStyle
-				m.Cursor.SetChar(m.echoTransform(charAtPosition(suggestion, pos)))
+				m.Cursor.SetChar(m.echoTransform(string(suggestion[pos])))
 				v += m.Cursor.View()
 				v += m.completionView(1)
 			} else {
@@ -790,28 +795,32 @@ func (m *Model) SetCursorMode(mode CursorMode) tea.Cmd {
 
 func (m Model) completionView(offset int) string {
 	var (
-		view  string
 		value = m.value
 		style = m.PlaceholderStyle.Inline(true).Render
 	)
 
 	if m.canAcceptSuggestion() {
 		suggestion := m.matchedSuggestions[m.currentSuggestionIndex]
-		if len(value) < rw.StringWidth(suggestion) {
-			return style(rw.TruncateLeft(suggestion, rw.StringWidth(string(m.value))+offset, ""))
+		if len(value) < len(suggestion) {
+			return style(string(suggestion[len(value)+offset:]))
 		}
 	}
-	return view
+	return ""
 }
 
 // AvailableSuggestions returns the list of available suggestions.
 func (m *Model) AvailableSuggestions() []string {
-	return m.Suggestions
+	suggestions := []string{}
+	for _, s := range m.Suggestions {
+		suggestions = append(suggestions, string(s))
+	}
+
+	return suggestions
 }
 
 // CurrentSuggestion returns the currently selected suggestion.
 func (m *Model) CurrentSuggestion() string {
-	return m.matchedSuggestions[m.currentSuggestionIndex]
+	return string(m.matchedSuggestions[m.currentSuggestionIndex])
 }
 
 // canAcceptSuggestion returns whether there is an acceptable suggestion to
@@ -827,14 +836,16 @@ func (m *Model) refreshMatchingSuggestions() {
 	}
 
 	if len(m.value) <= 0 || len(m.Suggestions) <= 0 {
-		m.matchedSuggestions = []string{}
+		m.matchedSuggestions = [][]rune{}
 		return
 	}
 
-	matches := []string{}
+	matches := [][]rune{}
 	for _, s := range m.Suggestions {
-		if strings.HasPrefix(strings.ToLower(s), strings.ToLower(string(m.value))) {
-			matches = append(matches, s)
+		suggestion := string(s)
+
+		if strings.HasPrefix(strings.ToLower(suggestion), strings.ToLower(string(m.value))) {
+			matches = append(matches, []rune(suggestion))
 		}
 	}
 	if !reflect.DeepEqual(matches, m.matchedSuggestions) {
@@ -858,22 +869,4 @@ func (m *Model) previousSuggestion() {
 	if m.currentSuggestionIndex < 0 {
 		m.currentSuggestionIndex = len(m.matchedSuggestions) - 1
 	}
-}
-
-// double-width rune aware
-func charAtPosition(s string, position int) string {
-	pos := 0
-	i := 0
-
-	for pos < position && i < len(s) {
-		_, width := utf8.DecodeRuneInString(s[i:])
-		pos += rw.RuneWidth(rune(s[i]))
-		i += width
-	}
-
-	if pos == position && i < len(s) {
-		runeAtPosition, _ := utf8.DecodeRuneInString(s[i:])
-		return string(runeAtPosition)
-	}
-	return ""
 }
