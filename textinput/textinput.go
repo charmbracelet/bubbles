@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/atotto/clipboard"
 	"github.com/charmbracelet/bubbles/cursor"
@@ -676,10 +677,10 @@ func (m Model) View() string {
 		v += m.completionView(0)                               // suggested completion
 	} else {
 		if m.canAcceptSuggestion() {
-			completion := m.matchedSuggestions[m.currentSuggestionIndex]
-			if len(value) < len(completion) {
+			suggestion := m.matchedSuggestions[m.currentSuggestionIndex]
+			if rw.StringWidth(string(value)) < rw.StringWidth(suggestion) {
 				m.Cursor.TextStyle = m.CompletionStyle
-				m.Cursor.SetChar(m.echoTransform(string(completion[pos])))
+				m.Cursor.SetChar(m.echoTransform(charAtPosition(suggestion, pos)))
 				v += m.Cursor.View()
 				v += m.completionView(1)
 			} else {
@@ -796,8 +797,8 @@ func (m Model) completionView(offset int) string {
 
 	if m.canAcceptSuggestion() {
 		suggestion := m.matchedSuggestions[m.currentSuggestionIndex]
-		if len(value) < len(suggestion) {
-			return style(suggestion[len(m.value)+offset:])
+		if len(value) < rw.StringWidth(suggestion) {
+			return style(rw.TruncateLeft(suggestion, rw.StringWidth(string(m.value))+offset, ""))
 		}
 	}
 	return view
@@ -826,6 +827,7 @@ func (m *Model) refreshMatchingSuggestions() {
 	}
 
 	if len(m.value) <= 0 || len(m.Suggestions) <= 0 {
+		m.matchedSuggestions = []string{}
 		return
 	}
 
@@ -856,4 +858,22 @@ func (m *Model) previousSuggestion() {
 	if m.currentSuggestionIndex < 0 {
 		m.currentSuggestionIndex = len(m.matchedSuggestions) - 1
 	}
+}
+
+// double-width rune aware
+func charAtPosition(s string, position int) string {
+	pos := 0
+	i := 0
+
+	for pos < position && i < len(s) {
+		_, width := utf8.DecodeRuneInString(s[i:])
+		pos += rw.RuneWidth(rune(s[i]))
+		i += width
+	}
+
+	if pos == position && i < len(s) {
+		runeAtPosition, _ := utf8.DecodeRuneInString(s[i:])
+		return string(runeAtPosition)
+	}
+	return ""
 }
