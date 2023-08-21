@@ -144,15 +144,9 @@ type Model struct {
 	// Should the input suggest to complete
 	ShowSuggestions bool
 
-	// Suggestions is a list of suggestions that may be used to complete the
+	// suggestions is a list of suggestions that may be used to complete the
 	// input.
-	Suggestions [][]rune
-
-	// OnAcceptSuggestion is a function that is called when a suggestion is
-	// accepted. It is passed the currrent value and the suggestion that was
-	// accepted and should return the new value of the input.
-	OnAcceptSuggestions func([]rune, []rune) []rune
-
+	suggestions            [][]rune
 	matchedSuggestions     [][]rune
 	currentSuggestionIndex int
 }
@@ -165,19 +159,14 @@ func New() Model {
 		CharLimit:        0,
 		PlaceholderStyle: lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
 		ShowSuggestions:  false,
-		Suggestions:      [][]rune{},
-		OnAcceptSuggestions: func(v []rune, s []rune) []rune {
-			v = append(v, s[len(v):]...)
+		CompletionStyle:  lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
+		Cursor:           cursor.New(),
+		KeyMap:           DefaultKeyMap,
 
-			return v
-		},
-		CompletionStyle: lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
-		Cursor:          cursor.New(),
-		KeyMap:          DefaultKeyMap,
-
-		value: nil,
-		focus: false,
-		pos:   0,
+		suggestions: [][]rune{},
+		value:       nil,
+		focus:       false,
+		pos:         0,
 	}
 }
 
@@ -270,10 +259,10 @@ func (m *Model) Reset() {
 
 // SetSuggestions sets the suggestions for the input.
 func (m *Model) SetSuggestions(suggestions []string) {
-	m.Suggestions = [][]rune{}
+	m.suggestions = [][]rune{}
 
 	for _, s := range suggestions {
-		m.Suggestions = append(m.Suggestions, []rune(s))
+		m.suggestions = append(m.suggestions, []rune(s))
 	}
 
 	m.refreshMatchingSuggestions()
@@ -573,7 +562,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	keyMsg, ok := msg.(tea.KeyMsg)
 	if ok && key.Matches(keyMsg, m.KeyMap.AcceptSuggestion) {
 		if m.canAcceptSuggestion() {
-			m.value = m.OnAcceptSuggestions(m.value, m.matchedSuggestions[m.currentSuggestionIndex])
+			m.value = append(m.value, m.matchedSuggestions[m.currentSuggestionIndex][len(m.value):]...)
 			m.CursorEnd()
 		}
 	}
@@ -811,7 +800,7 @@ func (m Model) completionView(offset int) string {
 // AvailableSuggestions returns the list of available suggestions.
 func (m *Model) AvailableSuggestions() []string {
 	suggestions := []string{}
-	for _, s := range m.Suggestions {
+	for _, s := range m.suggestions {
 		suggestions = append(suggestions, string(s))
 	}
 
@@ -835,13 +824,13 @@ func (m *Model) refreshMatchingSuggestions() {
 		return
 	}
 
-	if len(m.value) <= 0 || len(m.Suggestions) <= 0 {
+	if len(m.value) <= 0 || len(m.suggestions) <= 0 {
 		m.matchedSuggestions = [][]rune{}
 		return
 	}
 
 	matches := [][]rune{}
-	for _, s := range m.Suggestions {
+	for _, s := range m.suggestions {
 		suggestion := string(s)
 
 		if strings.HasPrefix(strings.ToLower(suggestion), strings.ToLower(string(m.value))) {
