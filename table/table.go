@@ -30,8 +30,9 @@ type Row []string
 
 // Column defines the table structure.
 type Column struct {
-	Title string
-	Width int
+	Title  string
+	Width  int
+	Hidden bool
 }
 
 // KeyMap defines keybindings. It satisfies to the help.KeyMap interface, which
@@ -137,6 +138,17 @@ func New(opts ...Option) Model {
 func WithColumns(cols []Column) Option {
 	return func(m *Model) {
 		m.cols = cols
+	}
+}
+
+func WithColumnsHidden(cols []int) Option {
+	return func(m *Model) {
+		if cols == nil {
+			return
+		}
+		for _, col := range cols {
+			m.cols[col].Hidden = true
+		}
 	}
 }
 
@@ -382,6 +394,9 @@ func (m *Model) FromValues(value, separator string) {
 func (m Model) headersView() string {
 	var s = make([]string, 0, len(m.cols))
 	for _, col := range m.cols {
+		if col.Hidden {
+			continue
+		}
 		style := lipgloss.NewStyle().Width(col.Width).MaxWidth(col.Width).Inline(true)
 		renderedCell := style.Render(runewidth.Truncate(col.Title, col.Width, "…"))
 		s = append(s, m.styles.Header.Render(renderedCell))
@@ -391,12 +406,18 @@ func (m Model) headersView() string {
 
 func (m *Model) renderRow(rowID int) string {
 	var s = make([]string, 0, len(m.cols))
+	hidden := 0
 	for i, value := range m.rows[rowID] {
+		if m.cols[i].Hidden {
+			hidden++
+			continue
+		}
 		style := lipgloss.NewStyle().Width(m.cols[i].Width).MaxWidth(m.cols[i].Width).Inline(true)
 		renderedCell := m.styles.Cell.Render(style.Render(runewidth.Truncate(value, m.cols[i].Width, "…")))
 		s = append(s, renderedCell)
 	}
-
+	// reduce the number of columns by the number of hidden columns
+	s = s[:len(m.cols)-hidden]
 	row := lipgloss.JoinHorizontal(lipgloss.Left, s...)
 
 	if rowID == m.cursor {
