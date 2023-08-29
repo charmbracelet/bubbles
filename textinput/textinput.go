@@ -297,7 +297,7 @@ func (m *Model) insertRunesFromUserInput(v []rune) {
 		// If there's not enough space to paste the whole thing cut the pasted
 		// runes down so they'll fit.
 		if availSpace < len(paste) {
-			paste = paste[:len(paste)-availSpace]
+			paste = paste[:availSpace]
 		}
 	}
 
