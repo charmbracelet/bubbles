@@ -1,4 +1,4 @@
-module github.com/hopefulTex/sticky-placeholder
+module github.com/charmbracelet/bubbles
 
 go 1.17
 
