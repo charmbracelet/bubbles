@@ -157,6 +157,20 @@ func New() Model {
 // Deprecated: Use [New] instead.
 var NewModel = New
 
+// AppendValue appends to the value of the text input.
+// More efficient for appending text to a large value
+func (m *Model) AppendValue(s string) {
+	var runes []rune
+	// Prepend last rune to avoid potential sanitation hole when they meet
+	if len(m.value) > 0 {
+		runes = append(m.value[len(m.value)-1:], []rune(s)...)
+		runes = m.san().Sanitize(runes)[1:]
+	} else {
+		runes = m.san().Sanitize([]rune(s))
+	}
+	m.setValueInternal(runes)
+}
+
 // SetValue sets the value of the text input.
 func (m *Model) SetValue(s string) {
 	// Clean up any special characters in the input provided by the
