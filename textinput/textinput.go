@@ -259,10 +259,9 @@ func (m *Model) Reset() {
 
 // SetSuggestions sets the suggestions for the input.
 func (m *Model) SetSuggestions(suggestions []string) {
-	m.suggestions = [][]rune{}
-
-	for _, s := range suggestions {
-		m.suggestions = append(m.suggestions, []rune(s))
+	m.suggestions = make([][]rune, len(suggestions))
+	for i, s := range suggestions {
+		m.suggestions[i] = []rune(s)
 	}
 
 	m.updateSuggestions()
@@ -820,9 +819,9 @@ func (m Model) completionView(offset int) string {
 
 // AvailableSuggestions returns the list of available suggestions.
 func (m *Model) AvailableSuggestions() []string {
-	suggestions := []string{}
-	for _, s := range m.suggestions {
-		suggestions = append(suggestions, string(s))
+	suggestions := make([]string, len(m.suggestions))
+	for i, s := range m.suggestions {
+		suggestions[i] = string(s)
 	}
 
 	return suggestions
