@@ -705,16 +705,16 @@ func (m Model) View() string {
 func (m Model) placeholderView() string {
 	var (
 		v     string
-		p     = m.Placeholder
+		p     = []rune(m.Placeholder)
 		style = m.PlaceholderStyle.Inline(true).Render
 	)
 
 	m.Cursor.TextStyle = m.PlaceholderStyle
-	m.Cursor.SetChar(p[:1])
+	m.Cursor.SetChar(string(p[:1]))
 	v += m.Cursor.View()
 
 	// The rest of the placeholder text
-	v += style(p[1:])
+	v += style(string(p[1:]))
 
 	return m.PromptStyle.Render(m.Prompt) + v
 }
