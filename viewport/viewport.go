@@ -34,9 +34,16 @@ type Model struct {
 	// YOffset is the vertical scroll position.
 	YOffset int
 
+	// XOffset is the vertical scroll position.
+	XOffset int
+
 	// YPosition is the position of the viewport in relation to the terminal
 	// window. It's used in high performance rendering only.
 	YPosition int
+
+	// XPosition is the position of the viewport in relation to the terminal
+	// window. It's used in high performance rendering only.
+	XPosition int
 
 	// Style applies a lipgloss style to the viewport. Realistically, it's most
 	// useful for setting borders, margins and padding.
@@ -53,7 +60,15 @@ type Model struct {
 	HighPerformanceRendering bool
 
 	initialized bool
-	lines       []string
+	// lines are the original lines that were inputted into the model
+	lines []string
+
+	// len(lines)-1 is the largest y offset but we need a value
+	// for storing the longest line also ... computed just once
+	// we already have maxYOffset as func so we also need a maxXOffset
+	// function that uses this value
+	// TODO: rename this variable ughhh
+	maxContentWidth int
 }
 
 func (m *Model) setInitialValues() {
@@ -77,6 +92,16 @@ func (m Model) AtTop() bool {
 // position.
 func (m Model) AtBottom() bool {
 	return m.YOffset >= m.maxYOffset()
+}
+
+// AtLineStart returns whether or not the viewport is at the very left most position.
+func (m Model) AtLineStart() bool {
+	return m.XOffset <= 0
+}
+
+// AtLineEnd returns whether or not the viewport is at the very right most position.
+func (m Model) AtLineEnd() bool {
+	return m.XOffset >= m.maxXOffset()
 }
 
 // PastBottom returns whether or not the viewport is scrolled beyond the last
@@ -103,6 +128,11 @@ func (m *Model) SetContent(s string) {
 	s = strings.ReplaceAll(s, "\r\n", "\n") // normalize line endings
 	m.lines = strings.Split(s, "\n")
 
+	m.maxContentWidth = 0
+	for _, line := range m.lines {
+		m.maxContentWidth = max(lipgloss.Width(line), m.maxContentWidth)
+	}
+
 	if m.YOffset > len(m.lines)-1 {
 		m.GotoBottom()
 	}
@@ -114,6 +144,12 @@ func (m Model) maxYOffset() int {
 	return max(0, len(m.lines)-m.Height)
 }
 
+// maxXOffset returns the maximum possible value of the x-offset based on the
+// viewport's content and set width.
+func (m Model) maxXOffset() int {
+	return max(0, m.maxContentWidth-1)
+}
+
 // visibleLines returns the lines that should currently be visible in the
 // viewport.
 func (m Model) visibleLines() (lines []string) {
@@ -121,6 +157,12 @@ func (m Model) visibleLines() (lines []string) {
 		top := max(0, m.YOffset)
 		bottom := clamp(m.YOffset+m.Height, top, len(m.lines))
 		lines = m.lines[top:bottom]
+		// TODO: copy all the time is garbage ???????
+		lcopy := make([]string, len(lines))
+		for i, line := range lines {
+			lcopy[i] = cutAt(line, m.XOffset)
+		}
+		return lcopy
 	}
 	return lines
 }
@@ -138,6 +180,11 @@ func (m Model) scrollArea() (top, bottom int) {
 // SetYOffset sets the Y offset.
 func (m *Model) SetYOffset(n int) {
 	m.YOffset = clamp(n, 0, m.maxYOffset())
+}
+
+// SetYOffset sets the Y offset.
+func (m *Model) SetXOffset(n int) {
+	m.XOffset = clamp(n, 0, m.maxXOffset())
 }
 
 // ViewDown moves the view down by the number of lines in the viewport.
@@ -209,6 +256,28 @@ func (m *Model) LineUp(n int) (lines []string) {
 	top := max(0, m.YOffset)
 	bottom := clamp(m.YOffset+n, 0, m.maxYOffset())
 	return m.lines[top:bottom]
+}
+
+// ScrollLeft moves the view left by the given number of characters.
+func (m *Model) ScrollLeft(n int) {
+	if m.AtLineStart() || n == 0 || len(m.lines) == 0 {
+		return
+	}
+
+	// Make sure the number of lines by which we're going to scroll isn't
+	// greater than the number of lines we are from the top.
+	m.SetXOffset(m.XOffset - n)
+}
+
+// ScrollRight moves the view left by the given number of characters.
+func (m *Model) ScrollRight(n int) {
+	if m.AtLineEnd() || n == 0 || len(m.lines) == 0 {
+		return
+	}
+
+	// Make sure the number of lines by which we're going to scroll isn't
+	// greater than the number of lines we are from the top.
+	m.SetXOffset(m.XOffset + n)
 }
 
 // TotalLineCount returns the total number of lines (both hidden and visible) within the viewport.
@@ -329,6 +398,12 @@ func (m Model) updateAsModel(msg tea.Msg) (Model, tea.Cmd) {
 			if m.HighPerformanceRendering {
 				cmd = ViewUp(m, lines)
 			}
+
+		case key.Matches(msg, m.KeyMap.Left):
+			m.ScrollLeft(5)
+
+		case key.Matches(msg, m.KeyMap.Right):
+			m.ScrollRight(5)
 		}
 
 	case tea.MouseMsg:
@@ -374,8 +449,9 @@ func (m Model) View() string {
 	contentHeight := h - m.Style.GetVerticalFrameSize()
 	contents := lipgloss.NewStyle().
 		Height(contentHeight).    // pad to height.
+		Width(contentWidth).      // pad to width.
 		MaxHeight(contentHeight). // truncate height if taller.
-		MaxWidth(contentWidth).   // truncate width.
+		MaxWidth(contentWidth).   // truncate width if wider.
 		Render(strings.Join(m.visibleLines(), "\n"))
 	return m.Style.Copy().
 		UnsetWidth().UnsetHeight(). // Style size already applied in contents.
