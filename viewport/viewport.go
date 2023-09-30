@@ -34,16 +34,12 @@ type Model struct {
 	// YOffset is the vertical scroll position.
 	YOffset int
 
-	// XOffset is the vertical scroll position.
+	// XOffset is the horizontal scroll position.
 	XOffset int
 
 	// YPosition is the position of the viewport in relation to the terminal
 	// window. It's used in high performance rendering only.
 	YPosition int
-
-	// XPosition is the position of the viewport in relation to the terminal
-	// window. It's used in high performance rendering only.
-	XPosition int
 
 	// Style applies a lipgloss style to the viewport. Realistically, it's most
 	// useful for setting borders, margins and padding.
@@ -60,14 +56,17 @@ type Model struct {
 	HighPerformanceRendering bool
 
 	initialized bool
-	// lines are the original lines that were inputted into the model
-	lines []string
 
-	// len(lines)-1 is the largest y offset but we need a value
-	// for storing the longest line also ... computed just once
-	// we already have maxYOffset as func so we also need a maxXOffset
-	// function that uses this value
-	// TODO: rename this variable ughhh
+	// originalLines are the lines that were provided by the user
+	// which we need in order to compute the linesWithOffset during
+	// horizontal scrolling
+	originalLines []string
+
+	// caching the computed offsetted lines once the XOffset changes
+	linesWithOffset []string
+
+	// storing what the lipgloss.Width of the widest line in order
+	// to perform bounds checking for the XOffset
 	maxContentWidth int
 }
 
@@ -112,12 +111,12 @@ func (m Model) PastBottom() bool {
 
 // ScrollPercent returns the amount scrolled as a float between 0 and 1.
 func (m Model) ScrollPercent() float64 {
-	if m.Height >= len(m.lines) {
+	if m.Height >= len(m.linesWithOffset) {
 		return 1.0
 	}
 	y := float64(m.YOffset)
 	h := float64(m.Height)
-	t := float64(len(m.lines) - 1)
+	t := float64(len(m.linesWithOffset) - 1)
 	v := y / (t - h)
 	return math.Max(0.0, math.Min(1.0, v))
 }
@@ -126,22 +125,41 @@ func (m Model) ScrollPercent() float64 {
 // Sync command should also be called.
 func (m *Model) SetContent(s string) {
 	s = strings.ReplaceAll(s, "\r\n", "\n") // normalize line endings
-	m.lines = strings.Split(s, "\n")
+	m.originalLines = strings.Split(s, "\n")
 
+	// firstly compute ONCE how long the widest line is
 	m.maxContentWidth = 0
-	for _, line := range m.lines {
+	for _, line := range m.originalLines {
 		m.maxContentWidth = max(lipgloss.Width(line), m.maxContentWidth)
 	}
 
-	if m.YOffset > len(m.lines)-1 {
+	// initialize or reuse the lineOffset cache
+	if m.linesWithOffset == nil {
+		m.linesWithOffset = make([]string, 0, len(m.originalLines))
+	} else {
+		m.linesWithOffset = m.linesWithOffset[:0]
+	}
+
+	// when we get new data in, it might have less lines or less wide
+	// lines as before -> adjust our stored offsets
+	if m.AtBottom() {
 		m.GotoBottom()
 	}
+	if m.AtLineEnd() {
+		m.GotoRight()
+	}
+
+	// all the offsets were updated -> compute the offset of the line now
+	for _, line := range m.originalLines {
+		m.linesWithOffset = append(m.linesWithOffset, ansiStringSlice(line, m.XOffset))
+	}
+
 }
 
 // maxYOffset returns the maximum possible value of the y-offset based on the
 // viewport's content and set height.
 func (m Model) maxYOffset() int {
-	return max(0, len(m.lines)-m.Height)
+	return max(0, len(m.linesWithOffset)-m.Height)
 }
 
 // maxXOffset returns the maximum possible value of the x-offset based on the
@@ -153,16 +171,10 @@ func (m Model) maxXOffset() int {
 // visibleLines returns the lines that should currently be visible in the
 // viewport.
 func (m Model) visibleLines() (lines []string) {
-	if len(m.lines) > 0 {
+	if len(m.linesWithOffset) > 0 {
 		top := max(0, m.YOffset)
-		bottom := clamp(m.YOffset+m.Height, top, len(m.lines))
-		lines = m.lines[top:bottom]
-		// TODO: copy all the time is garbage ???????
-		lcopy := make([]string, len(lines))
-		for i, line := range lines {
-			lcopy[i] = cutAt(line, m.XOffset)
-		}
-		return lcopy
+		bottom := clamp(m.YOffset+m.Height, top, len(m.linesWithOffset))
+		return m.linesWithOffset[top:bottom]
 	}
 	return lines
 }
@@ -185,6 +197,12 @@ func (m *Model) SetYOffset(n int) {
 // SetYOffset sets the Y offset.
 func (m *Model) SetXOffset(n int) {
 	m.XOffset = clamp(n, 0, m.maxXOffset())
+
+	// the indentation changed ... we have to calucate
+	// the indentedLines again.
+	for i, line := range m.originalLines {
+		m.linesWithOffset[i] = ansiStringSlice(line, m.XOffset)
+	}
 }
 
 // ViewDown moves the view down by the number of lines in the viewport.
@@ -226,7 +244,7 @@ func (m *Model) HalfViewUp() (lines []string) {
 
 // LineDown moves the view down by the given number of lines.
 func (m *Model) LineDown(n int) (lines []string) {
-	if m.AtBottom() || n == 0 || len(m.lines) == 0 {
+	if m.AtBottom() || n == 0 || len(m.linesWithOffset) == 0 {
 		return nil
 	}
 
@@ -236,15 +254,15 @@ func (m *Model) LineDown(n int) (lines []string) {
 	m.SetYOffset(m.YOffset + n)
 
 	// Gather lines to send off for performance scrolling.
-	bottom := clamp(m.YOffset+m.Height, 0, len(m.lines))
+	bottom := clamp(m.YOffset+m.Height, 0, len(m.linesWithOffset))
 	top := clamp(m.YOffset+m.Height-n, 0, bottom)
-	return m.lines[top:bottom]
+	return m.linesWithOffset[top:bottom]
 }
 
 // LineUp moves the view down by the given number of lines. Returns the new
 // lines to show.
 func (m *Model) LineUp(n int) (lines []string) {
-	if m.AtTop() || n == 0 || len(m.lines) == 0 {
+	if m.AtTop() || n == 0 || len(m.linesWithOffset) == 0 {
 		return nil
 	}
 
@@ -255,12 +273,12 @@ func (m *Model) LineUp(n int) (lines []string) {
 	// Gather lines to send off for performance scrolling.
 	top := max(0, m.YOffset)
 	bottom := clamp(m.YOffset+n, 0, m.maxYOffset())
-	return m.lines[top:bottom]
+	return m.linesWithOffset[top:bottom]
 }
 
 // ScrollLeft moves the view left by the given number of characters.
 func (m *Model) ScrollLeft(n int) {
-	if m.AtLineStart() || n == 0 || len(m.lines) == 0 {
+	if m.AtLineStart() || n == 0 || len(m.linesWithOffset) == 0 {
 		return
 	}
 
@@ -271,7 +289,7 @@ func (m *Model) ScrollLeft(n int) {
 
 // ScrollRight moves the view left by the given number of characters.
 func (m *Model) ScrollRight(n int) {
-	if m.AtLineEnd() || n == 0 || len(m.lines) == 0 {
+	if m.AtLineEnd() || n == 0 || len(m.linesWithOffset) == 0 {
 		return
 	}
 
@@ -282,7 +300,7 @@ func (m *Model) ScrollRight(n int) {
 
 // TotalLineCount returns the total number of lines (both hidden and visible) within the viewport.
 func (m Model) TotalLineCount() int {
-	return len(m.lines)
+	return len(m.linesWithOffset)
 }
 
 // VisibleLineCount returns the number of the visible lines within the viewport.
@@ -306,13 +324,17 @@ func (m *Model) GotoBottom() (lines []string) {
 	return m.visibleLines()
 }
 
+func (m *Model) GotoRight() {
+	m.SetXOffset(m.maxXOffset())
+}
+
 // Sync tells the renderer where the viewport will be located and requests
 // a render of the current state of the viewport. It should be called for the
 // first render and after a window resize.
 //
 // For high performance rendering only.
 func Sync(m Model) tea.Cmd {
-	if len(m.lines) == 0 {
+	if len(m.linesWithOffset) == 0 {
 		return nil
 	}
 	top, bottom := m.scrollArea()

@@ -21,60 +21,128 @@ const (
 	ANSI_STRIKETROUGH = "\033[8m"
 )
 
-// generate test using lipgloss??
 func mkBold(s string) string {
+	// generate test using lipgloss??
 	return fmt.Sprintf("%s%s%s", "\033[1m", s, "\033[22m")
 }
 
 func TestCut(t *testing.T) {
-	testcases := []struct {
-		intput   string
+	type testcase struct {
 		offset   int
 		expected string
-	}{
+	}
+
+	type testcaseGroup struct {
+		desc  string
+		input string
+		cases []testcase
+	}
+
+	testcaseGroups := []testcaseGroup{
 		// english alphabet word cutting
 		// also here we test that we can cut runes
 		// with a width of 1
-		// {"Word", 0, "Word"},
-		// {"Word", 1, "ord"},
-		// {"Word", 2, "rd"},
-		// {"Word", 3, "d"},
-		// {"Word", 4, ""},
-		// {"Word", 5, ""},
+		{
+			"Chineese",
+			"Word",
+			[]testcase{
+				{0, ("Word")},
+				{1, ("ord")},
+				{2, ("rd")},
+				{3, ("d")},
+				{4, ("")},
+				{5, ("")},
+			},
+		},
 
 		// Chineese alphabet word cutting
 		// also here we test that we can cut runes
 		// with a width of > 1
-		// {"传传传", 0, "传传传"},
-		// {"传传传", 1, "传传"},
-		// {"传传传", 2, "传"},
-		// {"传传传", 3, ""},
-		// {"传传传", 4, ""},
+		{
+			"Chineese",
+			"传传传",
+			[]testcase{
+				{0, ("传传传")},
+				{1, ("传传")},
+				{2, ("传")},
+				{3, ("")},
+				{4, ("")},
+			},
+		},
 
-		// {"🍫🍬🍭", 0, "🍫🍬🍭"},
-		// {"🍫🍬🍭", 1, "🍬🍭"},
-		// {"🍫🍬🍭", 2, "🍭"},
-		// {"🍫🍬🍭", 3, ""},
-		// {"🍫🍬🍭", 4, ""},
+		{
+			"Emoji",
+			"🍫🍬🍭",
+			[]testcase{
+				{0, "🍫🍬🍭"},
+				{1, "🍬🍭"},
+				{2, "🍭"},
+				{3, ""},
+				{4, ""},
+			},
+		},
 
-		// test that we completely ignore control sequences
+		// test that indexing works despite control sequences
+		// meant for the terminal emulator
+		{
+			"Cursor Control Sequence",
+			ANSI_CURSOR_CONTROL + "Test",
+			[]testcase{
+				{0, ANSI_CURSOR_CONTROL + "Test"},
+				{1, ANSI_CURSOR_CONTROL + "est"},
+				{3, ANSI_CURSOR_CONTROL + "t"},
+				{5, ""},
+			},
+		},
 
-		// Test that we preserve graphical ansi control sequences
-		// when we cut within an ansi sequence (TODO: reword)
-		// {mkBold("Test"), 0, mkBold("Test")},
-		{mkBold("Test"), 1, mkBold("est")},
-		// {mkBold("Test"), 2, mkBold("st")},
-		// {mkBold("Test"), 3, mkBold("t")},
-		// {mkBold("Test"), 4, ""},
-		// {mkBold("Test"), 5, ""},
+		// keeping styling even tho we cut into the string
+		{
+			"Bold Text",
+			mkBold("Test"),
+			[]testcase{
+				{0, mkBold("Test")},
+				{1, mkBold("est")},
+				{2, mkBold("st")},
+				{3, mkBold("t")},
+				{4, ""},
+				{5, ""},
+			},
+		},
+
+		// due to the naive "ansi sequence preprending" logic
+		// we keep the control sequence altough there is no
+		// text inbetween
+		{
+			"Multiple Bold Text Sections",
+			fmt.Sprintf("%s %s", mkBold("Bold"), "Normal"),
+			[]testcase{
+				{0, fmt.Sprintf("%s %s", mkBold("Bold"), "Normal")},
+				{1, fmt.Sprintf("%s %s", mkBold("old"), "Normal")},
+				{4, fmt.Sprintf("%s %s", mkBold(""), "Normal")},
+				{5, fmt.Sprintf("%s%s", mkBold(""), "Normal")},
+				{9, fmt.Sprintf("%s%s", mkBold(""), "al")},
+				{11, ""},
+				{12, ""},
+			},
+		},
 	}
 
-	for _, testcase := range testcases {
-		t.Run(fmt.Sprintf("Graphic Rune Count Of: %s", testcase.intput), func(t *testing.T) {
-			actual := cutAt(testcase.intput, testcase.offset)
-			if testcase.expected != actual {
-				t.Errorf("Expected '%s'[%d:] to equal '%s'(%d) but it is '%s'(%d)", testcase.intput, testcase.offset, testcase.expected, len(testcase.expected), actual, len(actual))
-			}
-		})
+	for _, group := range testcaseGroups {
+		for _, testcase := range group.cases {
+			t.Run(fmt.Sprintf("%s with offset %d", group.desc, testcase.offset), func(t *testing.T) {
+				actual := ansiStringSlice(group.input, testcase.offset)
+				if testcase.expected != actual {
+					t.Errorf(
+						"Expected '%s'[%d:] to equal '%s'(%d) but it is '%s'(%d)",
+						group.input,
+						testcase.offset,
+						testcase.expected,
+						len(testcase.expected),
+						actual,
+						len(actual),
+					)
+				}
+			})
+		}
 	}
 }

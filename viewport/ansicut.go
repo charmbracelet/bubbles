@@ -7,18 +7,11 @@ import (
 	"github.com/muesli/ansi"
 )
 
-type activeGraphicMods struct {
-	bold bool
-}
-
-const BOLD_START = "\033[1m"
-const BOLD_END = "\033[22m"
-
 // impl s[n:] ansi AND unicode aware
 // we have to keep not resetted ansi codes
 // ignores all non ansi color/graphics sequences
 // regards ansi color and graphics mode (... elaborate)
-func cutAt(s string, n int) string {
+func ansiStringSlice(s string, n int) string {
 	if n <= 0 {
 		return s
 	}
@@ -61,14 +54,11 @@ func cutAt(s string, n int) string {
 		// TODO: add comment
 		default:
 			if n == 0 {
-				goto applyGraphicChanges
+				return ansicodes.String() + s[i:]
 			}
 			n--
 		}
 	}
 
 	return ""
-
-applyGraphicChanges:
-	return ansicodes.String() + s[i:]
 }
