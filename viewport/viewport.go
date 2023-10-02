@@ -422,10 +422,10 @@ func (m Model) updateAsModel(msg tea.Msg) (Model, tea.Cmd) {
 			}
 
 		case key.Matches(msg, m.KeyMap.Left):
-			m.ScrollLeft(5)
+			m.ScrollLeft(2)
 
 		case key.Matches(msg, m.KeyMap.Right):
-			m.ScrollRight(5)
+			m.ScrollRight(2)
 		}
 
 	case tea.MouseMsg:
