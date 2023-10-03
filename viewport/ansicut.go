@@ -83,8 +83,8 @@ var codeToColorChoice = map[string]func(lipgloss.Style, lipgloss.TerminalColor) 
 }
 
 var matchByte = inRange("0", "255")
-var matchFgColorCode = any(inRange("30", "39"), inRange("90", "97"))
-var matchBgColorCode = any(inRange("40", "49"), inRange("100", "107"))
+var matchFgColorCode = any(inRange("30", "37"), inRange("90", "97"))
+var matchBgColorCode = any(inRange("40", "47"), inRange("100", "107"))
 
 var seqRgbColor = []strPredicate{any(eq("38"), eq("48")), eq("2"), matchByte, matchByte, matchByte}
 var seq256Color = []strPredicate{any(eq("38"), eq("48")), eq("5"), matchByte}
@@ -127,7 +127,7 @@ func (as *activeStyle) updateStyle(s string) {
 		// 8-16 Colors with bright modifier
 		case matchPartSeq(seq8To16ColorBright...):
 			// bold/bright colors are not supported by lipgloss/termenv
-			as.extra = append(as.extra, wrapIntoCSISeq(fmt.Sprintf("1;%s", parts[i+1])))
+			as.extra = append(as.extra, wrapIntoCSISeq("1;"+parts[i+1]))
 			i++
 
 		// 8-16 Colors
@@ -135,6 +135,13 @@ func (as *activeStyle) updateStyle(s string) {
 			as.s = as.s.Foreground(lipgloss.Color(parts[i]))
 		case matchPartSeq(matchBgColorCode):
 			as.s = as.s.Background(lipgloss.Color(parts[i]))
+
+		// reset fg color only
+		case matchPartSeq(eq("39")):
+			as.s = as.s.UnsetForeground()
+		// reset bg color only
+		case matchPartSeq(eq("49")):
+			as.s = as.s.UnsetBackground()
 
 		// reset
 		case matchPartSeq(eq("0")):
@@ -189,6 +196,13 @@ func (as *activeStyle) render(s string) string {
 		res.WriteString(extra)
 	}
 
+	// we collected all the style control sequences along the
+	// way as we cut the string ... now we have to re-apply the
+	// the style to the rest of the string. Render through termenv
+	// put's a reset at the end which we don't want since the string
+	// might already have a reset somewhere in it ... we don't know
+	// which is fine as we just made sure that we keep the correct
+	// style after cutting the string
 	res.WriteString(strings.TrimSuffix(as.s.Render(s), "\033[0m"))
 	return res.String()
 }
