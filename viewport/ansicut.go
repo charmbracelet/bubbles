@@ -99,6 +99,7 @@ func (as *activeStyle) updateStyle(s string) {
 	if len(s) == 0 {
 		as.s = lipgloss.NewStyle()
 		as.extra = as.extra[:0]
+		as.hidden = false
 		return
 	}
 	parts := strings.Split(s, ";")
@@ -182,11 +183,13 @@ func (as *activeStyle) updateStyle(s string) {
 		case matchPartSeq(eq("28")): // not supported by lipgloss/termenv
 			as.hidden = false
 		case matchPartSeq(eq("29")):
-			as.s = as.s.UnsetUnderline()
+			as.s = as.s.UnsetStrikethrough()
 		}
 	}
 }
 
+// render applies the current style state that was
+// collected during cutting to the string ...
 func (as *activeStyle) render(s string) string {
 	var res strings.Builder
 	if as.hidden {
@@ -196,14 +199,19 @@ func (as *activeStyle) render(s string) string {
 		res.WriteString(extra)
 	}
 
-	// we collected all the style control sequences along the
-	// way as we cut the string ... now we have to re-apply the
-	// the style to the rest of the string. Render through termenv
+	// The style application is done through lipgloss/termenv which
 	// put's a reset at the end which we don't want since the string
 	// might already have a reset somewhere in it ... we don't know
 	// which is fine as we just made sure that we keep the correct
-	// style after cutting the string
-	res.WriteString(strings.TrimSuffix(as.s.Render(s), "\033[0m"))
+	// style after cutting the string. Remove the reset in case
+	// render actually did something which might not be the case
+	// when the style has not been altered
+	lenPrior := len(s)
+	rendered := as.s.Render(s)
+	if len(rendered) != lenPrior {
+		rendered = strings.TrimSuffix(rendered, "\033[0m")
+	}
+	res.WriteString(rendered)
 	return res.String()
 }
 
