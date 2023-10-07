@@ -124,7 +124,6 @@ func (as *activeStyle) updateStyle(s string) {
 		case matchPartSeq(seq256Color...):
 			as.s = codeToColorChoice[parts[i]](as.s, lipgloss.Color(parts[i+2]))
 			i += 2
-
 		// 8-16 Colors with bright modifier
 		case matchPartSeq(seq8To16ColorBright...):
 			// bold/bright colors are not supported by lipgloss/termenv
@@ -206,9 +205,8 @@ func (as *activeStyle) render(s string) string {
 	// style after cutting the string. Remove the reset in case
 	// render actually did something which might not be the case
 	// when the style has not been altered
-	lenPrior := len(s)
 	rendered := as.s.Render(s)
-	if len(rendered) != lenPrior {
+	if len(s) != len(rendered) {
 		rendered = strings.TrimSuffix(rendered, "\033[0m")
 	}
 	res.WriteString(rendered)
@@ -223,10 +221,9 @@ func ansiStringSlice(s string, n int) string {
 	if n <= 0 {
 		return s
 	}
-
-	if lipgloss.Width(s) < n {
-		return ""
-	}
+	// we cannot exit out early because there could be
+	// ansi sequences which deal with cursor movement etc.
+	// if lipgloss.Width(s) < n { return "" }
 
 	// we want to cut the string but keep the style up to
 	// this point ...
@@ -265,11 +262,15 @@ func ansiStringSlice(s string, n int) string {
 		// until we have found the point to cut at
 		default:
 			if n == 0 {
-				return style.render(string(cells[i:]))
+				return nonGraphicAnsiSeqences.String() + style.render(string(cells[i:]))
 			}
 			n--
 		}
 	}
 
-	return ""
+	// s has less runes than we want to cut ...
+	// let's at least return the ansi sequences which
+	// have nothing to do with graphic modifications and put the
+	// style back in place
+	return nonGraphicAnsiSeqences.String() + style.render("")
 }
