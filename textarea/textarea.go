@@ -1,7 +1,9 @@
 package textarea
 
 import (
+	"crypto/sha256"
 	"fmt"
+	"github.com/go-go-golems/clay/pkg/memoization"
 	"strings"
 	"unicode"
 
@@ -129,11 +131,24 @@ type Style struct {
 	Text             lipgloss.Style
 }
 
+type WrapInput struct {
+	Runes []rune
+	Width int
+}
+
+func (w WrapInput) Hash() string {
+	// compute runes hash
+
+	v := fmt.Sprintf("%s:%d", string(w.Runes), w.Width)
+	return fmt.Sprintf("%x", sha256.Sum256([]byte(v)))
+}
+
 // Model is the Bubble Tea model for this text area element.
 type Model struct {
 	Err error
 
 	// General settings.
+	cache *memoization.MemoCache[WrapInput, [][]rune]
 
 	// Prompt is printed at the beginning of each line.
 	//
@@ -242,6 +257,7 @@ func New() Model {
 		style:                &blurredStyle,
 		FocusedStyle:         focusedStyle,
 		BlurredStyle:         blurredStyle,
+		cache:                memoization.NewMemoCache[WrapInput, [][]rune](100),
 		EndOfBufferCharacter: '~',
 		ShowLineNumbers:      true,
 		Cursor:               cur,
@@ -768,7 +784,7 @@ func (m *Model) capitalizeRight() {
 // LineInfo returns the number of characters from the start of the
 // (soft-wrapped) line and the (soft-wrapped) line width.
 func (m Model) LineInfo() LineInfo {
-	grid := wrap(m.value[m.row], m.width)
+	grid := m.memoizedWrap(m.value[m.row], m.width)
 
 	// Find out which line we are currently on. This can be determined by the
 	// m.col and counting the number of runes that we need to skip.
@@ -1046,7 +1062,7 @@ func (m Model) View() string {
 
 	displayLine := 0
 	for l, line := range m.value {
-		wrappedLines := wrap(line, m.width)
+		wrappedLines := m.memoizedWrap(line, m.width)
 
 		if m.row == l {
 			style = m.style.CursorLine
@@ -1181,6 +1197,21 @@ func Blink() tea.Msg {
 	return cursor.Blink()
 }
 
+func (m Model) memoizedWrap(runes []rune, width int) [][]rune {
+	input := WrapInput{
+		Runes: runes,
+		Width: width,
+	}
+	if v, ok := m.cache.Get(input); ok {
+		return v
+	}
+
+	v := wrap(runes, width)
+	m.cache.Set(input, v)
+
+	return v
+}
+
 // cursorLineNumber returns the line number that the cursor is on.
 // This accounts for soft wrapped lines.
 func (m Model) cursorLineNumber() int {
@@ -1188,7 +1219,7 @@ func (m Model) cursorLineNumber() int {
 	for i := 0; i < m.row; i++ {
 		// Calculate the number of lines that the current line will be split
 		// into.
-		line += len(wrap(m.value[i], m.width))
+		line += len(m.memoizedWrap(m.value[i], m.width))
 	}
 	line += m.LineInfo().RowOffset
 	return line
@@ -1264,6 +1295,7 @@ func Paste() tea.Msg {
 }
 
 func wrap(runes []rune, width int) [][]rune {
+
 	var (
 		lines  = [][]rune{{}}
 		word   = []rune{}
