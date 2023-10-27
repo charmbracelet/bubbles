@@ -824,7 +824,7 @@ func (m *Model) updateSuggestions() {
 		return
 	}
 
-	if len(m.value) <= 0 || len(m.suggestions) <= 0 {
+	if (len(m.value) == 0 && m.Placeholder != "") || len(m.suggestions) == 0 {
 		m.matchedSuggestions = [][]rune{}
 		return
 	}
