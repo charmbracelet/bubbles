@@ -13,7 +13,6 @@ type Hasher interface {
 	Hash() string
 }
 
-// entry is used to hold a value in the evictionList
 // entry is a struct that holds a key-value pair. It is used as an element
 // in the evictionList of the MemoCache.
 type entry[T any] struct {
@@ -21,7 +20,6 @@ type entry[T any] struct {
 	value T
 }
 
-// MemoCache represents a cache with a set capacity that uses an LRU eviction policy.
 // MemoCache is a struct that represents a cache with a set capacity. It
 // uses an LRU (Least Recently Used) eviction policy. It is safe for
 // concurrent use.
@@ -33,7 +31,6 @@ type MemoCache[H Hasher, T any] struct {
 	hashableItems map[string]T             // This map keeps track of the original hashable items (optional)
 }
 
-// NewMemoCache creates a new MemoCache given a certain capacity.
 // NewMemoCache is a function that creates a new MemoCache with a given
 // capacity. It returns a pointer to the created MemoCache.
 func NewMemoCache[H Hasher, T any](capacity int) *MemoCache[H, T] {
@@ -58,8 +55,6 @@ func (m *MemoCache[H, T]) Size() int {
 	return m.evictionList.Len()
 }
 
-// Get returns the value associated with the given hashable item.
-// If there is no corresponding value, the method returns nil.
 // Get is a method that returns the value associated with the given
 // hashable item in the MemoCache. If there is no corresponding value, the
 // method returns nil.
@@ -76,7 +71,6 @@ func (m *MemoCache[H, T]) Get(h H) (T, bool) {
 	return result, false
 }
 
-// Set sets the value for the hashable item.
 // Set is a method that sets the value for the given hashable item in the
 // MemoCache. If the cache is at capacity, it evicts the least recently
 // used item before adding the new item.
