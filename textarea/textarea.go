@@ -3,7 +3,7 @@ package textarea
 import (
 	"crypto/sha256"
 	"fmt"
-	"github.com/go-go-golems/clay/pkg/memoization"
+	"github.com/charmbracelet/bubbles/textarea/memoization"
 	"strings"
 	"unicode"
 
