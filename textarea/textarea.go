@@ -3,7 +3,6 @@ package textarea
 import (
 	"crypto/sha256"
 	"fmt"
-	"github.com/charmbracelet/bubbles/textarea/memoization"
 	"strings"
 	"unicode"
 
@@ -11,6 +10,7 @@ import (
 	"github.com/charmbracelet/bubbles/cursor"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/runeutil"
+	"github.com/charmbracelet/bubbles/textarea/memoization"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -131,11 +131,14 @@ type Style struct {
 	Text             lipgloss.Style
 }
 
+// WrapInput is the input to the text wrapping function.
+// This is stored in a struct so that it can be hashed and memoized.
 type WrapInput struct {
 	Runes []rune
 	Width int
 }
 
+// Hash returns a hash of the input.
 func (w WrapInput) Hash() string {
 	// compute runes hash
 
@@ -1295,7 +1298,6 @@ func Paste() tea.Msg {
 }
 
 func wrap(runes []rune, width int) [][]rune {
-
 	var (
 		lines  = [][]rune{{}}
 		word   = []rune{}

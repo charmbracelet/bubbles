@@ -7,17 +7,24 @@ import (
 	"sync"
 )
 
+// Hasher is an interface that requires a Hash method. The Hash method is
+// expected to return a string representation of the hash of the object.
 type Hasher interface {
 	Hash() string
 }
 
 // entry is used to hold a value in the evictionList
+// entry is a struct that holds a key-value pair. It is used as an element
+// in the evictionList of the MemoCache.
 type entry[T any] struct {
 	key   string
 	value T
 }
 
 // MemoCache represents a cache with a set capacity that uses an LRU eviction policy.
+// MemoCache is a struct that represents a cache with a set capacity. It
+// uses an LRU (Least Recently Used) eviction policy. It is safe for
+// concurrent use.
 type MemoCache[H Hasher, T any] struct {
 	capacity      int
 	mutex         sync.Mutex
@@ -27,6 +34,8 @@ type MemoCache[H Hasher, T any] struct {
 }
 
 // NewMemoCache creates a new MemoCache given a certain capacity.
+// NewMemoCache is a function that creates a new MemoCache with a given
+// capacity. It returns a pointer to the created MemoCache.
 func NewMemoCache[H Hasher, T any](capacity int) *MemoCache[H, T] {
 	return &MemoCache[H, T]{
 		capacity:      capacity,
@@ -36,10 +45,13 @@ func NewMemoCache[H Hasher, T any](capacity int) *MemoCache[H, T] {
 	}
 }
 
+// Capacity is a method that returns the capacity of the MemoCache.
 func (m *MemoCache[H, T]) Capacity() int {
 	return m.capacity
 }
 
+// Size is a method that returns the current size of the MemoCache. It is
+// the number of items currently stored in the cache.
 func (m *MemoCache[H, T]) Size() int {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
@@ -48,6 +60,9 @@ func (m *MemoCache[H, T]) Size() int {
 
 // Get returns the value associated with the given hashable item.
 // If there is no corresponding value, the method returns nil.
+// Get is a method that returns the value associated with the given
+// hashable item in the MemoCache. If there is no corresponding value, the
+// method returns nil.
 func (m *MemoCache[H, T]) Get(h H) (T, bool) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
@@ -62,6 +77,9 @@ func (m *MemoCache[H, T]) Get(h H) (T, bool) {
 }
 
 // Set sets the value for the hashable item.
+// Set is a method that sets the value for the given hashable item in the
+// MemoCache. If the cache is at capacity, it evicts the least recently
+// used item before adding the new item.
 func (m *MemoCache[H, T]) Set(h H, value T) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
@@ -94,14 +112,18 @@ func (m *MemoCache[H, T]) Set(h H, value T) {
 	m.hashableItems[hashedKey] = value // if you're keeping track of original items
 }
 
+// HString is a type that implements the Hasher interface for strings.
 type HString string
 
+// Hash is a method that returns the hash of the string.
 func (h HString) Hash() string {
 	return fmt.Sprintf("%x", sha256.Sum256([]byte(h)))
 }
 
+// HInt is a type that implements the Hasher interface for integers.
 type HInt int
 
+// Hash is a method that returns the hash of the integer.
 func (h HInt) Hash() string {
 	return fmt.Sprintf("%x", sha256.Sum256([]byte(fmt.Sprintf("%d", h))))
 }
