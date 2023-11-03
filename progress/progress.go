@@ -79,8 +79,8 @@ func WithSolidFill(color string) Option {
 	}
 }
 
-// WithCustomFillCharacters sets the characters used to construct the full and empty components of the progress bar.
-func WithCustomFillCharacters(full rune, empty rune) Option {
+// WithFillCharacters sets the characters used to construct the full and empty components of the progress bar.
+func WithFillCharacters(full rune, empty rune) Option {
 	return func(m *Model) {
 		m.Full = full
 		m.Empty = empty
