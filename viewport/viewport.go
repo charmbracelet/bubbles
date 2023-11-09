@@ -108,6 +108,36 @@ func (m *Model) SetContent(s string) {
 	}
 }
 
+// AppendContent adds content to the end of the current content.
+func (m *Model) AppendContent(c []string) tea.Cmd {
+	wouldRender := m.PastBottom()
+	m.lines = append(m.lines, c...)
+
+	if wouldRender && m.HighPerformanceRendering {
+		// This can potentially be replaced with an appropriate tea.ScrollDown
+		top, _ := m.scrollArea()
+		numLinesAlreadyOnScreen := len(m.lines) - len(c) - m.YOffset
+		numLinesToShow := m.Height - numLinesAlreadyOnScreen
+		linesToShow := c[:numLinesToShow]
+
+		return tea.ScrollDown(linesToShow, top+numLinesAlreadyOnScreen, top+numLinesAlreadyOnScreen+numLinesToShow)
+	} else {
+		return nil
+	}
+}
+
+// DeleteTopLines deletes n lines from the top of the current content. It also
+// calls LineDown the appropriate amount. The return value should be passed to
+// ViewDown if using high performance rendering.
+func (m *Model) DeleteTopContent(n int) []string {
+	downLines := m.LineDown(min(n-m.YOffset, 0))
+
+	m.lines = m.lines[n:]
+	m.SetYOffset(m.YOffset - n)
+
+	return downLines
+}
+
 // maxYOffset returns the maximum possible value of the y-offset based on the
 // viewport's content and set height.
 func (m Model) maxYOffset() int {
