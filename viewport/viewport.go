@@ -114,7 +114,6 @@ func (m *Model) AppendContent(c []string) tea.Cmd {
 	m.lines = append(m.lines, c...)
 
 	if wouldRender && m.HighPerformanceRendering {
-		// This can potentially be replaced with an appropriate tea.ScrollDown
 		top, _ := m.scrollArea()
 		numLinesAlreadyOnScreen := len(m.lines) - len(c) - m.YOffset
 		numLinesToShow := m.Height - numLinesAlreadyOnScreen
