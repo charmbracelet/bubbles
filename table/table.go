@@ -14,11 +14,12 @@ import (
 type Model struct {
 	KeyMap KeyMap
 
-	cols   []Column
-	rows   []Row
-	cursor int
-	focus  bool
-	styles Styles
+	cols      []Column
+	rows      []Row
+	cursor    int
+	focus     bool
+	styles    Styles
+	cellsWrap bool
 
 	viewport viewport.Model
 	start    int
@@ -179,6 +180,13 @@ func WithStyles(s Styles) Option {
 func WithKeyMap(km KeyMap) Option {
 	return func(m *Model) {
 		m.KeyMap = km
+	}
+}
+
+// WithCellsWrap sets the wrap flag.
+func WithCellsWrap(w bool) Option {
+	return func(m *Model) {
+		m.cellsWrap = w
 	}
 }
 
@@ -393,7 +401,13 @@ func (m *Model) renderRow(rowID int) string {
 	var s = make([]string, 0, len(m.cols))
 	for i, value := range m.rows[rowID] {
 		style := lipgloss.NewStyle().Width(m.cols[i].Width).MaxWidth(m.cols[i].Width).Inline(true)
-		renderedCell := m.styles.Cell.Render(style.Render(runewidth.Truncate(value, m.cols[i].Width, "…")))
+		cellValue := runewidth.Truncate(value, m.cols[i].Width, "…")
+		if m.cellsWrap {
+			cellValue = runewidth.Wrap(value, m.cols[i].Width)
+			style = style.Copy().Inline(false)
+		}
+
+		renderedCell := m.styles.Cell.Render(style.Render(cellValue))
 		s = append(s, renderedCell)
 	}
 
