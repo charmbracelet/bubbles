@@ -297,7 +297,7 @@ func (m *Model) SetWidth(w int) {
 // SetHeight sets the height of the viewport of the table.
 func (m *Model) SetHeight(h int) {
 	headerHeight := lipgloss.Height(m.headersView()) // Since headers are truncated, it is always 1
-	m.viewport.Height = h - headerHeight - m.styles.Header.GetVerticalFrameSize()
+	m.viewport.Height = h - headerHeight
 	m.UpdateViewport()
 }
 
