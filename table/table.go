@@ -2,6 +2,7 @@ package table
 
 import (
 	"strings"
+	"unicode"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/viewport"
@@ -392,8 +393,18 @@ func (m Model) headersView() string {
 func (m *Model) renderRow(rowID int) string {
 	var s = make([]string, 0, len(m.cols))
 	for i, value := range m.rows[rowID] {
+		printableValue := strings.Map(func(r rune) rune {
+			if unicode.IsGraphic(r) {
+				return r
+			}
+			return -1
+		}, value)
 		style := lipgloss.NewStyle().Width(m.cols[i].Width).MaxWidth(m.cols[i].Width).Inline(true)
-		renderedCell := m.styles.Cell.Render(style.Render(runewidth.Truncate(value, m.cols[i].Width, "…")))
+		renderedCell := m.styles.Cell.Render(
+			style.Render(
+				strings.Replace(value, printableValue, runewidth.Truncate(printableValue, m.cols[i].Width, "…"), 0),
+			),
+		)
 		s = append(s, renderedCell)
 	}
 
