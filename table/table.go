@@ -400,20 +400,17 @@ func (m *Model) renderRow(rowID int) string {
 			return -1
 		}, value)
 		style := lipgloss.NewStyle().Width(m.cols[i].Width).MaxWidth(m.cols[i].Width).Inline(true)
-		renderedCell := m.styles.Cell.Render(
-			style.Render(
-				strings.Replace(value, printableValue, runewidth.Truncate(printableValue, m.cols[i].Width, "…"), 0),
-			),
-		)
-		s = append(s, renderedCell)
+		renderedCell := m.styles.Cell.Render(style.Render(strings.Replace(value, printableValue, runewidth.Truncate(printableValue, m.cols[i].Width, "…"), 1)))
+		if rowID == m.cursor {
+			renderedCell = strings.ReplaceAll(renderedCell, "\033[0m", "")
+			s = append(s, m.styles.Selected.Render(renderedCell))
+		} else {
+			s = append(s, renderedCell)
+		}
+
 	}
 
 	row := lipgloss.JoinHorizontal(lipgloss.Left, s...)
-
-	if rowID == m.cursor {
-		return m.styles.Selected.Render(row)
-	}
-
 	return row
 }
 
