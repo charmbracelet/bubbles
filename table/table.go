@@ -8,6 +8,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/mattn/go-runewidth"
+	"github.com/muesli/reflow/wordwrap"
 )
 
 // Model defines a state for the table widget.
@@ -403,7 +404,7 @@ func (m *Model) renderRow(rowID int) string {
 		style := lipgloss.NewStyle().Width(m.cols[i].Width).MaxWidth(m.cols[i].Width).Inline(true)
 		cellValue := runewidth.Truncate(value, m.cols[i].Width, "…")
 		if m.cellsWrap {
-			cellValue = runewidth.Wrap(value, m.cols[i].Width)
+			cellValue = wordwrap.String(value, m.cols[i].Width)
 			style = style.Copy().Inline(false)
 		}
 
