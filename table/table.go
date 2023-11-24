@@ -45,36 +45,18 @@ type KeyMap struct {
 	HalfPageDown key.Binding
 	GotoTop      key.Binding
 	GotoBottom   key.Binding
-
-	// The quit keybinding. This won't be caught when filtering.
-	Quit key.Binding
 }
 
+// ShortHelp implements the KeyMap interface.
 func (km KeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{
-		km.LineUp,
-		km.LineDown,
-		km.Quit,
-	}
+	return []key.Binding{km.LineUp, km.LineDown}
 }
 
+// FullHelp implements the KeyMap interface.
 func (km KeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{
-			km.LineUp,
-			km.LineDown,
-			km.GotoTop,
-			km.GotoBottom,
-		},
-		{
-			km.PageUp,
-			km.PageDown,
-			km.HalfPageUp,
-			km.HalfPageDown,
-		},
-		{
-			km.Quit,
-		},
+		{km.LineUp, km.LineDown, km.GotoTop, km.GotoBottom},
+		{km.PageUp, km.PageDown, km.HalfPageUp, km.HalfPageDown},
 	}
 }
 
@@ -113,12 +95,6 @@ func DefaultKeyMap() KeyMap {
 		GotoBottom: key.NewBinding(
 			key.WithKeys("end", "G"),
 			key.WithHelp("G/end", "go to end"),
-		),
-
-		// Quitting.
-		Quit: key.NewBinding(
-			key.WithKeys("q", "esc"),
-			key.WithHelp("q", "quit"),
 		),
 	}
 }
@@ -246,8 +222,6 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.GotoTop()
 		case key.Matches(msg, m.KeyMap.GotoBottom):
 			m.GotoBottom()
-		case key.Matches(msg, m.KeyMap.Quit):
-			return m, tea.Quit
 		}
 	}
 
