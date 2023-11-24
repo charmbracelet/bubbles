@@ -78,6 +78,17 @@ func (km KeyMap) FullHelp() [][]key.Binding {
 	}
 }
 
+func (km KeyMap) ShortHelp() []key.Binding {
+	return []key.Binding{km.LineUp, km.LineDown}
+}
+
+func (km KeyMap) FullHelp() [][]key.Binding {
+	return [][]key.Binding{
+		{km.LineUp, km.LineDown, km.GotoTop, km.GotoBottom},
+		{km.PageUp, km.PageDown, km.HalfPageUp, km.HalfPageDown},
+	}
+}
+
 // DefaultKeyMap returns a default set of keybindings.
 func DefaultKeyMap() KeyMap {
 	const spacebar = " "
