@@ -150,7 +150,7 @@ func WithRows(rows []Row) Option {
 // WithHeight sets the height of the table.
 func WithHeight(h int) Option {
 	return func(m *Model) {
-		m.viewport.Height = h
+		m.viewport.Height = h - lipgloss.Height(m.headersView())
 	}
 }
 
@@ -296,8 +296,7 @@ func (m *Model) SetWidth(w int) {
 
 // SetHeight sets the height of the viewport of the table.
 func (m *Model) SetHeight(h int) {
-	headerHeight := lipgloss.Height(m.headersView()) // Since headers are truncated, it is always 1
-	m.viewport.Height = h - headerHeight
+	m.viewport.Height = h - lipgloss.Height(m.headersView())
 	m.UpdateViewport()
 }
 
