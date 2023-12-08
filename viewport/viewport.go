@@ -43,7 +43,7 @@ type Model struct {
 	Style lipgloss.Style
 
 	// Style applies a lipgloss style to the content in the viewport.
-	// Can be be helpful for controlling the background and foreground colors.
+	// Can be helpful for controlling the background and foreground colors.
 	ContentStyle lipgloss.Style
 
 	// HighPerformanceRendering bypasses the normal Bubble Tea renderer to
