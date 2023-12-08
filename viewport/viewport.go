@@ -42,6 +42,10 @@ type Model struct {
 	// useful for setting borders, margins and padding.
 	Style lipgloss.Style
 
+	// Style applies a lipgloss style to the content in the viewport.
+	// Can be be helpful for controlling the background and foreground colors.
+	ContentStyle lipgloss.Style
+
 	// HighPerformanceRendering bypasses the normal Bubble Tea renderer to
 	// provide higher performance rendering. Most of the time the normal Bubble
 	// Tea rendering methods will suffice, but if you're passing content with
@@ -372,7 +376,7 @@ func (m Model) View() string {
 	}
 	contentWidth := w - m.Style.GetHorizontalFrameSize()
 	contentHeight := h - m.Style.GetVerticalFrameSize()
-	contents := lipgloss.NewStyle().
+	contents := m.ContentStyle.Copy().
 		Height(contentHeight).    // pad to height.
 		MaxHeight(contentHeight). // truncate height if taller.
 		MaxWidth(contentWidth).   // truncate width.
