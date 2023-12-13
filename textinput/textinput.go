@@ -716,6 +716,16 @@ func (m Model) placeholderView() string {
 	// The rest of the placeholder text
 	v += style(string(p[1:]))
 
+	// If Width is set then fill the placeholder with empty space accordingly
+	valWidth := rw.StringWidth(m.Placeholder)
+	if m.Width > 0 && valWidth <= m.Width {
+		padding := max(0, m.Width-valWidth)
+		if valWidth+padding <= m.Width && pos < len(v) {
+			padding++
+		}
+		v += style(strings.Repeat(" ", padding))
+	}
+
 	return m.PromptStyle.Render(m.Prompt) + v
 }
 
