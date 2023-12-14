@@ -720,7 +720,7 @@ func (m Model) placeholderView() string {
 	valWidth := rw.StringWidth(m.Placeholder)
 	if m.Width > 0 && valWidth <= m.Width {
 		padding := max(0, m.Width-valWidth)
-		if valWidth+padding <= m.Width && pos < len(v) {
+		if valWidth+padding <= m.Width && m.pos < len(v) {
 			padding++
 		}
 		v += style(strings.Repeat(" ", padding))
