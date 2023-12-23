@@ -720,17 +720,21 @@ func (m Model) placeholderView() string {
 
 	// If Width is set then size placeholder accordingly
 	if m.Width > 0 {
+		// available width is width - len + cursor offset of 1
 		minWidth := lipgloss.Width(m.Placeholder)
 		availWidth := m.Width - minWidth + 1
 
+		// if width < len, 'subtract'(add) number to len and dont add padding
 		if availWidth < 0 {
 			minWidth += availWidth
 			availWidth = 0
 		}
+		// append placeholder[len] - cursor, append padding
 		v += style(string(p[1:minWidth]))
 		v += style(strings.Repeat(" ", availWidth))
 
 	} else {
+		// if there is no width, the placeholder can be any length
 		v += style(string(p[1:]))
 	}
 
