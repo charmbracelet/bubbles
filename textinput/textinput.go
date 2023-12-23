@@ -714,11 +714,7 @@ func (m Model) placeholderView() string {
 	v += m.Cursor.View()
 
 	// The rest of the placeholder text
-	var spaces []rune
-	for i := 0; i < m.Width-lipgloss.Width(string(p[1:m.Width])); i++ {
-		spaces = append(spaces, ' ')
-	}
-	v += style(string(append(p[1:m.Width], spaces...)))
+	v += style(string(p[1:]))
 
 	return m.PromptStyle.Render(m.Prompt) + v
 }
