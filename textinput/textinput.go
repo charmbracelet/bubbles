@@ -713,21 +713,25 @@ func (m Model) placeholderView() string {
 	m.Cursor.SetChar(string(p[:1]))
 	v += m.Cursor.View()
 
-	// The rest of the placeholder text
-	var spaces []rune
-	for i := 0; i < m.Width-lipgloss.Width(string(p[1:m.Width])); i++ {
-		spaces = append(spaces, ' ')
+	// If the entire placeholder is already set and no padding is needed, finish
+	if m.Width < 1 && len(p) <= 1 {
+		return m.PromptStyle.Render(m.Prompt) + v
 	}
-	v += style(string(append(p[1:m.Width], spaces...)))
 
-	// If Width is set then fill the placeholder with empty space accordingly
-	valWidth := rw.StringWidth(m.Placeholder)
-	if m.Width > 0 && valWidth <= m.Width {
-		padding := max(0, m.Width-valWidth)
-		if valWidth+padding <= m.Width && m.pos < len(v) {
-			padding++
+	// If Width is set then size placeholder accordingly
+	if m.Width > 0 {
+		minWidth := lipgloss.Width(string(p[1:]))
+		availWidth := m.Width - minWidth
+
+		if availWidth < 0 {
+			minWidth += availWidth
+			availWidth = 0
 		}
-		v += style(strings.Repeat(" ", padding))
+		v += style(string(p[1 : minWidth+1]))
+		v += style(strings.Repeat(" ", availWidth))
+
+	} else {
+		v += style(string(p[1:]))
 	}
 
 	return m.PromptStyle.Render(m.Prompt) + v
