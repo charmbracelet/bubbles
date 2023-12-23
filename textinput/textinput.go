@@ -297,7 +297,7 @@ func (m *Model) insertRunesFromUserInput(v []rune) {
 		// If there's not enough space to paste the whole thing cut the pasted
 		// runes down so they'll fit.
 		if availSpace < len(paste) {
-			paste = paste[:len(paste)-availSpace]
+			paste = paste[:availSpace]
 		}
 	}
 
@@ -713,8 +713,29 @@ func (m Model) placeholderView() string {
 	m.Cursor.SetChar(string(p[:1]))
 	v += m.Cursor.View()
 
-	// The rest of the placeholder text
-	v += style(string(p[1:]))
+	// If the entire placeholder is already set and no padding is needed, finish
+	if m.Width < 1 && len(p) <= 1 {
+		return m.PromptStyle.Render(m.Prompt) + v
+	}
+
+	// If Width is set then size placeholder accordingly
+	if m.Width > 0 {
+		// available width is width - len + cursor offset of 1
+		minWidth := lipgloss.Width(m.Placeholder)
+		availWidth := m.Width - minWidth + 1
+
+		// if width < len, 'subtract'(add) number to len and dont add padding
+		if availWidth < 0 {
+			minWidth += availWidth
+			availWidth = 0
+		}
+		// append placeholder[len] - cursor, append padding
+		v += style(string(p[1:minWidth]))
+		v += style(strings.Repeat(" ", availWidth))
+	} else {
+		// if there is no width, the placeholder can be any length
+		v += style(string(p[1:]))
+	}
 
 	return m.PromptStyle.Render(m.Prompt) + v
 }
