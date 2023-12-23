@@ -732,7 +732,6 @@ func (m Model) placeholderView() string {
 		// append placeholder[len] - cursor, append padding
 		v += style(string(p[1:minWidth]))
 		v += style(strings.Repeat(" ", availWidth))
-
 	} else {
 		// if there is no width, the placeholder can be any length
 		v += style(string(p[1:]))
