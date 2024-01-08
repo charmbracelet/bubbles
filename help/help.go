@@ -42,6 +42,43 @@ type Styles struct {
 	FullSeparator lipgloss.Style
 }
 
+// DefaultStyles returns a set of default styles for the help bubble.
+func DefaultStyles() Styles {
+	keyStyle := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{
+		Light: "#909090",
+		Dark:  "#626262",
+	})
+	descStyle := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{
+		Light: "#B2B2B2",
+		Dark:  "#4A4A4A",
+	})
+	sepStyle := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{
+		Light: "#DDDADA",
+		Dark:  "#3C3C3C",
+	})
+	return Styles{
+		ShortKey:       keyStyle,
+		ShortDesc:      descStyle,
+		ShortSeparator: sepStyle,
+		Ellipsis:       sepStyle.Copy(),
+		FullKey:        keyStyle.Copy(),
+		FullDesc:       descStyle.Copy(),
+		FullSeparator:  sepStyle.Copy(),
+	}
+}
+
+// Renderer returns a copy of Styles with the given Lip Gloss renderer set.
+func (s Styles) Renderer(r *lipgloss.Renderer) Styles {
+	s.Ellipsis = s.Ellipsis.Copy().Renderer(r)
+	s.ShortKey = s.ShortKey.Copy().Renderer(r)
+	s.ShortDesc = s.ShortDesc.Copy().Renderer(r)
+	s.ShortSeparator = s.ShortSeparator.Copy().Renderer(r)
+	s.FullKey = s.FullKey.Copy().Renderer(r)
+	s.FullDesc = s.FullDesc.Copy().Renderer(r)
+	s.FullSeparator = s.FullSeparator.Copy().Renderer(r)
+	return s
+}
+
 // Model contains the state of the help view.
 type Model struct {
 	Width   int
@@ -55,39 +92,39 @@ type Model struct {
 	Ellipsis string
 
 	Styles Styles
+
+	re *lipgloss.Renderer
+}
+
+// Option is used to set options in New.
+type Option func(*Model)
+
+// WithRenderer sets the Lip Gloss renderer for the help model.
+func WithRenderer(r *lipgloss.Renderer) Option {
+	return func(m *Model) {
+		m.re = r
+	}
 }
 
 // New creates a new help view with some useful defaults.
-func New() Model {
-	keyStyle := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{
-		Light: "#909090",
-		Dark:  "#626262",
-	})
-
-	descStyle := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{
-		Light: "#B2B2B2",
-		Dark:  "#4A4A4A",
-	})
-
-	sepStyle := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{
-		Light: "#DDDADA",
-		Dark:  "#3C3C3C",
-	})
-
-	return Model{
+func New(opts ...Option) Model {
+	m := Model{
 		ShortSeparator: " • ",
 		FullSeparator:  "    ",
 		Ellipsis:       "…",
-		Styles: Styles{
-			ShortKey:       keyStyle,
-			ShortDesc:      descStyle,
-			ShortSeparator: sepStyle,
-			Ellipsis:       sepStyle.Copy(),
-			FullKey:        keyStyle.Copy(),
-			FullDesc:       descStyle.Copy(),
-			FullSeparator:  sepStyle.Copy(),
-		},
 	}
+
+	for _, opt := range opts {
+		opt(&m)
+	}
+
+	if m.re == nil {
+		m.re = lipgloss.DefaultRenderer()
+	}
+
+	m.Styles = DefaultStyles().Renderer(m.re)
+
+	return m
 }
 
 // NewModel creates a new help view with some useful defaults.

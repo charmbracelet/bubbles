@@ -105,6 +105,9 @@ type Model struct {
 	frame int
 	id    int
 	tag   int
+
+	// The renderer for the spinner. If nil, the default renderer will be used.
+	re *lipgloss.Renderer
 }
 
 // ID returns the spinner's unique ID.
@@ -122,6 +125,12 @@ func New(opts ...Option) Model {
 	for _, opt := range opts {
 		opt(&m)
 	}
+
+	if m.re == nil {
+		m.re = lipgloss.DefaultRenderer()
+	}
+
+	m.Style = m.Style.Copy().Renderer(m.re)
 
 	return m
 }
@@ -226,5 +235,12 @@ func WithSpinner(spinner Spinner) Option {
 func WithStyle(style lipgloss.Style) Option {
 	return func(m *Model) {
 		m.Style = style
+	}
+}
+
+// WithRenderer sets the Lip Gloss renderer for the spinner.
+func WithRenderer(r *lipgloss.Renderer) Option {
+	return func(m *Model) {
+		m.re = r
 	}
 }

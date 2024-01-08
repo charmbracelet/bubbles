@@ -108,9 +108,19 @@ func WithSpringOptions(frequency, damping float64) Option {
 }
 
 // WithColorProfile sets the color profile to use for the progress bar.
+//
+// Deprecated: use [WithRenderer] to set a custom Lip Gloss renderer that uses
+// a specific color profile.
 func WithColorProfile(p termenv.Profile) Option {
 	return func(m *Model) {
 		m.colorProfile = p
+	}
+}
+
+// WithRenderer sets the Lip Gloss renderer for the progress model.
+func WithRenderer(r *lipgloss.Renderer) Option {
+	return func(m *Model) {
+		m.re = r
 	}
 }
 
@@ -164,6 +174,9 @@ type Model struct {
 
 	// Color profile for the progress bar.
 	colorProfile termenv.Profile
+
+	// The Lipgloss renderer for the cursor.
+	re *lipgloss.Renderer
 }
 
 // New returns a model with default values.
@@ -177,7 +190,7 @@ func New(opts ...Option) Model {
 		EmptyColor:     "#606060",
 		ShowPercentage: true,
 		PercentFormat:  " %3.0f%%",
-		colorProfile:   termenv.ColorProfile(),
+		colorProfile:   -1,
 	}
 	if !m.springCustomized {
 		m.SetSpringOptions(defaultFrequency, defaultDamping)
@@ -186,6 +199,17 @@ func New(opts ...Option) Model {
 	for _, opt := range opts {
 		opt(&m)
 	}
+
+	if m.re == nil {
+		m.re = lipgloss.DefaultRenderer()
+	}
+
+	// Set the renderer on the percentage style
+	m.PercentageStyle = m.PercentageStyle.Copy().Renderer(m.re)
+	if m.colorProfile < 0 {
+		m.colorProfile = m.re.ColorProfile()
+	}
+
 	return m
 }
 

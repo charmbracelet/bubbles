@@ -39,6 +39,28 @@ type Styles struct {
 	DividerDot            lipgloss.Style
 }
 
+// Renderer returns a copy of Styles with the given Lip Gloss renderer set.
+func (s Styles) Renderer(r *lipgloss.Renderer) Styles {
+	s.TitleBar = s.TitleBar.Copy().Renderer(r)
+	s.Title = s.Title.Copy().Renderer(r)
+	s.Spinner = s.Spinner.Copy().Renderer(r)
+	s.FilterPrompt = s.FilterPrompt.Copy().Renderer(r)
+	s.FilterCursor = s.FilterCursor.Copy().Renderer(r)
+	s.DefaultFilterCharacterMatch = s.DefaultFilterCharacterMatch.Copy().Renderer(r)
+	s.StatusBar = s.StatusBar.Copy().Renderer(r)
+	s.StatusEmpty = s.StatusEmpty.Copy().Renderer(r)
+	s.StatusBarActiveFilter = s.StatusBarActiveFilter.Copy().Renderer(r)
+	s.StatusBarFilterCount = s.StatusBarFilterCount.Copy().Renderer(r)
+	s.NoItems = s.NoItems.Copy().Renderer(r)
+	s.PaginationStyle = s.PaginationStyle.Copy().Renderer(r)
+	s.HelpStyle = s.HelpStyle.Copy().Renderer(r)
+	s.ActivePaginationDot = s.ActivePaginationDot.Copy().Renderer(r)
+	s.InactivePaginationDot = s.InactivePaginationDot.Copy().Renderer(r)
+	s.ArabicPagination = s.ArabicPagination.Copy().Renderer(r)
+	s.DividerDot = s.DividerDot.Copy().Renderer(r)
+	return s
+}
+
 // DefaultStyles returns a set of default style definitions for this list
 // component.
 func DefaultStyles() (s Styles) {

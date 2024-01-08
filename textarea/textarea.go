@@ -111,14 +111,14 @@ type LineInfo struct {
 	CharOffset int
 }
 
-// Style that will be applied to the text area.
+// Styles that will be applied to the text area.
 //
-// Style can be applied to focused and unfocused states to change the styles
+// Styles can be applied to focused and unfocused states to change the styles
 // depending on the focus state.
 //
 // For an introduction to styling with Lip Gloss see:
 // https://github.com/charmbracelet/lipgloss
-type Style struct {
+type Styles struct {
 	Base             lipgloss.Style
 	CursorLine       lipgloss.Style
 	CursorLineNumber lipgloss.Style
@@ -127,6 +127,34 @@ type Style struct {
 	Placeholder      lipgloss.Style
 	Prompt           lipgloss.Style
 	Text             lipgloss.Style
+}
+
+// Renderer returns a copy of Styles with the given Lip Gloss renderer set.
+func (s Styles) Renderer(r *lipgloss.Renderer) Styles {
+	s.Base = s.Base.Copy().Renderer(r)
+	s.CursorLine = s.CursorLine.Copy().Renderer(r)
+	s.CursorLineNumber = s.CursorLineNumber.Copy().Renderer(r)
+	s.EndOfBuffer = s.EndOfBuffer.Copy().Renderer(r)
+	s.LineNumber = s.LineNumber.Copy().Renderer(r)
+	s.Placeholder = s.Placeholder.Copy().Renderer(r)
+	s.Prompt = s.Prompt.Copy().Renderer(r)
+	s.Text = s.Text.Copy().Renderer(r)
+	return s
+}
+
+// Style is an alias for Styles.
+//
+// Deprecated: Use Styles instead.
+type Style = Styles
+
+// Option is used to set options in New.
+type Option func(*Model)
+
+// WithRenderer sets the Lip Gloss renderer for the textarea model.
+func WithRenderer(r *lipgloss.Renderer) Option {
+	return func(m *Model) {
+		m.re = r
+	}
 }
 
 // Model is the Bubble Tea model for this text area element.
@@ -159,13 +187,13 @@ type Model struct {
 
 	// Styling. FocusedStyle and BlurredStyle are used to style the textarea in
 	// focused and blurred states.
-	FocusedStyle Style
-	BlurredStyle Style
+	FocusedStyle Styles
+	BlurredStyle Styles
 	// style is the current styling to use.
 	// It is used to abstract the differences in focus state when styling the
 	// model, since we can simply assign the set of styles to this variable
 	// when switching focus states.
-	style *Style
+	style *Styles
 
 	// Cursor is the text area cursor.
 	Cursor cursor.Model
@@ -224,24 +252,22 @@ type Model struct {
 
 	// rune sanitizer for input.
 	rsan runeutil.Sanitizer
+
+	// The Lip Gloss renderer to be used for styling.
+	re *lipgloss.Renderer
 }
 
 // New creates a new model with default settings.
-func New() Model {
+func New(opts ...Option) Model {
 	vp := viewport.New(0, 0)
 	vp.KeyMap = viewport.KeyMap{}
 	cur := cursor.New()
-
-	focusedStyle, blurredStyle := DefaultStyles()
 
 	m := Model{
 		CharLimit:            defaultCharLimit,
 		MaxHeight:            defaultMaxHeight,
 		MaxWidth:             defaultMaxWidth,
 		Prompt:               lipgloss.ThickBorder().Left + " ",
-		style:                &blurredStyle,
-		FocusedStyle:         focusedStyle,
-		BlurredStyle:         blurredStyle,
 		EndOfBufferCharacter: '~',
 		ShowLineNumbers:      true,
 		Cursor:               cur,
@@ -256,6 +282,21 @@ func New() Model {
 		viewport: &vp,
 	}
 
+	for _, opt := range opts {
+		opt(&m)
+	}
+
+	if m.re == nil {
+		m.re = lipgloss.DefaultRenderer()
+	}
+
+	focusedStyle, blurredStyle := DefaultStyles()
+	focusedStyle = focusedStyle.Renderer(m.re)
+	blurredStyle = blurredStyle.Renderer(m.re)
+	m.style = &blurredStyle
+	m.FocusedStyle = focusedStyle
+	m.BlurredStyle = blurredStyle
+
 	m.SetHeight(defaultHeight)
 	m.SetWidth(defaultWidth)
 
@@ -264,8 +305,8 @@ func New() Model {
 
 // DefaultStyles returns the default styles for focused and blurred states for
 // the textarea.
-func DefaultStyles() (Style, Style) {
-	focused := Style{
+func DefaultStyles() (Styles, Styles) {
+	focused := Styles{
 		Base:             lipgloss.NewStyle(),
 		CursorLine:       lipgloss.NewStyle().Background(lipgloss.AdaptiveColor{Light: "255", Dark: "0"}),
 		CursorLineNumber: lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "240"}),
@@ -275,7 +316,7 @@ func DefaultStyles() (Style, Style) {
 		Prompt:           lipgloss.NewStyle().Foreground(lipgloss.Color("7")),
 		Text:             lipgloss.NewStyle(),
 	}
-	blurred := Style{
+	blurred := Styles{
 		Base:             lipgloss.NewStyle(),
 		CursorLine:       lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "245", Dark: "7"}),
 		CursorLineNumber: lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "249", Dark: "7"}),

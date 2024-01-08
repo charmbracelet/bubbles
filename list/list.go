@@ -134,8 +134,20 @@ func (f FilterState) String() string {
 	}[f]
 }
 
+// Option is used to set options in New.
+type Option func(*Model)
+
+// WithRenderer sets the Lip Gloss renderer for the list model.
+func WithRenderer(r *lipgloss.Renderer) Option {
+	return func(m *Model) {
+		m.re = r
+	}
+}
+
 // Model contains the state of this component.
 type Model struct {
+	re *lipgloss.Renderer
+
 	showTitle        bool
 	showFilter       bool
 	showStatusBar    bool
@@ -195,8 +207,37 @@ type Model struct {
 }
 
 // New returns a new model with sensible defaults.
-func New(items []Item, delegate ItemDelegate, width, height int) Model {
-	styles := DefaultStyles()
+func New(items []Item, delegate ItemDelegate, width, height int, opts ...Option) Model {
+	m := Model{
+		showTitle:             true,
+		showFilter:            true,
+		showStatusBar:         true,
+		showPagination:        true,
+		showHelp:              true,
+		itemNameSingular:      "item",
+		itemNamePlural:        "items",
+		filteringEnabled:      true,
+		KeyMap:                DefaultKeyMap(),
+		Filter:                DefaultFilter,
+		Title:                 "List",
+		StatusMessageLifetime: time.Second,
+
+		width:    width,
+		height:   height,
+		delegate: delegate,
+		items:    items,
+		Help:     help.New(),
+	}
+
+	for _, opt := range opts {
+		opt(&m)
+	}
+
+	if m.re == nil {
+		m.re = lipgloss.DefaultRenderer()
+	}
+
+	styles := DefaultStyles().Renderer(m.re)
 
 	sp := spinner.New()
 	sp.Spinner = spinner.Line
@@ -214,30 +255,10 @@ func New(items []Item, delegate ItemDelegate, width, height int) Model {
 	p.ActiveDot = styles.ActivePaginationDot.String()
 	p.InactiveDot = styles.InactivePaginationDot.String()
 
-	m := Model{
-		showTitle:             true,
-		showFilter:            true,
-		showStatusBar:         true,
-		showPagination:        true,
-		showHelp:              true,
-		itemNameSingular:      "item",
-		itemNamePlural:        "items",
-		filteringEnabled:      true,
-		KeyMap:                DefaultKeyMap(),
-		Filter:                DefaultFilter,
-		Styles:                styles,
-		Title:                 "List",
-		FilterInput:           filterInput,
-		StatusMessageLifetime: time.Second,
-
-		width:     width,
-		height:    height,
-		delegate:  delegate,
-		items:     items,
-		Paginator: p,
-		spinner:   sp,
-		Help:      help.New(),
-	}
+	m.Styles = styles
+	m.FilterInput = filterInput
+	m.Paginator = p
+	m.spinner = sp
 
 	m.updatePagination()
 	m.updateKeybindings()

@@ -72,11 +72,23 @@ type Model struct {
 	blinkTag int
 	// mode determines the behavior of the cursor
 	mode Mode
+
+	re *lipgloss.Renderer
+}
+
+// Option is used to set options in New.
+type Option func(*Model)
+
+// WithRenderer sets the Lip Gloss renderer for the cursor.
+func WithRenderer(r *lipgloss.Renderer) Option {
+	return func(m *Model) {
+		m.re = r
+	}
 }
 
 // New creates a new model with default settings.
-func New() Model {
-	return Model{
+func New(opts ...Option) Model {
+	m := Model{
 		BlinkSpeed: defaultBlinkSpeed,
 
 		Blink: true,
@@ -86,6 +98,18 @@ func New() Model {
 			ctx: context.Background(),
 		},
 	}
+
+	for _, opt := range opts {
+		opt(&m)
+	}
+
+	if m.re == nil {
+		m.re = lipgloss.DefaultRenderer()
+	}
+
+	m.Style = m.Style.Renderer(m.re)
+
+	return m
 }
 
 // Update updates the cursor.
