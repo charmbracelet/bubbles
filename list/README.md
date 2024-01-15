@@ -69,4 +69,4 @@ own `ItemDelegate` too ([example][customDelegate]).
 [itemDelegate]: https://pkg.go.dev/github.com/charmbracelet/bubbles@v0.10.2/list#ItemDelegate
 [replacedLine]: https://github.com/charmbracelet/bubbletea/blob/master/examples/list-default/main.go#L77
 [listDefault]: https://github.com/charmbracelet/bubbletea/tree/master/examples/list-default
-[customDelegate]: https://github.com/charmbracelet/bubbletea/blob/a6f46172ec4436991b90c2270253b2d212de7ef3/examples/list-simple/main.go#L28-L49
+[customDelegate]: https://github.com/charmbracelet/bubbletea/blob/master/examples/list-simple/main.go#L29-L50
