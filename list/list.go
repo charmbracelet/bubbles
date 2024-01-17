@@ -532,12 +532,12 @@ func (m *Model) CursorDown() {
 }
 
 // PrevPage moves to the previous page, if available.
-func (m Model) PrevPage() {
+func (m *Model) PrevPage() {
 	m.Paginator.PrevPage()
 }
 
 // NextPage moves to the next page, if available.
-func (m Model) NextPage() {
+func (m *Model) NextPage() {
 	m.Paginator.NextPage()
 }
 
