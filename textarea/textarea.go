@@ -268,7 +268,7 @@ func New() Model {
 		focus:            false,
 		col:              0,
 		row:              0,
-		lineNumberFormat: "%4v ",
+		lineNumberFormat: "%3v ",
 
 		viewport: &vp,
 	}
@@ -1089,7 +1089,11 @@ func (m Model) View() string {
 						s.WriteString(style.Render(m.style.LineNumber.Render(fmt.Sprintf(m.lineNumberFormat, l+1))))
 					}
 				} else {
-					s.WriteString(m.style.LineNumber.Render(style.Render("   ")))
+					if m.row == l {
+						s.WriteString(style.Render(m.style.CursorLineNumber.Render(fmt.Sprintf(m.lineNumberFormat, " "))))
+					} else {
+						s.WriteString(style.Render(m.style.LineNumber.Render(fmt.Sprintf(m.lineNumberFormat, " "))))
+					}
 				}
 			}
 
