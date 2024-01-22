@@ -15,6 +15,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	rw "github.com/mattn/go-runewidth"
+	"github.com/rivo/uniseg"
 )
 
 const (
@@ -431,7 +432,7 @@ func (m Model) Value() string {
 func (m *Model) Length() int {
 	var l int
 	for _, row := range m.value {
-		l += rw.StringWidth(string(row))
+		l += uniseg.StringWidth(string(row))
 	}
 	// We add len(m.value) to include the newline characters.
 	return l + len(m.value) - 1
@@ -802,19 +803,19 @@ func (m Model) LineInfo() LineInfo {
 				RowOffset:    i + 1,
 				StartColumn:  m.col,
 				Width:        len(grid[i+1]),
-				CharWidth:    rw.StringWidth(string(line)),
+				CharWidth:    uniseg.StringWidth(string(line)),
 			}
 		}
 
 		if counter+len(line) >= m.col {
 			return LineInfo{
-				CharOffset:   rw.StringWidth(string(line[:max(0, m.col-counter)])),
+				CharOffset:   uniseg.StringWidth(string(line[:max(0, m.col-counter)])),
 				ColumnOffset: m.col - counter,
 				Height:       len(grid),
 				RowOffset:    i,
 				StartColumn:  counter,
 				Width:        len(line),
-				CharWidth:    rw.StringWidth(string(line)),
+				CharWidth:    uniseg.StringWidth(string(line)),
 			}
 		}
 
@@ -871,14 +872,14 @@ func (m *Model) SetWidth(w int) {
 	// prompt and line numbers, we need to calculate it by subtracting.
 	inputWidth := w
 	if m.ShowLineNumbers {
-		inputWidth -= rw.StringWidth(fmt.Sprintf(m.lineNumberFormat, 0))
+		inputWidth -= uniseg.StringWidth(fmt.Sprintf(m.lineNumberFormat, 0))
 	}
 
 	// Account for base style borders and padding.
 	inputWidth -= m.style.Base.GetHorizontalFrameSize()
 
 	if m.promptFunc == nil {
-		m.promptWidth = rw.StringWidth(m.Prompt)
+		m.promptWidth = uniseg.StringWidth(m.Prompt)
 	}
 
 	inputWidth -= m.promptWidth
@@ -1097,7 +1098,7 @@ func (m Model) View() string {
 				}
 			}
 
-			strwidth := rw.StringWidth(string(wrappedLine))
+			strwidth := uniseg.StringWidth(string(wrappedLine))
 			padding := m.width - strwidth
 			// If the trailing space causes the line to be wider than the
 			// width, we should not draw it to the screen since it will result
@@ -1154,7 +1155,7 @@ func (m Model) getPromptString(displayLine int) (prompt string) {
 		return prompt
 	}
 	prompt = m.promptFunc(displayLine)
-	pl := rw.StringWidth(prompt)
+	pl := uniseg.StringWidth(prompt)
 	if pl < m.promptWidth {
 		prompt = fmt.Sprintf("%*s%s", m.promptWidth-pl, "", prompt)
 	}
@@ -1182,7 +1183,7 @@ func (m Model) placeholderView() string {
 	s.WriteString(m.style.CursorLine.Render(m.Cursor.View()))
 
 	// The rest of the placeholder text
-	s.WriteString(m.style.CursorLine.Render(style.Render(p[1:] + strings.Repeat(" ", max(0, m.width-rw.StringWidth(p))))))
+	s.WriteString(m.style.CursorLine.Render(style.Render(p[1:] + strings.Repeat(" ", max(0, m.width-uniseg.StringWidth(p))))))
 
 	// The rest of the new lines
 	for i := 1; i < m.height; i++ {
@@ -1315,7 +1316,7 @@ func wrap(runes []rune, width int) [][]rune {
 		}
 
 		if spaces > 0 {
-			if rw.StringWidth(string(lines[row]))+rw.StringWidth(string(word))+spaces > width {
+			if uniseg.StringWidth(string(lines[row]))+uniseg.StringWidth(string(word))+spaces > width {
 				row++
 				lines = append(lines, []rune{})
 				lines[row] = append(lines[row], word...)
@@ -1332,7 +1333,7 @@ func wrap(runes []rune, width int) [][]rune {
 			// If the last character is a double-width rune, then we may not be able to add it to this line
 			// as it might cause us to go past the width.
 			lastCharLen := rw.RuneWidth(word[len(word)-1])
-			if rw.StringWidth(string(word))+lastCharLen > width {
+			if uniseg.StringWidth(string(word))+lastCharLen > width {
 				// If the current line has any content, let's move to the next
 				// line because the current word fills up the entire line.
 				if len(lines[row]) > 0 {
@@ -1345,7 +1346,7 @@ func wrap(runes []rune, width int) [][]rune {
 		}
 	}
 
-	if rw.StringWidth(string(lines[row]))+rw.StringWidth(string(word))+spaces >= width {
+	if uniseg.StringWidth(string(lines[row]))+uniseg.StringWidth(string(word))+spaces >= width {
 		lines = append(lines, []rune{})
 		lines[row+1] = append(lines[row+1], word...)
 		// We add an extra space at the end of the line to account for the
