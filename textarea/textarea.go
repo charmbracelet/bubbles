@@ -131,18 +131,16 @@ type Style struct {
 	Text             lipgloss.Style
 }
 
-// WrapInput is the input to the text wrapping function.
-// This is stored in a struct so that it can be hashed and memoized.
-type WrapInput struct {
-	Runes []rune
-	Width int
+// line is the input to the text wrapping function. This is stored in a struct
+// so that it can be hashed and memoized.
+type line struct {
+	runes []rune
+	width int
 }
 
-// Hash returns a hash of the input.
-func (w WrapInput) Hash() string {
-	// compute runes hash
-
-	v := fmt.Sprintf("%s:%d", string(w.Runes), w.Width)
+// Hash returns a hash of the line.
+func (w line) Hash() string {
+	v := fmt.Sprintf("%s:%d", string(w.runes), w.width)
 	return fmt.Sprintf("%x", sha256.Sum256([]byte(v)))
 }
 
@@ -151,7 +149,7 @@ type Model struct {
 	Err error
 
 	// General settings.
-	cache *memoization.MemoCache[WrapInput, [][]rune]
+	cache *memoization.MemoCache[line, [][]rune]
 
 	// Prompt is printed at the beginning of each line.
 	//
@@ -260,7 +258,7 @@ func New() Model {
 		style:                &blurredStyle,
 		FocusedStyle:         focusedStyle,
 		BlurredStyle:         blurredStyle,
-		cache:                memoization.NewMemoCache[WrapInput, [][]rune](100),
+		cache:                memoization.NewMemoCache[line, [][]rune](defaultMaxHeight),
 		EndOfBufferCharacter: '~',
 		ShowLineNumbers:      true,
 		Cursor:               cur,
@@ -270,7 +268,7 @@ func New() Model {
 		focus:            false,
 		col:              0,
 		row:              0,
-		lineNumberFormat: "%2v ",
+		lineNumberFormat: "%4v ",
 
 		viewport: &vp,
 	}
@@ -475,7 +473,7 @@ func (m *Model) CursorDown() {
 
 	offset := 0
 	for offset < charOffset {
-		if m.col > len(m.value[m.row]) || offset >= nli.CharWidth-1 {
+		if m.row >= len(m.value) || m.col >= len(m.value[m.row]) || offset >= nli.CharWidth-1 {
 			break
 		}
 		offset += rw.RuneWidth(m.value[m.row][m.col])
@@ -935,6 +933,10 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		m.value[m.row] = make([]rune, 0)
 	}
 
+	if m.MaxHeight > 0 && m.MaxHeight != m.cache.Capacity() {
+		m.cache = memoization.NewMemoCache[line, [][]rune](m.MaxHeight)
+	}
+
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch {
@@ -1201,17 +1203,12 @@ func Blink() tea.Msg {
 }
 
 func (m Model) memoizedWrap(runes []rune, width int) [][]rune {
-	input := WrapInput{
-		Runes: runes,
-		Width: width,
-	}
+	input := line{runes: runes, width: width}
 	if v, ok := m.cache.Get(input); ok {
 		return v
 	}
-
 	v := wrap(runes, width)
 	m.cache.Set(input, v)
-
 	return v
 }
 
