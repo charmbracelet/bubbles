@@ -125,6 +125,11 @@ func (m Model) OnLastPage() bool {
 	return m.Page == m.TotalPages-1
 }
 
+// OnFirstPage returns whether or not we're on the first page.
+func (m Model) OnFirstPage() bool {
+	return m.Page == 0
+}
+
 // New creates a new model with defaults.
 func New() Model {
 	return Model{
