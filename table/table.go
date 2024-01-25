@@ -382,10 +382,10 @@ func (m *Model) FromValues(value, separator string) {
 func (m Model) headersView() string {
 	var s = make([]string, 0, len(m.cols))
 	for _, col := range m.cols {
-		style := lipgloss.NewStyle().Width(col.Width).MaxWidth(col.Width).Inline(true)
 		if col.Width <= 0 {
 			continue
 		}
+		style := lipgloss.NewStyle().Width(col.Width).MaxWidth(col.Width).Inline(true)
 		renderedCell := style.Render(runewidth.Truncate(col.Title, col.Width, "…"))
 		s = append(s, m.styles.Header.Render(renderedCell))
 	}
