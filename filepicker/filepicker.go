@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -35,6 +36,8 @@ func New() Model {
 		Cursor:           ">",
 		AllowedTypes:     []string{},
 		selected:         0,
+		ShowPermissions:  true,
+		ShowSize:         true,
 		ShowHidden:       false,
 		DirAllowed:       false,
 		FileAllowed:      true,
@@ -145,11 +148,13 @@ type Model struct {
 	// If empty the user may select any file.
 	AllowedTypes []string
 
-	KeyMap      KeyMap
-	files       []os.DirEntry
-	ShowHidden  bool
-	DirAllowed  bool
-	FileAllowed bool
+	KeyMap          KeyMap
+	files           []os.DirEntry
+	ShowPermissions bool
+	ShowSize        bool
+	ShowHidden      bool
+	DirAllowed      bool
+	FileAllowed     bool
 
 	FileSelected  string
 	selected      int
@@ -382,9 +387,16 @@ func (m Model) View() string {
 		disabled := !m.canSelect(name) && !f.IsDir()
 
 		if m.selected == i {
-			selected := fmt.Sprintf(" %s %"+fmt.Sprint(m.Styles.FileSize.GetWidth())+"s %s", info.Mode().String(), size, name)
+			selected := ""
+			if m.ShowPermissions {
+				selected += " " + info.Mode().String()
+			}
+			if m.ShowSize {
+				selected += " " + fmt.Sprintf("%"+strconv.Itoa(m.Styles.FileSize.GetWidth())+"s", size)
+			}
+			selected += " " + name
 			if isSymlink {
-				selected = fmt.Sprintf("%s → %s", selected, symlinkPath)
+				selected += " → " + symlinkPath
 			}
 			if disabled {
 				s.WriteString(m.Styles.DisabledSelected.Render(m.Cursor) + m.Styles.DisabledSelected.Render(selected))
@@ -405,10 +417,17 @@ func (m Model) View() string {
 		}
 
 		fileName := style.Render(name)
+		s.WriteString(m.Styles.Cursor.Render(" "))
 		if isSymlink {
-			fileName = fmt.Sprintf("%s → %s", fileName, symlinkPath)
+			fileName += " → " + symlinkPath
 		}
-		s.WriteString(fmt.Sprintf("  %s %s %s", m.Styles.Permission.Render(info.Mode().String()), m.Styles.FileSize.Render(size), fileName))
+		if m.ShowPermissions {
+			s.WriteString(" " + m.Styles.Permission.Render(info.Mode().String()))
+		}
+		if m.ShowSize {
+			s.WriteString(" " + m.Styles.FileSize.Render(size))
+		}
+		s.WriteString(" " + fileName)
 		s.WriteRune('\n')
 	}
 
