@@ -360,7 +360,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 // View returns the view of the file picker.
 func (m Model) View() string {
 	if len(m.files) == 0 {
-		return m.Styles.EmptyDirectory.String()
+		return m.Styles.EmptyDirectory.Height(m.Height).MaxHeight(m.Height).String()
 	}
 	var s strings.Builder
 
@@ -412,6 +412,10 @@ func (m Model) View() string {
 			fileName = fmt.Sprintf("%s → %s", fileName, symlinkPath)
 		}
 		s.WriteString(fmt.Sprintf("  %s %s %s", m.Styles.Permission.Render(info.Mode().String()), m.Styles.FileSize.Render(size), fileName))
+		s.WriteRune('\n')
+	}
+
+	for i := lipgloss.Height(s.String()); i <= m.Height; i++ {
 		s.WriteRune('\n')
 	}
 
