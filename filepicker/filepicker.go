@@ -190,13 +190,13 @@ func newStack() stack {
 	}
 }
 
-func (m Model) pushView() {
-	m.minStack.Push(m.min)
-	m.maxStack.Push(m.max)
-	m.selectedStack.Push(m.selected)
+func (m *Model) pushView(selected, min, max int) {
+	m.selectedStack.Push(selected)
+	m.minStack.Push(min)
+	m.maxStack.Push(max)
 }
 
-func (m Model) popView() (int, int, int) {
+func (m *Model) popView() (int, int, int) {
 	return m.selectedStack.Pop(), m.minStack.Pop(), m.maxStack.Pop()
 }
 
@@ -243,7 +243,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			break
 		}
 		m.files = msg.entries
-		m.max = m.Height - 1
+		m.max = max(m.max, m.Height-1)
 	case tea.WindowSizeMsg:
 		if m.AutoHeight {
 			m.Height = msg.Height - marginBottom
@@ -347,7 +347,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			}
 
 			m.CurrentDirectory = filepath.Join(m.CurrentDirectory, f.Name())
-			m.pushView()
+			m.pushView(m.selected, m.min, m.max)
 			m.selected = 0
 			m.min = 0
 			m.max = m.Height - 1
@@ -365,11 +365,8 @@ func (m Model) View() string {
 	var s strings.Builder
 
 	for i, f := range m.files {
-		if i < m.min {
+		if i < m.min || i > m.max {
 			continue
-		}
-		if i > m.max {
-			break
 		}
 
 		var symlinkPath string
@@ -497,4 +494,11 @@ func (m Model) canSelect(file string) bool {
 		}
 	}
 	return false
+}
+
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }
