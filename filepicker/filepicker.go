@@ -64,7 +64,7 @@ type readDirMsg struct {
 
 const (
 	marginBottom  = 5
-	fileSizeWidth = 8
+	fileSizeWidth = 7
 	paddingLeft   = 2
 )
 
@@ -377,7 +377,7 @@ func (m Model) View() string {
 		var symlinkPath string
 		info, _ := f.Info()
 		isSymlink := info.Mode()&os.ModeSymlink != 0
-		size := humanize.Bytes(uint64(info.Size()))
+		size := strings.Replace(humanize.Bytes(uint64(info.Size())), " ", "", 1)
 		name := f.Name()
 
 		if isSymlink {
@@ -392,7 +392,7 @@ func (m Model) View() string {
 				selected += " " + info.Mode().String()
 			}
 			if m.ShowSize {
-				selected += " " + fmt.Sprintf("%"+strconv.Itoa(m.Styles.FileSize.GetWidth())+"s", size)
+				selected += fmt.Sprintf("%"+strconv.Itoa(m.Styles.FileSize.GetWidth())+"s", size)
 			}
 			selected += " " + name
 			if isSymlink {
@@ -425,7 +425,7 @@ func (m Model) View() string {
 			s.WriteString(" " + m.Styles.Permission.Render(info.Mode().String()))
 		}
 		if m.ShowSize {
-			s.WriteString(" " + m.Styles.FileSize.Render(size))
+			s.WriteString(m.Styles.FileSize.Render(size))
 		}
 		s.WriteString(" " + fileName)
 		s.WriteRune('\n')
