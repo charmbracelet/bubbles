@@ -830,6 +830,10 @@ func (m *Model) AvailableSuggestions() []string {
 
 // CurrentSuggestion returns the currently selected suggestion.
 func (m *Model) CurrentSuggestion() string {
+	if m.currentSuggestionIndex >= len(m.matchedSuggestions) {
+		return ""
+	}
+
 	return string(m.matchedSuggestions[m.currentSuggestionIndex])
 }
 
