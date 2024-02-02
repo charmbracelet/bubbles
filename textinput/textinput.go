@@ -830,7 +830,7 @@ func (m *Model) AvailableSuggestions() []string {
 
 // CurrentSuggestion returns the currently selected suggestion.
 func (m *Model) CurrentSuggestion() string {
-	if len(m.matchedSuggestions) == 0 {
+	if m.currentSuggestionIndex >= len(m.matchedSuggestions) {
 		return ""
 	}
 
