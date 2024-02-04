@@ -211,6 +211,13 @@ func (m Model) Value() string {
 	return string(m.value)
 }
 
+// Yank returns the current value of the text input, and also resets it.
+func (m *Model) Yank() string {
+	v := m.Value()
+	m.Reset()
+	return v
+}
+
 // Position returns the cursor position.
 func (m Model) Position() int {
 	return m.pos
