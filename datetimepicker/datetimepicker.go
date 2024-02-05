@@ -28,7 +28,7 @@ var DefaultKeyMap = KeyMap{
 	Quit:      key.NewBinding(key.WithKeys("ctrl+c")),
 }
 
-// PositionType represents the current position (Date, Month, or Year)
+// PositionType represents the current position (Date, Month, Year, Hour, or Minute)
 type PositionType int
 
 const (
@@ -47,6 +47,15 @@ const (
 	Hour24
 )
 
+// PickerType represents the selection type (Date, Time, or Both)
+type PickerType int
+
+const (
+	DateTime PickerType = iota
+	DateOnly
+	TimeOnly
+)
+
 // Model is the Bubble Tea model for the date input element.
 type Model struct {
 	Err         error
@@ -57,6 +66,7 @@ type Model struct {
 	CursorStyle lipgloss.Style
 	Pos         PositionType
 	TimeFormat  TimeFormat
+	PickerType  PickerType
 	// KeyMap encodes the keybindings.
 	KeyMap KeyMap
 }
@@ -71,6 +81,7 @@ func New() Model {
 		Pos:         Date,
 		Date:        time.Now(),
 		TimeFormat:  Hour12,
+		PickerType:  DateTime,
 		KeyMap:      DefaultKeyMap,
 	}
 }
@@ -130,12 +141,20 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case key.Matches(msg, m.KeyMap.Forward):
-			if m.Pos < Minute {
+			lastPos := Minute
+			if m.PickerType == DateOnly {
+				lastPos = Year
+			}
+			if m.Pos < lastPos {
 				m.Pos++
 			}
 
 		case key.Matches(msg, m.KeyMap.Backward):
-			if m.Pos > Date {
+			firstPos := Date
+			if m.PickerType == TimeOnly {
+				firstPos = Hour
+			}
+			if m.Pos > firstPos {
 				m.Pos--
 			}
 		}
@@ -147,15 +166,30 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // View renders the date input in its current state.
 func (m Model) View() string {
+	// Apply styles
+	prompt := m.PromptStyle.Render(m.Prompt)
+
+	text := ""
+	if m.PickerType == DateTime {
+		text += m.dateView()
+		text += " | "
+		text += m.timeView()
+	} else if m.PickerType == DateOnly {
+		text += m.dateView()
+	} else {
+		text += m.timeView()
+	}
+
+	return prompt + text
+}
+
+func (m Model) dateView() string {
 	// Customize styles based on the current position
 	var (
 		dayStyle   = m.TextStyle
 		monthStyle = m.TextStyle
 		yearStyle  = m.TextStyle
 	)
-
-	// Apply styles
-	prompt := m.PromptStyle.Render(m.Prompt)
 
 	switch m.Pos {
 	case Date:
@@ -174,11 +208,7 @@ func (m Model) View() string {
 	dayText := fmt.Sprintf("%02d", day)
 	yearText := fmt.Sprintf("%04d", year)
 
-	text := ""
-	text += dayStyle.Render(dayText) + " " + monthStyle.Render(month) + " " + yearStyle.Render(yearText)
-	text += " | "
-	text += m.timeView()
-	return prompt + text
+	return dayStyle.Render(dayText) + " " + monthStyle.Render(month) + " " + yearStyle.Render(yearText)
 }
 
 // formatTime formats the time based on the specified format (12-hour or 24-hour)
@@ -212,6 +242,16 @@ func (m *Model) SetValue(date time.Time) {
 // SetValue sets the TimeFormat
 func (m *Model) SetTimeFormat(format TimeFormat) {
 	m.TimeFormat = format
+}
+
+// SetValue sets the TimeFormat
+func (m *Model) SetPickerType(pickerType PickerType) {
+	m.PickerType = pickerType
+	if pickerType == DateTime || pickerType == DateOnly {
+		m.Pos = Date
+	} else {
+		m.Pos = Hour
+	}
 }
 
 // Value returns the formatted date value as a string.
