@@ -39,16 +39,24 @@ const (
 	Minute
 )
 
+// TimeFormat represents the time format (12-hour or 24-hour)
+type TimeFormat int
+
+const (
+	Hour12 TimeFormat = iota
+	Hour24
+)
+
 // Model is the Bubble Tea model for the date input element.
 type Model struct {
 	Err         error
 	Prompt      string
 	Date        time.Time
-	Format      string
 	PromptStyle lipgloss.Style
 	TextStyle   lipgloss.Style
 	CursorStyle lipgloss.Style
 	Pos         PositionType
+	TimeFormat  TimeFormat
 	// KeyMap encodes the keybindings.
 	KeyMap KeyMap
 }
@@ -62,6 +70,7 @@ func New() Model {
 		CursorStyle: lipgloss.NewStyle().Foreground(lipgloss.Color("212")),
 		Pos:         Date,
 		Date:        time.Now(),
+		TimeFormat:  Hour12,
 		KeyMap:      DefaultKeyMap,
 	}
 }
@@ -140,11 +149,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m Model) View() string {
 	// Customize styles based on the current position
 	var (
-		dayStyle    = m.TextStyle
-		monthStyle  = m.TextStyle
-		yearStyle   = m.TextStyle
-		hourStyle   = m.TextStyle
-		minuteStyle = m.TextStyle
+		dayStyle   = m.TextStyle
+		monthStyle = m.TextStyle
+		yearStyle  = m.TextStyle
 	)
 
 	// Apply styles
@@ -157,10 +164,6 @@ func (m Model) View() string {
 		monthStyle = m.CursorStyle
 	case Year:
 		yearStyle = m.CursorStyle
-	case Hour:
-		hourStyle = m.CursorStyle
-	case Minute:
-		minuteStyle = m.CursorStyle
 	}
 
 	day := m.Date.Day()
@@ -170,18 +173,45 @@ func (m Model) View() string {
 	// Format the date components
 	dayText := fmt.Sprintf("%02d", day)
 	yearText := fmt.Sprintf("%04d", year)
-	timeText := m.Date.Format("03:04 PM")
 
 	text := ""
 	text += dayStyle.Render(dayText) + " " + monthStyle.Render(month) + " " + yearStyle.Render(yearText)
 	text += " | "
-	text += hourStyle.Render(timeText[:2]) + ":" + minuteStyle.Render(timeText[3:5]) + " " + m.TextStyle.Render(timeText[6:])
+	text += m.timeView()
 	return prompt + text
+}
+
+// formatTime formats the time based on the specified format (12-hour or 24-hour)
+func (m Model) timeView() string {
+	var (
+		hourStyle   = m.TextStyle
+		minuteStyle = m.TextStyle
+	)
+	switch m.Pos {
+	case Hour:
+		hourStyle = m.CursorStyle
+	case Minute:
+		minuteStyle = m.CursorStyle
+	}
+
+	s := ""
+	if m.TimeFormat == Hour12 {
+		s = m.Date.Format("03:04 PM")
+		return hourStyle.Render(s[:2]) + ":" + minuteStyle.Render(s[3:5]) + " " + m.TextStyle.Render(s[6:])
+	}
+	s = m.Date.Format("15:04")
+
+	return hourStyle.Render(s[:2]) + ":" + minuteStyle.Render(s[3:5])
 }
 
 // SetValue sets the date value of the input.
 func (m *Model) SetValue(date time.Time) {
 	m.Date = date
+}
+
+// SetValue sets the TimeFormat
+func (m *Model) SetTimeFormat(format TimeFormat) {
+	m.TimeFormat = format
 }
 
 // Value returns the formatted date value as a string.
