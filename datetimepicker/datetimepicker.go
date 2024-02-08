@@ -28,31 +28,48 @@ var DefaultKeyMap = KeyMap{
 	Quit:      key.NewBinding(key.WithKeys("ctrl+c")),
 }
 
-// PositionType represents the current position (Date, Month, Year, Hour, or Minute)
+// PositionType represents the current position (Date, Month, Year, Hour, or Minute).
 type PositionType int
 
 const (
+	// Date represents the position type for selecting the date.
 	Date PositionType = iota
+
+	// Month represents the position type for selecting the month.
 	Month
+
+	// Year represents the position type for selecting the year.
 	Year
+
+	// Hour represents the position type for selecting the hour.
 	Hour
+
+	// Minute represents the position type for selecting the minute.
 	Minute
 )
 
-// TimeFormat represents the time format (12-hour or 24-hour)
+// TimeFormat represents the time format (12-hour or 24-hour).
 type TimeFormat int
 
 const (
+	// Hour12 represents the 12-hour time format.
 	Hour12 TimeFormat = iota
+
+	// Hour24 represents the 24-hour time format.
 	Hour24
 )
 
-// PickerType represents the selection type (Date, Time, or Both)
+// PickerType represents the selection type (Date, Time, or Both).
 type PickerType int
 
 const (
+	// DateTime represents the picker type for selecting both date and time.
 	DateTime PickerType = iota
+
+	// DateOnly represents the picker type for selecting only the date.
 	DateOnly
+
+	// TimeOnly represents the picker type for selecting only the time.
 	TimeOnly
 )
 
@@ -107,24 +124,28 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.Date = m.Date.AddDate(1, 0, 0) // Increase the year by 1
 			}
 			if m.Pos == Hour {
-				m.Date = m.Date.Add(time.Hour) // Increase the minute by 1
+				prevDate := m.Date
+				m.Date = m.Date.Add(time.Hour) // Increase the Hour by 1
+				if prevDate.Day() != m.Date.Day() || prevDate.Month() != m.Date.Month() || prevDate.Year() != m.Date.Year() {
+					m.Date = m.Date.AddDate(0, 0, -1) // Decrease the date by 1
+				}
 			}
 			if m.Pos == Minute {
+				prevDate := m.Date
 				m.Date = m.Date.Add(time.Minute) // Increase the minute by 1
+				if prevDate.Day() != m.Date.Day() || prevDate.Month() != m.Date.Month() || prevDate.Year() != m.Date.Year() {
+					m.Date = m.Date.AddDate(0, 0, -1) // Decrease the date by 1
+				}
 			}
 
 		case key.Matches(msg, m.KeyMap.Decrement):
 			if m.Pos == Date {
-				if m.Date.Year() <= 0 && m.Date.Month() <= time.January && m.Date.Day() <= 1 {
-					// Avoid negative year
-				} else {
+				if m.Date.After(time.Date(0, time.January, 1, 23, 59, 0, 0, time.UTC)) { // Date : 1 JAN 0000 (Avoid negative year)
 					m.Date = m.Date.AddDate(0, 0, -1) // Decrease the date by 1
 				}
 			}
 			if m.Pos == Month {
-				if m.Date.Year() <= 0 && m.Date.Month() <= time.January {
-					// Avoid negative year
-				} else {
+				if m.Date.After(time.Date(0, time.January, 31, 23, 59, 0, 0, time.UTC)) { // Date : 31 JAN 0000 (Avoid negative year)
 					m.Date = m.Date.AddDate(0, -1, 0) // Decrease the month by 1
 				}
 			}
@@ -134,10 +155,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 			if m.Pos == Hour {
-				m.Date = m.Date.Add(-time.Hour) // Decrease the minute by 1
+				prevDate := m.Date
+				m.Date = m.Date.Add(-time.Hour) // Decrease the Hour by 1
+				if prevDate.Day() != m.Date.Day() || prevDate.Month() != m.Date.Month() || prevDate.Year() != m.Date.Year() {
+					m.Date = m.Date.AddDate(0, 0, 1) // Increase the date by 1
+				}
 			}
 			if m.Pos == Minute {
+				prevDate := m.Date
 				m.Date = m.Date.Add(-time.Minute) // Decrease the minute by 1
+				if prevDate.Day() != m.Date.Day() || prevDate.Month() != m.Date.Month() || prevDate.Year() != m.Date.Year() {
+					m.Date = m.Date.AddDate(0, 0, 1) // Increase the date by 1
+				}
 			}
 
 		case key.Matches(msg, m.KeyMap.Forward):
@@ -191,12 +220,11 @@ func (m Model) dateView() string {
 		yearStyle  = m.TextStyle
 	)
 
-	switch m.Pos {
-	case Date:
+	if m.Pos == Date {
 		dayStyle = m.CursorStyle
-	case Month:
+	} else if m.Pos == Month {
 		monthStyle = m.CursorStyle
-	case Year:
+	} else if m.Pos == Year {
 		yearStyle = m.CursorStyle
 	}
 
@@ -211,16 +239,16 @@ func (m Model) dateView() string {
 	return dayStyle.Render(dayText) + " " + monthStyle.Render(month) + " " + yearStyle.Render(yearText)
 }
 
-// formatTime formats the time based on the specified format (12-hour or 24-hour)
+// formatTime formats the time based on the specified format (12-hour or 24-hour).
 func (m Model) timeView() string {
 	var (
 		hourStyle   = m.TextStyle
 		minuteStyle = m.TextStyle
 	)
-	switch m.Pos {
-	case Hour:
+
+	if m.Pos == Hour {
 		hourStyle = m.CursorStyle
-	case Minute:
+	} else if m.Pos == Minute {
 		minuteStyle = m.CursorStyle
 	}
 
@@ -239,13 +267,23 @@ func (m *Model) SetValue(date time.Time) {
 	m.Date = date
 }
 
-// SetValue sets the TimeFormat
+// SetValue sets the TimeFormat.
 func (m *Model) SetTimeFormat(format TimeFormat) {
+	if format < 0 {
+		format = 0
+	} else if format > 1 {
+		format = 1
+	}
 	m.TimeFormat = format
 }
 
-// SetValue sets the TimeFormat
+// SetPickerType sets the PickerType.
 func (m *Model) SetPickerType(pickerType PickerType) {
+	if pickerType < 0 {
+		pickerType = 0
+	} else if pickerType > 2 {
+		pickerType = 2
+	}
 	m.PickerType = pickerType
 	if pickerType == DateTime || pickerType == DateOnly {
 		m.Pos = Date
@@ -256,10 +294,19 @@ func (m *Model) SetPickerType(pickerType PickerType) {
 
 // Value returns the formatted date value as a string.
 func (m Model) Value() string {
-	return m.Date.Format("02 January 2006 03:04 PM")
+	if m.PickerType <= DateTime {
+		return m.Date.Format("02 January 2006 03:04 PM")
+	} else if m.PickerType >= TimeOnly {
+		if m.TimeFormat <= 0 {
+			return m.Date.Format("03:04 PM")
+		} else if m.TimeFormat >= 1 {
+			return m.Date.Format("15:04")
+		}
+	}
+	return m.Date.Format("02 January 2006")
 }
 
-// bubbletea Init function
+// bubbletea Init function.
 func (m Model) Init() tea.Cmd {
 	return nil
 }
