@@ -244,12 +244,12 @@ type Model struct {
 }
 
 // New creates a new model with default settings.
-func New() Model {
+func New(r *lipgloss.Renderer) Model {
 	vp := viewport.New(0, 0)
 	vp.KeyMap = viewport.KeyMap{}
 	cur := cursor.New()
 
-	focusedStyle, blurredStyle := DefaultStyles()
+	focusedStyle, blurredStyle := DefaultStyles(r)
 
 	m := Model{
 		CharLimit:            defaultCharLimit,
@@ -282,26 +282,26 @@ func New() Model {
 
 // DefaultStyles returns the default styles for focused and blurred states for
 // the textarea.
-func DefaultStyles() (Style, Style) {
+func DefaultStyles(r *lipgloss.Renderer) (Style, Style) {
 	focused := Style{
-		Base:             lipgloss.NewStyle(),
-		CursorLine:       lipgloss.NewStyle().Background(lipgloss.AdaptiveColor{Light: "255", Dark: "0"}),
-		CursorLineNumber: lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "240"}),
-		EndOfBuffer:      lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "254", Dark: "0"}),
-		LineNumber:       lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "249", Dark: "7"}),
-		Placeholder:      lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
-		Prompt:           lipgloss.NewStyle().Foreground(lipgloss.Color("7")),
-		Text:             lipgloss.NewStyle(),
+		Base:             r.NewStyle(),
+		CursorLine:       r.NewStyle().Background(lipgloss.AdaptiveColor{Light: "255", Dark: "0"}),
+		CursorLineNumber: r.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "240"}),
+		EndOfBuffer:      r.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "254", Dark: "0"}),
+		LineNumber:       r.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "249", Dark: "7"}),
+		Placeholder:      r.NewStyle().Foreground(lipgloss.Color("240")),
+		Prompt:           r.NewStyle().Foreground(lipgloss.Color("7")),
+		Text:             r.NewStyle(),
 	}
 	blurred := Style{
-		Base:             lipgloss.NewStyle(),
-		CursorLine:       lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "245", Dark: "7"}),
-		CursorLineNumber: lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "249", Dark: "7"}),
-		EndOfBuffer:      lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "254", Dark: "0"}),
-		LineNumber:       lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "249", Dark: "7"}),
-		Placeholder:      lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
-		Prompt:           lipgloss.NewStyle().Foreground(lipgloss.Color("7")),
-		Text:             lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "245", Dark: "7"}),
+		Base:             r.NewStyle(),
+		CursorLine:       r.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "245", Dark: "7"}),
+		CursorLineNumber: r.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "249", Dark: "7"}),
+		EndOfBuffer:      r.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "254", Dark: "0"}),
+		LineNumber:       r.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "249", Dark: "7"}),
+		Placeholder:      r.NewStyle().Foreground(lipgloss.Color("240")),
+		Prompt:           r.NewStyle().Foreground(lipgloss.Color("7")),
+		Text:             r.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "245", Dark: "7"}),
 	}
 
 	return focused, blurred
