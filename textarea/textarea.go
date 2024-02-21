@@ -244,12 +244,17 @@ type Model struct {
 }
 
 // New creates a new model with default settings.
-func New(r *lipgloss.Renderer) Model {
+func New(r ...*lipgloss.Renderer) Model {
 	vp := viewport.New(0, 0)
 	vp.KeyMap = viewport.KeyMap{}
 	cur := cursor.New()
 
-	focusedStyle, blurredStyle := DefaultStyles(r)
+	var focusedStyle, blurredStyle Style
+	if len(r) > 0 {
+		focusedStyle, blurredStyle = DefaultStyles(r[0])
+	} else {
+		focusedStyle, blurredStyle = DefaultStyles(lipgloss.DefaultRenderer())
+	}
 
 	m := Model{
 		CharLimit:            defaultCharLimit,
