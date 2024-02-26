@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 func TestNew(t *testing.T) {
@@ -429,7 +430,9 @@ func TestRendersEndOfLineBuffer(t *testing.T) {
 }
 
 func newTextArea() Model {
-	textarea := New()
+	textarea := New(&tea.Context{
+		Renderer: lipgloss.DefaultRenderer(),
+	})
 
 	textarea.Prompt = "> "
 	textarea.Placeholder = "Hello, World!"

@@ -41,57 +41,57 @@ type Styles struct {
 
 // DefaultStyles returns a set of default style definitions for this list
 // component.
-func DefaultStyles() (s Styles) {
+func DefaultStyles(r *lipgloss.Renderer) (s Styles) {
 	verySubduedColor := lipgloss.AdaptiveColor{Light: "#DDDADA", Dark: "#3C3C3C"}
 	subduedColor := lipgloss.AdaptiveColor{Light: "#9B9B9B", Dark: "#5C5C5C"}
 
-	s.TitleBar = lipgloss.NewStyle().Padding(0, 0, 1, 2)
+	s.TitleBar = r.NewStyle().Padding(0, 0, 1, 2)
 
-	s.Title = lipgloss.NewStyle().
+	s.Title = r.NewStyle().
 		Background(lipgloss.Color("62")).
 		Foreground(lipgloss.Color("230")).
 		Padding(0, 1)
 
-	s.Spinner = lipgloss.NewStyle().
+	s.Spinner = r.NewStyle().
 		Foreground(lipgloss.AdaptiveColor{Light: "#8E8E8E", Dark: "#747373"})
 
-	s.FilterPrompt = lipgloss.NewStyle().
+	s.FilterPrompt = r.NewStyle().
 		Foreground(lipgloss.AdaptiveColor{Light: "#04B575", Dark: "#ECFD65"})
 
-	s.FilterCursor = lipgloss.NewStyle().
+	s.FilterCursor = r.NewStyle().
 		Foreground(lipgloss.AdaptiveColor{Light: "#EE6FF8", Dark: "#EE6FF8"})
 
-	s.DefaultFilterCharacterMatch = lipgloss.NewStyle().Underline(true)
+	s.DefaultFilterCharacterMatch = r.NewStyle().Underline(true)
 
-	s.StatusBar = lipgloss.NewStyle().
+	s.StatusBar = r.NewStyle().
 		Foreground(lipgloss.AdaptiveColor{Light: "#A49FA5", Dark: "#777777"}).
 		Padding(0, 0, 1, 2)
 
-	s.StatusEmpty = lipgloss.NewStyle().Foreground(subduedColor)
+	s.StatusEmpty = r.NewStyle().Foreground(subduedColor)
 
-	s.StatusBarActiveFilter = lipgloss.NewStyle().
+	s.StatusBarActiveFilter = r.NewStyle().
 		Foreground(lipgloss.AdaptiveColor{Light: "#1a1a1a", Dark: "#dddddd"})
 
-	s.StatusBarFilterCount = lipgloss.NewStyle().Foreground(verySubduedColor)
+	s.StatusBarFilterCount = r.NewStyle().Foreground(verySubduedColor)
 
-	s.NoItems = lipgloss.NewStyle().
+	s.NoItems = r.NewStyle().
 		Foreground(lipgloss.AdaptiveColor{Light: "#909090", Dark: "#626262"})
 
-	s.ArabicPagination = lipgloss.NewStyle().Foreground(subduedColor)
+	s.ArabicPagination = r.NewStyle().Foreground(subduedColor)
 
-	s.PaginationStyle = lipgloss.NewStyle().PaddingLeft(2) //nolint:gomnd
+	s.PaginationStyle = r.NewStyle().PaddingLeft(2) //nolint:gomnd
 
-	s.HelpStyle = lipgloss.NewStyle().Padding(1, 0, 0, 2)
+	s.HelpStyle = r.NewStyle().Padding(1, 0, 0, 2)
 
-	s.ActivePaginationDot = lipgloss.NewStyle().
+	s.ActivePaginationDot = r.NewStyle().
 		Foreground(lipgloss.AdaptiveColor{Light: "#847A85", Dark: "#979797"}).
 		SetString(bullet)
 
-	s.InactivePaginationDot = lipgloss.NewStyle().
+	s.InactivePaginationDot = r.NewStyle().
 		Foreground(verySubduedColor).
 		SetString(bullet)
 
-	s.DividerDot = lipgloss.NewStyle().
+	s.DividerDot = r.NewStyle().
 		Foreground(verySubduedColor).
 		SetString(" " + bullet + " ")
 

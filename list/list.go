@@ -195,14 +195,14 @@ type Model struct {
 }
 
 // New returns a new model with sensible defaults.
-func New(items []Item, delegate ItemDelegate, width, height int) Model {
-	styles := DefaultStyles()
+func New(ctx *tea.Context, items []Item, delegate ItemDelegate, width, height int) Model {
+	styles := DefaultStyles(ctx.Renderer)
 
 	sp := spinner.New()
 	sp.Spinner = spinner.Line
 	sp.Style = styles.Spinner
 
-	filterInput := textinput.New()
+	filterInput := textinput.New(ctx)
 	filterInput.Prompt = "Filter: "
 	filterInput.PromptStyle = styles.FilterPrompt
 	filterInput.Cursor.Style = styles.FilterCursor
@@ -236,7 +236,7 @@ func New(items []Item, delegate ItemDelegate, width, height int) Model {
 		items:     items,
 		Paginator: p,
 		spinner:   sp,
-		Help:      help.New(),
+		Help:      help.New(ctx),
 	}
 
 	m.updatePagination()

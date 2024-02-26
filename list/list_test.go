@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 type item string
@@ -29,7 +30,8 @@ func (d itemDelegate) Render(w io.Writer, m Model, index int, listItem Item) {
 }
 
 func TestStatusBarItemName(t *testing.T) {
-	list := New([]Item{item("foo"), item("bar")}, itemDelegate{}, 10, 10)
+	ctx := &tea.Context{Renderer: lipgloss.DefaultRenderer()}
+	list := New(ctx, []Item{item("foo"), item("bar")}, itemDelegate{}, 10, 10)
 	expected := "2 items"
 	if !strings.Contains(list.statusView(), expected) {
 		t.Fatalf("Error: expected view to contain %s", expected)
@@ -43,7 +45,8 @@ func TestStatusBarItemName(t *testing.T) {
 }
 
 func TestStatusBarWithoutItems(t *testing.T) {
-	list := New([]Item{}, itemDelegate{}, 10, 10)
+	ctx := &tea.Context{Renderer: lipgloss.DefaultRenderer()}
+	list := New(ctx, []Item{}, itemDelegate{}, 10, 10)
 
 	expected := "No items"
 	if !strings.Contains(list.statusView(), expected) {
@@ -52,7 +55,8 @@ func TestStatusBarWithoutItems(t *testing.T) {
 }
 
 func TestCustomStatusBarItemName(t *testing.T) {
-	list := New([]Item{item("foo"), item("bar")}, itemDelegate{}, 10, 10)
+	ctx := &tea.Context{Renderer: lipgloss.DefaultRenderer()}
+	list := New(ctx, []Item{item("foo"), item("bar")}, itemDelegate{}, 10, 10)
 	list.SetStatusBarItemName("connection", "connections")
 
 	expected := "2 connections"

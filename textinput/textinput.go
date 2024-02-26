@@ -17,8 +17,10 @@ import (
 )
 
 // Internal messages for clipboard operations.
-type pasteMsg string
-type pasteErrMsg struct{ error }
+type (
+	pasteMsg    string
+	pasteErrMsg struct{ error }
+)
 
 // EchoMode sets the input behavior of the text input field.
 type EchoMode int
@@ -153,14 +155,15 @@ type Model struct {
 }
 
 // New creates a new model with default settings.
-func New() Model {
+func New(ctx *tea.Context) Model {
+	r := ctx.Renderer
 	return Model{
 		Prompt:           "> ",
 		EchoCharacter:    '*',
 		CharLimit:        0,
-		PlaceholderStyle: lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
+		PlaceholderStyle: r.NewStyle().Foreground(lipgloss.Color("240")),
 		ShowSuggestions:  false,
-		CompletionStyle:  lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
+		CompletionStyle:  r.NewStyle().Foreground(lipgloss.Color("240")),
 		Cursor:           cursor.New(),
 		KeyMap:           DefaultKeyMap,
 

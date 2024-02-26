@@ -11,9 +11,10 @@ import (
 
 // New returns a new model with the given width and height as well as default
 // key mappings.
-func New(width, height int) (m Model) {
+func New(ctx *tea.Context, width, height int) (m Model) {
 	m.Width = width
 	m.Height = height
+	m.renderer = ctx.Renderer
 	m.setInitialValues()
 	return m
 }
@@ -54,6 +55,7 @@ type Model struct {
 
 	initialized bool
 	lines       []string
+	renderer    *lipgloss.Renderer
 }
 
 func (m *Model) setInitialValues() {
@@ -372,7 +374,7 @@ func (m Model) View() string {
 	}
 	contentWidth := w - m.Style.GetHorizontalFrameSize()
 	contentHeight := h - m.Style.GetVerticalFrameSize()
-	contents := lipgloss.NewStyle().
+	contents := m.renderer.NewStyle().
 		Width(contentWidth).      // pad to width.
 		Height(contentHeight).    // pad to height.
 		MaxHeight(contentHeight). // truncate height if taller.

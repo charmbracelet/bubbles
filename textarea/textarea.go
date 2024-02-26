@@ -29,8 +29,10 @@ const (
 )
 
 // Internal messages for clipboard operations.
-type pasteMsg string
-type pasteErrMsg struct{ error }
+type (
+	pasteMsg    string
+	pasteErrMsg struct{ error }
+)
 
 // KeyMap is the key bindings for different actions within the textarea.
 type KeyMap struct {
@@ -244,12 +246,12 @@ type Model struct {
 }
 
 // New creates a new model with default settings.
-func New(r *tea.Context) Model {
-	vp := viewport.New(0, 0)
+func New(ctx *tea.Context) Model {
+	vp := viewport.New(ctx, 0, 0)
 	vp.KeyMap = viewport.KeyMap{}
 	cur := cursor.New()
 
-	focusedStyle, blurredStyle := DefaultStyles(r.Renderer)
+	focusedStyle, blurredStyle := DefaultStyles(ctx.Renderer)
 
 	m := Model{
 		CharLimit:            defaultCharLimit,
@@ -605,8 +607,7 @@ func (m *Model) transposeLeft() {
 	if m.col >= len(m.value[m.row]) {
 		m.SetCursor(m.col - 1)
 	}
-	m.value[m.row][m.col-1], m.value[m.row][m.col] =
-		m.value[m.row][m.col], m.value[m.row][m.col-1]
+	m.value[m.row][m.col-1], m.value[m.row][m.col] = m.value[m.row][m.col], m.value[m.row][m.col-1]
 	if m.col < len(m.value[m.row]) {
 		m.SetCursor(m.col + 1)
 	}

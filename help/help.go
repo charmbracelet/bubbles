@@ -15,7 +15,6 @@ import (
 // Note that if a key is disabled (via key.Binding.SetEnabled) it will not be
 // rendered in the help view, so in theory generated help should self-manage.
 type KeyMap interface {
-
 	// ShortHelp returns a slice of bindings to be displayed in the short
 	// version of the help. The help bubble will render help in the order in
 	// which the help items are returned here.
@@ -58,18 +57,19 @@ type Model struct {
 }
 
 // New creates a new help view with some useful defaults.
-func New() Model {
-	keyStyle := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{
+func New(ctx *tea.Context) Model {
+	r := ctx.Renderer
+	keyStyle := r.NewStyle().Foreground(lipgloss.AdaptiveColor{
 		Light: "#909090",
 		Dark:  "#626262",
 	})
 
-	descStyle := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{
+	descStyle := r.NewStyle().Foreground(lipgloss.AdaptiveColor{
 		Light: "#B2B2B2",
 		Dark:  "#4A4A4A",
 	})
 
-	sepStyle := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{
+	sepStyle := r.NewStyle().Foreground(lipgloss.AdaptiveColor{
 		Light: "#DDDADA",
 		Dark:  "#3C3C3C",
 	})
@@ -118,7 +118,7 @@ func (m Model) ShortHelpView(bindings []key.Binding) string {
 
 	var b strings.Builder
 	var totalWidth int
-	var separator = m.Styles.ShortSeparator.Inline(true).Render(m.ShortSeparator)
+	separator := m.Styles.ShortSeparator.Inline(true).Render(m.ShortSeparator)
 
 	for i, kb := range bindings {
 		if !kb.Enabled() {

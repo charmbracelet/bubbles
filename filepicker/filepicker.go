@@ -29,7 +29,7 @@ func nextID() int {
 }
 
 // New returns a new filepicker model with default styling and key bindings.
-func New() Model {
+func New(ctx *tea.Context) Model {
 	return Model{
 		id:               nextID(),
 		CurrentDirectory: ".",
@@ -49,7 +49,7 @@ func New() Model {
 		minStack:         newStack(),
 		maxStack:         newStack(),
 		KeyMap:           DefaultKeyMap(),
-		Styles:           DefaultStyles(),
+		Styles:           DefaultStyles(ctx.Renderer),
 	}
 }
 
@@ -112,13 +112,7 @@ type Styles struct {
 }
 
 // DefaultStyles defines the default styling for the file picker.
-func DefaultStyles() Styles {
-	return DefaultStylesWithRenderer(lipgloss.DefaultRenderer())
-}
-
-// DefaultStylesWithRenderer defines the default styling for the file picker,
-// with a given Lip Gloss renderer.
-func DefaultStylesWithRenderer(r *lipgloss.Renderer) Styles {
+func DefaultStyles(r *lipgloss.Renderer) Styles {
 	return Styles{
 		DisabledCursor:   r.NewStyle().Foreground(lipgloss.Color("247")),
 		Cursor:           r.NewStyle().Foreground(lipgloss.Color("212")),
