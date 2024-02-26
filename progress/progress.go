@@ -175,7 +175,7 @@ type Model struct {
 }
 
 // New returns a model with default values.
-func New(opts ...Option) Model {
+func New(ctx *tea.Context, opts ...Option) Model {
 	m := Model{
 		id:             nextID(),
 		Width:          defaultWidth,
@@ -185,7 +185,7 @@ func New(opts ...Option) Model {
 		EmptyColor:     "#606060",
 		ShowPercentage: true,
 		PercentFormat:  " %3.0f%%",
-		colorProfile:   termenv.ColorProfile(),
+		colorProfile:   ctx.Renderer.ColorProfile(),
 	}
 	if !m.springCustomized {
 		m.SetSpringOptions(defaultFrequency, defaultDamping)

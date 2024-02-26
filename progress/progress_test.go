@@ -4,6 +4,8 @@ import (
 	"strings"
 	"testing"
 
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/muesli/termenv"
 )
 
@@ -12,7 +14,6 @@ const (
 )
 
 func TestGradient(t *testing.T) {
-
 	colA := "#FF0000"
 	colB := "#00FF00"
 
@@ -32,7 +33,8 @@ func TestGradient(t *testing.T) {
 		}
 
 		t.Run(descr, func(t *testing.T) {
-			p = New(opts...)
+			ctx := &tea.Context{Renderer: lipgloss.DefaultRenderer()}
+			p = New(ctx, opts...)
 
 			// build the expected colors by colorizing an empty string and then cutting off the following reset sequence
 			sb := strings.Builder{}
@@ -62,5 +64,4 @@ func TestGradient(t *testing.T) {
 			}
 		})
 	}
-
 }
