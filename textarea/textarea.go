@@ -249,7 +249,7 @@ type Model struct {
 func New(ctx *tea.Context) Model {
 	vp := viewport.New(ctx, 0, 0)
 	vp.KeyMap = viewport.KeyMap{}
-	cur := cursor.New()
+	cur := cursor.New(ctx)
 
 	focusedStyle, blurredStyle := DefaultStyles(ctx.Renderer)
 

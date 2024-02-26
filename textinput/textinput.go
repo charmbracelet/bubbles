@@ -164,7 +164,7 @@ func New(ctx *tea.Context) Model {
 		PlaceholderStyle: r.NewStyle().Foreground(lipgloss.Color("240")),
 		ShowSuggestions:  false,
 		CompletionStyle:  r.NewStyle().Foreground(lipgloss.Color("240")),
-		Cursor:           cursor.New(),
+		Cursor:           cursor.New(ctx),
 		KeyMap:           DefaultKeyMap,
 
 		suggestions: [][]rune{},

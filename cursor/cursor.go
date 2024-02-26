@@ -75,12 +75,14 @@ type Model struct {
 }
 
 // New creates a new model with default settings.
-func New() Model {
+func New(ctx *tea.Context) Model {
 	return Model{
 		BlinkSpeed: defaultBlinkSpeed,
 
-		Blink: true,
-		mode:  CursorBlink,
+		Blink:     true,
+		mode:      CursorBlink,
+		TextStyle: ctx.Renderer.NewStyle(),
+		Style:     ctx.Renderer.NewStyle(),
 
 		blinkCtx: &blinkCtx{
 			ctx: context.Background(),
