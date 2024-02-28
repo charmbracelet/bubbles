@@ -387,6 +387,9 @@ func (m *Model) FromValues(value, separator string) {
 func (m Model) headersView() string {
 	var s = make([]string, 0, len(m.cols))
 	for _, col := range m.cols {
+		if col.Width <= 0 {
+			continue
+		}
 		style := lipgloss.NewStyle().Width(col.Width).MaxWidth(col.Width).Inline(true)
 		renderedCell := style.Render(runewidth.Truncate(col.Title, col.Width, "…"))
 		s = append(s, m.styles.Header.Render(renderedCell))
@@ -397,6 +400,9 @@ func (m Model) headersView() string {
 func (m *Model) renderRow(rowID int) string {
 	var s = make([]string, 0, len(m.cols))
 	for i, value := range m.rows[rowID] {
+		if m.cols[i].Width <= 0 {
+			continue
+		}
 		style := lipgloss.NewStyle().Width(m.cols[i].Width).MaxWidth(m.cols[i].Width).Inline(true)
 		renderedCell := m.styles.Cell.Render(style.Render(runewidth.Truncate(value, m.cols[i].Width, "…")))
 		s = append(s, renderedCell)
