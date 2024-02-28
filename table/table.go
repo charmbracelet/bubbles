@@ -47,6 +47,19 @@ type KeyMap struct {
 	GotoBottom   key.Binding
 }
 
+// ShortHelp implements the KeyMap interface.
+func (km KeyMap) ShortHelp() []key.Binding {
+	return []key.Binding{km.LineUp, km.LineDown}
+}
+
+// FullHelp implements the KeyMap interface.
+func (km KeyMap) FullHelp() [][]key.Binding {
+	return [][]key.Binding{
+		{km.LineUp, km.LineDown, km.GotoTop, km.GotoBottom},
+		{km.PageUp, km.PageDown, km.HalfPageUp, km.HalfPageDown},
+	}
+}
+
 // DefaultKeyMap returns a default set of keybindings.
 func DefaultKeyMap() KeyMap {
 	const spacebar = " "
