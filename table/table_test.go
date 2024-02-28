@@ -1,6 +1,10 @@
 package table
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/charmbracelet/lipgloss"
+)
 
 func TestFromValues(t *testing.T) {
 	input := "foo1,bar1\nfoo2,bar2\nfoo3,bar3"
@@ -51,4 +55,56 @@ func deepEqual(a, b []Row) bool {
 		}
 	}
 	return true
+}
+
+var (
+	cols = []Column{
+		{Title: "col1", Width: 10},
+		{Title: "col2", Width: 10},
+		{Title: "col3", Width: 10},
+	}
+)
+
+func TestRenderRow(t *testing.T) {
+	tests := []struct {
+		name     string
+		table    *Model
+		expected string
+	}{
+		{
+			name: "simple row",
+			table: &Model{
+				rows:   []Row{{"Foooooo", "Baaaaar", "Baaaaaz"}},
+				cols:   cols,
+				styles: Styles{Cell: lipgloss.NewStyle()},
+			},
+			expected: "Foooooo   Baaaaar   Baaaaaz   ",
+		},
+		{
+			name: "simple row with truncations",
+			table: &Model{
+				rows:   []Row{{"Foooooooooo", "Baaaaaaaaar", "Quuuuuuuuux"}},
+				cols:   cols,
+				styles: Styles{Cell: lipgloss.NewStyle()},
+			},
+			expected: "Foooooooo…Baaaaaaaa…Quuuuuuuu…",
+		},
+		{
+			name: "simple row avoiding truncations",
+			table: &Model{
+				rows:   []Row{{"Fooooooooo", "Baaaaaaaar", "Quuuuuuuux"}},
+				cols:   cols,
+				styles: Styles{Cell: lipgloss.NewStyle()},
+			},
+			expected: "FoooooooooBaaaaaaaarQuuuuuuuux",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			row := tc.table.renderRow(0)
+			if row != tc.expected {
+				t.Fatalf("\n\nWant: \n%s\n\nGot:  \n%s\n", tc.expected, row)
+			}
+		})
+	}
 }
