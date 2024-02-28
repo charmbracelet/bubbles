@@ -1139,7 +1139,7 @@ func (m Model) View() string {
 		displayLine++
 
 		if m.ShowLineNumbers {
-			lineNumber := m.style.EndOfBuffer.Render((fmt.Sprintf(m.lineNumberFormat, string(m.EndOfBufferCharacter))))
+			lineNumber := m.style.EndOfBuffer.Render(string(m.EndOfBufferCharacter))
 			s.WriteString(lineNumber)
 		}
 		s.WriteRune('\n')
@@ -1193,7 +1193,7 @@ func (m Model) placeholderView() string {
 		s.WriteString(prompt)
 
 		if m.ShowLineNumbers {
-			eob := m.style.EndOfBuffer.Render((fmt.Sprintf(m.lineNumberFormat, string(m.EndOfBufferCharacter))))
+			eob := m.style.EndOfBuffer.Render(string(m.EndOfBufferCharacter))
 			s.WriteString(eob)
 		}
 	}
