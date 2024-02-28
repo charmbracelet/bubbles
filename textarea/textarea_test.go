@@ -429,11 +429,11 @@ func TestView(t *testing.T) {
 			name: "placeholder",
 			expected: heredoc.Doc(`
 				>   1 Hello, World!
-				>   ~
-				>   ~
-				>   ~
-				>   ~
-				>   ~
+				> ~
+				> ~
+				> ~
+				> ~
+				> ~
 			`),
 		},
 		{
@@ -445,11 +445,11 @@ func TestView(t *testing.T) {
 			},
 			expected: heredoc.Doc(`
 				>   1 the first line
-				>   ~
-				>   ~
-				>   ~
-				>   ~
-				>   ~
+				> ~
+				> ~
+				> ~
+				> ~
+				> ~
 			`),
 		},
 		{
@@ -463,9 +463,9 @@ func TestView(t *testing.T) {
 				>   1 the first line
 				>   2 the second line
 				>   3 the third line
-				>   ~
-				>   ~
-				>   ~
+				> ~
+				> ~
+				> ~
 			`),
 		},
 		{
@@ -512,11 +512,11 @@ func TestView(t *testing.T) {
 			},
 			expected: heredoc.Doc(`
 				>   1 the first line
-				>   *
-				>   *
-				>   *
-				>   *
-				>   *
+				> *
+				> *
+				> *
+				> *
+				> *
 			`),
 		},
 		{
@@ -531,9 +531,9 @@ func TestView(t *testing.T) {
 				>   1 the first line
 				>   2 the second line
 				>   3 the third line
-				>   *
-				>   *
-				>   *
+				> *
+				> *
+				> *
 			`),
 		},
 		{
@@ -582,11 +582,11 @@ func TestView(t *testing.T) {
 			},
 			expected: heredoc.Doc(`
 				*   1 the first line
-				*   ~
-				*   ~
-				*   ~
-				*   ~
-				*   ~
+				* ~
+				* ~
+				* ~
+				* ~
+				* ~
 			`),
 		},
 		{
@@ -601,9 +601,9 @@ func TestView(t *testing.T) {
 				*   1 the first line
 				*   2 the second line
 				*   3 the third line
-				*   ~
-				*   ~
-				*   ~
+				* ~
+				* ~
+				* ~
 			`),
 		},
 	}
