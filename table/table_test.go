@@ -58,7 +58,7 @@ func deepEqual(a, b []Row) bool {
 }
 
 var (
-	modelCols = []Column{
+	cols = []Column{
 		{Title: "col1", Width: 10},
 		{Title: "col2", Width: 10},
 		{Title: "col3", Width: 10},
@@ -66,64 +66,44 @@ var (
 )
 
 func TestRenderRow(t *testing.T) {
-	type testcase struct {
-		m           *Model
-		rowID       int
-		expectedRow string
-		name        string
-	}
-	testcases := []testcase{
+	tests := []struct {
+		name     string
+		table    *Model
+		expected string
+	}{
 		{
-			m: &Model{
-				rows: []Row{
-					[]string{"valuea1", "valuea2", "valuea3"},
-				},
-				cols:   modelCols,
-				cursor: -1,
-				styles: Styles{
-					Cell: lipgloss.NewStyle(),
-				},
+			name: "simple row",
+			table: &Model{
+				rows:   []Row{{"Foooooo", "Baaaaar", "Baaaaaz"}},
+				cols:   cols,
+				styles: Styles{Cell: lipgloss.NewStyle()},
 			},
-			rowID:       0,
-			expectedRow: "valuea1   valuea2   valuea3   ",
-			name:        "simple row",
+			expected: "Foooooo   Baaaaar   Baaaaaz   ",
 		},
 		{
-			m: &Model{
-				rows: []Row{
-					[]string{"valuea11111", "valuea22222", "valuea33333"},
-				},
-				cols:   modelCols,
-				cursor: -1,
-				styles: Styles{
-					Cell: lipgloss.NewStyle(),
-				},
+			name: "simple row with truncations",
+			table: &Model{
+				rows:   []Row{{"Foooooooooo", "Baaaaaaaaar", "Quuuuuuuuux"}},
+				cols:   cols,
+				styles: Styles{Cell: lipgloss.NewStyle()},
 			},
-			rowID:       0,
-			expectedRow: "valuea111…valuea222…valuea333…",
-			name:        "simple row with truncations",
+			expected: "Foooooooo…Baaaaaaaa…Quuuuuuuu…",
 		},
 		{
-			m: &Model{
-				rows: []Row{
-					[]string{"valuea1111", "valuea2222", "valuea3333"},
-				},
-				cols:   modelCols,
-				cursor: -1,
-				styles: Styles{
-					Cell: lipgloss.NewStyle(),
-				},
+			name: "simple row avoiding truncations",
+			table: &Model{
+				rows:   []Row{{"Fooooooooo", "Baaaaaaaar", "Quuuuuuuux"}},
+				cols:   cols,
+				styles: Styles{Cell: lipgloss.NewStyle()},
 			},
-			rowID:       0,
-			expectedRow: "valuea1111valuea2222valuea3333",
-			name:        "simple row avoiding truncations",
+			expected: "FoooooooooBaaaaaaaarQuuuuuuuux",
 		},
 	}
-	for _, testcase := range testcases {
-		t.Run(testcase.name, func(t *testing.T) {
-			row := testcase.m.renderRow(testcase.rowID)
-			if row != testcase.expectedRow {
-				t.Fatalf("expected row contents |%s|, got |%s|", testcase.expectedRow, row)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			row := tc.table.renderRow(0)
+			if row != tc.expected {
+				t.Fatalf("\n\nWant: \n%s\n\nGot:  \n%s\n", tc.expected, row)
 			}
 		})
 	}
