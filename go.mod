@@ -3,6 +3,8 @@ module github.com/charmbracelet/bubbles
 go 1.18
 
 require (
+	github.com/MakeNowJust/heredoc v1.0.0
+	github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d
 	github.com/atotto/clipboard v0.1.4
 	github.com/charmbracelet/bubbletea v0.25.0
 	github.com/charmbracelet/harmonica v0.2.0
