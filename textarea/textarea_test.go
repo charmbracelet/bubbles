@@ -3,7 +3,10 @@ package textarea
 import (
 	"strings"
 	"testing"
+	"unicode"
 
+	"github.com/MakeNowJust/heredoc"
+	"github.com/acarl005/stripansi"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -416,15 +419,210 @@ func TestVerticalNavigationShouldRememberPositionWhileTraversing(t *testing.T) {
 	}
 }
 
-func TestRendersEndOfLineBuffer(t *testing.T) {
-	textarea := newTextArea()
-	textarea.ShowLineNumbers = true
-	textarea.SetWidth(20)
+func TestView(t *testing.T) {
+	tests := []struct {
+		name      string
+		modelFunc func(Model) Model
+		expected  string
+	}{
+		{
+			name: "placeholder",
+			expected: heredoc.Doc(`
+				>   1 Hello, World!
+				>   ~
+				>   ~
+				>   ~
+				>   ~
+				>   ~
+			`),
+		},
+		{
+			name: "single line",
+			modelFunc: func(m Model) Model {
+				m.SetValue("the first line")
 
-	view := textarea.View()
-	if !strings.Contains(view, "~") {
-		t.Log(view)
-		t.Fatal("Expected to see a tilde at the end of the line")
+				return m
+			},
+			expected: heredoc.Doc(`
+				>   1 the first line
+				>   ~
+				>   ~
+				>   ~
+				>   ~
+				>   ~
+			`),
+		},
+		{
+			name: "multiple lines",
+			modelFunc: func(m Model) Model {
+				m.SetValue("the first line\nthe second line\nthe third line")
+
+				return m
+			},
+			expected: heredoc.Doc(`
+				>   1 the first line
+				>   2 the second line
+				>   3 the third line
+				>   ~
+				>   ~
+				>   ~
+			`),
+		},
+		{
+			name: "single line without line numbers",
+			modelFunc: func(m Model) Model {
+				m.SetValue("the first line")
+				m.ShowLineNumbers = false
+
+				return m
+			},
+			expected: heredoc.Doc(`
+				> the first line
+				>
+				>
+				>
+				>
+				>
+			`),
+		},
+		{
+			name: "multipline lines without line numbers",
+			modelFunc: func(m Model) Model {
+				m.SetValue("the first line\nthe second line\nthe third line")
+				m.ShowLineNumbers = false
+
+				return m
+			},
+			expected: heredoc.Doc(`
+				> the first line
+				> the second line
+				> the third line
+				>
+				>
+				>
+			`),
+		},
+		{
+			name: "single line and custom end of buffer character",
+			modelFunc: func(m Model) Model {
+				m.SetValue("the first line")
+				m.EndOfBufferCharacter = '*'
+
+				return m
+			},
+			expected: heredoc.Doc(`
+				>   1 the first line
+				>   *
+				>   *
+				>   *
+				>   *
+				>   *
+			`),
+		},
+		{
+			name: "multiple lines and custom end of buffer character",
+			modelFunc: func(m Model) Model {
+				m.SetValue("the first line\nthe second line\nthe third line")
+				m.EndOfBufferCharacter = '*'
+
+				return m
+			},
+			expected: heredoc.Doc(`
+				>   1 the first line
+				>   2 the second line
+				>   3 the third line
+				>   *
+				>   *
+				>   *
+			`),
+		},
+		{
+			name: "single line without line numbers and custom end of buffer character",
+			modelFunc: func(m Model) Model {
+				m.SetValue("the first line")
+				m.ShowLineNumbers = false
+				m.EndOfBufferCharacter = '*'
+
+				return m
+			},
+			expected: heredoc.Doc(`
+				> the first line
+				>
+				>
+				>
+				>
+				>
+			`),
+		},
+		{
+			name: "multiple lines without line numbers and custom end of buffer character",
+			modelFunc: func(m Model) Model {
+				m.SetValue("the first line\nthe second line\nthe third line")
+				m.ShowLineNumbers = false
+				m.EndOfBufferCharacter = '*'
+
+				return m
+			},
+			expected: heredoc.Doc(`
+				> the first line
+				> the second line
+				> the third line
+				>
+				>
+				>
+			`),
+		},
+		{
+			name: "single line and custom prompt",
+			modelFunc: func(m Model) Model {
+				m.SetValue("the first line")
+				m.Prompt = "* "
+
+				return m
+			},
+			expected: heredoc.Doc(`
+				*   1 the first line
+				*   ~
+				*   ~
+				*   ~
+				*   ~
+				*   ~
+			`),
+		},
+		{
+			name: "multiple lines and custom prompt",
+			modelFunc: func(m Model) Model {
+				m.SetValue("the first line\nthe second line\nthe third line")
+				m.Prompt = "* "
+
+				return m
+			},
+			expected: heredoc.Doc(`
+				*   1 the first line
+				*   2 the second line
+				*   3 the third line
+				*   ~
+				*   ~
+				*   ~
+			`),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			textarea := newTextArea()
+
+			if tt.modelFunc != nil {
+				textarea = tt.modelFunc(textarea)
+			}
+
+			view := stripString(textarea.View())
+			expected := stripString(tt.expected)
+
+			if view != expected {
+				t.Fatalf("Expected:\n%v\nGot:\n%v\n", expected, view)
+			}
+		})
 	}
 }
 
@@ -443,4 +641,19 @@ func newTextArea() Model {
 
 func keyPress(key rune) tea.Msg {
 	return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{key}, Alt: false}
+}
+
+func stripString(str string) string {
+	s := stripansi.Strip(str)
+	ss := strings.Split(s, "\n")
+
+	var lines []string
+	for _, l := range ss {
+		trim := strings.TrimRightFunc(l, unicode.IsSpace)
+		if trim != "" {
+			lines = append(lines, trim)
+		}
+	}
+
+	return strings.Join(lines, "\n")
 }
