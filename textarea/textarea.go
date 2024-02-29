@@ -1138,10 +1138,7 @@ func (m Model) View() string {
 		s.WriteString(prompt)
 		displayLine++
 
-		if m.ShowLineNumbers {
-			lineNumber := m.style.EndOfBuffer.Render(string(m.EndOfBufferCharacter))
-			s.WriteString(lineNumber)
-		}
+		s.WriteString(m.style.EndOfBuffer.Render(string(m.EndOfBufferCharacter)))
 		s.WriteRune('\n')
 	}
 
