@@ -478,11 +478,11 @@ func TestView(t *testing.T) {
 			},
 			expected: heredoc.Doc(`
 				> the first line
-				>
-				>
-				>
-				>
-				>
+				> ~
+				> ~
+				> ~
+				> ~
+				> ~
 			`),
 		},
 		{
@@ -497,9 +497,9 @@ func TestView(t *testing.T) {
 				> the first line
 				> the second line
 				> the third line
-				>
-				>
-				>
+				> ~
+				> ~
+				> ~
 			`),
 		},
 		{
@@ -547,11 +547,11 @@ func TestView(t *testing.T) {
 			},
 			expected: heredoc.Doc(`
 				> the first line
-				>
-				>
-				>
-				>
-				>
+				> *
+				> *
+				> *
+				> *
+				> *
 			`),
 		},
 		{
@@ -567,9 +567,9 @@ func TestView(t *testing.T) {
 				> the first line
 				> the second line
 				> the third line
-				>
-				>
-				>
+				> *
+				> *
+				> *
 			`),
 		},
 		{
