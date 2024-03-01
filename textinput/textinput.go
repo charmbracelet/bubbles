@@ -176,6 +176,11 @@ func New() Model {
 // Deprecated: Use [New] instead.
 var NewModel = New
 
+// Init exists to satisfy the tea.Model interface.
+func (m Model) Init() tea.Cmd {
+	return nil
+}
+
 // SetValue sets the value of the text input.
 func (m *Model) SetValue(s string) {
 	// Clean up any special characters in the input provided by the
@@ -553,7 +558,7 @@ func (m Model) echoTransform(v string) string {
 }
 
 // Update is the Bubble Tea update loop.
-func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
+func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if !m.focus {
 		return m, nil
 	}
