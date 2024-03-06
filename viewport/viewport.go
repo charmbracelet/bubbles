@@ -331,8 +331,8 @@ func (m Model) updateAsModel(msg tea.Msg) (Model, tea.Cmd) {
 			}
 		}
 
-	case tea.MouseMsg:
-		if !m.MouseWheelEnabled || msg.Action != tea.MouseActionPress {
+	case tea.MouseDownMsg:
+		if !m.MouseWheelEnabled {
 			break
 		}
 		switch msg.Button {
