@@ -331,18 +331,18 @@ func (m Model) updateAsModel(msg tea.Msg) (Model, tea.Cmd) {
 			}
 		}
 
-	case tea.MouseMsg:
-		if !m.MouseWheelEnabled || msg.Action != tea.MouseActionPress {
+	case tea.MouseWheelMsg:
+		if !m.MouseWheelEnabled {
 			break
 		}
 		switch msg.Button {
-		case tea.MouseButtonWheelUp:
+		case tea.MouseWheelUp:
 			lines := m.LineUp(m.MouseWheelDelta)
 			if m.HighPerformanceRendering {
 				cmd = ViewUp(m, lines)
 			}
 
-		case tea.MouseButtonWheelDown:
+		case tea.MouseWheelDown:
 			lines := m.LineDown(m.MouseWheelDelta)
 			if m.HighPerformanceRendering {
 				cmd = ViewDown(m, lines)
