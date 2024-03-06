@@ -17,8 +17,10 @@ import (
 )
 
 // Internal messages for clipboard operations.
-type pasteMsg string
-type pasteErrMsg struct{ error }
+type (
+	pasteMsg    string
+	pasteErrMsg struct{ error }
+)
 
 // EchoMode sets the input behavior of the text input field.
 type EchoMode int
@@ -621,12 +623,15 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.previousSuggestion()
 		default:
 			// Input one or more regular characters.
-			m.insertRunesFromUserInput(msg.Runes)
+			m.insertRunesFromUserInput([]rune{msg.Rune})
 		}
 
 		// Check again if can be completed
 		// because value might be something that does not match the completion prefix
 		m.updateSuggestions()
+
+	case tea.PasteMsg:
+		m.insertRunesFromUserInput([]rune(msg))
 
 	case pasteMsg:
 		m.insertRunesFromUserInput([]rune(msg))
