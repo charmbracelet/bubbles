@@ -92,7 +92,7 @@ func (m Model) ScrollPercent() float64 {
 	}
 	y := float64(m.YOffset)
 	h := float64(m.Height)
-	t := float64(len(m.lines) - 1)
+	t := float64(len(m.lines))
 	v := y / (t - h)
 	return math.Max(0.0, math.Min(1.0, v))
 }
