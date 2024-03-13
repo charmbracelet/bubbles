@@ -347,7 +347,7 @@ func (m *Model) MoveUp(n int) {
 	case m.start == 0:
 		m.viewport.SetYOffset(clamp(m.viewport.YOffset, 0, m.cursor))
 	case m.start < m.viewport.Height:
-		m.viewport.SetYOffset(clamp(m.viewport.YOffset+n, 0, m.cursor))
+		m.viewport.YOffset = (clamp(clamp(m.viewport.YOffset+n, 0, m.cursor), 0, m.viewport.Height))
 	case m.viewport.YOffset >= 1:
 		m.viewport.YOffset = clamp(m.viewport.YOffset+n, 1, m.viewport.Height)
 	}
@@ -361,9 +361,9 @@ func (m *Model) MoveDown(n int) {
 	m.UpdateViewport()
 
 	switch {
-	case m.end == len(m.rows):
+	case m.end == len(m.rows) && m.viewport.YOffset > 0:
 		m.viewport.SetYOffset(clamp(m.viewport.YOffset-n, 1, m.viewport.Height))
-	case m.cursor > (m.end-m.start)/2:
+	case m.cursor > (m.end-m.start)/2 && m.viewport.YOffset > 0:
 		m.viewport.SetYOffset(clamp(m.viewport.YOffset-n, 1, m.cursor))
 	case m.viewport.YOffset > 1:
 	case m.cursor > m.viewport.YOffset+m.viewport.Height-1:
