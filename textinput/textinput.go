@@ -181,7 +181,7 @@ func (m *Model) SetValue(s string) {
 	// Clean up any special characters in the input provided by the
 	// caller. This avoids bugs due to e.g. tab characters and whatnot.
 	runes := m.san().Sanitize([]rune(s))
-	err := m.validateIfDefined(string(runes))
+	err := m.validate(runes)
 	m.setValueInternal(runes, err)
 }
 
@@ -316,7 +316,7 @@ func (m *Model) insertRunesFromUserInput(v []rune) {
 
 	// Put it all back together
 	value := append(head, tail...)
-	inputErr := m.validateIfDefined(string(value))
+	inputErr := m.validate(value)
 	m.setValueInternal(value, inputErr)
 }
 
@@ -368,7 +368,7 @@ func (m *Model) handleOverflow() {
 // deleteBeforeCursor deletes all text before the cursor.
 func (m *Model) deleteBeforeCursor() {
 	m.value = m.value[m.pos:]
-	m.Err = m.validateIfDefined(string(m.value))
+	m.Err = m.validate(m.value)
 	m.offset = 0
 	m.SetCursor(0)
 }
@@ -378,7 +378,7 @@ func (m *Model) deleteBeforeCursor() {
 // masked input.
 func (m *Model) deleteAfterCursor() {
 	m.value = m.value[:m.pos]
-	m.Err = m.validateIfDefined(string(m.value))
+	m.Err = m.validate(m.value)
 	m.SetCursor(len(m.value))
 }
 
@@ -424,7 +424,7 @@ func (m *Model) deleteWordBackward() {
 	} else {
 		m.value = append(m.value[:m.pos], m.value[oldPos:]...)
 	}
-	m.Err = m.validateIfDefined(string(m.value))
+	m.Err = m.validate(m.value)
 }
 
 // deleteWordForward deletes the word right to the cursor. If input is masked
@@ -464,7 +464,7 @@ func (m *Model) deleteWordForward() {
 	} else {
 		m.value = append(m.value[:oldPos], m.value[m.pos:]...)
 	}
-	m.Err = m.validateIfDefined(string(m.value))
+	m.Err = m.validate(m.value)
 
 	m.SetCursor(oldPos)
 }
@@ -574,7 +574,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.Err = nil
 			if len(m.value) > 0 {
 				m.value = append(m.value[:max(0, m.pos-1)], m.value[m.pos:]...)
-				m.Err = m.validateIfDefined(string(m.value))
+				m.Err = m.validate(m.value)
 				if m.pos > 0 {
 					m.SetCursor(m.pos - 1)
 				}
@@ -596,7 +596,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		case key.Matches(msg, m.KeyMap.DeleteCharacterForward):
 			if len(m.value) > 0 && m.pos < len(m.value) {
 				m.value = append(m.value[:m.pos], m.value[m.pos+1:]...)
-				m.Err = m.validateIfDefined(string(m.value))
+				m.Err = m.validate(m.value)
 			}
 		case key.Matches(msg, m.KeyMap.LineEnd):
 			m.CursorEnd()
@@ -878,9 +878,9 @@ func (m *Model) previousSuggestion() {
 	}
 }
 
-func (m Model) validateIfDefined(v string) error {
+func (m Model) validate(v []rune) error {
 	if m.Validate != nil {
-		return m.Validate(v)
+		return m.Validate(string(v))
 	}
 	return nil
 }
