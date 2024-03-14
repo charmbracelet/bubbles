@@ -181,19 +181,14 @@ func (m *Model) SetValue(s string) {
 	// Clean up any special characters in the input provided by the
 	// caller. This avoids bugs due to e.g. tab characters and whatnot.
 	runes := m.san().Sanitize([]rune(s))
-	m.setValueInternal(runes)
+	err := m.validate(runes)
+	m.setValueInternal(runes, err)
 }
 
-func (m *Model) setValueInternal(runes []rune) {
-	if m.Validate != nil {
-		if err := m.Validate(string(runes)); err != nil {
-			m.Err = err
-			return
-		}
-	}
+func (m *Model) setValueInternal(runes []rune, err error) {
+	m.Err = err
 
 	empty := len(m.value) == 0
-	m.Err = nil
 
 	if m.CharLimit > 0 && len(runes) > m.CharLimit {
 		m.value = runes[:m.CharLimit]
@@ -307,8 +302,6 @@ func (m *Model) insertRunesFromUserInput(v []rune) {
 	tail := make([]rune, len(tailSrc))
 	copy(tail, tailSrc)
 
-	oldPos := m.pos
-
 	// Insert pasted runes
 	for _, r := range paste {
 		head = append(head, r)
@@ -323,11 +316,8 @@ func (m *Model) insertRunesFromUserInput(v []rune) {
 
 	// Put it all back together
 	value := append(head, tail...)
-	m.setValueInternal(value)
-
-	if m.Err != nil {
-		m.pos = oldPos
-	}
+	inputErr := m.validate(value)
+	m.setValueInternal(value, inputErr)
 }
 
 // If a max width is defined, perform some logic to treat the visible area
@@ -378,6 +368,7 @@ func (m *Model) handleOverflow() {
 // deleteBeforeCursor deletes all text before the cursor.
 func (m *Model) deleteBeforeCursor() {
 	m.value = m.value[m.pos:]
+	m.Err = m.validate(m.value)
 	m.offset = 0
 	m.SetCursor(0)
 }
@@ -387,6 +378,7 @@ func (m *Model) deleteBeforeCursor() {
 // masked input.
 func (m *Model) deleteAfterCursor() {
 	m.value = m.value[:m.pos]
+	m.Err = m.validate(m.value)
 	m.SetCursor(len(m.value))
 }
 
@@ -432,6 +424,7 @@ func (m *Model) deleteWordBackward() {
 	} else {
 		m.value = append(m.value[:m.pos], m.value[oldPos:]...)
 	}
+	m.Err = m.validate(m.value)
 }
 
 // deleteWordForward deletes the word right to the cursor. If input is masked
@@ -471,6 +464,7 @@ func (m *Model) deleteWordForward() {
 	} else {
 		m.value = append(m.value[:oldPos], m.value[m.pos:]...)
 	}
+	m.Err = m.validate(m.value)
 
 	m.SetCursor(oldPos)
 }
@@ -575,12 +569,12 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, m.KeyMap.DeleteWordBackward):
-			m.Err = nil
 			m.deleteWordBackward()
 		case key.Matches(msg, m.KeyMap.DeleteCharacterBackward):
 			m.Err = nil
 			if len(m.value) > 0 {
 				m.value = append(m.value[:max(0, m.pos-1)], m.value[m.pos:]...)
+				m.Err = m.validate(m.value)
 				if m.pos > 0 {
 					m.SetCursor(m.pos - 1)
 				}
@@ -597,13 +591,12 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			if m.pos < len(m.value) {
 				m.SetCursor(m.pos + 1)
 			}
-		case key.Matches(msg, m.KeyMap.DeleteWordBackward):
-			m.deleteWordBackward()
 		case key.Matches(msg, m.KeyMap.LineStart):
 			m.CursorStart()
 		case key.Matches(msg, m.KeyMap.DeleteCharacterForward):
 			if len(m.value) > 0 && m.pos < len(m.value) {
 				m.value = append(m.value[:m.pos], m.value[m.pos+1:]...)
+				m.Err = m.validate(m.value)
 			}
 		case key.Matches(msg, m.KeyMap.LineEnd):
 			m.CursorEnd()
@@ -883,4 +876,11 @@ func (m *Model) previousSuggestion() {
 	if m.currentSuggestionIndex < 0 {
 		m.currentSuggestionIndex = len(m.matchedSuggestions) - 1
 	}
+}
+
+func (m Model) validate(v []rune) error {
+	if m.Validate != nil {
+		return m.Validate(string(v))
+	}
+	return nil
 }
