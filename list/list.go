@@ -10,16 +10,17 @@ import (
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/bubbles/help"
-	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/paginator"
-	"github.com/charmbracelet/bubbles/spinner"
-	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/muesli/reflow/ansi"
 	"github.com/muesli/reflow/truncate"
 	"github.com/sahilm/fuzzy"
+
+	"github.com/charmbracelet/bubbles/help"
+	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/paginator"
+	"github.com/charmbracelet/bubbles/spinner"
+	"github.com/charmbracelet/bubbles/textinput"
 )
 
 // Item is an item that appears in the list.
@@ -268,6 +269,34 @@ func (m Model) FilteringEnabled() bool {
 func (m *Model) SetShowTitle(v bool) {
 	m.showTitle = v
 	m.updatePagination()
+}
+
+// SetFilterText explicitly sets the filter text without relying on user input.
+// It also sets the filterState to a sane default of FilterApplied, but this
+// can be changed with SetFilterState
+func (m *Model) SetFilterText(filter string) {
+	m.filterState = Filtering
+	m.FilterInput.SetValue(filter)
+	cmd := filterItems(*m)
+	msg := cmd()
+	fmm, _ := msg.(FilterMatchesMsg)
+	m.filteredItems = filteredItems(fmm)
+	m.filterState = FilterApplied
+	m.Paginator.Page = 0
+	m.cursor = 0
+	m.FilterInput.CursorEnd()
+	m.updatePagination()
+	m.updateKeybindings()
+}
+
+// Helper method for setting the filtering state manually
+func (m *Model) SetFilterState(state FilterState) {
+	m.Paginator.Page = 0
+	m.cursor = 0
+	m.filterState = state
+	m.FilterInput.CursorEnd()
+	m.FilterInput.Focus()
+	m.updateKeybindings()
 }
 
 // ShowTitle returns whether or not the title bar is set to be rendered.
