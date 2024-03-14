@@ -9,8 +9,9 @@ import (
 )
 
 var (
-	lastID int
-	idMtx  sync.Mutex
+	lastID      int
+	lastCycleId int
+	idMtx       sync.Mutex
 )
 
 func nextID() int {
@@ -18,6 +19,13 @@ func nextID() int {
 	defer idMtx.Unlock()
 	lastID++
 	return lastID
+}
+
+func nextCycleID() int {
+	idMtx.Lock()
+	defer idMtx.Unlock()
+	lastCycleId++
+	return lastCycleId
 }
 
 // Authors note with regard to start and stop commands:
@@ -67,6 +75,11 @@ type TickMsg struct {
 	// Timeout returns whether or not this tick is a timeout tick. You can
 	// alternatively listen for TimeoutMsg.
 	Timeout bool
+
+	// CycleId will indicate to which start/stop cycle a tick belongs.
+	// Since stopping and starting can be done in the span of less than 1s, ticks
+	// sent before stopping can arrive to Update, which will cause duplicate tick chains
+	CycleId int
 }
 
 // TimeoutMsg is a message that is sent once when the timer times out.
@@ -87,6 +100,7 @@ type Model struct {
 
 	id      int
 	running bool
+	cycleId int
 }
 
 // NewWithInterval creates a new timer with the given timeout and tick interval.
@@ -96,6 +110,7 @@ func NewWithInterval(timeout, interval time.Duration) Model {
 		Interval: interval,
 		running:  true,
 		id:       nextID(),
+		cycleId:  nextCycleID(),
 	}
 }
 
@@ -133,13 +148,17 @@ func (m Model) Init() tea.Cmd {
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case StartStopMsg:
+
 		if msg.ID != 0 && msg.ID != m.id {
 			return m, nil
 		}
+
+		m.cycleId = nextCycleID()
 		m.running = msg.running
 		return m, m.tick()
 	case TickMsg:
-		if !m.Running() || (msg.ID != 0 && msg.ID != m.id) {
+		if !m.Running() || (msg.ID != 0 && msg.ID != m.id) ||
+			(msg.ID != 0 && msg.ID == m.id && msg.CycleId != m.cycleId) {
 			break
 		}
 
@@ -172,7 +191,7 @@ func (m *Model) Toggle() tea.Cmd {
 
 func (m Model) tick() tea.Cmd {
 	return tea.Tick(m.Interval, func(_ time.Time) tea.Msg {
-		return TickMsg{ID: m.id, Timeout: m.Timedout()}
+		return TickMsg{ID: m.id, Timeout: m.Timedout(), CycleId: m.cycleId}
 	})
 }
 
