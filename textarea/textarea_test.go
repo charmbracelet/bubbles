@@ -8,6 +8,7 @@ import (
 	"github.com/MakeNowJust/heredoc"
 	"github.com/acarl005/stripansi"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 func TestVerticalScrolling(t *testing.T) {
@@ -670,6 +671,606 @@ func TestView(t *testing.T) {
 				`),
 				cursorRow: 1,
 				cursorCol: 7,
+			},
+		},
+		{
+			name: "set width",
+			modelFunc: func(m Model) Model {
+				m.SetWidth(10)
+
+				input := "12"
+				m = sendString(m, input)
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					>   1 12
+					> ~
+					> ~
+					> ~
+					> ~
+					> ~
+				`),
+				cursorRow: 0,
+				cursorCol: 2,
+			},
+		},
+		{
+			name: "set width max length text minus one",
+			modelFunc: func(m Model) Model {
+				m.SetWidth(10)
+
+				input := "123"
+				m = sendString(m, input)
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					>   1 123
+					> ~
+					> ~
+					> ~
+					> ~
+					> ~
+				`),
+				cursorRow: 0,
+				cursorCol: 3,
+			},
+		},
+		{
+			name: "set width max length text",
+			modelFunc: func(m Model) Model {
+				m.SetWidth(10)
+
+				input := "1234"
+				m = sendString(m, input)
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					>   1 1234
+					>
+					> ~
+					> ~
+					> ~
+					> ~
+				`),
+				cursorRow: 1,
+				cursorCol: 0,
+			},
+		},
+		{
+			name: "set width max length text plus one",
+			modelFunc: func(m Model) Model {
+				m.SetWidth(10)
+
+				input := "12345"
+				m = sendString(m, input)
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					>   1 1234
+					>     5
+					> ~
+					> ~
+					> ~
+					> ~
+				`),
+				cursorRow: 1,
+				cursorCol: 1,
+			},
+		},
+		{
+			name: "set width set max width minus one",
+			modelFunc: func(m Model) Model {
+				m.MaxWidth = 10
+				m.SetWidth(11)
+
+				input := "123"
+				m = sendString(m, input)
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					>   1 123
+					> ~
+					> ~
+					> ~
+					> ~
+					> ~
+				`),
+				cursorRow: 0,
+				cursorCol: 3,
+			},
+		},
+		{
+			name: "set width set max width",
+			modelFunc: func(m Model) Model {
+				m.MaxWidth = 10
+				m.SetWidth(11)
+
+				input := "1234"
+				m = sendString(m, input)
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					>   1 1234
+					>
+					> ~
+					> ~
+					> ~
+					> ~
+				`),
+				cursorRow: 1,
+				cursorCol: 0,
+			},
+		},
+		{
+			name: "set width set max width plus one",
+			modelFunc: func(m Model) Model {
+				m.MaxWidth = 10
+				m.SetWidth(11)
+
+				input := "12345"
+				m = sendString(m, input)
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					>   1 1234
+					>     5
+					> ~
+					> ~
+					> ~
+					> ~
+				`),
+				cursorRow: 1,
+				cursorCol: 1,
+			},
+		},
+		{
+			name: "set width min width minus one",
+			modelFunc: func(m Model) Model {
+				m.SetWidth(6)
+
+				input := "123"
+				m = sendString(m, input)
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					>   1 1
+					>     2
+					>     3
+					>
+					> ~
+					> ~
+				`),
+				cursorRow: 3,
+				cursorCol: 0,
+			},
+		},
+		{
+			name: "set width min width",
+			modelFunc: func(m Model) Model {
+				m.SetWidth(7)
+
+				input := "123"
+				m = sendString(m, input)
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					>   1 1
+					>     2
+					>     3
+					>
+					> ~
+					> ~
+				`),
+				cursorRow: 3,
+				cursorCol: 0,
+			},
+		},
+		{
+			name: "set width min width no line numbers",
+			modelFunc: func(m Model) Model {
+				m.ShowLineNumbers = false
+				m.SetWidth(0)
+
+				input := "123"
+				m = sendString(m, input)
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					> 1
+					> 2
+					> 3
+					>
+					> ~
+					> ~
+				`),
+				cursorRow: 3,
+				cursorCol: 0,
+			},
+		},
+		{
+			name: "set width min width no line numbers no prompt",
+			modelFunc: func(m Model) Model {
+				m.ShowLineNumbers = false
+				m.Prompt = ""
+				m.SetWidth(0)
+
+				input := "123"
+				m = sendString(m, input)
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					1
+					2
+					3
+
+					~
+					~
+				`),
+				cursorRow: 3,
+				cursorCol: 0,
+			},
+		},
+		{
+			name: "set width min width plus one",
+			modelFunc: func(m Model) Model {
+				m.SetWidth(8)
+
+				input := "123"
+				m = sendString(m, input)
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					>   1 12
+					>     3
+					> ~
+					> ~
+					> ~
+					> ~
+				`),
+				cursorRow: 1,
+				cursorCol: 1,
+			},
+		},
+		{
+			name: "set width without line numbers max length text minus one",
+			modelFunc: func(m Model) Model {
+				m.ShowLineNumbers = false
+				m.SetWidth(6)
+
+				input := "123"
+				m = sendString(m, input)
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					> 123
+					> ~
+					> ~
+					> ~
+					> ~
+					> ~
+				`),
+				cursorRow: 0,
+				cursorCol: 3,
+			},
+		},
+		{
+			name: "set width without line numbers max length text",
+			modelFunc: func(m Model) Model {
+				m.ShowLineNumbers = false
+				m.SetWidth(6)
+
+				input := "1234"
+				m = sendString(m, input)
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					> 1234
+					>
+					> ~
+					> ~
+					> ~
+					> ~
+				`),
+				cursorRow: 1,
+				cursorCol: 0,
+			},
+		},
+		{
+			name: "set width without line numbers max length text plus one",
+			modelFunc: func(m Model) Model {
+				m.ShowLineNumbers = false
+				m.SetWidth(6)
+
+				input := "12345"
+				m = sendString(m, input)
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					> 1234
+					> 5
+					> ~
+					> ~
+					> ~
+					> ~
+				`),
+				cursorRow: 1,
+				cursorCol: 1,
+			},
+		},
+		{
+			name: "set width with style",
+			modelFunc: func(m Model) Model {
+				m.FocusedStyle.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
+				m.Focus()
+
+				m.SetWidth(12)
+
+				input := "1"
+				m = sendString(m, input)
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					┌──────────┐
+					│>   1 1   │
+					│> ~       │
+					│> ~       │
+					│> ~       │
+					│> ~       │
+					│> ~       │
+					└──────────┘
+				`),
+				cursorRow: 0,
+				cursorCol: 1,
+			},
+		},
+		{
+			name: "set width with style max width minus one",
+			modelFunc: func(m Model) Model {
+				m.FocusedStyle.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
+				m.Focus()
+
+				m.SetWidth(12)
+
+				input := "123"
+				m = sendString(m, input)
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					┌──────────┐
+					│>   1 123 │
+					│> ~       │
+					│> ~       │
+					│> ~       │
+					│> ~       │
+					│> ~       │
+					└──────────┘
+				`),
+				cursorRow: 0,
+				cursorCol: 3,
+			},
+		},
+		{
+			name: "set width with style max width",
+			modelFunc: func(m Model) Model {
+				m.FocusedStyle.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
+				m.Focus()
+
+				m.SetWidth(12)
+
+				input := "1234"
+				m = sendString(m, input)
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					┌──────────┐
+					│>   1 1234│
+					│>         │
+					│> ~       │
+					│> ~       │
+					│> ~       │
+					│> ~       │
+					└──────────┘
+				`),
+				cursorRow: 1,
+				cursorCol: 0,
+			},
+		},
+		{
+			name: "set width with style max width plus one",
+			modelFunc: func(m Model) Model {
+				m.FocusedStyle.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
+				m.Focus()
+
+				m.SetWidth(12)
+
+				input := "12345"
+				m = sendString(m, input)
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					┌──────────┐
+					│>   1 1234│
+					│>     5   │
+					│> ~       │
+					│> ~       │
+					│> ~       │
+					│> ~       │
+					└──────────┘
+				`),
+				cursorRow: 1,
+				cursorCol: 1,
+			},
+		},
+		{
+			name: "set width without line numbers with style",
+			modelFunc: func(m Model) Model {
+				m.FocusedStyle.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
+				m.Focus()
+
+				m.ShowLineNumbers = false
+				m.SetWidth(12)
+
+				input := "123456"
+				m = sendString(m, input)
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					┌──────────┐
+					│> 123456  │
+					│> ~       │
+					│> ~       │
+					│> ~       │
+					│> ~       │
+					│> ~       │
+					└──────────┘
+				`),
+				cursorRow: 0,
+				cursorCol: 6,
+			},
+		},
+		{
+			name: "set width without line numbers with style max width minus one",
+			modelFunc: func(m Model) Model {
+				m.FocusedStyle.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
+				m.Focus()
+
+				m.ShowLineNumbers = false
+				m.SetWidth(12)
+
+				input := "1234567"
+				m = sendString(m, input)
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					┌──────────┐
+					│> 1234567 │
+					│> ~       │
+					│> ~       │
+					│> ~       │
+					│> ~       │
+					│> ~       │
+					└──────────┘
+				`),
+				cursorRow: 0,
+				cursorCol: 7,
+			},
+		},
+		{
+			name: "set width without line numbers with style max width",
+			modelFunc: func(m Model) Model {
+				m.FocusedStyle.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
+				m.Focus()
+
+				m.ShowLineNumbers = false
+				m.SetWidth(12)
+
+				input := "12345678"
+				m = sendString(m, input)
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					┌──────────┐
+					│> 12345678│
+					│>         │
+					│> ~       │
+					│> ~       │
+					│> ~       │
+					│> ~       │
+					└──────────┘
+				`),
+				cursorRow: 1,
+				cursorCol: 0,
+			},
+		},
+		{
+			name: "set width without line numbers with style max width plus one",
+			modelFunc: func(m Model) Model {
+				m.FocusedStyle.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
+				m.Focus()
+
+				m.ShowLineNumbers = false
+				m.SetWidth(12)
+
+				input := "123456789"
+				m = sendString(m, input)
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					┌──────────┐
+					│> 12345678│
+					│> 9       │
+					│> ~       │
+					│> ~       │
+					│> ~       │
+					│> ~       │
+					└──────────┘
+				`),
+				cursorRow: 1,
+				cursorCol: 1,
+			},
+		},
+		{
+			name: "placeholder min width",
+			modelFunc: func(m Model) Model {
+				m.SetWidth(0)
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					>   1 .
+					> ~
+					> ~
+					> ~
+					> ~
+					> ~
+				`),
 			},
 		},
 	}
