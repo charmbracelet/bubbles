@@ -862,32 +862,41 @@ func (m *Model) moveToEnd() {
 // It is important that the width of the textarea be exactly the given width
 // and no more.
 func (m *Model) SetWidth(w int) {
+	// Input width must be at least minimum width.
+	inputWidth := max(w, minWidth)
+
+	// Input width must be no more than maximum width.
 	if m.MaxWidth > 0 {
-		m.viewport.Width = clamp(w, minWidth, m.MaxWidth)
-	} else {
-		m.viewport.Width = max(w, minWidth)
+		inputWidth = min(inputWidth, m.MaxWidth)
 	}
 
-	// Since the width of the textarea input is dependent on the width of the
-	// prompt and line numbers, we need to calculate it by subtracting.
-	inputWidth := w
-	if m.ShowLineNumbers {
-		inputWidth -= uniseg.StringWidth(fmt.Sprintf(m.lineNumberFormat, 0))
-	}
+	// Since the width of the viewport and input area is dependent on the width of
+	// borders, prompt and line numbers, we need to calculate it by subtracting
+	// them from the desired width.
 
-	// Account for base style borders and padding.
+	// Subtract base style borders and padding. We need to handle this before we
+	// can set the viewport size.
 	inputWidth -= m.style.Base.GetHorizontalFrameSize()
 
+	// Viewport width can now be set because we known the visible width.
+	m.viewport.Width = inputWidth
+
+	// Subtract line number width from input width.
+	if m.ShowLineNumbers {
+		const lnWidth = 4 // Up to 3 digits for line number plus 1 margin.
+		inputWidth -= lnWidth
+	}
+
+	// Update prompt width only if there is no prompt function as SetPromptFunc
+	// updates the prompt width when it is called.
 	if m.promptFunc == nil {
 		m.promptWidth = uniseg.StringWidth(m.Prompt)
 	}
 
+	// Subtract prompt width from input width.
 	inputWidth -= m.promptWidth
-	if m.MaxWidth > 0 {
-		m.width = clamp(inputWidth, minWidth, m.MaxWidth)
-	} else {
-		m.width = max(inputWidth, minWidth)
-	}
+
+	m.width = inputWidth
 }
 
 // SetPromptFunc supersedes the Prompt field and sets a dynamic prompt
