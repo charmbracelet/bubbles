@@ -20,7 +20,6 @@ import (
 
 const (
 	minHeight        = 1
-	minWidth         = 2
 	defaultHeight    = 6
 	defaultWidth     = 40
 	defaultCharLimit = 400
@@ -862,32 +861,40 @@ func (m *Model) moveToEnd() {
 // It is important that the width of the textarea be exactly the given width
 // and no more.
 func (m *Model) SetWidth(w int) {
-	if m.MaxWidth > 0 {
-		m.viewport.Width = clamp(w, minWidth, m.MaxWidth)
-	} else {
-		m.viewport.Width = max(w, minWidth)
-	}
-
-	// Since the width of the textarea input is dependent on the width of the
-	// prompt and line numbers, we need to calculate it by subtracting.
-	inputWidth := w
-	if m.ShowLineNumbers {
-		inputWidth -= uniseg.StringWidth(fmt.Sprintf(m.lineNumberFormat, 0))
-	}
-
-	// Account for base style borders and padding.
-	inputWidth -= m.style.Base.GetHorizontalFrameSize()
-
+	// Update prompt width only if there is no prompt function as SetPromptFunc
+	// updates the prompt width when it is called.
 	if m.promptFunc == nil {
 		m.promptWidth = uniseg.StringWidth(m.Prompt)
 	}
 
-	inputWidth -= m.promptWidth
-	if m.MaxWidth > 0 {
-		m.width = clamp(inputWidth, minWidth, m.MaxWidth)
-	} else {
-		m.width = max(inputWidth, minWidth)
+	// Add base style borders and padding to reserved outer width.
+	reservedOuter := m.style.Base.GetHorizontalFrameSize()
+
+	// Add prompt width to reserved inner width.
+	reservedInner := m.promptWidth
+
+	// Add line number width to reserved inner width.
+	if m.ShowLineNumbers {
+		const lnWidth = 4 // Up to 3 digits for line number plus 1 margin.
+		reservedInner += lnWidth
 	}
+
+	// Input width must be at least one more than the reserved inner and outer
+	// width. This gives us a minimum input width of 1.
+	minWidth := reservedInner + reservedOuter + 1
+	inputWidth := max(w, minWidth)
+
+	// Input width must be no more than maximum width.
+	if m.MaxWidth > 0 {
+		inputWidth = min(inputWidth, m.MaxWidth)
+	}
+
+	// Since the width of the viewport and input area is dependent on the width of
+	// borders, prompt and line numbers, we need to calculate it by subtracting
+	// the reserved width from them.
+
+	m.viewport.Width = inputWidth - reservedOuter
+	m.width = inputWidth - reservedOuter - reservedInner
 }
 
 // SetPromptFunc supersedes the Prompt field and sets a dynamic prompt
@@ -1163,7 +1170,7 @@ func (m Model) getPromptString(displayLine int) (prompt string) {
 func (m Model) placeholderView() string {
 	var (
 		s     strings.Builder
-		p     = rw.Truncate(m.Placeholder, m.width, "...")
+		p     = rw.Truncate(rw.Truncate(m.Placeholder, m.width, "..."), m.width, "")
 		style = m.style.Placeholder.Inline(true)
 	)
 
