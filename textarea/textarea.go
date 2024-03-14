@@ -3,6 +3,7 @@ package textarea
 import (
 	"crypto/sha256"
 	"fmt"
+	"strconv"
 	"strings"
 	"unicode"
 
@@ -15,6 +16,9 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	rw "github.com/mattn/go-runewidth"
+	"github.com/muesli/reflow/ansi"
+	"github.com/muesli/reflow/wordwrap"
+	rwrap "github.com/muesli/reflow/wrap"
 	"github.com/rivo/uniseg"
 )
 
@@ -1163,36 +1167,80 @@ func (m Model) getPromptString(displayLine int) (prompt string) {
 func (m Model) placeholderView() string {
 	var (
 		s     strings.Builder
-		p     = rw.Truncate(m.Placeholder, m.width, "...")
+		p     = m.Placeholder
 		style = m.style.Placeholder.Inline(true)
 	)
 
-	prompt := m.getPromptString(0)
-	prompt = m.style.Prompt.Render(prompt)
-	s.WriteString(m.style.CursorLine.Render(prompt))
-
+	// maximum width of placeholder text must exclude:
+	// - prompt width
+	// - line number width (or padding)
+	maxWidth := m.MaxWidth - ansi.PrintableRuneWidth(m.Prompt) // remove the prompt width
 	if m.ShowLineNumbers {
-		s.WriteString(m.style.CursorLine.Render(m.style.CursorLineNumber.Render((fmt.Sprintf(m.lineNumberFormat, 1)))))
+		const lnWidth = 4   // up to 3 digits for line number plus 1 margin
+		maxWidth -= lnWidth // remove the line number width (or padding)
 	}
 
-	m.Cursor.TextStyle = m.style.Placeholder
-	m.Cursor.SetChar(string(p[0]))
-	s.WriteString(m.style.CursorLine.Render(m.Cursor.View()))
+	// word wrap lines
+	pwordwrap := wordwrap.String(p, maxWidth)
+	// wrap lines (handles lines that could not be word wrapped)
+	pwrap := rwrap.String(pwordwrap, maxWidth)
+	// split string by new lines
+	plines := strings.Split(strings.TrimSpace(pwrap), "\n")
 
-	// The rest of the placeholder text
-	s.WriteString(m.style.CursorLine.Render(style.Render(p[1:] + strings.Repeat(" ", max(0, m.width-uniseg.StringWidth(p))))))
+	for i := 0; i < m.height; i++ {
+		lineStyle := m.style.Placeholder
+		lineNumberStyle := m.style.LineNumber
+		if len(plines) > i {
+			lineStyle = m.style.CursorLine
+			lineNumberStyle = m.style.CursorLineNumber
+		}
 
-	// The rest of the new lines
-	for i := 1; i < m.height; i++ {
-		s.WriteRune('\n')
+		// render prompt
 		prompt := m.getPromptString(i)
 		prompt = m.style.Prompt.Render(prompt)
-		s.WriteString(prompt)
+		s.WriteString(lineStyle.Render(prompt))
 
+		// when show line numbers enabled:
+		// - render line number for only the cursor line
+		// - indent other placeholder lines
+		// this is consistent with vim with line numbers enabled
 		if m.ShowLineNumbers {
+			var ln string
+
+			switch {
+			case i == 0:
+				ln = strconv.Itoa(i + 1)
+				fallthrough
+			case len(plines) > i:
+				s.WriteString(lineStyle.Render(lineNumberStyle.Render(fmt.Sprintf(m.lineNumberFormat, ln))))
+			default:
+			}
+		}
+
+		switch {
+		// first line
+		case i == 0:
+			// first character of first line as cursor with character
+			m.Cursor.TextStyle = m.style.Placeholder
+			m.Cursor.SetChar(string(plines[0][0]))
+			s.WriteString(lineStyle.Render(m.Cursor.View()))
+
+			// the rest of the first line
+			s.WriteString(lineStyle.Render(style.Render(plines[0][1:] + strings.Repeat(" ", max(0, m.width-uniseg.StringWidth(plines[0]))))))
+		// remaining lines
+		case len(plines) > i:
+			// current line placeholder text
+			if len(plines) > i {
+				s.WriteString(lineStyle.Render(style.Render(plines[i] + strings.Repeat(" ", max(0, m.width-uniseg.StringWidth(plines[i]))))))
+			}
+		default:
+			// end of line buffer character
 			eob := m.style.EndOfBuffer.Render(string(m.EndOfBufferCharacter))
 			s.WriteString(eob)
 		}
+
+		// terminate with new line
+		s.WriteRune('\n')
 	}
 
 	m.viewport.SetContent(s.String())
