@@ -1,6 +1,7 @@
 package textarea
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"strings"
 	"unicode"
@@ -9,10 +10,12 @@ import (
 	"github.com/charmbracelet/bubbles/cursor"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/runeutil"
+	"github.com/charmbracelet/bubbles/textarea/memoization"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	rw "github.com/mattn/go-runewidth"
+	"github.com/rivo/uniseg"
 )
 
 const (
@@ -21,8 +24,8 @@ const (
 	defaultHeight    = 6
 	defaultWidth     = 40
 	defaultCharLimit = 400
-	maxHeight        = 99
-	maxWidth         = 500
+	defaultMaxHeight = 99
+	defaultMaxWidth  = 500
 )
 
 // Internal messages for clipboard operations.
@@ -60,30 +63,30 @@ type KeyMap struct {
 // DefaultKeyMap is the default set of key bindings for navigating and acting
 // upon the textarea.
 var DefaultKeyMap = KeyMap{
-	CharacterForward:        key.NewBinding(key.WithKeys("right", "ctrl+f")),
-	CharacterBackward:       key.NewBinding(key.WithKeys("left", "ctrl+b")),
-	WordForward:             key.NewBinding(key.WithKeys("alt+right", "alt+f")),
-	WordBackward:            key.NewBinding(key.WithKeys("alt+left", "alt+b")),
-	LineNext:                key.NewBinding(key.WithKeys("down", "ctrl+n")),
-	LinePrevious:            key.NewBinding(key.WithKeys("up", "ctrl+p")),
-	DeleteWordBackward:      key.NewBinding(key.WithKeys("alt+backspace", "ctrl+w")),
-	DeleteWordForward:       key.NewBinding(key.WithKeys("alt+delete", "alt+d")),
-	DeleteAfterCursor:       key.NewBinding(key.WithKeys("ctrl+k")),
-	DeleteBeforeCursor:      key.NewBinding(key.WithKeys("ctrl+u")),
-	InsertNewline:           key.NewBinding(key.WithKeys("enter", "ctrl+m")),
-	DeleteCharacterBackward: key.NewBinding(key.WithKeys("backspace", "ctrl+h")),
-	DeleteCharacterForward:  key.NewBinding(key.WithKeys("delete", "ctrl+d")),
-	LineStart:               key.NewBinding(key.WithKeys("home", "ctrl+a")),
-	LineEnd:                 key.NewBinding(key.WithKeys("end", "ctrl+e")),
-	Paste:                   key.NewBinding(key.WithKeys("ctrl+v")),
-	InputBegin:              key.NewBinding(key.WithKeys("alt+<", "ctrl+home")),
-	InputEnd:                key.NewBinding(key.WithKeys("alt+>", "ctrl+end")),
+	CharacterForward:        key.NewBinding(key.WithKeys("right", "ctrl+f"), key.WithHelp("right", "character forward")),
+	CharacterBackward:       key.NewBinding(key.WithKeys("left", "ctrl+b"), key.WithHelp("left", "character backward")),
+	WordForward:             key.NewBinding(key.WithKeys("alt+right", "alt+f"), key.WithHelp("alt+right", "word forward")),
+	WordBackward:            key.NewBinding(key.WithKeys("alt+left", "alt+b"), key.WithHelp("alt+left", "word backward")),
+	LineNext:                key.NewBinding(key.WithKeys("down", "ctrl+n"), key.WithHelp("down", "next line")),
+	LinePrevious:            key.NewBinding(key.WithKeys("up", "ctrl+p"), key.WithHelp("up", "previous line")),
+	DeleteWordBackward:      key.NewBinding(key.WithKeys("alt+backspace", "ctrl+w"), key.WithHelp("alt+backspace", "delete word backward")),
+	DeleteWordForward:       key.NewBinding(key.WithKeys("alt+delete", "alt+d"), key.WithHelp("alt+delete", "delete word forward")),
+	DeleteAfterCursor:       key.NewBinding(key.WithKeys("ctrl+k"), key.WithHelp("ctrl+k", "delete after cursor")),
+	DeleteBeforeCursor:      key.NewBinding(key.WithKeys("ctrl+u"), key.WithHelp("ctrl+u", "delete before cursor")),
+	InsertNewline:           key.NewBinding(key.WithKeys("enter", "ctrl+m"), key.WithHelp("enter", "insert newline")),
+	DeleteCharacterBackward: key.NewBinding(key.WithKeys("backspace", "ctrl+h"), key.WithHelp("backspace", "delete character backward")),
+	DeleteCharacterForward:  key.NewBinding(key.WithKeys("delete", "ctrl+d"), key.WithHelp("delete", "delete character forward")),
+	LineStart:               key.NewBinding(key.WithKeys("home", "ctrl+a"), key.WithHelp("home", "line start")),
+	LineEnd:                 key.NewBinding(key.WithKeys("end", "ctrl+e"), key.WithHelp("end", "line end")),
+	Paste:                   key.NewBinding(key.WithKeys("ctrl+v"), key.WithHelp("ctrl+v", "paste")),
+	InputBegin:              key.NewBinding(key.WithKeys("alt+<", "ctrl+home"), key.WithHelp("alt+<", "input begin")),
+	InputEnd:                key.NewBinding(key.WithKeys("alt+>", "ctrl+end"), key.WithHelp("alt+>", "input end")),
 
-	CapitalizeWordForward: key.NewBinding(key.WithKeys("alt+c")),
-	LowercaseWordForward:  key.NewBinding(key.WithKeys("alt+l")),
-	UppercaseWordForward:  key.NewBinding(key.WithKeys("alt+u")),
+	CapitalizeWordForward: key.NewBinding(key.WithKeys("alt+c"), key.WithHelp("alt+c", "capitalize word forward")),
+	LowercaseWordForward:  key.NewBinding(key.WithKeys("alt+l"), key.WithHelp("alt+l", "lowercase word forward")),
+	UppercaseWordForward:  key.NewBinding(key.WithKeys("alt+u"), key.WithHelp("alt+u", "uppercase word forward")),
 
-	TransposeCharacterBackward: key.NewBinding(key.WithKeys("ctrl+t")),
+	TransposeCharacterBackward: key.NewBinding(key.WithKeys("ctrl+t"), key.WithHelp("ctrl+t", "transpose character backward")),
 }
 
 // LineInfo is a helper for keeping track of line information regarding
@@ -129,11 +132,25 @@ type Style struct {
 	Text             lipgloss.Style
 }
 
+// line is the input to the text wrapping function. This is stored in a struct
+// so that it can be hashed and memoized.
+type line struct {
+	runes []rune
+	width int
+}
+
+// Hash returns a hash of the line.
+func (w line) Hash() string {
+	v := fmt.Sprintf("%s:%d", string(w.runes), w.width)
+	return fmt.Sprintf("%x", sha256.Sum256([]byte(v)))
+}
+
 // Model is the Bubble Tea model for this text area element.
 type Model struct {
 	Err error
 
 	// General settings.
+	cache *memoization.MemoCache[line, [][]rune]
 
 	// Prompt is printed at the beginning of each line.
 	//
@@ -173,6 +190,14 @@ type Model struct {
 	// CharLimit is the maximum number of characters this input element will
 	// accept. If 0 or less, there's no limit.
 	CharLimit int
+
+	// MaxHeight is the maximum height of the text area in rows. If 0 or less,
+	// there's no limit.
+	MaxHeight int
+
+	// MaxWidth is the maximum width of the text area in columns. If 0 or less,
+	// there's no limit.
+	MaxWidth int
 
 	// If promptFunc is set, it replaces Prompt as a generator for
 	// prompt strings at the beginning of each line.
@@ -228,20 +253,23 @@ func New() Model {
 
 	m := Model{
 		CharLimit:            defaultCharLimit,
+		MaxHeight:            defaultMaxHeight,
+		MaxWidth:             defaultMaxWidth,
 		Prompt:               lipgloss.ThickBorder().Left + " ",
 		style:                &blurredStyle,
 		FocusedStyle:         focusedStyle,
 		BlurredStyle:         blurredStyle,
+		cache:                memoization.NewMemoCache[line, [][]rune](defaultMaxHeight),
 		EndOfBufferCharacter: '~',
 		ShowLineNumbers:      true,
 		Cursor:               cur,
 		KeyMap:               DefaultKeyMap,
 
-		value:            make([][]rune, minHeight, maxHeight),
+		value:            make([][]rune, minHeight, defaultMaxHeight),
 		focus:            false,
 		col:              0,
 		row:              0,
-		lineNumberFormat: "%2v ",
+		lineNumberFormat: "%3v ",
 
 		viewport: &vp,
 	}
@@ -312,7 +340,7 @@ func (m *Model) insertRunesFromUserInput(runes []rune) {
 		// If there's not enough space to paste the whole thing cut the pasted
 		// runes down so they'll fit.
 		if availSpace < len(runes) {
-			runes = runes[:len(runes)-availSpace]
+			runes = runes[:availSpace]
 		}
 	}
 
@@ -336,8 +364,8 @@ func (m *Model) insertRunesFromUserInput(runes []rune) {
 	}
 
 	// Obey the maximum height limit.
-	if len(m.value)+len(lines)-1 > maxHeight {
-		allowedHeight := max(0, maxHeight-len(m.value)+1)
+	if m.MaxHeight > 0 && len(m.value)+len(lines)-1 > m.MaxHeight {
+		allowedHeight := max(0, m.MaxHeight-len(m.value)+1)
 		lines = lines[:allowedHeight]
 	}
 
@@ -404,7 +432,7 @@ func (m Model) Value() string {
 func (m *Model) Length() int {
 	var l int
 	for _, row := range m.value {
-		l += rw.StringWidth(string(row))
+		l += uniseg.StringWidth(string(row))
 	}
 	// We add len(m.value) to include the newline characters.
 	return l + len(m.value) - 1
@@ -446,7 +474,7 @@ func (m *Model) CursorDown() {
 
 	offset := 0
 	for offset < charOffset {
-		if m.col > len(m.value[m.row]) || offset >= nli.CharWidth-1 {
+		if m.row >= len(m.value) || m.col >= len(m.value[m.row]) || offset >= nli.CharWidth-1 {
 			break
 		}
 		offset += rw.RuneWidth(m.value[m.row][m.col])
@@ -530,7 +558,11 @@ func (m *Model) Blur() {
 
 // Reset sets the input to its default state with no input.
 func (m *Model) Reset() {
-	m.value = make([][]rune, minHeight, maxHeight)
+	startCap := m.MaxHeight
+	if startCap <= 0 {
+		startCap = defaultMaxHeight
+	}
+	m.value = make([][]rune, minHeight, startCap)
 	m.col = 0
 	m.row = 0
 	m.viewport.GotoTop()
@@ -754,7 +786,7 @@ func (m *Model) capitalizeRight() {
 // LineInfo returns the number of characters from the start of the
 // (soft-wrapped) line and the (soft-wrapped) line width.
 func (m Model) LineInfo() LineInfo {
-	grid := wrap(m.value[m.row], m.width)
+	grid := m.memoizedWrap(m.value[m.row], m.width)
 
 	// Find out which line we are currently on. This can be determined by the
 	// m.col and counting the number of runes that we need to skip.
@@ -771,19 +803,19 @@ func (m Model) LineInfo() LineInfo {
 				RowOffset:    i + 1,
 				StartColumn:  m.col,
 				Width:        len(grid[i+1]),
-				CharWidth:    rw.StringWidth(string(line)),
+				CharWidth:    uniseg.StringWidth(string(line)),
 			}
 		}
 
 		if counter+len(line) >= m.col {
 			return LineInfo{
-				CharOffset:   rw.StringWidth(string(line[:max(0, m.col-counter)])),
+				CharOffset:   uniseg.StringWidth(string(line[:max(0, m.col-counter)])),
 				ColumnOffset: m.col - counter,
 				Height:       len(grid),
 				RowOffset:    i,
 				StartColumn:  counter,
 				Width:        len(line),
-				CharWidth:    rw.StringWidth(string(line)),
+				CharWidth:    uniseg.StringWidth(string(line)),
 			}
 		}
 
@@ -830,24 +862,32 @@ func (m *Model) moveToEnd() {
 // It is important that the width of the textarea be exactly the given width
 // and no more.
 func (m *Model) SetWidth(w int) {
-	m.viewport.Width = clamp(w, minWidth, maxWidth)
+	if m.MaxWidth > 0 {
+		m.viewport.Width = clamp(w, minWidth, m.MaxWidth)
+	} else {
+		m.viewport.Width = max(w, minWidth)
+	}
 
 	// Since the width of the textarea input is dependent on the width of the
 	// prompt and line numbers, we need to calculate it by subtracting.
 	inputWidth := w
 	if m.ShowLineNumbers {
-		inputWidth -= rw.StringWidth(fmt.Sprintf(m.lineNumberFormat, 0))
+		inputWidth -= uniseg.StringWidth(fmt.Sprintf(m.lineNumberFormat, 0))
 	}
 
 	// Account for base style borders and padding.
 	inputWidth -= m.style.Base.GetHorizontalFrameSize()
 
 	if m.promptFunc == nil {
-		m.promptWidth = rw.StringWidth(m.Prompt)
+		m.promptWidth = uniseg.StringWidth(m.Prompt)
 	}
 
 	inputWidth -= m.promptWidth
-	m.width = clamp(inputWidth, minWidth, maxWidth)
+	if m.MaxWidth > 0 {
+		m.width = clamp(inputWidth, minWidth, m.MaxWidth)
+	} else {
+		m.width = max(inputWidth, minWidth)
+	}
 }
 
 // SetPromptFunc supersedes the Prompt field and sets a dynamic prompt
@@ -869,8 +909,13 @@ func (m Model) Height() int {
 
 // SetHeight sets the height of the textarea.
 func (m *Model) SetHeight(h int) {
-	m.height = clamp(h, minHeight, maxHeight)
-	m.viewport.Height = clamp(h, minHeight, maxHeight)
+	if m.MaxHeight > 0 {
+		m.height = clamp(h, minHeight, m.MaxHeight)
+		m.viewport.Height = clamp(h, minHeight, m.MaxHeight)
+	} else {
+		m.height = max(h, minHeight)
+		m.viewport.Height = max(h, minHeight)
+	}
 }
 
 // Update is the Bubble Tea update loop.
@@ -887,6 +932,10 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 	if m.value[m.row] == nil {
 		m.value[m.row] = make([]rune, 0)
+	}
+
+	if m.MaxHeight > 0 && m.MaxHeight != m.cache.Capacity() {
+		m.cache = memoization.NewMemoCache[line, [][]rune](m.MaxHeight)
 	}
 
 	switch msg := msg.(type) {
@@ -940,7 +989,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			}
 			m.deleteWordRight()
 		case key.Matches(msg, m.KeyMap.InsertNewline):
-			if len(m.value) >= maxHeight {
+			if m.MaxHeight > 0 && len(m.value) >= m.MaxHeight {
 				return m, nil
 			}
 			m.col = clamp(m.col, 0, len(m.value[m.row]))
@@ -993,7 +1042,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 	newRow, newCol := m.cursorLineNumber(), m.col
 	m.Cursor, cmd = m.Cursor.Update(msg)
-	if newRow != oldRow || newCol != oldCol {
+	if (newRow != oldRow || newCol != oldCol) && m.Cursor.Mode() == cursor.CursorBlink {
 		m.Cursor.Blink = false
 		cmd = m.Cursor.BlinkCmd()
 	}
@@ -1019,7 +1068,7 @@ func (m Model) View() string {
 
 	displayLine := 0
 	for l, line := range m.value {
-		wrappedLines := wrap(line, m.width)
+		wrappedLines := m.memoizedWrap(line, m.width)
 
 		if m.row == l {
 			style = m.style.CursorLine
@@ -1041,11 +1090,15 @@ func (m Model) View() string {
 						s.WriteString(style.Render(m.style.LineNumber.Render(fmt.Sprintf(m.lineNumberFormat, l+1))))
 					}
 				} else {
-					s.WriteString(m.style.LineNumber.Render(style.Render("   ")))
+					if m.row == l {
+						s.WriteString(style.Render(m.style.CursorLineNumber.Render(fmt.Sprintf(m.lineNumberFormat, " "))))
+					} else {
+						s.WriteString(style.Render(m.style.LineNumber.Render(fmt.Sprintf(m.lineNumberFormat, " "))))
+					}
 				}
 			}
 
-			strwidth := rw.StringWidth(string(wrappedLine))
+			strwidth := uniseg.StringWidth(string(wrappedLine))
 			padding := m.width - strwidth
 			// If the trailing space causes the line to be wider than the
 			// width, we should not draw it to the screen since it will result
@@ -1085,10 +1138,7 @@ func (m Model) View() string {
 		s.WriteString(prompt)
 		displayLine++
 
-		if m.ShowLineNumbers {
-			lineNumber := m.style.EndOfBuffer.Render((fmt.Sprintf(m.lineNumberFormat, string(m.EndOfBufferCharacter))))
-			s.WriteString(lineNumber)
-		}
+		s.WriteString(m.style.EndOfBuffer.Render(string(m.EndOfBufferCharacter)))
 		s.WriteRune('\n')
 	}
 
@@ -1102,7 +1152,7 @@ func (m Model) getPromptString(displayLine int) (prompt string) {
 		return prompt
 	}
 	prompt = m.promptFunc(displayLine)
-	pl := rw.StringWidth(prompt)
+	pl := uniseg.StringWidth(prompt)
 	if pl < m.promptWidth {
 		prompt = fmt.Sprintf("%*s%s", m.promptWidth-pl, "", prompt)
 	}
@@ -1130,7 +1180,7 @@ func (m Model) placeholderView() string {
 	s.WriteString(m.style.CursorLine.Render(m.Cursor.View()))
 
 	// The rest of the placeholder text
-	s.WriteString(m.style.CursorLine.Render(style.Render(p[1:] + strings.Repeat(" ", max(0, m.width-rw.StringWidth(p))))))
+	s.WriteString(m.style.CursorLine.Render(style.Render(p[1:] + strings.Repeat(" ", max(0, m.width-uniseg.StringWidth(p))))))
 
 	// The rest of the new lines
 	for i := 1; i < m.height; i++ {
@@ -1140,7 +1190,7 @@ func (m Model) placeholderView() string {
 		s.WriteString(prompt)
 
 		if m.ShowLineNumbers {
-			eob := m.style.EndOfBuffer.Render((fmt.Sprintf(m.lineNumberFormat, string(m.EndOfBufferCharacter))))
+			eob := m.style.EndOfBuffer.Render(string(m.EndOfBufferCharacter))
 			s.WriteString(eob)
 		}
 	}
@@ -1154,6 +1204,16 @@ func Blink() tea.Msg {
 	return cursor.Blink()
 }
 
+func (m Model) memoizedWrap(runes []rune, width int) [][]rune {
+	input := line{runes: runes, width: width}
+	if v, ok := m.cache.Get(input); ok {
+		return v
+	}
+	v := wrap(runes, width)
+	m.cache.Set(input, v)
+	return v
+}
+
 // cursorLineNumber returns the line number that the cursor is on.
 // This accounts for soft wrapped lines.
 func (m Model) cursorLineNumber() int {
@@ -1161,7 +1221,7 @@ func (m Model) cursorLineNumber() int {
 	for i := 0; i < m.row; i++ {
 		// Calculate the number of lines that the current line will be split
 		// into.
-		line += len(wrap(m.value[i], m.width))
+		line += len(m.memoizedWrap(m.value[i], m.width))
 	}
 	line += m.LineInfo().RowOffset
 	return line
@@ -1253,7 +1313,7 @@ func wrap(runes []rune, width int) [][]rune {
 		}
 
 		if spaces > 0 {
-			if rw.StringWidth(string(lines[row]))+rw.StringWidth(string(word))+spaces > width {
+			if uniseg.StringWidth(string(lines[row]))+uniseg.StringWidth(string(word))+spaces > width {
 				row++
 				lines = append(lines, []rune{})
 				lines[row] = append(lines[row], word...)
@@ -1270,7 +1330,7 @@ func wrap(runes []rune, width int) [][]rune {
 			// If the last character is a double-width rune, then we may not be able to add it to this line
 			// as it might cause us to go past the width.
 			lastCharLen := rw.RuneWidth(word[len(word)-1])
-			if rw.StringWidth(string(word))+lastCharLen > width {
+			if uniseg.StringWidth(string(word))+lastCharLen > width {
 				// If the current line has any content, let's move to the next
 				// line because the current word fills up the entire line.
 				if len(lines[row]) > 0 {
@@ -1283,7 +1343,7 @@ func wrap(runes []rune, width int) [][]rune {
 		}
 	}
 
-	if rw.StringWidth(string(lines[row]))+rw.StringWidth(string(word))+spaces >= width {
+	if uniseg.StringWidth(string(lines[row]))+uniseg.StringWidth(string(word))+spaces >= width {
 		lines = append(lines, []rune{})
 		lines[row+1] = append(lines[row+1], word...)
 		// We add an extra space at the end of the line to account for the

@@ -138,6 +138,10 @@ func (m Model) Mode() Mode {
 //
 // For available cursor modes, see type CursorMode.
 func (m *Model) SetMode(mode Mode) tea.Cmd {
+	// Adjust the mode value if it's value is out of range
+	if mode < CursorBlink || mode > CursorHide {
+		return nil
+	}
 	m.mode = mode
 	m.Blink = m.mode == CursorHide || !m.focus
 	if mode == CursorBlink {

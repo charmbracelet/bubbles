@@ -79,6 +79,14 @@ func WithSolidFill(color string) Option {
 	}
 }
 
+// WithFillCharacters sets the characters used to construct the full and empty components of the progress bar.
+func WithFillCharacters(full rune, empty rune) Option {
+	return func(m *Model) {
+		m.Full = full
+		m.Empty = empty
+	}
+}
+
 // WithoutPercentage hides the numeric percentage.
 func WithoutPercentage() Option {
 	return func(m *Model) {
@@ -211,8 +219,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		// If we've more or less reached equilibrium, stop updating.
-		dist := math.Abs(m.percentShown - m.targetPercent)
-		if dist < 0.001 && m.velocity < 0.01 {
+		if !m.IsAnimating() {
 			return m, nil
 		}
 
@@ -299,10 +306,15 @@ func (m Model) barView(b *strings.Builder, percent float64, textWidth int) {
 	if m.useRamp {
 		// Gradient fill
 		for i := 0; i < fw; i++ {
-			if m.scaleRamp {
-				p = float64(i) / float64(fw)
+			if fw == 1 {
+				// this is up for debate: in a gradient of width=1, should the
+				// single character rendered be the first color, the last color
+				// or exactly 50% inbetween? I opted for 50%
+				p = 0.5
+			} else if m.scaleRamp {
+				p = float64(i) / float64(fw-1)
 			} else {
-				p = float64(i) / float64(tw)
+				p = float64(i) / float64(tw-1)
 			}
 			c := m.rampColorA.BlendLuv(m.rampColorB, p).Hex()
 			b.WriteString(termenv.
@@ -355,6 +367,12 @@ func max(a, b int) int {
 		return a
 	}
 	return b
+}
+
+// IsAnimating returns false if the progress bar reached equilibrium and is no longer animating.
+func (m *Model) IsAnimating() bool {
+	dist := math.Abs(m.percentShown - m.targetPercent)
+	return !(dist < 0.001 && m.velocity < 0.01)
 }
 
 func min(a, b int) int {
