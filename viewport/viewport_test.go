@@ -16,24 +16,11 @@ const (
 	content   = "line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10"
 )
 
-var (
-//borderlessStyle       = lipgloss.NewStyle()
-//borderStyle           = borderlessStyle.Copy().Border(lipgloss.RoundedBorder())
-//borderPadStyle        = borderStyle.Copy().Padding(1, 1)
-//borderPadMargin1Style = borderPadStyle.Copy().Margin(1, 0)
-//borderPadMargin2Style = borderPadStyle.Copy().Margin(2, 0)
-
-// headerStyle = lipgloss.NewStyle().Padding(1, 0)
-//
-// headers = []string{"simple", "+ border", "+ padding", "+ margin (1)", "+ margin (2)"}
-// styles  = []lipgloss.Style{borderlessStyle, borderStyle, borderPadStyle, borderPadMargin1Style, borderPadMargin2Style}
-)
-
 func TestMaxYOffset(t *testing.T) {
 	type want struct {
-		maxYOffset int
-		viewTop    string
-		viewBot    string
+		maxYOffset    int
+		scrollTopView string
+		scrollBotView string
 	}
 
 	tests := []struct {
@@ -46,7 +33,7 @@ func TestMaxYOffset(t *testing.T) {
 			style: lipgloss.NewStyle(),
 			want: want{
 				maxYOffset: 2,
-				viewTop: heredoc.Doc(`
+				scrollTopView: heredoc.Doc(`
 					line 1
 					line 2
 					line 3
@@ -56,7 +43,7 @@ func TestMaxYOffset(t *testing.T) {
 					line 7
 					line 8
 				`),
-				viewBot: heredoc.Doc(`
+				scrollBotView: heredoc.Doc(`
 					line 3
 					line 4
 					line 5
@@ -69,55 +56,109 @@ func TestMaxYOffset(t *testing.T) {
 			},
 		},
 		{
-			name:  "no style",
-			style: lipgloss.NewStyle(),
+			name:  "with single border",
+			style: lipgloss.NewStyle().Border(lipgloss.RoundedBorder()),
 			want: want{
-				maxYOffset: 2,
-				viewTop: heredoc.Doc(`
-					line 1
-					line 2
-					line 3
-					line 4
-					line 5
-					line 6
-					line 7
-					line 8
+				maxYOffset: 4,
+				scrollTopView: heredoc.Doc(`
+					╭─────────────╮
+					│line 1       │
+					│line 2       │
+					│line 3       │
+					│line 4       │
+					│line 5       │
+					│line 6       │
+					╰─────────────╯
 				`),
-				viewBot: heredoc.Doc(`
-					line 3
-					line 4
-					line 5
-					line 6
-					line 7
-					line 8
-					line 9
-					line 10
+				scrollBotView: heredoc.Doc(`
+					╭─────────────╮
+					│line 5       │
+					│line 6       │
+					│line 7       │
+					│line 8       │
+					│line 9       │
+					│line 10      │
+					╰─────────────╯
 				`),
 			},
 		},
 		{
-			name:  "with border",
-			style: lipgloss.NewStyle().BorderStyle(lipgloss.NormalBorder()),
+			name:  "with border + padding",
+			style: lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Padding(1, 1),
 			want: want{
-				maxYOffset: 2,
-				viewTop: heredoc.Doc(`
+				maxYOffset: 6,
+				scrollTopView: heredoc.Doc(`
+					╭─────────────╮
+					│             │
+					│ line 1      │
+					│ line 2      │
+					│ line 3      │
+					│ line 4      │
+					│             │
+					╰─────────────╯
+				`),
+				scrollBotView: heredoc.Doc(`
+					╭─────────────╮
+					│             │
+					│ line 7      │
+					│ line 8      │
+					│ line 9      │
+					│ line 10     │
+					│             │
+					╰─────────────╯
+				`),
+			},
+		},
+		{
+			name:  "with border + margin",
+			style: lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Margin(1, 0),
+			want: want{
+				maxYOffset: 6,
+				scrollTopView: heredoc.Doc(`
 
-					line 1
-					line 2
-					line 3
-					line 4
-					line 5
-					line 6
+					╭─────────────╮
+					│line 1       │
+					│line 2       │
+					│line 3       │
+					│line 4       │
+					╰─────────────╯
 
 				`),
-				viewBot: heredoc.Doc(`
+				scrollBotView: heredoc.Doc(`
 
-					line 5
-					line 6
-					line 7
-					line 8
-					line 9
-					line 10
+					╭─────────────╮ 
+					│line 7       │ 
+					│line 8       │ 
+					│line 9       │ 
+					│line 10      │ 
+					╰─────────────╯
+
+				`),
+			},
+		},
+		{
+			name:  "with border + margin + padding",
+			style: lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Margin(1, 0).Padding(1, 1),
+			want: want{
+				maxYOffset: 8,
+				scrollTopView: heredoc.Doc(`
+
+					╭─────────────╮
+					│             │
+					│ line 1      │
+					│ line 2      │
+					│             │
+					╰─────────────╯
+
+				`),
+				scrollBotView: heredoc.Doc(`
+
+					╭─────────────╮
+					│             │
+					│ line 9      │
+					│ line 10     │
+					│             │
+					╰─────────────╯
 
 				`),
 			},
@@ -127,8 +168,10 @@ func TestMaxYOffset(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			viewport := New(viewportW, viewportH)
-			viewport.Style = tt.style
+			viewport.Style = tt.style.Copy()
 			viewport.SetContent(content)
+
+			viewport, _ = viewport.Update(nil)
 
 			maxYOffset := viewport.maxYOffset()
 			if maxYOffset != tt.want.maxYOffset {
@@ -137,7 +180,7 @@ func TestMaxYOffset(t *testing.T) {
 
 			viewport.SetYOffset(0)
 			viewTop := stripString(viewport.View())
-			wantViewTop := stripString(tt.want.viewTop)
+			wantViewTop := stripString(tt.want.scrollTopView)
 
 			if viewTop != wantViewTop {
 				t.Fatalf("Want view (when scrolled to top):\n%v\nGot:\n%v\n", wantViewTop, viewTop)
@@ -145,7 +188,7 @@ func TestMaxYOffset(t *testing.T) {
 
 			viewport.SetYOffset(100)
 			viewBot := stripString(viewport.View())
-			wantViewBot := stripString(tt.want.viewBot)
+			wantViewBot := stripString(tt.want.scrollBotView)
 
 			if viewBot != wantViewBot {
 				t.Fatalf("Want view (when scrolled to bottom):\n%v\nGot:\n%v\n", wantViewBot, viewBot)
