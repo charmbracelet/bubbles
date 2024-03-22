@@ -830,7 +830,16 @@ func (m *Model) AvailableSuggestions() []string {
 
 // CurrentSuggestion returns the currently selected suggestion.
 func (m *Model) CurrentSuggestion() string {
-	return string(m.matchedSuggestions[m.currentSuggestionIndex])
+	if len(m.matchedSuggestions) < 1 {
+		return ""
+	}
+
+	s := m.matchedSuggestions[m.currentSuggestionIndex]
+	if s == nil {
+		return ""
+	}
+
+	return string(s)
 }
 
 // canAcceptSuggestion returns whether there is an acceptable suggestion to
