@@ -22,7 +22,7 @@ require (
 
 require (
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
-	github.com/charmbracelet/x/exp/term v0.0.0-20240306210724-a9f86411eab9 // indirect
+	github.com/charmbracelet/x/exp/term v0.0.0-20240322183009-053b3d26b99d // indirect
 	github.com/erikgeiser/coninput v0.0.0-20211004153227-1c3628e74d0f // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/mattn/go-isatty v0.0.18 // indirect
@@ -33,3 +33,5 @@ require (
 	golang.org/x/sys v0.18.0 // indirect
 	golang.org/x/term v0.17.0 // indirect
 )
+
+replace github.com/charmbracelet/x/exp/term => ../x/exp/term
