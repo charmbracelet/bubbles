@@ -1,6 +1,7 @@
 package table
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/charmbracelet/lipgloss"
@@ -97,6 +98,36 @@ func TestRenderRow(t *testing.T) {
 				styles: Styles{Cell: lipgloss.NewStyle()},
 			},
 			expected: "FoooooooooBaaaaaaaarQuuuuuuuux",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			row := tc.table.renderRow(0)
+			if row != tc.expected {
+				t.Fatalf("\n\nWant: \n%s\n\nGot:  \n%s\n", tc.expected, row)
+			}
+		})
+	}
+}
+func TestRenderRowStyleFunc(t *testing.T) {
+	tests := []struct {
+		name     string
+		table    *Model
+		expected string
+	}{
+		{
+			name: "simple row",
+			table: &Model{
+				rows: []Row{{"Foooooo", "Baaaaar", "Baaaaaz"}},
+				cols: cols,
+				styleFunc: func(row, col int, value string) lipgloss.Style {
+					if strings.HasSuffix(value, "z") {
+						return lipgloss.NewStyle().Transform(strings.ToLower)
+					}
+					return lipgloss.NewStyle().Transform(strings.ToUpper)
+				},
+			},
+			expected: "FOOOOOO   BAAAAAR   baaaaaz   ",
 		},
 	}
 	for _, tc := range tests {
