@@ -212,6 +212,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
   customization options.
 * [evertras/bubble-table](https://github.com/Evertras/bubble-table): Interactive,
   customizable, paginated tables.
+* [genekkion/bubblegum](https://github.com/Genekkion/bubblegum): Simple quick fix
+  for full screen applications.
 * [knipferrc/teacup](https://github.com/knipferrc/teacup): Various handy
   bubbles and utilities for building Bubble Tea applications.
 * [mritd/bubbles](https://github.com/mritd/bubbles): Some general-purpose
