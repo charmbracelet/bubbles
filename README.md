@@ -222,6 +222,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 * [treilik/bubblelister](https://github.com/treilik/bubblelister): An alternate
   list that is scrollable without pagination and has the ability to contain
   other bubbles as list items.
+* [ogios/cropviewport](https://github.com/ogios/cropviewport): Crops view from
+  string given position and size. ANSI SGR supported.
 
 If you’ve built a Bubble you think should be listed here, please create a Pull
 Request. Please note that for a project to be included, it must meet the
