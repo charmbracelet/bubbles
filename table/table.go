@@ -421,15 +421,18 @@ func (m Model) headersView() string {
 	return lipgloss.JoinHorizontal(lipgloss.Left, s...)
 }
 
-func (m *Model) renderRow(rowID int) string {
+func (m *Model) renderRow(r int) string {
 	var s = make([]string, 0, len(m.cols))
-	for i, value := range m.rows[rowID] {
+	for i, value := range m.rows[r] {
 		if m.cols[i].Width <= 0 {
 			continue
 		}
 		var cellStyle lipgloss.Style
 		if m.styleFunc != nil {
-			cellStyle = m.styleFunc(rowID, i, value)
+			cellStyle = m.styleFunc(r, i, value)
+			if r == m.cursor {
+				cellStyle.Inherit(m.styles.Selected)
+			}
 		} else {
 			cellStyle = m.styles.Cell
 		}
@@ -441,7 +444,7 @@ func (m *Model) renderRow(rowID int) string {
 
 	row := lipgloss.JoinHorizontal(lipgloss.Left, s...)
 
-	if rowID == m.cursor {
+	if r == m.cursor {
 		return m.styles.Selected.Render(row)
 	}
 
