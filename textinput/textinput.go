@@ -17,8 +17,10 @@ import (
 )
 
 // Internal messages for clipboard operations.
-type pasteMsg string
-type pasteErrMsg struct{ error }
+type (
+	pasteMsg    string
+	pasteErrMsg struct{ error }
+)
 
 // EchoMode sets the input behavior of the text input field.
 type EchoMode int
@@ -675,8 +677,14 @@ func (m Model) View() string {
 				v += m.Cursor.View()
 			}
 		} else {
-			m.Cursor.SetChar(" ")
-			v += m.Cursor.View()
+			if m.pos < len(m.value) {
+				char := m.echoTransform(string(m.value[m.pos]))
+				m.Cursor.SetChar(char)
+				v += m.Cursor.View() // cursor and text under it
+			} else {
+				m.Cursor.SetChar(" ")
+				v += m.Cursor.View()
+			}
 		}
 	}
 
