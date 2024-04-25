@@ -681,6 +681,9 @@ func (m Model) View() string {
 			if m.pos < len(m.value) {
 				char = m.echoTransform(string(m.value[m.pos]))
 			}
+			if len(v) >= m.Width {
+				v = v[1:]
+			}
 			m.Cursor.SetChar(char)
 			v += m.Cursor.View()
 		}
