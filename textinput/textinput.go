@@ -677,14 +677,12 @@ func (m Model) View() string {
 				v += m.Cursor.View()
 			}
 		} else {
+			char := " "
 			if m.pos < len(m.value) {
-				char := m.echoTransform(string(m.value[m.pos]))
-				m.Cursor.SetChar(char)
-				v += m.Cursor.View() // cursor and text under it
-			} else {
-				m.Cursor.SetChar(" ")
-				v += m.Cursor.View()
+				char = m.echoTransform(string(m.value[m.pos]))
 			}
+			m.Cursor.SetChar(char)
+			v += m.Cursor.View()
 		}
 	}
 
