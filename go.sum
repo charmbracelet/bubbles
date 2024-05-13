@@ -8,10 +8,14 @@ github.com/aymanbagabas/go-osc52/v2 v2.0.1 h1:HwpRHbFMcZLEVr42D4p7XBqjyuxQH5SMiE
 github.com/aymanbagabas/go-osc52/v2 v2.0.1/go.mod h1:uYgXzlJ7ZpABp8OJ+exZzJJhRNQ2ASbcXHWsFqH8hp8=
 github.com/charmbracelet/bubbletea v0.26.3-0.20240510203954-a434f25ff7d3 h1:Bg0eRBAgsWh84rpAq5X+e52TMAfloxoWeSJkYp9Pyw0=
 github.com/charmbracelet/bubbletea v0.26.3-0.20240510203954-a434f25ff7d3/go.mod h1:jxN9TKmttdNsUKWSjjQQonHIY4nCuTBNdkDn3/Bpf7A=
+github.com/charmbracelet/bubbletea v0.26.3-0.20240513205551-cf6db9e1506a h1:9p5KZLIfqlGIvR0VvCslSTQHMePwKJ7mRESH2FqvWR4=
+github.com/charmbracelet/bubbletea v0.26.3-0.20240513205551-cf6db9e1506a/go.mod h1:K3huPnfaiCxjWojAg1QijEVeqHYY9LO4cAPC12KmpLQ=
 github.com/charmbracelet/harmonica v0.2.0 h1:8NxJWRWg/bzKqqEaaeFNipOu77YR5t8aSwG4pgaUBiQ=
 github.com/charmbracelet/harmonica v0.2.0/go.mod h1:KSri/1RMQOZLbw7AHqgcBycp8pgJnQMYYT8QZRqZ1Ao=
 github.com/charmbracelet/lipgloss v0.10.1-0.20240510203806-a6dc2ab509a8 h1:aOfL0f8fhgqKe+iOIQYAIazSwTO4J0axB5ztPxw5JHY=
 github.com/charmbracelet/lipgloss v0.10.1-0.20240510203806-a6dc2ab509a8/go.mod h1:axBjGt1mTZwwTM0kfcq8fPWFzNPj+ZAOjfLCr7JW9fk=
+github.com/charmbracelet/lipgloss v0.10.1-0.20240513205513-d059cfa7d6f0 h1:CWvUdfXeiDgBM0PZ9Mix19P7JB1tzaCDUy9F1JiuQ5M=
+github.com/charmbracelet/lipgloss v0.10.1-0.20240513205513-d059cfa7d6f0/go.mod h1:axBjGt1mTZwwTM0kfcq8fPWFzNPj+ZAOjfLCr7JW9fk=
 github.com/charmbracelet/x/ansi v0.1.0 h1:o4NbQQCoVgbLpD5RC1cI687baoLwrLZyCOTGlF0gne4=
 github.com/charmbracelet/x/ansi v0.1.0/go.mod h1:dk73KoMTT5AX5BsX0KrqhsTqAnhZZoCBjs7dGWp4Ktw=
 github.com/charmbracelet/x/input v0.1.0 h1:TEsGSfZYQyOtp+STIjyBq6tpRaorH0qpwZUj8DavAhQ=
