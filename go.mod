@@ -2,13 +2,11 @@ module github.com/charmbracelet/bubbles
 
 go 1.18
 
-replace github.com/charmbracelet/bubbletea => ../bubbletea
-
 require (
 	github.com/MakeNowJust/heredoc v1.0.0
 	github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d
 	github.com/atotto/clipboard v0.1.4
-	github.com/charmbracelet/bubbletea v0.25.1-0.20240306212323-3df8b37dba50
+	github.com/charmbracelet/bubbletea v0.26.3-0.20240510203954-a434f25ff7d3
 	github.com/charmbracelet/harmonica v0.2.0
 	github.com/charmbracelet/lipgloss v0.10.1-0.20240510203806-a6dc2ab509a8
 	github.com/dustin/go-humanize v1.0.1
@@ -35,5 +33,3 @@ require (
 	golang.org/x/sync v0.7.0 // indirect
 	golang.org/x/sys v0.20.0 // indirect
 )
-
-replace github.com/charmbracelet/x/exp/term => ../x/exp/term

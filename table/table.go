@@ -24,6 +24,8 @@ type Model struct {
 	viewport viewport.Model
 	start    int
 	end      int
+
+	ctx tea.Context
 }
 
 // Row represents one line in the table.
@@ -109,11 +111,11 @@ type Styles struct {
 }
 
 // DefaultStyles returns a set of default style definitions for this table.
-func DefaultStyles() Styles {
+func DefaultStyles(ctx tea.Context) Styles {
 	return Styles{
-		Selected: lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("212")),
-		Header:   lipgloss.NewStyle().Bold(true).Padding(0, 1),
-		Cell:     lipgloss.NewStyle().Padding(0, 1),
+		Selected: ctx.NewStyle().Bold(true).Foreground(lipgloss.Color("212")),
+		Header:   ctx.NewStyle().Bold(true).Padding(0, 1),
+		Cell:     ctx.NewStyle().Padding(0, 1),
 	}
 }
 
@@ -129,13 +131,15 @@ func (m *Model) SetStyles(s Styles) {
 type Option func(*Model)
 
 // New creates a new model for the table widget.
-func New(opts ...Option) Model {
+func New(ctx tea.Context, opts ...Option) Model {
 	m := Model{
 		cursor:   0,
-		viewport: viewport.New(0, 20),
+		viewport: viewport.New(ctx, 0, 20),
 
 		KeyMap: DefaultKeyMap(),
-		styles: DefaultStyles(),
+		styles: DefaultStyles(ctx),
+
+		ctx: ctx,
 	}
 
 	for _, opt := range opts {
@@ -204,7 +208,7 @@ func WithKeyMap(km KeyMap) Option {
 }
 
 // Update is the Bubble Tea update loop.
-func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
+func (m Model) Update(ctx tea.Context, msg tea.Msg) (Model, tea.Cmd) {
 	if !m.focus {
 		return m, nil
 	}
@@ -255,8 +259,8 @@ func (m *Model) Blur() {
 }
 
 // View renders the component.
-func (m Model) View() string {
-	return m.headersView() + "\n" + m.viewport.View()
+func (m Model) View(ctx tea.Context) string {
+	return m.headersView() + "\n" + m.viewport.View(ctx)
 }
 
 // UpdateViewport updates the list content based on the previously defined
@@ -409,12 +413,12 @@ func (m *Model) FromValues(value, separator string) {
 type StyleFunc func(row, col int, value string) lipgloss.Style
 
 func (m Model) headersView() string {
-	var s = make([]string, 0, len(m.cols))
+	s := make([]string, 0, len(m.cols))
 	for _, col := range m.cols {
 		if col.Width <= 0 {
 			continue
 		}
-		style := lipgloss.NewStyle().Width(col.Width).MaxWidth(col.Width).Inline(true)
+		style := m.ctx.NewStyle().Width(col.Width).MaxWidth(col.Width).Inline(true)
 		renderedCell := style.Render(runewidth.Truncate(col.Title, col.Width, "…"))
 		s = append(s, m.styles.Header.Render(renderedCell))
 	}
@@ -422,7 +426,7 @@ func (m Model) headersView() string {
 }
 
 func (m *Model) renderRow(r int) string {
-	var s = make([]string, 0, len(m.cols))
+	s := make([]string, 0, len(m.cols))
 	for i, value := range m.rows[r] {
 		if m.cols[i].Width <= 0 {
 			continue
@@ -437,7 +441,7 @@ func (m *Model) renderRow(r int) string {
 			cellStyle = m.styles.Cell
 		}
 
-		style := lipgloss.NewStyle().Width(m.cols[i].Width).MaxWidth(m.cols[i].Width).Inline(true)
+		style := m.ctx.NewStyle().Width(m.cols[i].Width).MaxWidth(m.cols[i].Width).Inline(true)
 		renderedCell := cellStyle.Render(style.Render(runewidth.Truncate(value, m.cols[i].Width, "…")))
 		s = append(s, renderedCell)
 	}

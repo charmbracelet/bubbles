@@ -113,9 +113,10 @@ func (m Model) ID() int {
 }
 
 // New returns a model with default values.
-func New(opts ...Option) Model {
+func New(ctx tea.Context, opts ...Option) Model {
 	m := Model{
 		Spinner: Line,
+		Style:   ctx.NewStyle(),
 		id:      nextID(),
 	}
 
@@ -139,7 +140,7 @@ type TickMsg struct {
 }
 
 // Update is the Tea update function.
-func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
+func (m Model) Update(ctx tea.Context, msg tea.Msg) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case TickMsg:
 		// If an ID is set, and the ID doesn't belong to this spinner, reject
@@ -168,7 +169,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 }
 
 // View renders the model's view.
-func (m Model) View() string {
+func (m Model) View(ctx tea.Context) string {
 	if m.frame >= len(m.Spinner.Frames) {
 		return "(error)"
 	}

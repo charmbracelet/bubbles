@@ -90,7 +90,7 @@ type Model struct {
 }
 
 // NewWithInterval creates a new timer with the given timeout and tick interval.
-func NewWithInterval(timeout, interval time.Duration) Model {
+func NewWithInterval(_ tea.Context, timeout, interval time.Duration) Model {
 	return Model{
 		Timeout:  timeout,
 		Interval: interval,
@@ -100,8 +100,8 @@ func NewWithInterval(timeout, interval time.Duration) Model {
 }
 
 // New creates a new timer with the given timeout and default 1s interval.
-func New(timeout time.Duration) Model {
-	return NewWithInterval(timeout, time.Second)
+func New(ctx tea.Context, timeout time.Duration) Model {
+	return NewWithInterval(ctx, timeout, time.Second)
 }
 
 // ID returns the model's identifier. This can be used to determine if messages
@@ -125,12 +125,12 @@ func (m Model) Timedout() bool {
 }
 
 // Init starts the timer.
-func (m Model) Init() tea.Cmd {
+func (m Model) Init(tea.Context) tea.Cmd {
 	return m.tick()
 }
 
 // Update handles the timer tick.
-func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
+func (m Model) Update(_ tea.Context, msg tea.Msg) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case StartStopMsg:
 		if msg.ID != 0 && msg.ID != m.id {
@@ -151,7 +151,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 }
 
 // View of the timer component.
-func (m Model) View() string {
+func (m Model) View(tea.Context) string {
 	return m.Timeout.String()
 }
 

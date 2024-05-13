@@ -131,7 +131,7 @@ func (m Model) OnFirstPage() bool {
 }
 
 // New creates a new model with defaults.
-func New() Model {
+func New(ctx tea.Context) Model {
 	return Model{
 		Type:         Arabic,
 		Page:         0,
@@ -150,7 +150,7 @@ func New() Model {
 var NewModel = New
 
 // Update is the Tea update function which binds keystrokes to pagination.
-func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
+func (m Model) Update(ctx tea.Context, msg tea.Msg) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch {
@@ -165,7 +165,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 }
 
 // View renders the pagination to a string.
-func (m Model) View() string {
+func (m Model) View(tea.Context) string {
 	switch m.Type {
 	case Dots:
 		return m.dotsView()

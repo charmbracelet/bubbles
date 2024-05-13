@@ -55,7 +55,7 @@ type Model struct {
 
 // NewWithInterval creates a new stopwatch with the given timeout and tick
 // interval.
-func NewWithInterval(interval time.Duration) Model {
+func NewWithInterval(_ tea.Context, interval time.Duration) Model {
 	return Model{
 		Interval: interval,
 		id:       nextID(),
@@ -63,8 +63,8 @@ func NewWithInterval(interval time.Duration) Model {
 }
 
 // New creates a new stopwatch with 1s interval.
-func New() Model {
-	return NewWithInterval(time.Second)
+func New(ctx tea.Context) Model {
+	return NewWithInterval(ctx, time.Second)
 }
 
 // ID returns the unique ID of the model.
@@ -73,7 +73,7 @@ func (m Model) ID() int {
 }
 
 // Init starts the stopwatch.
-func (m Model) Init() tea.Cmd {
+func (m Model) Init(tea.Context) tea.Cmd {
 	return m.Start()
 }
 
@@ -112,7 +112,7 @@ func (m Model) Running() bool {
 }
 
 // Update handles the timer tick.
-func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
+func (m Model) Update(_ tea.Context, msg tea.Msg) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case StartStopMsg:
 		if msg.ID != m.id {
@@ -141,7 +141,7 @@ func (m Model) Elapsed() time.Duration {
 }
 
 // View of the timer component.
-func (m Model) View() string {
+func (m Model) View(tea.Context) string {
 	return m.d.String()
 }
 

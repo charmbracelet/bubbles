@@ -11,7 +11,7 @@ import (
 
 // New returns a new model with the given width and height as well as default
 // key mappings.
-func New(width, height int) (m Model) {
+func New(ctx tea.Context, width, height int) (m Model) {
 	m.Width = width
 	m.Height = height
 	m.setInitialValues()
@@ -64,7 +64,7 @@ func (m *Model) setInitialValues() {
 }
 
 // Init exists to satisfy the tea.Model interface for composability purposes.
-func (m Model) Init() tea.Cmd {
+func (m Model) Init(tea.Context) tea.Cmd {
 	return nil
 }
 
@@ -276,7 +276,7 @@ func ViewUp(m Model, lines []string) tea.Cmd {
 }
 
 // Update handles standard message-based viewport updates.
-func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
+func (m Model) Update(_ tea.Context, msg tea.Msg) (Model, tea.Cmd) {
 	var cmd tea.Cmd
 	m, cmd = m.updateAsModel(msg)
 	return m, cmd
@@ -354,7 +354,7 @@ func (m Model) updateAsModel(msg tea.Msg) (Model, tea.Cmd) {
 }
 
 // View renders the viewport into a string.
-func (m Model) View() string {
+func (m Model) View(ctx tea.Context) string {
 	if m.HighPerformanceRendering {
 		// Just send newlines since we're going to be rendering the actual
 		// content separately. We still need to send something that equals the
@@ -372,7 +372,7 @@ func (m Model) View() string {
 	}
 	contentWidth := w - m.Style.GetHorizontalFrameSize()
 	contentHeight := h - m.Style.GetVerticalFrameSize()
-	contents := lipgloss.NewStyle().
+	contents := ctx.NewStyle().
 		Width(contentWidth).      // pad to width.
 		Height(contentHeight).    // pad to height.
 		MaxHeight(contentHeight). // truncate height if taller.

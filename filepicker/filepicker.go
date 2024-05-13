@@ -29,7 +29,7 @@ func nextID() int {
 }
 
 // New returns a new filepicker model with default styling and key bindings.
-func New() Model {
+func New(ctx tea.Context) Model {
 	return Model{
 		id:               nextID(),
 		CurrentDirectory: ".",
@@ -49,7 +49,7 @@ func New() Model {
 		minStack:         newStack(),
 		maxStack:         newStack(),
 		KeyMap:           DefaultKeyMap(),
-		Styles:           DefaultStyles(),
+		Styles:           DefaultStyles(ctx),
 	}
 }
 
@@ -112,25 +112,19 @@ type Styles struct {
 }
 
 // DefaultStyles defines the default styling for the file picker.
-func DefaultStyles() Styles {
-	return DefaultStylesWithRenderer(lipgloss.DefaultRenderer())
-}
-
-// DefaultStylesWithRenderer defines the default styling for the file picker,
-// with a given Lip Gloss renderer.
-func DefaultStylesWithRenderer(r *lipgloss.Renderer) Styles {
+func DefaultStyles(ctx tea.Context) Styles {
 	return Styles{
-		DisabledCursor:   r.NewStyle().Foreground(lipgloss.Color("247")),
-		Cursor:           r.NewStyle().Foreground(lipgloss.Color("212")),
-		Symlink:          r.NewStyle().Foreground(lipgloss.Color("36")),
-		Directory:        r.NewStyle().Foreground(lipgloss.Color("99")),
-		File:             r.NewStyle(),
-		DisabledFile:     r.NewStyle().Foreground(lipgloss.Color("243")),
-		DisabledSelected: r.NewStyle().Foreground(lipgloss.Color("247")),
-		Permission:       r.NewStyle().Foreground(lipgloss.Color("244")),
-		Selected:         r.NewStyle().Foreground(lipgloss.Color("212")).Bold(true),
-		FileSize:         r.NewStyle().Foreground(lipgloss.Color("240")).Width(fileSizeWidth).Align(lipgloss.Right),
-		EmptyDirectory:   r.NewStyle().Foreground(lipgloss.Color("240")).PaddingLeft(paddingLeft).SetString("Bummer. No Files Found."),
+		DisabledCursor:   ctx.NewStyle().Foreground(lipgloss.Color("247")),
+		Cursor:           ctx.NewStyle().Foreground(lipgloss.Color("212")),
+		Symlink:          ctx.NewStyle().Foreground(lipgloss.Color("36")),
+		Directory:        ctx.NewStyle().Foreground(lipgloss.Color("99")),
+		File:             ctx.NewStyle(),
+		DisabledFile:     ctx.NewStyle().Foreground(lipgloss.Color("243")),
+		DisabledSelected: ctx.NewStyle().Foreground(lipgloss.Color("247")),
+		Permission:       ctx.NewStyle().Foreground(lipgloss.Color("244")),
+		Selected:         ctx.NewStyle().Foreground(lipgloss.Color("212")).Bold(true),
+		FileSize:         ctx.NewStyle().Foreground(lipgloss.Color("240")).Width(fileSizeWidth).Align(lipgloss.Right),
+		EmptyDirectory:   ctx.NewStyle().Foreground(lipgloss.Color("240")).PaddingLeft(paddingLeft).SetString("Bummer. No Files Found."),
 	}
 }
 
@@ -236,12 +230,12 @@ func (m Model) readDir(path string, showHidden bool) tea.Cmd {
 }
 
 // Init initializes the file picker model.
-func (m Model) Init() tea.Cmd {
+func (m Model) Init(tea.Context) tea.Cmd {
 	return m.readDir(m.CurrentDirectory, m.ShowHidden)
 }
 
 // Update handles user interactions within the file picker model.
-func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
+func (m Model) Update(_ tea.Context, msg tea.Msg) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case readDirMsg:
 		if msg.id != m.id {
@@ -363,7 +357,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 }
 
 // View returns the view of the file picker.
-func (m Model) View() string {
+func (m Model) View(tea.Context) string {
 	if len(m.files) == 0 {
 		return m.Styles.EmptyDirectory.Height(m.Height).MaxHeight(m.Height).String()
 	}

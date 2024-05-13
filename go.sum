@@ -6,6 +6,8 @@ github.com/atotto/clipboard v0.1.4 h1:EH0zSVneZPSuFR11BlR9YppQTVDbh5+16AmcJi4g1z
 github.com/atotto/clipboard v0.1.4/go.mod h1:ZY9tmq7sm5xIbd9bOK4onWV4S6X0u6GY7Vn0Yu86PYI=
 github.com/aymanbagabas/go-osc52/v2 v2.0.1 h1:HwpRHbFMcZLEVr42D4p7XBqjyuxQH5SMiErDT4WkJ2k=
 github.com/aymanbagabas/go-osc52/v2 v2.0.1/go.mod h1:uYgXzlJ7ZpABp8OJ+exZzJJhRNQ2ASbcXHWsFqH8hp8=
+github.com/charmbracelet/bubbletea v0.26.3-0.20240510203954-a434f25ff7d3 h1:Bg0eRBAgsWh84rpAq5X+e52TMAfloxoWeSJkYp9Pyw0=
+github.com/charmbracelet/bubbletea v0.26.3-0.20240510203954-a434f25ff7d3/go.mod h1:jxN9TKmttdNsUKWSjjQQonHIY4nCuTBNdkDn3/Bpf7A=
 github.com/charmbracelet/harmonica v0.2.0 h1:8NxJWRWg/bzKqqEaaeFNipOu77YR5t8aSwG4pgaUBiQ=
 github.com/charmbracelet/harmonica v0.2.0/go.mod h1:KSri/1RMQOZLbw7AHqgcBycp8pgJnQMYYT8QZRqZ1Ao=
 github.com/charmbracelet/lipgloss v0.10.1-0.20240510203806-a6dc2ab509a8 h1:aOfL0f8fhgqKe+iOIQYAIazSwTO4J0axB5ztPxw5JHY=

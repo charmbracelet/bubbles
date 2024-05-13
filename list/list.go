@@ -49,7 +49,7 @@ type ItemDelegate interface {
 	// loop will pass through here except when the user is setting a filter.
 	// Use this method to perform item-level updates appropriate to this
 	// delegate.
-	Update(msg tea.Msg, m *Model) tea.Cmd
+	Update(ctx tea.Context, msg tea.Msg, m *Model) tea.Cmd
 }
 
 type filteredItem struct {
@@ -192,24 +192,26 @@ type Model struct {
 	filteredItems filteredItems
 
 	delegate ItemDelegate
+
+	ctx tea.Context
 }
 
 // New returns a new model with sensible defaults.
-func New(items []Item, delegate ItemDelegate, width, height int) Model {
-	styles := DefaultStyles()
+func New(ctx tea.Context, items []Item, delegate ItemDelegate, width, height int) Model {
+	styles := DefaultStyles(ctx)
 
-	sp := spinner.New()
+	sp := spinner.New(ctx)
 	sp.Spinner = spinner.Line
 	sp.Style = styles.Spinner
 
-	filterInput := textinput.New()
+	filterInput := textinput.New(ctx)
 	filterInput.Prompt = "Filter: "
 	filterInput.PromptStyle = styles.FilterPrompt
 	filterInput.Cursor.Style = styles.FilterCursor
 	filterInput.CharLimit = 64
 	filterInput.Focus()
 
-	p := paginator.New()
+	p := paginator.New(ctx)
 	p.Type = paginator.Dots
 	p.ActiveDot = styles.ActivePaginationDot.String()
 	p.InactiveDot = styles.InactivePaginationDot.String()
@@ -236,7 +238,8 @@ func New(items []Item, delegate ItemDelegate, width, height int) Model {
 		items:     items,
 		Paginator: p,
 		spinner:   sp,
-		Help:      help.New(),
+		Help:      help.New(ctx),
+		ctx:       ctx,
 	}
 
 	m.updatePagination()
@@ -768,7 +771,7 @@ func (m *Model) hideStatusMessage() {
 }
 
 // Update is the Bubble Tea update loop.
-func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
+func (m Model) Update(ctx tea.Context, msg tea.Msg) (Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
@@ -782,7 +785,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		return m, nil
 
 	case spinner.TickMsg:
-		newSpinnerModel, cmd := m.spinner.Update(msg)
+		newSpinnerModel, cmd := m.spinner.Update(ctx, msg)
 		m.spinner = newSpinnerModel
 		if m.showSpinner {
 			cmds = append(cmds, cmd)
@@ -859,7 +862,7 @@ func (m *Model) handleBrowsing(msg tea.Msg) tea.Cmd {
 		}
 	}
 
-	cmd := m.delegate.Update(msg, m)
+	cmd := m.delegate.Update(m.ctx, msg, m)
 	cmds = append(cmds, cmd)
 
 	// Keep the index in bounds when paginating
@@ -909,7 +912,7 @@ func (m *Model) handleFiltering(msg tea.Msg) tea.Cmd {
 	}
 
 	// Update the filter text input component
-	newFilterInputModel, inputCmd := m.FilterInput.Update(msg)
+	newFilterInputModel, inputCmd := m.FilterInput.Update(m.ctx, msg)
 	filterChanged := m.FilterInput.Value() != newFilterInputModel.Value()
 	m.FilterInput = newFilterInputModel
 	cmds = append(cmds, inputCmd)
@@ -1003,7 +1006,7 @@ func (m Model) FullHelp() [][]key.Binding {
 }
 
 // View renders the component.
-func (m Model) View() string {
+func (m Model) View(ctx tea.Context) string {
 	var (
 		sections    []string
 		availHeight = m.height
@@ -1033,7 +1036,7 @@ func (m Model) View() string {
 		availHeight -= lipgloss.Height(help)
 	}
 
-	content := lipgloss.NewStyle().Height(availHeight).Render(m.populatedView())
+	content := ctx.NewStyle().Height(availHeight).Render(m.populatedView())
 	sections = append(sections, content)
 
 	if m.showPagination {
@@ -1062,7 +1065,7 @@ func (m Model) titleView() string {
 
 	// If the filter's showing, draw that. Otherwise draw the title.
 	if m.showFilter && m.filterState == Filtering {
-		view += m.FilterInput.View()
+		view += m.FilterInput.View(m.ctx)
 	} else if m.showTitle {
 		if m.showSpinner && spinnerOnLeft {
 			view += spinnerView + spinnerLeftGap
@@ -1147,13 +1150,13 @@ func (m Model) paginationView() string {
 		return ""
 	}
 
-	s := m.Paginator.View()
+	s := m.Paginator.View(m.ctx)
 
 	// If the dot pagination is wider than the width of the window
 	// use the arabic paginator.
 	if ansi.PrintableRuneWidth(s) > m.width {
 		m.Paginator.Type = paginator.Arabic
-		s = m.Styles.ArabicPagination.Render(m.Paginator.View())
+		s = m.Styles.ArabicPagination.Render(m.Paginator.View(m.ctx))
 	}
 
 	style := m.Styles.PaginationStyle
@@ -1209,7 +1212,7 @@ func (m Model) helpView() string {
 }
 
 func (m Model) spinnerView() string {
-	return m.spinner.View()
+	return m.spinner.View(m.ctx)
 }
 
 func filterItems(m Model) tea.Cmd {

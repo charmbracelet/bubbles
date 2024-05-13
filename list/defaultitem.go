@@ -32,15 +32,15 @@ type DefaultItemStyles struct {
 
 // NewDefaultItemStyles returns style definitions for a default item. See
 // DefaultItemView for when these come into play.
-func NewDefaultItemStyles() (s DefaultItemStyles) {
-	s.NormalTitle = lipgloss.NewStyle().
+func NewDefaultItemStyles(ctx tea.Context) (s DefaultItemStyles) {
+	s.NormalTitle = ctx.NewStyle().
 		Foreground(lipgloss.AdaptiveColor{Light: "#1a1a1a", Dark: "#dddddd"}).
 		Padding(0, 0, 0, 2)
 
 	s.NormalDesc = s.NormalTitle.Copy().
 		Foreground(lipgloss.AdaptiveColor{Light: "#A49FA5", Dark: "#777777"})
 
-	s.SelectedTitle = lipgloss.NewStyle().
+	s.SelectedTitle = ctx.NewStyle().
 		Border(lipgloss.NormalBorder(), false, false, false, true).
 		BorderForeground(lipgloss.AdaptiveColor{Light: "#F793FF", Dark: "#AD58B4"}).
 		Foreground(lipgloss.AdaptiveColor{Light: "#EE6FF8", Dark: "#EE6FF8"}).
@@ -49,14 +49,14 @@ func NewDefaultItemStyles() (s DefaultItemStyles) {
 	s.SelectedDesc = s.SelectedTitle.Copy().
 		Foreground(lipgloss.AdaptiveColor{Light: "#F793FF", Dark: "#AD58B4"})
 
-	s.DimmedTitle = lipgloss.NewStyle().
+	s.DimmedTitle = ctx.NewStyle().
 		Foreground(lipgloss.AdaptiveColor{Light: "#A49FA5", Dark: "#777777"}).
 		Padding(0, 0, 0, 2)
 
 	s.DimmedDesc = s.DimmedTitle.Copy().
 		Foreground(lipgloss.AdaptiveColor{Light: "#C2B8C2", Dark: "#4D4D4D"})
 
-	s.FilterMatch = lipgloss.NewStyle().Underline(true)
+	s.FilterMatch = ctx.NewStyle().Underline(true)
 
 	return s
 }
@@ -92,10 +92,10 @@ type DefaultDelegate struct {
 }
 
 // NewDefaultDelegate creates a new delegate with default styles.
-func NewDefaultDelegate() DefaultDelegate {
+func NewDefaultDelegate(ctx tea.Context) DefaultDelegate {
 	return DefaultDelegate{
 		ShowDescription: true,
-		Styles:          NewDefaultItemStyles(),
+		Styles:          NewDefaultItemStyles(ctx),
 		height:          2,
 		spacing:         1,
 	}

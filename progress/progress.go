@@ -12,7 +12,6 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/lucasb-eyer/go-colorful"
 	"github.com/muesli/reflow/ansi"
-	"github.com/muesli/termenv"
 )
 
 // Internal ID management. Used during animating to assure that frame messages
@@ -115,13 +114,6 @@ func WithSpringOptions(frequency, damping float64) Option {
 	}
 }
 
-// WithColorProfile sets the color profile to use for the progress bar.
-func WithColorProfile(p termenv.Profile) Option {
-	return func(m *Model) {
-		m.colorProfile = p
-	}
-}
-
 // FrameMsg indicates that an animation step should occur.
 type FrameMsg struct {
 	id  int
@@ -169,13 +161,10 @@ type Model struct {
 	// of the progress bar. When false, the width of the gradient will be set
 	// to the full width of the progress bar.
 	scaleRamp bool
-
-	// Color profile for the progress bar.
-	colorProfile termenv.Profile
 }
 
 // New returns a model with default values.
-func New(opts ...Option) Model {
+func New(ctx tea.Context, opts ...Option) Model {
 	m := Model{
 		id:             nextID(),
 		Width:          defaultWidth,
@@ -185,7 +174,6 @@ func New(opts ...Option) Model {
 		EmptyColor:     "#606060",
 		ShowPercentage: true,
 		PercentFormat:  " %3.0f%%",
-		colorProfile:   termenv.ColorProfile(),
 	}
 	if !m.springCustomized {
 		m.SetSpringOptions(defaultFrequency, defaultDamping)
@@ -203,15 +191,15 @@ func New(opts ...Option) Model {
 var NewModel = New
 
 // Init exists to satisfy the tea.Model interface.
-func (m Model) Init() tea.Cmd {
-	return nil
+func (m Model) Init(tea.Context) (tea.Model, tea.Cmd) {
+	return m, nil
 }
 
 // Update is used to animate the progress bar during transitions. Use
 // SetPercent to create the command you'll need to trigger the animation.
 //
 // If you're rendering with ViewAs you won't need this.
-func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m Model) Update(ctx tea.Context, msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case FrameMsg:
 		if msg.id != m.id || msg.tag != m.tag {
@@ -275,15 +263,15 @@ func (m *Model) DecrPercent(v float64) tea.Cmd {
 
 // View renders an animated progress bar in its current state. To render
 // a static progress bar based on your own calculations use ViewAs instead.
-func (m Model) View() string {
-	return m.ViewAs(m.percentShown)
+func (m Model) View(ctx tea.Context) string {
+	return m.ViewAs(ctx, m.percentShown)
 }
 
 // ViewAs renders the progress bar with a given percentage.
-func (m Model) ViewAs(percent float64) string {
+func (m Model) ViewAs(ctx tea.Context, percent float64) string {
 	b := strings.Builder{}
 	percentView := m.percentageView(percent)
-	m.barView(&b, percent, ansi.PrintableRuneWidth(percentView))
+	m.barView(ctx, &b, percent, ansi.PrintableRuneWidth(percentView))
 	b.WriteString(percentView)
 	return b.String()
 }
@@ -294,7 +282,7 @@ func (m *Model) nextFrame() tea.Cmd {
 	})
 }
 
-func (m Model) barView(b *strings.Builder, percent float64, textWidth int) {
+func (m Model) barView(ctx tea.Context, b *strings.Builder, percent float64, textWidth int) {
 	var (
 		tw = max(0, m.Width-textWidth)                // total width
 		fw = int(math.Round((float64(tw) * percent))) // filled width
@@ -317,20 +305,19 @@ func (m Model) barView(b *strings.Builder, percent float64, textWidth int) {
 				p = float64(i) / float64(tw-1)
 			}
 			c := m.rampColorA.BlendLuv(m.rampColorB, p).Hex()
-			b.WriteString(termenv.
-				String(string(m.Full)).
-				Foreground(m.color(c)).
-				String(),
+			b.WriteString(ctx.NewStyle().
+				Foreground(lipgloss.Color(c)).
+				Render(string(m.Full)),
 			)
 		}
 	} else {
 		// Solid fill
-		s := termenv.String(string(m.Full)).Foreground(m.color(m.FullColor)).String()
+		s := ctx.NewStyle().Foreground(lipgloss.Color(m.FullColor)).Render(string(m.Full))
 		b.WriteString(strings.Repeat(s, fw))
 	}
 
 	// Empty fill
-	e := termenv.String(string(m.Empty)).Foreground(m.color(m.EmptyColor)).String()
+	e := ctx.NewStyle().Foreground(lipgloss.Color(m.EmptyColor)).Render(string(m.Empty))
 	n := max(0, tw-fw)
 	b.WriteString(strings.Repeat(e, n))
 }
@@ -356,10 +343,6 @@ func (m *Model) setRamp(colorA, colorB string, scaled bool) {
 	m.scaleRamp = scaled
 	m.rampColorA = a
 	m.rampColorB = b
-}
-
-func (m Model) color(c string) termenv.Color {
-	return m.colorProfile.Color(c)
 }
 
 func max(a, b int) int {

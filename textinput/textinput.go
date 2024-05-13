@@ -155,15 +155,18 @@ type Model struct {
 }
 
 // New creates a new model with default settings.
-func New() Model {
+func New(ctx tea.Context) Model {
 	return Model{
 		Prompt:           "> ",
 		EchoCharacter:    '*',
 		CharLimit:        0,
-		PlaceholderStyle: lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
+		PromptStyle:      ctx.NewStyle(),
+		TextStyle:        ctx.NewStyle(),
+		CursorStyle:      ctx.NewStyle(),
+		PlaceholderStyle: ctx.NewStyle().Foreground(lipgloss.Color("240")),
 		ShowSuggestions:  false,
-		CompletionStyle:  lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
-		Cursor:           cursor.New(),
+		CompletionStyle:  ctx.NewStyle().Foreground(lipgloss.Color("240")),
+		Cursor:           cursor.New(ctx),
 		KeyMap:           DefaultKeyMap,
 
 		suggestions: [][]rune{},
@@ -549,7 +552,7 @@ func (m Model) echoTransform(v string) string {
 }
 
 // Update is the Bubble Tea update loop.
-func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
+func (m Model) Update(ctx tea.Context, msg tea.Msg) (Model, tea.Cmd) {
 	if !m.focus {
 		return m, nil
 	}
@@ -636,7 +639,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	var cmds []tea.Cmd
 	var cmd tea.Cmd
 
-	m.Cursor, cmd = m.Cursor.Update(msg)
+	m.Cursor, cmd = m.Cursor.Update(ctx, msg)
 	cmds = append(cmds, cmd)
 
 	if oldPos != m.pos && m.Cursor.Mode() == cursor.CursorBlink {
@@ -649,10 +652,10 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 }
 
 // View renders the textinput in its current state.
-func (m Model) View() string {
+func (m Model) View(ctx tea.Context) string {
 	// Placeholder text
 	if len(m.value) == 0 && m.Placeholder != "" {
-		return m.placeholderView()
+		return m.placeholderView(ctx)
 	}
 
 	styleText := m.TextStyle.Inline(true).Render
@@ -664,7 +667,7 @@ func (m Model) View() string {
 	if pos < len(value) {
 		char := m.echoTransform(string(value[pos]))
 		m.Cursor.SetChar(char)
-		v += m.Cursor.View()                                   // cursor and text under it
+		v += m.Cursor.View(ctx)                                // cursor and text under it
 		v += styleText(m.echoTransform(string(value[pos+1:]))) // text after cursor
 		v += m.completionView(0)                               // suggested completion
 	} else {
@@ -673,15 +676,15 @@ func (m Model) View() string {
 			if len(value) < len(suggestion) {
 				m.Cursor.TextStyle = m.CompletionStyle
 				m.Cursor.SetChar(m.echoTransform(string(suggestion[pos])))
-				v += m.Cursor.View()
+				v += m.Cursor.View(ctx)
 				v += m.completionView(1)
 			} else {
 				m.Cursor.SetChar(" ")
-				v += m.Cursor.View()
+				v += m.Cursor.View(ctx)
 			}
 		} else {
 			m.Cursor.SetChar(" ")
-			v += m.Cursor.View()
+			v += m.Cursor.View(ctx)
 		}
 	}
 
@@ -700,7 +703,7 @@ func (m Model) View() string {
 }
 
 // placeholderView returns the prompt and placeholder view, if any.
-func (m Model) placeholderView() string {
+func (m Model) placeholderView(ctx tea.Context) string {
 	var (
 		v     string
 		p     = []rune(m.Placeholder)
@@ -709,7 +712,7 @@ func (m Model) placeholderView() string {
 
 	m.Cursor.TextStyle = m.PlaceholderStyle
 	m.Cursor.SetChar(string(p[:1]))
-	v += m.Cursor.View()
+	v += m.Cursor.View(ctx)
 
 	// If the entire placeholder is already set and no padding is needed, finish
 	if m.Width < 1 && len(p) <= 1 {

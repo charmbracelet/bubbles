@@ -245,12 +245,12 @@ type Model struct {
 }
 
 // New creates a new model with default settings.
-func New() Model {
-	vp := viewport.New(0, 0)
+func New(ctx tea.Context) Model {
+	vp := viewport.New(ctx, 0, 0)
 	vp.KeyMap = viewport.KeyMap{}
-	cur := cursor.New()
+	cur := cursor.New(ctx)
 
-	focusedStyle, blurredStyle := DefaultStyles()
+	focusedStyle, blurredStyle := DefaultStyles(ctx)
 
 	m := Model{
 		CharLimit:            defaultCharLimit,
@@ -283,26 +283,26 @@ func New() Model {
 
 // DefaultStyles returns the default styles for focused and blurred states for
 // the textarea.
-func DefaultStyles() (Style, Style) {
+func DefaultStyles(ctx tea.Context) (Style, Style) {
 	focused := Style{
-		Base:             lipgloss.NewStyle(),
-		CursorLine:       lipgloss.NewStyle().Background(lipgloss.AdaptiveColor{Light: "255", Dark: "0"}),
-		CursorLineNumber: lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "240"}),
-		EndOfBuffer:      lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "254", Dark: "0"}),
-		LineNumber:       lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "249", Dark: "7"}),
-		Placeholder:      lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
-		Prompt:           lipgloss.NewStyle().Foreground(lipgloss.Color("7")),
-		Text:             lipgloss.NewStyle(),
+		Base:             ctx.NewStyle(),
+		CursorLine:       ctx.NewStyle().Background(lipgloss.AdaptiveColor{Light: "255", Dark: "0"}),
+		CursorLineNumber: ctx.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "240"}),
+		EndOfBuffer:      ctx.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "254", Dark: "0"}),
+		LineNumber:       ctx.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "249", Dark: "7"}),
+		Placeholder:      ctx.NewStyle().Foreground(lipgloss.Color("240")),
+		Prompt:           ctx.NewStyle().Foreground(lipgloss.Color("7")),
+		Text:             ctx.NewStyle(),
 	}
 	blurred := Style{
-		Base:             lipgloss.NewStyle(),
-		CursorLine:       lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "245", Dark: "7"}),
-		CursorLineNumber: lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "249", Dark: "7"}),
-		EndOfBuffer:      lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "254", Dark: "0"}),
-		LineNumber:       lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "249", Dark: "7"}),
-		Placeholder:      lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
-		Prompt:           lipgloss.NewStyle().Foreground(lipgloss.Color("7")),
-		Text:             lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "245", Dark: "7"}),
+		Base:             ctx.NewStyle(),
+		CursorLine:       ctx.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "245", Dark: "7"}),
+		CursorLineNumber: ctx.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "249", Dark: "7"}),
+		EndOfBuffer:      ctx.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "254", Dark: "0"}),
+		LineNumber:       ctx.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "249", Dark: "7"}),
+		Placeholder:      ctx.NewStyle().Foreground(lipgloss.Color("240")),
+		Prompt:           ctx.NewStyle().Foreground(lipgloss.Color("7")),
+		Text:             ctx.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "245", Dark: "7"}),
 	}
 
 	return focused, blurred
@@ -927,7 +927,7 @@ func (m *Model) SetHeight(h int) {
 }
 
 // Update is the Bubble Tea update loop.
-func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
+func (m Model) Update(ctx tea.Context, msg tea.Msg) (Model, tea.Cmd) {
 	if !m.focus {
 		m.Cursor.Blur()
 		return m, nil
@@ -1047,12 +1047,12 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		m.Err = msg
 	}
 
-	vp, cmd := m.viewport.Update(msg)
+	vp, cmd := m.viewport.Update(ctx, msg)
 	m.viewport = &vp
 	cmds = append(cmds, cmd)
 
 	newRow, newCol := m.cursorLineNumber(), m.col
-	m.Cursor, cmd = m.Cursor.Update(msg)
+	m.Cursor, cmd = m.Cursor.Update(ctx, msg)
 	if (newRow != oldRow || newCol != oldCol) && m.Cursor.Mode() == cursor.CursorBlink {
 		m.Cursor.Blink = false
 		cmd = m.Cursor.BlinkCmd()
@@ -1065,9 +1065,9 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 }
 
 // View renders the text area in its current state.
-func (m Model) View() string {
+func (m Model) View(ctx tea.Context) string {
 	if m.Value() == "" && m.row == 0 && m.col == 0 && m.Placeholder != "" {
-		return m.placeholderView()
+		return m.placeholderView(ctx)
 	}
 	m.Cursor.TextStyle = m.style.CursorLine
 
@@ -1126,10 +1126,10 @@ func (m Model) View() string {
 				s.WriteString(style.Render(string(wrappedLine[:lineInfo.ColumnOffset])))
 				if m.col >= len(line) && lineInfo.CharOffset >= m.width {
 					m.Cursor.SetChar(" ")
-					s.WriteString(m.Cursor.View())
+					s.WriteString(m.Cursor.View(ctx))
 				} else {
 					m.Cursor.SetChar(string(wrappedLine[lineInfo.ColumnOffset]))
-					s.WriteString(style.Render(m.Cursor.View()))
+					s.WriteString(style.Render(m.Cursor.View(ctx)))
 					s.WriteString(style.Render(string(wrappedLine[lineInfo.ColumnOffset+1:])))
 				}
 			} else {
@@ -1154,7 +1154,7 @@ func (m Model) View() string {
 	}
 
 	m.viewport.SetContent(s.String())
-	return m.style.Base.Render(m.viewport.View())
+	return m.style.Base.Render(m.viewport.View(ctx))
 }
 
 func (m Model) getPromptString(displayLine int) (prompt string) {
@@ -1171,7 +1171,7 @@ func (m Model) getPromptString(displayLine int) (prompt string) {
 }
 
 // placeholderView returns the prompt and placeholder view, if any.
-func (m Model) placeholderView() string {
+func (m Model) placeholderView(ctx tea.Context) string {
 	var (
 		s     strings.Builder
 		p     = rw.Truncate(rw.Truncate(m.Placeholder, m.width, "..."), m.width, "")
@@ -1188,7 +1188,7 @@ func (m Model) placeholderView() string {
 
 	m.Cursor.TextStyle = m.style.Placeholder
 	m.Cursor.SetChar(string(p[0]))
-	s.WriteString(m.style.CursorLine.Render(m.Cursor.View()))
+	s.WriteString(m.style.CursorLine.Render(m.Cursor.View(ctx)))
 
 	// The rest of the placeholder text
 	s.WriteString(m.style.CursorLine.Render(style.Render(p[1:] + strings.Repeat(" ", max(0, m.width-uniseg.StringWidth(p))))))
@@ -1207,7 +1207,7 @@ func (m Model) placeholderView() string {
 	}
 
 	m.viewport.SetContent(s.String())
-	return m.style.Base.Render(m.viewport.View())
+	return m.style.Base.Render(m.viewport.View(ctx))
 }
 
 // Blink returns the blink command for the cursor.
