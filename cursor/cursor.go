@@ -2,6 +2,7 @@ package cursor
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -163,7 +164,7 @@ func (m *Model) BlinkCmd() tea.Cmd {
 		m.blinkCtx.cancel()
 	}
 
-	ctx, cancel := context.WithTimeout(m.blinkCtx.ctx, m.BlinkSpeed)
+	ctx, cancel := context.WithTimeout(context.Background(), m.BlinkSpeed)
 	m.blinkCtx.cancel = cancel
 
 	m.blinkTag++
@@ -171,7 +172,7 @@ func (m *Model) BlinkCmd() tea.Cmd {
 	return func() tea.Msg {
 		defer cancel()
 		<-ctx.Done()
-		if ctx.Err() == context.DeadlineExceeded {
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 			return BlinkMsg{id: m.id, tag: m.blinkTag}
 		}
 		return blinkCanceled{}
