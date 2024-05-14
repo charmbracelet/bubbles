@@ -6,9 +6,9 @@ require (
 	github.com/MakeNowJust/heredoc v1.0.0
 	github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d
 	github.com/atotto/clipboard v0.1.4
-	github.com/charmbracelet/bubbletea v0.26.3-0.20240513205551-cf6db9e1506a
+	github.com/charmbracelet/bubbletea v0.26.3-0.20240514165352-43ffb64832ac
 	github.com/charmbracelet/harmonica v0.2.0
-	github.com/charmbracelet/lipgloss v0.10.1-0.20240513205513-d059cfa7d6f0
+	github.com/charmbracelet/lipgloss v0.10.1-0.20240514163550-4de43222e210
 	github.com/dustin/go-humanize v1.0.1
 	github.com/lucasb-eyer/go-colorful v1.2.0
 	github.com/mattn/go-runewidth v0.0.15
@@ -20,7 +20,7 @@ require (
 
 require (
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
-	github.com/charmbracelet/x/ansi v0.1.0 // indirect
+	github.com/charmbracelet/x/ansi v0.1.1 // indirect
 	github.com/charmbracelet/x/input v0.1.0 // indirect
 	github.com/charmbracelet/x/term v0.1.1 // indirect
 	github.com/charmbracelet/x/windows v0.1.0 // indirect
