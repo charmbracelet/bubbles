@@ -87,7 +87,7 @@ func New(ctx tea.Context) Model {
 		mode:  CursorBlink,
 
 		blinkCtx: &blinkCtx{
-			ctx: ctx,
+			ctx: context.Background(),
 		},
 	}
 }
@@ -164,7 +164,7 @@ func (m *Model) BlinkCmd() tea.Cmd {
 		m.blinkCtx.cancel()
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), m.BlinkSpeed)
+	ctx, cancel := context.WithTimeout(m.blinkCtx.ctx, m.BlinkSpeed)
 	m.blinkCtx.cancel = cancel
 
 	m.blinkTag++
