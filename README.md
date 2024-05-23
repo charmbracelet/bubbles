@@ -217,6 +217,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 * [mritd/bubbles](https://github.com/mritd/bubbles): Some general-purpose
   bubbles. Inputs with validation, menu selection, a modified progressbar, and
   so on.
+* [kevm/bubbleo](https://github.com/KevM/bubbleo): A set of bubbles with a
+  focus on navigation: navigation stacks, breakcrumbs, menus and so on.
 * [treilik/bubbleboxer](https://github.com/treilik/bubbleboxer): Layout
   multiple bubbles side-by-side in a layout-tree.
 * [treilik/bubblelister](https://github.com/treilik/bubblelister): An alternate

@@ -6,9 +6,9 @@ import (
 	"unicode"
 
 	"github.com/MakeNowJust/heredoc"
-	"github.com/acarl005/stripansi"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 )
 
 func TestVerticalScrolling(t *testing.T) {
@@ -1326,7 +1326,7 @@ func sendString(m Model, str string) Model {
 }
 
 func stripString(str string) string {
-	s := stripansi.Strip(str)
+	s := ansi.Strip(str)
 	ss := strings.Split(s, "\n")
 
 	var lines []string
