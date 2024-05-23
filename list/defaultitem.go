@@ -8,7 +8,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/muesli/reflow/truncate"
+	"github.com/charmbracelet/x/ansi"
 )
 
 // DefaultItemStyles defines styling for a default list item.
@@ -155,15 +155,15 @@ func (d DefaultDelegate) Render(w io.Writer, m Model, index int, item Item) {
 	}
 
 	// Prevent text from exceeding list width
-	textwidth := uint(m.width - s.NormalTitle.GetPaddingLeft() - s.NormalTitle.GetPaddingRight())
-	title = truncate.StringWithTail(title, textwidth, ellipsis)
+	textwidth := m.width - s.NormalTitle.GetPaddingLeft() - s.NormalTitle.GetPaddingRight()
+	title = ansi.Truncate(title, textwidth, ellipsis)
 	if d.ShowDescription {
 		var lines []string
 		for i, line := range strings.Split(desc, "\n") {
 			if i >= d.height-1 {
 				break
 			}
-			lines = append(lines, truncate.StringWithTail(line, textwidth, ellipsis))
+			lines = append(lines, ansi.Truncate(line, textwidth, ellipsis))
 		}
 		desc = strings.Join(lines, "\n")
 	}

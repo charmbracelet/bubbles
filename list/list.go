@@ -17,8 +17,7 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/muesli/reflow/ansi"
-	"github.com/muesli/reflow/truncate"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/sahilm/fuzzy"
 )
 
@@ -1075,7 +1074,7 @@ func (m Model) titleView() string {
 		// Status message
 		if m.filterState != Filtering {
 			view += "  " + m.statusMessage
-			view = truncate.StringWithTail(view, uint(m.width-spinnerWidth), ellipsis)
+			view = ansi.Truncate(view, m.width-spinnerWidth, ellipsis)
 		}
 	}
 
@@ -1126,7 +1125,7 @@ func (m Model) statusView() string {
 
 		if filtered {
 			f := strings.TrimSpace(m.FilterInput.Value())
-			f = truncate.StringWithTail(f, 10, "…")
+			f = ansi.Truncate(f, 10, "…")
 			status += fmt.Sprintf("“%s” ", f)
 		}
 
@@ -1151,7 +1150,7 @@ func (m Model) paginationView() string {
 
 	// If the dot pagination is wider than the width of the window
 	// use the arabic paginator.
-	if ansi.PrintableRuneWidth(s) > m.width {
+	if ansi.StringWidth(s) > m.width {
 		m.Paginator.Type = paginator.Arabic
 		s = m.Styles.ArabicPagination.Render(m.Paginator.View())
 	}

@@ -10,8 +10,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/harmonica"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/lucasb-eyer/go-colorful"
-	"github.com/muesli/reflow/ansi"
 	"github.com/muesli/termenv"
 )
 
@@ -283,7 +283,7 @@ func (m Model) View() string {
 func (m Model) ViewAs(percent float64) string {
 	b := strings.Builder{}
 	percentView := m.percentageView(percent)
-	m.barView(&b, percent, ansi.PrintableRuneWidth(percentView))
+	m.barView(&b, percent, ansi.StringWidth(percentView))
 	b.WriteString(percentView)
 	return b.String()
 }
