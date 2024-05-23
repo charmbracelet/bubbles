@@ -342,11 +342,11 @@ func TestView(t *testing.T) {
 			want: want{
 				view: heredoc.Doc(`
 					>   1 Hello, World!
-					> ~
-					> ~
-					> ~
-					> ~
-					> ~
+					>
+					>
+					>
+					>
+					>
 				`),
 			},
 		},
@@ -360,11 +360,11 @@ func TestView(t *testing.T) {
 			want: want{
 				view: heredoc.Doc(`
 					>   1 the first line
-					> ~
-					> ~
-					> ~
-					> ~
-					> ~
+					>
+					>
+					>
+					>
+					>
 				`),
 				cursorRow: 0,
 				cursorCol: 14,
@@ -382,9 +382,9 @@ func TestView(t *testing.T) {
 					>   1 the first line
 					>   2 the second line
 					>   3 the third line
-					> ~
-					> ~
-					> ~
+					>
+					>
+					>
 				`),
 				cursorRow: 2,
 				cursorCol: 14,
@@ -401,11 +401,11 @@ func TestView(t *testing.T) {
 			want: want{
 				view: heredoc.Doc(`
 					> the first line
-					> ~
-					> ~
-					> ~
-					> ~
-					> ~
+					>
+					>
+					>
+					>
+					>
 				`),
 				cursorRow: 0,
 				cursorCol: 14,
@@ -424,9 +424,9 @@ func TestView(t *testing.T) {
 					> the first line
 					> the second line
 					> the third line
-					> ~
-					> ~
-					> ~
+					>
+					>
+					>
 				`),
 				cursorRow: 2,
 				cursorCol: 14,
@@ -529,11 +529,11 @@ func TestView(t *testing.T) {
 			want: want{
 				view: heredoc.Doc(`
 					*   1 the first line
-					* ~
-					* ~
-					* ~
-					* ~
-					* ~
+					*
+					*
+					*
+					*
+					*
 				`),
 				cursorRow: 0,
 				cursorCol: 14,
@@ -552,9 +552,9 @@ func TestView(t *testing.T) {
 					*   1 the first line
 					*   2 the second line
 					*   3 the third line
-					* ~
-					* ~
-					* ~
+					*
+					*
+					*
 				`),
 				cursorRow: 2,
 				cursorCol: 14,
@@ -571,11 +571,11 @@ func TestView(t *testing.T) {
 			want: want{
 				view: heredoc.Doc(`
 					>   1 foo
-					> ~
-					> ~
-					> ~
-					> ~
-					> ~
+					>
+					>
+					>
+					>
+					>
 				`),
 				cursorRow: 0,
 				cursorCol: 3,
@@ -594,9 +594,9 @@ func TestView(t *testing.T) {
 					>   1 foo
 					>   2 bar
 					>   3 baz
-					> ~
-					> ~
-					> ~
+					>
+					>
+					>
 				`),
 				cursorRow: 2,
 				cursorCol: 3,
@@ -619,9 +619,9 @@ func TestView(t *testing.T) {
 					foo
 					bar
 					baz
-					~
-					~
-					~
+
+
+
 				`),
 				cursorRow: 2,
 				cursorCol: 3,
@@ -640,11 +640,11 @@ func TestView(t *testing.T) {
 			want: want{
 				view: heredoc.Doc(`
 					>   1 foo bar
-					> ~
-					> ~
-					> ~
-					> ~
-					> ~
+					>
+					>
+					>
+					>
+					>
 				`),
 				cursorRow: 0,
 				cursorCol: 7,
@@ -664,10 +664,10 @@ func TestView(t *testing.T) {
 				view: heredoc.Doc(`
 					>   1 foo bar baz
 					>   2 foo bar
-					> ~
-					> ~
-					> ~
-					> ~
+					>
+					>
+					>
+					>
 				`),
 				cursorRow: 1,
 				cursorCol: 7,
@@ -686,11 +686,11 @@ func TestView(t *testing.T) {
 			want: want{
 				view: heredoc.Doc(`
 					>   1 12
-					> ~
-					> ~
-					> ~
-					> ~
-					> ~
+					>
+					>
+					>
+					>
+					>
 				`),
 				cursorRow: 0,
 				cursorCol: 2,
@@ -709,11 +709,11 @@ func TestView(t *testing.T) {
 			want: want{
 				view: heredoc.Doc(`
 					>   1 123
-					> ~
-					> ~
-					> ~
-					> ~
-					> ~
+					>
+					>
+					>
+					>
+					>
 				`),
 				cursorRow: 0,
 				cursorCol: 3,
@@ -733,10 +733,10 @@ func TestView(t *testing.T) {
 				view: heredoc.Doc(`
 					>   1 1234
 					>
-					> ~
-					> ~
-					> ~
-					> ~
+					>
+					>
+					>
+					>
 				`),
 				cursorRow: 1,
 				cursorCol: 0,
@@ -756,10 +756,10 @@ func TestView(t *testing.T) {
 				view: heredoc.Doc(`
 					>   1 1234
 					>     5
-					> ~
-					> ~
-					> ~
-					> ~
+					>
+					>
+					>
+					>
 				`),
 				cursorRow: 1,
 				cursorCol: 1,
@@ -779,11 +779,11 @@ func TestView(t *testing.T) {
 			want: want{
 				view: heredoc.Doc(`
 					>   1 123
-					> ~
-					> ~
-					> ~
-					> ~
-					> ~
+					>
+					>
+					>
+					>
+					>
 				`),
 				cursorRow: 0,
 				cursorCol: 3,
@@ -804,10 +804,10 @@ func TestView(t *testing.T) {
 				view: heredoc.Doc(`
 					>   1 1234
 					>
-					> ~
-					> ~
-					> ~
-					> ~
+					>
+					>
+					>
+					>
 				`),
 				cursorRow: 1,
 				cursorCol: 0,
@@ -828,10 +828,10 @@ func TestView(t *testing.T) {
 				view: heredoc.Doc(`
 					>   1 1234
 					>     5
-					> ~
-					> ~
-					> ~
-					> ~
+					>
+					>
+					>
+					>
 				`),
 				cursorRow: 1,
 				cursorCol: 1,
@@ -853,8 +853,8 @@ func TestView(t *testing.T) {
 					>     2
 					>     3
 					>
-					> ~
-					> ~
+					>
+					>
 				`),
 				cursorRow: 3,
 				cursorCol: 0,
@@ -876,8 +876,8 @@ func TestView(t *testing.T) {
 					>     2
 					>     3
 					>
-					> ~
-					> ~
+					>
+					>
 				`),
 				cursorRow: 3,
 				cursorCol: 0,
@@ -900,8 +900,8 @@ func TestView(t *testing.T) {
 					> 2
 					> 3
 					>
-					> ~
-					> ~
+					>
+					>
 				`),
 				cursorRow: 3,
 				cursorCol: 0,
@@ -925,8 +925,8 @@ func TestView(t *testing.T) {
 					2
 					3
 
-					~
-					~
+
+
 				`),
 				cursorRow: 3,
 				cursorCol: 0,
@@ -946,10 +946,10 @@ func TestView(t *testing.T) {
 				view: heredoc.Doc(`
 					>   1 12
 					>     3
-					> ~
-					> ~
-					> ~
-					> ~
+					>
+					>
+					>
+					>
 				`),
 				cursorRow: 1,
 				cursorCol: 1,
@@ -969,11 +969,11 @@ func TestView(t *testing.T) {
 			want: want{
 				view: heredoc.Doc(`
 					> 123
-					> ~
-					> ~
-					> ~
-					> ~
-					> ~
+					>
+					>
+					>
+					>
+					>
 				`),
 				cursorRow: 0,
 				cursorCol: 3,
@@ -994,10 +994,10 @@ func TestView(t *testing.T) {
 				view: heredoc.Doc(`
 					> 1234
 					>
-					> ~
-					> ~
-					> ~
-					> ~
+					>
+					>
+					>
+					>
 				`),
 				cursorRow: 1,
 				cursorCol: 0,
@@ -1018,10 +1018,10 @@ func TestView(t *testing.T) {
 				view: heredoc.Doc(`
 					> 1234
 					> 5
-					> ~
-					> ~
-					> ~
-					> ~
+					>
+					>
+					>
+					>
 				`),
 				cursorRow: 1,
 				cursorCol: 1,
@@ -1044,11 +1044,11 @@ func TestView(t *testing.T) {
 				view: heredoc.Doc(`
 					┌──────────┐
 					│>   1 1   │
-					│> ~       │
-					│> ~       │
-					│> ~       │
-					│> ~       │
-					│> ~       │
+					│>         │
+					│>         │
+					│>         │
+					│>         │
+					│>         │
 					└──────────┘
 				`),
 				cursorRow: 0,
@@ -1072,11 +1072,11 @@ func TestView(t *testing.T) {
 				view: heredoc.Doc(`
 					┌──────────┐
 					│>   1 123 │
-					│> ~       │
-					│> ~       │
-					│> ~       │
-					│> ~       │
-					│> ~       │
+					│>         │
+					│>         │
+					│>         │
+					│>         │
+					│>         │
 					└──────────┘
 				`),
 				cursorRow: 0,
@@ -1101,10 +1101,10 @@ func TestView(t *testing.T) {
 					┌──────────┐
 					│>   1 1234│
 					│>         │
-					│> ~       │
-					│> ~       │
-					│> ~       │
-					│> ~       │
+					│>         │
+					│>         │
+					│>         │
+					│>         │
 					└──────────┘
 				`),
 				cursorRow: 1,
@@ -1129,10 +1129,10 @@ func TestView(t *testing.T) {
 					┌──────────┐
 					│>   1 1234│
 					│>     5   │
-					│> ~       │
-					│> ~       │
-					│> ~       │
-					│> ~       │
+					│>         │
+					│>         │
+					│>         │
+					│>         │
 					└──────────┘
 				`),
 				cursorRow: 1,
@@ -1157,11 +1157,11 @@ func TestView(t *testing.T) {
 				view: heredoc.Doc(`
 					┌──────────┐
 					│> 123456  │
-					│> ~       │
-					│> ~       │
-					│> ~       │
-					│> ~       │
-					│> ~       │
+					│>         │
+					│>         │
+					│>         │
+					│>         │
+					│>         │
 					└──────────┘
 				`),
 				cursorRow: 0,
@@ -1186,11 +1186,11 @@ func TestView(t *testing.T) {
 				view: heredoc.Doc(`
 					┌──────────┐
 					│> 1234567 │
-					│> ~       │
-					│> ~       │
-					│> ~       │
-					│> ~       │
-					│> ~       │
+					│>         │
+					│>         │
+					│>         │
+					│>         │
+					│>         │
 					└──────────┘
 				`),
 				cursorRow: 0,
@@ -1216,10 +1216,10 @@ func TestView(t *testing.T) {
 					┌──────────┐
 					│> 12345678│
 					│>         │
-					│> ~       │
-					│> ~       │
-					│> ~       │
-					│> ~       │
+					│>         │
+					│>         │
+					│>         │
+					│>         │
 					└──────────┘
 				`),
 				cursorRow: 1,
@@ -1245,10 +1245,10 @@ func TestView(t *testing.T) {
 					┌──────────┐
 					│> 12345678│
 					│> 9       │
-					│> ~       │
-					│> ~       │
-					│> ~       │
-					│> ~       │
+					│>         │
+					│>         │
+					│>         │
+					│>         │
 					└──────────┘
 				`),
 				cursorRow: 1,
@@ -1265,11 +1265,11 @@ func TestView(t *testing.T) {
 			want: want{
 				view: heredoc.Doc(`
 					>   1 .
-					> ~
-					> ~
-					> ~
-					> ~
-					> ~
+					>
+					>
+					>
+					>
+					>
 				`),
 			},
 		},
