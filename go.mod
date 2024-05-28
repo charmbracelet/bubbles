@@ -8,7 +8,7 @@ require (
 	github.com/charmbracelet/bubbletea v0.26.3
 	github.com/charmbracelet/harmonica v0.2.0
 	github.com/charmbracelet/lipgloss v0.11.0
-	github.com/charmbracelet/x/ansi v0.1.1
+	github.com/charmbracelet/x/ansi v0.1.2
 	github.com/dustin/go-humanize v1.0.1
 	github.com/lucasb-eyer/go-colorful v1.2.0
 	github.com/mattn/go-runewidth v0.0.15
