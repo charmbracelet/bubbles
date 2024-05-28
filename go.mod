@@ -6,9 +6,9 @@ require (
 	github.com/MakeNowJust/heredoc v1.0.0
 	github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d
 	github.com/atotto/clipboard v0.1.4
-	github.com/charmbracelet/bubbletea v0.26.3-0.20240515201852-5648cc2d9070
+	github.com/charmbracelet/bubbletea v0.26.3-0.20240528172931-7581b6a46c83
 	github.com/charmbracelet/harmonica v0.2.0
-	github.com/charmbracelet/lipgloss v0.10.1-0.20240515201529-1969fb54fefe
+	github.com/charmbracelet/lipgloss v0.10.1-0.20240528172826-972c013da128
 	github.com/dustin/go-humanize v1.0.1
 	github.com/lucasb-eyer/go-colorful v1.2.0
 	github.com/mattn/go-runewidth v0.0.15
