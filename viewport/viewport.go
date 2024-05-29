@@ -103,6 +103,9 @@ func (m *Model) SetContent(s string) {
 	s = strings.ReplaceAll(s, "\r\n", "\n") // normalize line endings
 	m.lines = strings.Split(s, "\n")
 
+	wrapLines := m.wrapContent(strings.Join(m.lines, "\n"), false)
+	m.lines = strings.Split(wrapLines, "\n")
+
 	if m.YOffset > len(m.lines)-1 {
 		m.GotoBottom()
 	}
@@ -353,16 +356,14 @@ func (m Model) updateAsModel(msg tea.Msg) (Model, tea.Cmd) {
 	return m, cmd
 }
 
-// View renders the viewport into a string.
-func (m Model) View() string {
-	if m.HighPerformanceRendering {
-		// Just send newlines since we're going to be rendering the actual
-		// content separately. We still need to send something that equals the
-		// height of this view so that the Bubble Tea standard renderer can
-		// position anything below this view properly.
-		return strings.Repeat("\n", max(0, m.Height-1))
-	}
-
+// wrapContent wraps the given content within the viewport's dimensions.
+// It applies padding and truncation to ensure the content fits within the
+// viewport's dimensions.
+//
+// The `trimHeight` parameter determines whether the content should be trimmed
+// to the viewport's height. If `true`, the content will be truncated to the
+// viewport's height if it is taller than the viewport.
+func (m Model) wrapContent(content string, trimHeight bool) string {
 	w, h := m.Width, m.Height
 	if sw := m.Style.GetWidth(); sw != 0 {
 		w = min(w, sw)
@@ -373,11 +374,28 @@ func (m Model) View() string {
 	contentWidth := w - m.Style.GetHorizontalFrameSize()
 	contentHeight := h - m.Style.GetVerticalFrameSize()
 	contents := lipgloss.NewStyle().
-		Width(contentWidth).      // pad to width.
-		Height(contentHeight).    // pad to height.
-		MaxHeight(contentHeight). // truncate height if taller.
-		MaxWidth(contentWidth).   // truncate width if wider.
-		Render(strings.Join(m.visibleLines(), "\n"))
+		Width(contentWidth).   // pad to width.
+		MaxWidth(contentWidth) // truncate width if wider.
+	if trimHeight {
+		contents = lipgloss.NewStyle().
+			Height(contentHeight).   // pad to height.
+			MaxHeight(contentHeight) // truncate height if taller.
+	}
+	return contents.Render(content)
+}
+
+// View renders the viewport into a string.
+func (m Model) View() string {
+	if m.HighPerformanceRendering {
+		// Just send newlines since we're going to be rendering the actual
+		// content separately. We still need to send something that equals the
+		// height of this view so that the Bubble Tea standard renderer can
+		// position anything below this view properly.
+		return strings.Repeat("\n", max(0, m.Height-1))
+	}
+
+	visibleLines := strings.Join(m.visibleLines(), "\n")
+	contents := m.wrapContent(visibleLines, true)
 	return m.Style.
 		UnsetWidth().UnsetHeight(). // Style size already applied in contents.
 		Render(contents)
