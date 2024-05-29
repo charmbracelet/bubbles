@@ -1,6 +1,7 @@
 package viewport
 
 import (
+	"fmt"
 	"math"
 	"strings"
 
@@ -31,6 +32,9 @@ type Model struct {
 	// The number of lines the mouse wheel will scroll. By default, this is 3.
 	MouseWheelDelta int
 
+	// XOffset is the horizontal scroll position.
+	XOffset int
+
 	// YOffset is the vertical scroll position.
 	YOffset int
 
@@ -52,8 +56,12 @@ type Model struct {
 	// which is usually via the alternate screen buffer.
 	HighPerformanceRendering bool
 
+	// UnwrapEnabled, if true, will wrap the text in the viewport.
+	UnwrapEnabled bool
+
 	initialized bool
 	lines       []string
+	maxNumChar  int
 }
 
 func (m *Model) setInitialValues() {
@@ -77,6 +85,18 @@ func (m Model) AtTop() bool {
 // position.
 func (m Model) AtBottom() bool {
 	return m.YOffset >= m.maxYOffset()
+}
+
+// AtLeft returns whether or not the viewport is at the very left position.
+func (m Model) AtLeft() bool {
+	return m.XOffset <= 0
+}
+
+// AtRight returns whether or not the viewport is at or past the very right
+// position.
+func (m Model) AtRight() bool {
+	fmt.Println(m.XOffset, m.maxXOffset())
+	return m.XOffset >= m.maxXOffset()
 }
 
 // PastBottom returns whether or not the viewport is scrolled beyond the last
@@ -103,9 +123,22 @@ func (m *Model) SetContent(s string) {
 	s = strings.ReplaceAll(s, "\r\n", "\n") // normalize line endings
 	m.lines = strings.Split(s, "\n")
 
+	m.maxNumChar = 0
+	for _, line := range m.lines {
+		if lipgloss.Width(line) > m.maxNumChar {
+			m.maxNumChar = lipgloss.Width(line)
+		}
+	}
+
 	if m.YOffset > len(m.lines)-1 {
 		m.GotoBottom()
 	}
+}
+
+// maxXOffset returns the maximum possible value of the x-offset based on the
+// viewport's content and set width.
+func (m Model) maxXOffset() int {
+	return max(0, m.maxNumChar-m.Width)
 }
 
 // maxYOffset returns the maximum possible value of the y-offset based on the
@@ -121,6 +154,13 @@ func (m Model) visibleLines() (lines []string) {
 		top := max(0, m.YOffset)
 		bottom := clamp(m.YOffset+m.Height, top, len(m.lines))
 		lines = m.lines[top:bottom]
+		if m.UnwrapEnabled {
+			for i, line := range lines {
+				left := max(0, m.XOffset)
+				right := clamp(m.XOffset+m.Width, left, len(line))
+				lines[i] = line[left:right]
+			}
+		}
 	}
 	return lines
 }
@@ -133,6 +173,11 @@ func (m Model) scrollArea() (top, bottom int) {
 		bottom--
 	}
 	return top, bottom
+}
+
+// SetXOffset sets the X offset.
+func (m *Model) SetXOffset(n int) {
+	m.XOffset = clamp(n, 0, m.maxXOffset())
 }
 
 // SetYOffset sets the Y offset.
@@ -209,6 +254,67 @@ func (m *Model) LineUp(n int) (lines []string) {
 	top := max(0, m.YOffset)
 	bottom := clamp(m.YOffset+n, 0, m.maxYOffset())
 	return m.lines[top:bottom]
+}
+
+// ViewLeft moves the view left by the number of lines in the viewport.
+// Basically, "page left".
+func (m *Model) ViewLeft() {
+	if m.AtLeft() {
+		return
+	}
+
+	m.LineLeft(m.Width)
+}
+
+// ViewRight moves the view right by one width of the viewport. Basically, "page right".
+func (m *Model) ViewRight() {
+	if m.AtRight() {
+		return
+	}
+
+	m.LineRight(m.Width)
+}
+
+// HalfViewLeft moves the view left by half the width of the viewport.
+func (m *Model) HalfViewLeft() {
+	if m.AtLeft() {
+		return
+	}
+
+	m.LineLeft(m.Width / 2)
+}
+
+// HalfViewRight moves the view right by half the width of the viewport.
+func (m *Model) HalfViewRight() {
+	if m.AtRight() {
+		return
+	}
+
+	m.LineRight(m.Width / 2)
+}
+
+// LineLeft moves the view left by the given number of lines.
+func (m *Model) LineLeft(n int) {
+	if m.AtLeft() || n == 0 || len(m.lines) == 0 {
+		return
+	}
+
+	// Make sure the number of lines by which we're going to scroll isn't
+	// greater than the number of lines we actually have left before we reach
+	// the left.
+	m.SetXOffset(m.XOffset - n)
+}
+
+// LineRight moves the view right by the given number of lines. Returns the new
+// lines to show.
+func (m *Model) LineRight(n int) {
+	if m.AtRight() || n == 0 || len(m.lines) == 0 {
+		return
+	}
+
+	// Make sure the number of lines by which we're going to scroll isn't
+	// greater than the number of lines we are from the right.
+	m.SetXOffset(m.XOffset + n)
 }
 
 // TotalLineCount returns the total number of lines (both hidden and visible) within the viewport.
@@ -328,6 +434,26 @@ func (m Model) updateAsModel(msg tea.Msg) (Model, tea.Cmd) {
 			lines := m.LineUp(1)
 			if m.HighPerformanceRendering {
 				cmd = ViewUp(m, lines)
+			}
+
+		case key.Matches(msg, m.KeyMap.HalfPageLeft):
+			if m.UnwrapEnabled {
+				m.HalfViewLeft()
+			}
+
+		case key.Matches(msg, m.KeyMap.HalfPageRight):
+			if m.UnwrapEnabled {
+				m.HalfViewRight()
+			}
+
+		case key.Matches(msg, m.KeyMap.Left):
+			if m.UnwrapEnabled {
+				m.LineLeft(1)
+			}
+
+		case key.Matches(msg, m.KeyMap.Right):
+			if m.UnwrapEnabled {
+				m.LineRight(1)
 			}
 		}
 
