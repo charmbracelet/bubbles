@@ -9,16 +9,12 @@ const spacebar = " "
 // programmatically with methods like Model.LineDown(1). See the GoDocs for
 // details.
 type KeyMap struct {
-	PageDown      key.Binding
-	PageUp        key.Binding
-	HalfPageUp    key.Binding
-	HalfPageDown  key.Binding
-	Down          key.Binding
-	Up            key.Binding
-	Left          key.Binding
-	Right         key.Binding
-	HalfPageLeft  key.Binding
-	HalfPageRight key.Binding
+	PageDown     key.Binding
+	PageUp       key.Binding
+	HalfPageUp   key.Binding
+	HalfPageDown key.Binding
+	Down         key.Binding
+	Up           key.Binding
 }
 
 // DefaultKeyMap returns a set of pager-like default keybindings.
@@ -47,22 +43,6 @@ func DefaultKeyMap() KeyMap {
 		Down: key.NewBinding(
 			key.WithKeys("down", "j"),
 			key.WithHelp("↓/j", "down"),
-		),
-		HalfPageLeft: key.NewBinding(
-			key.WithKeys("ctrl+l"),
-			key.WithHelp("l", "½ page left"),
-		),
-		HalfPageRight: key.NewBinding(
-			key.WithKeys("r", "ctrl+r"),
-			key.WithHelp("r", "½ page right"),
-		),
-		Left: key.NewBinding(
-			key.WithKeys("left", "h"),
-			key.WithHelp("↑/h", "left"),
-		),
-		Right: key.NewBinding(
-			key.WithKeys("right", "l"),
-			key.WithHelp("↓/l", "right"),
 		),
 	}
 }
