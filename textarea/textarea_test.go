@@ -326,6 +326,8 @@ func TestVerticalNavigationShouldRememberPositionWhileTraversing(t *testing.T) {
 }
 
 func TestView(t *testing.T) {
+	t.Parallel()
+
 	type want struct {
 		view      string
 		cursorRow int
@@ -1264,7 +1266,64 @@ func TestView(t *testing.T) {
 			},
 			want: want{
 				view: heredoc.Doc(`
-					>   1 .
+					>   1 H
+					>     e
+					>     l
+					>     l
+					>     o
+					>     ,
+				`),
+			},
+		},
+		{
+			name: "placeholder single line",
+			modelFunc: func(m Model) Model {
+				m.Placeholder = "placeholder the first line"
+				m.ShowLineNumbers = false
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					> placeholder the first line
+					>
+					>
+					>
+					>
+					>
+					`),
+			},
+		},
+		{
+			name: "placeholder multiple lines",
+			modelFunc: func(m Model) Model {
+				m.Placeholder = "placeholder the first line\nplaceholder the second line\nplaceholder the third line"
+				m.ShowLineNumbers = false
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					> placeholder the first line
+					> placeholder the second line
+					> placeholder the third line
+					>
+					>
+					>
+				`),
+			},
+		},
+		{
+			name: "placeholder single line with line numbers",
+			modelFunc: func(m Model) Model {
+				m.Placeholder = "placeholder the first line"
+				m.ShowLineNumbers = true
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					>   1 placeholder the first line
 					>
 					>
 					>
@@ -1273,10 +1332,353 @@ func TestView(t *testing.T) {
 				`),
 			},
 		},
+		{
+			name: "placeholder multiple lines with line numbers",
+			modelFunc: func(m Model) Model {
+				m.Placeholder = "placeholder the first line\nplaceholder the second line\nplaceholder the third line"
+				m.ShowLineNumbers = true
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					>   1 placeholder the first line
+					>     placeholder the second line
+					>     placeholder the third line
+					>
+					>
+					>
+				`),
+			},
+		},
+		{
+			name: "placeholder single line with end of buffer character",
+			modelFunc: func(m Model) Model {
+				m.Placeholder = "placeholder the first line"
+				m.ShowLineNumbers = false
+				m.EndOfBufferCharacter = '*'
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					> placeholder the first line
+					> *
+					> *
+					> *
+					> *
+					> *
+				`),
+			},
+		},
+		{
+			name: "placeholder multiple lines with with end of buffer character",
+			modelFunc: func(m Model) Model {
+				m.Placeholder = "placeholder the first line\nplaceholder the second line\nplaceholder the third line"
+				m.ShowLineNumbers = false
+				m.EndOfBufferCharacter = '*'
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					> placeholder the first line
+					> placeholder the second line
+					> placeholder the third line
+					> *
+					> *
+					> *
+				`),
+			},
+		},
+		{
+			name: "placeholder single line with line numbers and end of buffer character",
+			modelFunc: func(m Model) Model {
+				m.Placeholder = "placeholder the first line"
+				m.ShowLineNumbers = true
+				m.EndOfBufferCharacter = '*'
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					>   1 placeholder the first line
+					> *
+					> *
+					> *
+					> *
+					> *
+				`),
+			},
+		},
+		{
+			name: "placeholder multiple lines with line numbers and end of buffer character",
+			modelFunc: func(m Model) Model {
+				m.Placeholder = "placeholder the first line\nplaceholder the second line\nplaceholder the third line"
+				m.ShowLineNumbers = true
+				m.EndOfBufferCharacter = '*'
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					>   1 placeholder the first line
+					>     placeholder the second line
+					>     placeholder the third line
+					> *
+					> *
+					> *
+				`),
+			},
+		},
+		{
+			name: "placeholder single line that is longer than max width",
+			modelFunc: func(m Model) Model {
+				m.Placeholder = "placeholder the first line that is longer than the max width"
+				m.SetWidth(40)
+				m.ShowLineNumbers = false
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					> placeholder the first line that is
+					> longer than the max width
+					>
+					>
+					>
+					>
+				`),
+			},
+		},
+		{
+			name: "placeholder multiple lines that are longer than max width",
+			modelFunc: func(m Model) Model {
+				m.Placeholder = "placeholder the first line that is longer than the max width\nplaceholder the second line that is longer than the max width"
+				m.ShowLineNumbers = false
+				m.SetWidth(40)
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					> placeholder the first line that is
+					> longer than the max width
+					> placeholder the second line that is
+					> longer than the max width
+					>
+					>
+				`),
+			},
+		},
+		{
+			name: "placeholder single line that is longer than max width with line numbers",
+			modelFunc: func(m Model) Model {
+				m.Placeholder = "placeholder the first line that is longer than the max width"
+				m.ShowLineNumbers = true
+				m.SetWidth(40)
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					>   1 placeholder the first line that is
+					>     longer than the max width
+					>
+					>
+					>
+					>
+				`),
+			},
+		},
+		{
+			name: "placeholder multiple lines that are longer than max width with line numbers",
+			modelFunc: func(m Model) Model {
+				m.Placeholder = "placeholder the first line that is longer than the max width\nplaceholder the second line that is longer than the max width"
+				m.ShowLineNumbers = true
+				m.SetWidth(40)
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					>   1 placeholder the first line that is
+					>     longer than the max width
+					>     placeholder the second line that
+					>     is longer than the max width
+					>
+					>
+				`),
+			},
+		},
+		{
+			name: "placeholder single line that is longer than max width at limit",
+			modelFunc: func(m Model) Model {
+				m.Placeholder = "123456789012345678"
+				m.ShowLineNumbers = false
+				m.SetWidth(20)
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					> 123456789012345678
+					>
+					>
+					>
+					>
+					>
+				`),
+			},
+		},
+		{
+			name: "placeholder single line that is longer than max width at limit plus one",
+			modelFunc: func(m Model) Model {
+				m.Placeholder = "1234567890123456789"
+				m.ShowLineNumbers = false
+				m.SetWidth(20)
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					> 123456789012345678
+					> 9
+					>
+					>
+					>
+					>
+				`),
+			},
+		},
+		{
+			name: "placeholder single line that is longer than max width with line numbers at limit",
+			modelFunc: func(m Model) Model {
+				m.Placeholder = "12345678901234"
+				m.ShowLineNumbers = true
+				m.SetWidth(20)
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					>   1 12345678901234
+					>
+					>
+					>
+					>
+					>
+				`),
+			},
+		},
+		{
+			name: "placeholder single line that is longer than max width with line numbers at limit plus one",
+			modelFunc: func(m Model) Model {
+				m.Placeholder = "123456789012345"
+				m.ShowLineNumbers = true
+				m.SetWidth(20)
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					>   1 12345678901234
+					>     5
+					>
+					>
+					>
+					>
+				`),
+			},
+		},
+		{
+			name: "placeholder multiple lines that are longer than max width at limit",
+			modelFunc: func(m Model) Model {
+				m.Placeholder = "123456789012345678\n123456789012345678"
+				m.ShowLineNumbers = false
+				m.SetWidth(20)
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					> 123456789012345678
+					> 123456789012345678
+					>
+					>
+					>
+					>
+				`),
+			},
+		},
+		{
+			name: "placeholder multiple lines that are longer than max width at limit plus one",
+			modelFunc: func(m Model) Model {
+				m.Placeholder = "1234567890123456789\n1234567890123456789"
+				m.ShowLineNumbers = false
+				m.SetWidth(20)
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					> 123456789012345678
+					> 9
+					> 123456789012345678
+					> 9
+					>
+					>
+				`),
+			},
+		},
+		{
+			name: "placeholder multiple lines that are longer than max width with line numbers at limit",
+			modelFunc: func(m Model) Model {
+				m.Placeholder = "12345678901234\n12345678901234"
+				m.ShowLineNumbers = true
+				m.SetWidth(20)
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					>   1 12345678901234
+					>     12345678901234
+					>
+					>
+					>
+					>
+				`),
+			},
+		},
+		{
+			name: "placeholder multiple lines that are longer than max width with line numbers at limit plus one",
+			modelFunc: func(m Model) Model {
+				m.Placeholder = "123456789012345\n123456789012345"
+				m.ShowLineNumbers = true
+				m.SetWidth(20)
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					>   1 12345678901234
+					>     5
+					>     12345678901234
+					>     5
+					>
+					>
+				`),
+			},
+		},
 	}
 
 	for _, tt := range tests {
+		tt := tt
+
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			textarea := newTextArea()
 
 			if tt.modelFunc != nil {
