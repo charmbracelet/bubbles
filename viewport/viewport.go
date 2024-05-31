@@ -378,7 +378,7 @@ func (m Model) View() string {
 		MaxHeight(contentHeight). // truncate height if taller.
 		MaxWidth(contentWidth).   // truncate width if wider.
 		Render(strings.Join(m.visibleLines(), "\n"))
-	return m.Style.Copy().
+	return m.Style.
 		UnsetWidth().UnsetHeight(). // Style size already applied in contents.
 		Render(contents)
 }
