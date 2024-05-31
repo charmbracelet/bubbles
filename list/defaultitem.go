@@ -37,7 +37,7 @@ func NewDefaultItemStyles() (s DefaultItemStyles) {
 		Foreground(lipgloss.AdaptiveColor{Light: "#1a1a1a", Dark: "#dddddd"}).
 		Padding(0, 0, 0, 2)
 
-	s.NormalDesc = s.NormalTitle.Copy().
+	s.NormalDesc = s.NormalTitle.
 		Foreground(lipgloss.AdaptiveColor{Light: "#A49FA5", Dark: "#777777"})
 
 	s.SelectedTitle = lipgloss.NewStyle().
@@ -46,14 +46,14 @@ func NewDefaultItemStyles() (s DefaultItemStyles) {
 		Foreground(lipgloss.AdaptiveColor{Light: "#EE6FF8", Dark: "#EE6FF8"}).
 		Padding(0, 0, 0, 1)
 
-	s.SelectedDesc = s.SelectedTitle.Copy().
+	s.SelectedDesc = s.SelectedTitle.
 		Foreground(lipgloss.AdaptiveColor{Light: "#F793FF", Dark: "#AD58B4"})
 
 	s.DimmedTitle = lipgloss.NewStyle().
 		Foreground(lipgloss.AdaptiveColor{Light: "#A49FA5", Dark: "#777777"}).
 		Padding(0, 0, 0, 2)
 
-	s.DimmedDesc = s.DimmedTitle.Copy().
+	s.DimmedDesc = s.DimmedTitle.
 		Foreground(lipgloss.AdaptiveColor{Light: "#C2B8C2", Dark: "#4D4D4D"})
 
 	s.FilterMatch = lipgloss.NewStyle().Underline(true)
@@ -187,7 +187,7 @@ func (d DefaultDelegate) Render(w io.Writer, m Model, index int, item Item) {
 		if isFiltered {
 			// Highlight matches
 			unmatched := s.SelectedTitle.Inline(true)
-			matched := unmatched.Copy().Inherit(s.FilterMatch)
+			matched := unmatched.Inherit(s.FilterMatch)
 			title = lipgloss.StyleRunes(title, matchedRunes, matched, unmatched)
 		}
 		title = s.SelectedTitle.Render(title)
@@ -196,7 +196,7 @@ func (d DefaultDelegate) Render(w io.Writer, m Model, index int, item Item) {
 		if isFiltered {
 			// Highlight matches
 			unmatched := s.NormalTitle.Inline(true)
-			matched := unmatched.Copy().Inherit(s.FilterMatch)
+			matched := unmatched.Inherit(s.FilterMatch)
 			title = lipgloss.StyleRunes(title, matchedRunes, matched, unmatched)
 		}
 		title = s.NormalTitle.Render(title)
@@ -204,10 +204,10 @@ func (d DefaultDelegate) Render(w io.Writer, m Model, index int, item Item) {
 	}
 
 	if d.ShowDescription {
-		fmt.Fprintf(w, "%s\n%s", title, desc)
+		fmt.Fprintf(w, "%s\n%s", title, desc) //nolint: errcheck
 		return
 	}
-	fmt.Fprintf(w, "%s", title)
+	fmt.Fprintf(w, "%s", title) //nolint: errcheck
 }
 
 // ShortHelp returns the delegate's short help.

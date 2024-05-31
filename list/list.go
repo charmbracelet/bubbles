@@ -1049,7 +1049,7 @@ func (m Model) View() string {
 func (m Model) titleView() string {
 	var (
 		view          string
-		titleBarStyle = m.Styles.TitleBar.Copy()
+		titleBarStyle = m.Styles.TitleBar
 
 		// We need to account for the size of the spinner, even if we don't
 		// render it, to reserve some space for it should we turn it on later.
@@ -1157,7 +1157,7 @@ func (m Model) paginationView() string {
 
 	style := m.Styles.PaginationStyle
 	if m.delegate.Spacing() == 0 && style.GetMarginTop() == 0 {
-		style = style.Copy().MarginTop(1)
+		style = style.MarginTop(1)
 	}
 
 	return style.Render(s)
