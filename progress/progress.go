@@ -79,6 +79,12 @@ func WithSolidFill(color string) Option {
 	}
 }
 
+func WithBackgroundColor(color string) Option {
+    return func(m *Model) {
+        m.BackgroundColor = color
+    }
+}
+
 // WithFillCharacters sets the characters used to construct the full and empty components of the progress bar.
 func WithFillCharacters(full rune, empty rune) Option {
 	return func(m *Model) {
@@ -147,6 +153,9 @@ type Model struct {
 	// "Empty" sections of the progress bar.
 	Empty      rune
 	EmptyColor string
+
+    // Background color of the progress bar
+    BackgroundColor string
 
 	// Settings for rendering the numeric percentage.
 	ShowPercentage  bool
@@ -303,6 +312,8 @@ func (m Model) barView(b *strings.Builder, percent float64, textWidth int) {
 
 	fw = max(0, min(tw, fw))
 
+    bg := m.color(m.BackgroundColor)
+
 	if m.useRamp {
 		// Gradient fill
 		for i := 0; i < fw; i++ {
@@ -320,17 +331,18 @@ func (m Model) barView(b *strings.Builder, percent float64, textWidth int) {
 			b.WriteString(termenv.
 				String(string(m.Full)).
 				Foreground(m.color(c)).
+                Background(bg).
 				String(),
 			)
 		}
 	} else {
 		// Solid fill
-		s := termenv.String(string(m.Full)).Foreground(m.color(m.FullColor)).String()
+		s := termenv.String(string(m.Full)).Foreground(m.color(m.FullColor)).Background(bg).String()
 		b.WriteString(strings.Repeat(s, fw))
 	}
 
 	// Empty fill
-	e := termenv.String(string(m.Empty)).Foreground(m.color(m.EmptyColor)).String()
+	e := termenv.String(string(m.Empty)).Foreground(m.color(m.EmptyColor)).Background(bg).String()
 	n := max(0, tw-fw)
 	b.WriteString(strings.Repeat(e, n))
 }
@@ -359,6 +371,10 @@ func (m *Model) setRamp(colorA, colorB string, scaled bool) {
 }
 
 func (m Model) color(c string) termenv.Color {
+    if c == "" {
+        return termenv.NoColor{}
+    }
+
 	return m.colorProfile.Color(c)
 }
 
