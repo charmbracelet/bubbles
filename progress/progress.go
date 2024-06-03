@@ -80,9 +80,9 @@ func WithSolidFill(color string) Option {
 }
 
 func WithBackgroundColor(color string) Option {
-    return func(m *Model) {
-        m.BackgroundColor = color
-    }
+	return func(m *Model) {
+		m.BackgroundColor = color
+	}
 }
 
 // WithFillCharacters sets the characters used to construct the full and empty components of the progress bar.
@@ -154,8 +154,8 @@ type Model struct {
 	Empty      rune
 	EmptyColor string
 
-    // Background color of the progress bar
-    BackgroundColor string
+	// Background color of the progress bar
+	BackgroundColor string
 
 	// Settings for rendering the numeric percentage.
 	ShowPercentage  bool
@@ -312,7 +312,7 @@ func (m Model) barView(b *strings.Builder, percent float64, textWidth int) {
 
 	fw = max(0, min(tw, fw))
 
-    bg := m.color(m.BackgroundColor)
+	bg := m.color(m.BackgroundColor)
 
 	if m.useRamp {
 		// Gradient fill
@@ -331,7 +331,7 @@ func (m Model) barView(b *strings.Builder, percent float64, textWidth int) {
 			b.WriteString(termenv.
 				String(string(m.Full)).
 				Foreground(m.color(c)).
-                Background(bg).
+				Background(bg).
 				String(),
 			)
 		}
@@ -371,9 +371,9 @@ func (m *Model) setRamp(colorA, colorB string, scaled bool) {
 }
 
 func (m Model) color(c string) termenv.Color {
-    if c == "" {
-        return termenv.NoColor{}
-    }
+	if c == "" {
+		return termenv.NoColor{}
+	}
 
 	return m.colorProfile.Color(c)
 }
