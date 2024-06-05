@@ -81,10 +81,10 @@ func New(ctx tea.Context) Model {
 			ShortKey:       keyStyle,
 			ShortDesc:      descStyle,
 			ShortSeparator: sepStyle,
-			Ellipsis:       sepStyle.Copy(),
-			FullKey:        keyStyle.Copy(),
-			FullDesc:       descStyle.Copy(),
-			FullSeparator:  sepStyle.Copy(),
+			Ellipsis:       sepStyle,
+			FullKey:        keyStyle,
+			FullDesc:       descStyle,
+			FullSeparator:  sepStyle,
 		},
 	}
 }
@@ -214,9 +214,8 @@ func (m Model) FullHelpView(groups [][]key.Binding) string {
 			if m.Width > 0 && totalWidth > m.Width {
 				break
 			}
+			out = append(out, sep)
 		}
-
-		out = append(out, sep)
 	}
 
 	return lipgloss.JoinHorizontal(lipgloss.Top, out...)

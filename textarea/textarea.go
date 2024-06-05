@@ -261,7 +261,7 @@ func New(ctx tea.Context) Model {
 		FocusedStyle:         focusedStyle,
 		BlurredStyle:         blurredStyle,
 		cache:                memoization.NewMemoCache[line, [][]rune](defaultMaxHeight),
-		EndOfBufferCharacter: '~',
+		EndOfBufferCharacter: ' ',
 		ShowLineNumbers:      true,
 		Cursor:               cur,
 		KeyMap:               DefaultKeyMap,
