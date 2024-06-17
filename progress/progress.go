@@ -187,13 +187,15 @@ func New(opts ...Option) Model {
 		PercentFormat:  " %3.0f%%",
 		colorProfile:   termenv.ColorProfile(),
 	}
-	if !m.springCustomized {
-		m.SetSpringOptions(defaultFrequency, defaultDamping)
-	}
 
 	for _, opt := range opts {
 		opt(&m)
 	}
+
+	if !m.springCustomized {
+		m.SetSpringOptions(defaultFrequency, defaultDamping)
+	}
+
 	return m
 }
 
