@@ -4,9 +4,10 @@ import (
 	"math"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+
+	"github.com/charmbracelet/bubbles/key"
 )
 
 // New returns a new model with the given width and height as well as default
@@ -97,11 +98,19 @@ func (m Model) ScrollPercent() float64 {
 	return math.Max(0.0, math.Min(1.0, v))
 }
 
-// SetContent set the pager's text content. For high performance rendering the
-// Sync command should also be called.
+// SetContent sets the content by normalizing line endings and splitting the content by lines.
+// For high performance rendering, the Sync command should also be called.
 func (m *Model) SetContent(s string) {
-	s = strings.ReplaceAll(s, "\r\n", "\n") // normalize line endings
-	m.lines = strings.Split(s, "\n")
+	// Normalize line endings to '\n'
+	s = strings.ReplaceAll(s, "\r\n", "\n")
+	// Split the string into lines and set them in the Model
+	m.SetLines(strings.Split(s, "\n"))
+}
+
+// SetLines sets the lines and adjusts the display position if necessary.
+// For high performance rendering, the Sync command should also be called.
+func (m *Model) SetLines(s []string) {
+	m.lines = s
 
 	if m.YOffset > len(m.lines)-1 {
 		m.GotoBottom()
