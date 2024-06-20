@@ -350,20 +350,28 @@ func (m *Model) handleOverflow() {
 
 		m.offsetRight = m.offset + i
 	} else if m.pos >= m.offsetRight {
-		m.offsetRight = m.pos
+		// we need to show the character *at* m.pos, if there is one
+		m.offsetRight = min(m.pos+1, len(m.value))
 
 		w := 0
+
+		// if m.pos is *past* m.offsetRight, that's one character of width that
+		// we can't display from m.value
+		if m.pos > m.offsetRight {
+			w++
+		}
+
 		runes := m.value[:m.offsetRight]
-		i := len(runes) - 1
+		i := len(runes) // 'i' represents the last rune we *can* fit
 
 		for i > 0 && w < m.Width {
-			w += rw.RuneWidth(runes[i])
+			w += rw.RuneWidth(runes[i-1])
 			if w <= m.Width {
 				i--
 			}
 		}
 
-		m.offset = m.offsetRight - (len(runes) - 1 - i)
+		m.offset = m.offsetRight - (len(runes) - i)
 	}
 }
 
@@ -657,29 +665,35 @@ func (m Model) View() string {
 	value := m.value[m.offset:m.offsetRight]
 	pos := max(0, m.pos-m.offset)
 	v := styleText(m.echoTransform(string(value[:pos])))
+	usedCursor := false
+	cursorAddedSpace := false
 
-	if pos < len(value) {
+	if m.focus && pos < len(value) {
 		char := m.echoTransform(string(value[pos]))
 		m.Cursor.SetChar(char)
-		v += m.Cursor.View()                                   // cursor and text under it
+		v += m.Cursor.View() // cursor and text under it
+		usedCursor = true
 		v += styleText(m.echoTransform(string(value[pos+1:]))) // text after cursor
 		v += m.completionView(0)                               // suggested completion
 	} else {
+		// REVIEW: should suggestions only happy with focus?
 		if m.canAcceptSuggestion() {
 			suggestion := m.matchedSuggestions[m.currentSuggestionIndex]
 			if len(value) < len(suggestion) {
 				m.Cursor.TextStyle = m.CompletionStyle
 				m.Cursor.SetChar(m.echoTransform(string(suggestion[pos])))
 				v += m.Cursor.View()
+				usedCursor = true
 				v += m.completionView(1)
-			} else {
-				m.Cursor.SetChar(" ")
-				v += m.Cursor.View()
 			}
-		} else {
-			m.Cursor.SetChar(" ")
-			v += m.Cursor.View()
 		}
+	}
+
+	if !usedCursor && m.focus {
+		// the width calculations already ensure we have room for this
+		m.Cursor.SetChar(" ")
+		v += m.Cursor.View()
+		cursorAddedSpace = true
 	}
 
 	// If a max width and background color were set fill the empty spaces with
@@ -687,8 +701,8 @@ func (m Model) View() string {
 	valWidth := uniseg.StringWidth(string(value))
 	if m.Width > 0 && valWidth <= m.Width {
 		padding := max(0, m.Width-valWidth)
-		if valWidth+padding <= m.Width && pos < len(value) {
-			padding++
+		if padding > 0 && cursorAddedSpace {
+			padding--
 		}
 		v += styleText(strings.Repeat(" ", padding))
 	}
@@ -704,6 +718,8 @@ func (m Model) placeholderView() string {
 		style = m.PlaceholderStyle.Inline(true).Render
 	)
 
+	// REVIEW: slicing the first character of the placeholder may not always
+	// work (multi-cell renderings?)
 	m.Cursor.TextStyle = m.PlaceholderStyle
 	m.Cursor.SetChar(string(p[:1]))
 	v += m.Cursor.View()
@@ -715,18 +731,27 @@ func (m Model) placeholderView() string {
 
 	// If Width is set then size placeholder accordingly
 	if m.Width > 0 {
-		// available width is width - len + cursor offset of 1
-		minWidth := lipgloss.Width(m.Placeholder)
-		availWidth := m.Width - minWidth + 1
+		w := lipgloss.Width(m.PromptStyle.Render(m.Prompt))
+		w += lipgloss.Width(v)
 
-		// if width < len, 'subtract'(add) number to len and dont add padding
-		if availWidth < 0 {
-			minWidth += availWidth
-			availWidth = 0
+		// remember we've already eaten one rune of the placeholder...
+		placeholderWidth := uniseg.StringWidth(string(p[1:]))
+
+		padding := m.Width - w - placeholderWidth
+		if padding >= 0 {
+			v += style(string(p[1:]))
+			v += style(strings.Repeat(" ", padding))
+		} else {
+			// figure out where to clip placeholder
+			i := 1
+			for i < len(p) && w < m.Width {
+				w += rw.RuneWidth(p[i])
+				if w < m.Width {
+					i++
+				}
+			}
+			v += style(string(p[1:i]))
 		}
-		// append placeholder[len] - cursor, append padding
-		v += style(string(p[1:minWidth]))
-		v += style(strings.Repeat(" ", availWidth))
 	} else {
 		// if there is no width, the placeholder can be any length
 		v += style(string(p[1:]))
