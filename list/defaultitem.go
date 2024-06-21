@@ -127,7 +127,7 @@ func (d DefaultDelegate) Spacing() int {
 }
 
 // Update checks whether the delegate's UpdateFunc is set and calls it.
-func (d DefaultDelegate) Update(msg tea.Msg, m *Model) tea.Cmd {
+func (d DefaultDelegate) Update(ctx tea.Context, msg tea.Msg, m *Model) tea.Cmd {
 	if d.UpdateFunc == nil {
 		return nil
 	}
