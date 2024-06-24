@@ -10,7 +10,6 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/harmonica"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/charmbracelet/x/ansi"
 	"github.com/lucasb-eyer/go-colorful"
 	"github.com/muesli/termenv"
 )
@@ -72,10 +71,19 @@ func WithScaledGradient(colorA, colorB string) Option {
 }
 
 // WithSolidFill sets the progress to use a solid fill with the given color.
+// Deprecated: use WithFillStyles.
 func WithSolidFill(color string) Option {
 	return func(m *Model) {
-		m.FullColor = color
+		m.FullStyle = m.FullStyle.Foreground(lipgloss.Color(color))
 		m.useRamp = false
+	}
+}
+
+// WithFillStyles sets the styles used to construct the full and empty components of the progress bar.
+func WithFillStyles(full lipgloss.Style, empty lipgloss.Style) Option {
+	return func(m *Model) {
+		m.FullStyle = full
+		m.EmptyStyle = empty
 	}
 }
 
@@ -116,9 +124,13 @@ func WithSpringOptions(frequency, damping float64) Option {
 }
 
 // WithColorProfile sets the color profile to use for the progress bar.
+// Deprecated: use WithFillStyles with style's embedded color profile.
 func WithColorProfile(p termenv.Profile) Option {
 	return func(m *Model) {
-		m.colorProfile = p
+		r := lipgloss.DefaultRenderer()
+		r.SetColorProfile(p)
+		m.FullStyle = r.NewStyle().Inherit(m.FullStyle)
+		m.EmptyStyle = r.NewStyle().Inherit(m.EmptyStyle)
 	}
 }
 
@@ -141,12 +153,16 @@ type Model struct {
 	Width int
 
 	// "Filled" sections of the progress bar.
-	Full      rune
+	Full rune
+	// Deprecated: use FullStyle with style's color
 	FullColor string
+	FullStyle lipgloss.Style
 
 	// "Empty" sections of the progress bar.
-	Empty      rune
+	Empty rune
+	// Deprecated: use FullStyle with style's color
 	EmptyColor string
+	EmptyStyle lipgloss.Style
 
 	// Settings for rendering the numeric percentage.
 	ShowPercentage  bool
@@ -169,9 +185,6 @@ type Model struct {
 	// of the progress bar. When false, the width of the gradient will be set
 	// to the full width of the progress bar.
 	scaleRamp bool
-
-	// Color profile for the progress bar.
-	colorProfile termenv.Profile
 }
 
 // New returns a model with default values.
@@ -180,12 +193,13 @@ func New(opts ...Option) Model {
 		id:             nextID(),
 		Width:          defaultWidth,
 		Full:           '█',
-		FullColor:      "#7571F9",
+		FullColor:      "",
+		FullStyle:      lipgloss.NewStyle().Foreground(lipgloss.Color("#7571F9")),
 		Empty:          '░',
-		EmptyColor:     "#606060",
+		EmptyColor:     "",
+		EmptyStyle:     lipgloss.NewStyle().Foreground(lipgloss.Color("#606060")),
 		ShowPercentage: true,
 		PercentFormat:  " %3.0f%%",
-		colorProfile:   termenv.ColorProfile(),
 	}
 
 	for _, opt := range opts {
@@ -285,7 +299,7 @@ func (m Model) View() string {
 func (m Model) ViewAs(percent float64) string {
 	b := strings.Builder{}
 	percentView := m.percentageView(percent)
-	m.barView(&b, percent, ansi.StringWidth(percentView))
+	m.barView(&b, percent, lipgloss.Width(percentView))
 	b.WriteString(percentView)
 	return b.String()
 }
@@ -319,20 +333,27 @@ func (m Model) barView(b *strings.Builder, percent float64, textWidth int) {
 				p = float64(i) / float64(tw-1)
 			}
 			c := m.rampColorA.BlendLuv(m.rampColorB, p).Hex()
-			b.WriteString(termenv.
-				String(string(m.Full)).
-				Foreground(m.color(c)).
-				String(),
+			b.WriteString(m.FullStyle.
+				Foreground(lipgloss.Color(c)).
+				Render(string(m.Full)),
 			)
 		}
 	} else {
 		// Solid fill
-		s := termenv.String(string(m.Full)).Foreground(m.color(m.FullColor)).String()
+		style := m.FullStyle
+		if m.FullColor != "" {
+			style = style.Foreground(lipgloss.Color(m.FullColor))
+		}
+		s := style.Render(string(m.Full))
 		b.WriteString(strings.Repeat(s, fw))
 	}
 
 	// Empty fill
-	e := termenv.String(string(m.Empty)).Foreground(m.color(m.EmptyColor)).String()
+	style := m.EmptyStyle
+	if m.EmptyColor != "" {
+		style = style.Foreground(lipgloss.Color(m.EmptyColor))
+	}
+	e := style.Render(string(m.Empty))
 	n := max(0, tw-fw)
 	b.WriteString(strings.Repeat(e, n))
 }
@@ -358,10 +379,6 @@ func (m *Model) setRamp(colorA, colorB string, scaled bool) {
 	m.scaleRamp = scaled
 	m.rampColorA = a
 	m.rampColorB = b
-}
-
-func (m Model) color(c string) termenv.Color {
-	return m.colorProfile.Color(c)
 }
 
 func max(a, b int) int {
