@@ -72,3 +72,24 @@ func TestCustomStatusBarItemName(t *testing.T) {
 		t.Fatalf("Error: expected view to contain %s", expected)
 	}
 }
+
+func TestSetSizeWithoutResizingFilterInput(t *testing.T) {
+	list := New([]Item{}, itemDelegate{}, 10, 10)
+	filterInputWidth := list.FilterInput.Width
+
+	list.SetSize(20, 20)
+	if list.FilterInput.Width != filterInputWidth {
+		t.Fatalf("Error: expected filter input width to remain the same")
+	}
+}
+
+func TestSetSizeWithResizingFilterInput(t *testing.T) {
+	list := New([]Item{}, itemDelegate{}, 10, 10)
+	list.FilterInput.Width = 10
+	filterInputWidth := list.FilterInput.Width
+
+	list.SetSize(100, 100)
+	if list.FilterInput.Width == filterInputWidth {
+		t.Fatalf("Error: expected filter input width to change")
+	}
+}
