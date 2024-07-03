@@ -103,8 +103,9 @@ func (m *Model) SetContent(s string) {
 	s = strings.ReplaceAll(s, "\r\n", "\n") // normalize line endings
 	m.lines = strings.Split(s, "\n")
 
-	wrapLines := m.wrapContent(strings.Join(m.lines, "\n"), false)
-	m.lines = strings.Split(wrapLines, "\n")
+	joinedLines := strings.Join(m.lines, "\n")
+	wrapContents := m.wrapContent(joinedLines, false)
+	m.lines = strings.Split(wrapContents, "\n")
 
 	if m.YOffset > len(m.lines)-1 {
 		m.GotoBottom()
@@ -377,7 +378,7 @@ func (m Model) wrapContent(content string, trimHeight bool) string {
 		Width(contentWidth).   // pad to width.
 		MaxWidth(contentWidth) // truncate width if wider.
 	if trimHeight {
-		contents = lipgloss.NewStyle().
+		contents = contents.
 			Height(contentHeight).   // pad to height.
 			MaxHeight(contentHeight) // truncate height if taller.
 	}
