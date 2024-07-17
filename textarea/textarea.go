@@ -767,10 +767,7 @@ func (m *Model) wordRight() {
 
 func (m *Model) doWordRight(fn func(charIdx int, pos int)) {
 	// Skip spaces forward.
-	for {
-		if m.col < len(m.value[m.row]) && !unicode.IsSpace(m.value[m.row][m.col]) {
-			break
-		}
+	for m.col >= len(m.value[m.row]) || unicode.IsSpace(m.value[m.row][m.col]) {
 		if m.row == len(m.value)-1 && m.col == len(m.value[m.row]) {
 			// End of text.
 			break
