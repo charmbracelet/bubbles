@@ -266,9 +266,6 @@ type Model struct {
 	// vertically such that we can maintain the same navigating position.
 	lastCharOffset int
 
-	// lineNumberFormat is the format string used to display line numbers.
-	lineNumberFormat string
-
 	// viewport is the vertically-scrollable viewport of the multi-line text
 	// input.
 	viewport *viewport.Model
@@ -299,11 +296,10 @@ func New() Model {
 		Cursor:               cur,
 		KeyMap:               DefaultKeyMap,
 
-		value:            make([][]rune, minHeight, defaultMaxHeight),
-		focus:            false,
-		col:              0,
-		row:              0,
-		lineNumberFormat: "%3v ",
+		value: make([][]rune, minHeight, defaultMaxHeight),
+		focus: false,
+		col:   0,
+		row:   0,
 
 		viewport: &vp,
 	}
@@ -1101,11 +1097,12 @@ func (m Model) View() string {
 	}
 	m.Cursor.TextStyle = m.style.computedCursorLine()
 
-	var s strings.Builder
-	var style lipgloss.Style
-	lineInfo := m.LineInfo()
-
-	var newLines int
+	var (
+		s        strings.Builder
+		style    lipgloss.Style
+		newLines int
+		lineInfo = m.LineInfo()
+	)
 
 	displayLine := 0
 	for l, line := range m.value {
@@ -1126,15 +1123,15 @@ func (m Model) View() string {
 			if m.ShowLineNumbers {
 				if wl == 0 {
 					if m.row == l {
-						s.WriteString(style.Render(m.style.computedCursorLineNumber().Render(fmt.Sprintf(m.lineNumberFormat, l+1))))
+						s.WriteString(style.Render(m.style.computedCursorLineNumber().Render(m.formatLineNumber(l + 1))))
 					} else {
-						s.WriteString(style.Render(m.style.computedLineNumber().Render(fmt.Sprintf(m.lineNumberFormat, l+1))))
+						s.WriteString(style.Render(m.style.computedLineNumber().Render(m.formatLineNumber(l + 1))))
 					}
 				} else {
 					if m.row == l {
-						s.WriteString(style.Render(m.style.computedCursorLineNumber().Render(fmt.Sprintf(m.lineNumberFormat, " "))))
+						s.WriteString(style.Render(m.style.computedCursorLineNumber().Render(m.formatLineNumber(" "))))
 					} else {
-						s.WriteString(style.Render(m.style.computedLineNumber().Render(fmt.Sprintf(m.lineNumberFormat, " "))))
+						s.WriteString(style.Render(m.style.computedLineNumber().Render(m.formatLineNumber(" "))))
 					}
 				}
 			}
@@ -1185,6 +1182,15 @@ func (m Model) View() string {
 
 	m.viewport.SetContent(s.String())
 	return m.style.Base.Render(m.viewport.View())
+}
+
+// formatLineNumber formats the line number for display dynamically based on
+// the maximum number of lines
+func (m Model) formatLineNumber(x any) string {
+	// XXX: ultimately we should use a max buffer height, which has yet to be
+	// implemented.
+	digits := len(strconv.Itoa(m.MaxHeight))
+	return fmt.Sprintf(" %*v ", digits, x)
 }
 
 func (m Model) getPromptString(displayLine int) (prompt string) {
@@ -1240,7 +1246,7 @@ func (m Model) placeholderView() string {
 				ln = strconv.Itoa(i + 1)
 				fallthrough
 			case len(plines) > i:
-				s.WriteString(lineStyle.Render(lineNumberStyle.Render(fmt.Sprintf(m.lineNumberFormat, ln))))
+				s.WriteString(lineStyle.Render(lineNumberStyle.Render(m.formatLineNumber(ln))))
 			default:
 			}
 		}
