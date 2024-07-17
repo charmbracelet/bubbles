@@ -135,6 +135,37 @@ type Style struct {
 	Text             lipgloss.Style
 }
 
+func (s Style) computedCursorLine() lipgloss.Style {
+	return s.CursorLine.Inherit(s.Base).Inline(true)
+}
+
+func (s Style) computedCursorLineNumber() lipgloss.Style {
+	return s.CursorLineNumber.
+		Inherit(s.CursorLine).
+		Inherit(s.Base).
+		Inline(true)
+}
+
+func (s Style) computedEndOfBuffer() lipgloss.Style {
+	return s.EndOfBuffer.Inherit(s.Base).Inline(true)
+}
+
+func (s Style) computedLineNumber() lipgloss.Style {
+	return s.LineNumber.Inherit(s.Base).Inline(true)
+}
+
+func (s Style) computedPlaceholder() lipgloss.Style {
+	return s.Placeholder.Inherit(s.Base).Inline(true)
+}
+
+func (s Style) computedPrompt() lipgloss.Style {
+	return s.Prompt.Inherit(s.Base).Inline(true)
+}
+
+func (s Style) computedText() lipgloss.Style {
+	return s.Text.Inherit(s.Base).Inline(true)
+}
+
 // line is the input to the text wrapping function. This is stored in a struct
 // so that it can be hashed and memoized.
 type line struct {
@@ -1068,7 +1099,7 @@ func (m Model) View() string {
 	if m.Value() == "" && m.row == 0 && m.col == 0 && m.Placeholder != "" {
 		return m.placeholderView()
 	}
-	m.Cursor.TextStyle = m.style.CursorLine
+	m.Cursor.TextStyle = m.style.computedCursorLine()
 
 	var s strings.Builder
 	var style lipgloss.Style
@@ -1081,29 +1112,29 @@ func (m Model) View() string {
 		wrappedLines := m.memoizedWrap(line, m.width)
 
 		if m.row == l {
-			style = m.style.CursorLine
+			style = m.style.computedCursorLine()
 		} else {
-			style = m.style.Text
+			style = m.style.computedText()
 		}
 
 		for wl, wrappedLine := range wrappedLines {
 			prompt := m.getPromptString(displayLine)
-			prompt = m.style.Prompt.Render(prompt)
+			prompt = m.style.computedPrompt().Render(prompt)
 			s.WriteString(style.Render(prompt))
 			displayLine++
 
 			if m.ShowLineNumbers {
 				if wl == 0 {
 					if m.row == l {
-						s.WriteString(style.Render(m.style.CursorLineNumber.Render(fmt.Sprintf(m.lineNumberFormat, l+1))))
+						s.WriteString(style.Render(m.style.computedCursorLineNumber().Render(fmt.Sprintf(m.lineNumberFormat, l+1))))
 					} else {
-						s.WriteString(style.Render(m.style.LineNumber.Render(fmt.Sprintf(m.lineNumberFormat, l+1))))
+						s.WriteString(style.Render(m.style.computedLineNumber().Render(fmt.Sprintf(m.lineNumberFormat, l+1))))
 					}
 				} else {
 					if m.row == l {
-						s.WriteString(style.Render(m.style.CursorLineNumber.Render(fmt.Sprintf(m.lineNumberFormat, " "))))
+						s.WriteString(style.Render(m.style.computedCursorLineNumber().Render(fmt.Sprintf(m.lineNumberFormat, " "))))
 					} else {
-						s.WriteString(style.Render(m.style.LineNumber.Render(fmt.Sprintf(m.lineNumberFormat, " "))))
+						s.WriteString(style.Render(m.style.computedLineNumber().Render(fmt.Sprintf(m.lineNumberFormat, " "))))
 					}
 				}
 			}
@@ -1144,11 +1175,11 @@ func (m Model) View() string {
 	// To do this we can simply pad out a few extra new lines in the view.
 	for i := 0; i < m.height; i++ {
 		prompt := m.getPromptString(displayLine)
-		prompt = m.style.Prompt.Render(prompt)
+		prompt = m.style.computedPrompt().Render(prompt)
 		s.WriteString(prompt)
 		displayLine++
 
-		s.WriteString(m.style.EndOfBuffer.Render(string(m.EndOfBufferCharacter)))
+		s.WriteString(m.style.computedEndOfBuffer().Render(string(m.EndOfBufferCharacter)))
 		s.WriteRune('\n')
 	}
 
@@ -1174,7 +1205,7 @@ func (m Model) placeholderView() string {
 	var (
 		s     strings.Builder
 		p     = m.Placeholder
-		style = m.style.Placeholder.Inline(true)
+		style = m.style.computedPlaceholder()
 	)
 
 	// word wrap lines
@@ -1185,16 +1216,16 @@ func (m Model) placeholderView() string {
 	plines := strings.Split(strings.TrimSpace(pwrap), "\n")
 
 	for i := 0; i < m.height; i++ {
-		lineStyle := m.style.Placeholder
-		lineNumberStyle := m.style.LineNumber
+		lineStyle := m.style.computedPlaceholder()
+		lineNumberStyle := m.style.computedLineNumber()
 		if len(plines) > i {
-			lineStyle = m.style.CursorLine
-			lineNumberStyle = m.style.CursorLineNumber
+			lineStyle = m.style.computedCursorLine()
+			lineNumberStyle = m.style.computedCursorLineNumber()
 		}
 
 		// render prompt
 		prompt := m.getPromptString(i)
-		prompt = m.style.Prompt.Render(prompt)
+		prompt = m.style.computedPrompt().Render(prompt)
 		s.WriteString(lineStyle.Render(prompt))
 
 		// when show line numbers enabled:
@@ -1218,7 +1249,7 @@ func (m Model) placeholderView() string {
 		// first line
 		case i == 0:
 			// first character of first line as cursor with character
-			m.Cursor.TextStyle = m.style.Placeholder
+			m.Cursor.TextStyle = m.style.computedPlaceholder()
 			m.Cursor.SetChar(string(plines[0][0]))
 			s.WriteString(lineStyle.Render(m.Cursor.View()))
 
@@ -1232,7 +1263,7 @@ func (m Model) placeholderView() string {
 			}
 		default:
 			// end of line buffer character
-			eob := m.style.EndOfBuffer.Render(string(m.EndOfBufferCharacter))
+			eob := m.style.computedEndOfBuffer().Render(string(m.EndOfBufferCharacter))
 			s.WriteString(eob)
 		}
 
