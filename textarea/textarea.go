@@ -1098,10 +1098,11 @@ func (m Model) View() string {
 	m.Cursor.TextStyle = m.style.computedCursorLine()
 
 	var (
-		s        strings.Builder
-		style    lipgloss.Style
-		newLines int
-		lineInfo = m.LineInfo()
+		s                strings.Builder
+		style            lipgloss.Style
+		newLines         int
+		widestLineNumber int
+		lineInfo         = m.LineInfo()
 	)
 
 	displayLine := 0
@@ -1120,20 +1121,31 @@ func (m Model) View() string {
 			s.WriteString(style.Render(prompt))
 			displayLine++
 
+			var ln string
 			if m.ShowLineNumbers {
 				if wl == 0 {
 					if m.row == l {
-						s.WriteString(style.Render(m.style.computedCursorLineNumber().Render(m.formatLineNumber(l + 1))))
+						ln = style.Render(m.style.computedCursorLineNumber().Render(m.formatLineNumber(l + 1)))
+						s.WriteString(ln)
 					} else {
-						s.WriteString(style.Render(m.style.computedLineNumber().Render(m.formatLineNumber(l + 1))))
+						ln = style.Render(m.style.computedLineNumber().Render(m.formatLineNumber(l + 1)))
+						s.WriteString(ln)
 					}
 				} else {
 					if m.row == l {
-						s.WriteString(style.Render(m.style.computedCursorLineNumber().Render(m.formatLineNumber(" "))))
+						ln = style.Render(m.style.computedCursorLineNumber().Render(m.formatLineNumber(" ")))
+						s.WriteString(ln)
 					} else {
-						s.WriteString(style.Render(m.style.computedLineNumber().Render(m.formatLineNumber(" "))))
+						ln = style.Render(m.style.computedLineNumber().Render(m.formatLineNumber(" ")))
+						s.WriteString(ln)
 					}
 				}
+			}
+
+			// Note the widest line number for padding purposes later.
+			lnw := lipgloss.Width(ln)
+			if lnw > widestLineNumber {
+				widestLineNumber = lnw
 			}
 
 			strwidth := uniseg.StringWidth(string(wrappedLine))
@@ -1176,7 +1188,11 @@ func (m Model) View() string {
 		s.WriteString(prompt)
 		displayLine++
 
-		s.WriteString(m.style.computedEndOfBuffer().Render(string(m.EndOfBufferCharacter)))
+		// Write end of buffer content
+		leftGutter := string(m.EndOfBufferCharacter)
+		rightGapWidth := m.Width() - lipgloss.Width(leftGutter) + widestLineNumber
+		rightGap := strings.Repeat(" ", max(0, rightGapWidth))
+		s.WriteString(m.style.computedEndOfBuffer().Render(leftGutter + rightGap))
 		s.WriteRune('\n')
 	}
 
