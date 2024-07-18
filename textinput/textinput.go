@@ -813,14 +813,27 @@ func (m Model) completionView(offset int) string {
 	return ""
 }
 
-// AvailableSuggestions returns the list of available suggestions.
-func (m *Model) AvailableSuggestions() []string {
-	suggestions := make([]string, len(m.suggestions))
-	for i, s := range m.suggestions {
+func (m *Model) getSuggestions(sugs [][]rune) []string {
+	suggestions := make([]string, len(sugs))
+	for i, s := range sugs {
 		suggestions[i] = string(s)
 	}
-
 	return suggestions
+}
+
+// AvailableSuggestions returns the list of available suggestions.
+func (m *Model) AvailableSuggestions() []string {
+	return m.getSuggestions(m.suggestions)
+}
+
+// MatchedSuggestions returns the list of matched suggestions.
+func (m *Model) MatchedSuggestions() []string {
+	return m.getSuggestions(m.matchedSuggestions)
+}
+
+// CurrentSuggestion returns the currently selected suggestion index.
+func (m *Model) CurrentSuggestionIndex() int {
+	return m.currentSuggestionIndex
 }
 
 // CurrentSuggestion returns the currently selected suggestion.
