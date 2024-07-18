@@ -3,6 +3,7 @@ package textarea
 import (
 	"crypto/sha256"
 	"fmt"
+	"strconv"
 	"strings"
 	"unicode"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 	rw "github.com/mattn/go-runewidth"
 	"github.com/rivo/uniseg"
 )
@@ -133,6 +135,37 @@ type Style struct {
 	Text             lipgloss.Style
 }
 
+func (s Style) computedCursorLine() lipgloss.Style {
+	return s.CursorLine.Inherit(s.Base).Inline(true)
+}
+
+func (s Style) computedCursorLineNumber() lipgloss.Style {
+	return s.CursorLineNumber.
+		Inherit(s.CursorLine).
+		Inherit(s.Base).
+		Inline(true)
+}
+
+func (s Style) computedEndOfBuffer() lipgloss.Style {
+	return s.EndOfBuffer.Inherit(s.Base).Inline(true)
+}
+
+func (s Style) computedLineNumber() lipgloss.Style {
+	return s.LineNumber.Inherit(s.Base).Inline(true)
+}
+
+func (s Style) computedPlaceholder() lipgloss.Style {
+	return s.Placeholder.Inherit(s.Base).Inline(true)
+}
+
+func (s Style) computedPrompt() lipgloss.Style {
+	return s.Prompt.Inherit(s.Base).Inline(true)
+}
+
+func (s Style) computedText() lipgloss.Style {
+	return s.Text.Inherit(s.Base).Inline(true)
+}
+
 // line is the input to the text wrapping function. This is stored in a struct
 // so that it can be hashed and memoized.
 type line struct {
@@ -233,9 +266,6 @@ type Model struct {
 	// vertically such that we can maintain the same navigating position.
 	lastCharOffset int
 
-	// lineNumberFormat is the format string used to display line numbers.
-	lineNumberFormat string
-
 	// viewport is the vertically-scrollable viewport of the multi-line text
 	// input.
 	viewport *viewport.Model
@@ -266,11 +296,10 @@ func New(ctx tea.Context) Model {
 		Cursor:               cur,
 		KeyMap:               DefaultKeyMap,
 
-		value:            make([][]rune, minHeight, defaultMaxHeight),
-		focus:            false,
-		col:              0,
-		row:              0,
-		lineNumberFormat: "%3v ",
+		value: make([][]rune, minHeight, defaultMaxHeight),
+		focus: false,
+		col:   0,
+		row:   0,
 
 		viewport: &vp,
 	}
@@ -738,10 +767,7 @@ func (m *Model) wordRight() {
 
 func (m *Model) doWordRight(fn func(charIdx int, pos int)) {
 	// Skip spaces forward.
-	for {
-		if m.col < len(m.value[m.row]) && !unicode.IsSpace(m.value[m.row][m.col]) {
-			break
-		}
+	for m.col >= len(m.value[m.row]) || unicode.IsSpace(m.value[m.row][m.col]) {
 		if m.row == len(m.value)-1 && m.col == len(m.value[m.row]) {
 			// End of text.
 			break
@@ -1069,44 +1095,57 @@ func (m Model) View(ctx tea.Context) string {
 	if m.Value() == "" && m.row == 0 && m.col == 0 && m.Placeholder != "" {
 		return m.placeholderView(ctx)
 	}
-	m.Cursor.TextStyle = m.style.CursorLine
+	m.Cursor.TextStyle = m.style.computedCursorLine()
 
-	var s strings.Builder
-	var style lipgloss.Style
-	lineInfo := m.LineInfo()
-
-	var newLines int
+	var (
+		s                strings.Builder
+		style            lipgloss.Style
+		newLines         int
+		widestLineNumber int
+		lineInfo         = m.LineInfo()
+	)
 
 	displayLine := 0
 	for l, line := range m.value {
 		wrappedLines := m.memoizedWrap(line, m.width)
 
 		if m.row == l {
-			style = m.style.CursorLine
+			style = m.style.computedCursorLine()
 		} else {
-			style = m.style.Text
+			style = m.style.computedText()
 		}
 
 		for wl, wrappedLine := range wrappedLines {
 			prompt := m.getPromptString(displayLine)
-			prompt = m.style.Prompt.Render(prompt)
+			prompt = m.style.computedPrompt().Render(prompt)
 			s.WriteString(style.Render(prompt))
 			displayLine++
 
+			var ln string
 			if m.ShowLineNumbers {
 				if wl == 0 {
 					if m.row == l {
-						s.WriteString(style.Render(m.style.CursorLineNumber.Render(fmt.Sprintf(m.lineNumberFormat, l+1))))
+						ln = style.Render(m.style.computedCursorLineNumber().Render(m.formatLineNumber(l + 1)))
+						s.WriteString(ln)
 					} else {
-						s.WriteString(style.Render(m.style.LineNumber.Render(fmt.Sprintf(m.lineNumberFormat, l+1))))
+						ln = style.Render(m.style.computedLineNumber().Render(m.formatLineNumber(l + 1)))
+						s.WriteString(ln)
 					}
 				} else {
 					if m.row == l {
-						s.WriteString(style.Render(m.style.CursorLineNumber.Render(fmt.Sprintf(m.lineNumberFormat, " "))))
+						ln = style.Render(m.style.computedCursorLineNumber().Render(m.formatLineNumber(" ")))
+						s.WriteString(ln)
 					} else {
-						s.WriteString(style.Render(m.style.LineNumber.Render(fmt.Sprintf(m.lineNumberFormat, " "))))
+						ln = style.Render(m.style.computedLineNumber().Render(m.formatLineNumber(" ")))
+						s.WriteString(ln)
 					}
 				}
+			}
+
+			// Note the widest line number for padding purposes later.
+			lnw := lipgloss.Width(ln)
+			if lnw > widestLineNumber {
+				widestLineNumber = lnw
 			}
 
 			strwidth := uniseg.StringWidth(string(wrappedLine))
@@ -1145,16 +1184,29 @@ func (m Model) View(ctx tea.Context) string {
 	// To do this we can simply pad out a few extra new lines in the view.
 	for i := 0; i < m.height; i++ {
 		prompt := m.getPromptString(displayLine)
-		prompt = m.style.Prompt.Render(prompt)
+		prompt = m.style.computedPrompt().Render(prompt)
 		s.WriteString(prompt)
 		displayLine++
 
-		s.WriteString(m.style.EndOfBuffer.Render(string(m.EndOfBufferCharacter)))
+		// Write end of buffer content
+		leftGutter := string(m.EndOfBufferCharacter)
+		rightGapWidth := m.Width() - lipgloss.Width(leftGutter) + widestLineNumber
+		rightGap := strings.Repeat(" ", max(0, rightGapWidth))
+		s.WriteString(m.style.computedEndOfBuffer().Render(leftGutter + rightGap))
 		s.WriteRune('\n')
 	}
 
 	m.viewport.SetContent(s.String())
 	return m.style.Base.Render(m.viewport.View(ctx))
+}
+
+// formatLineNumber formats the line number for display dynamically based on
+// the maximum number of lines
+func (m Model) formatLineNumber(x any) string {
+	// XXX: ultimately we should use a max buffer height, which has yet to be
+	// implemented.
+	digits := len(strconv.Itoa(m.MaxHeight))
+	return fmt.Sprintf(" %*v ", digits, x)
 }
 
 func (m Model) getPromptString(displayLine int) (prompt string) {
@@ -1174,36 +1226,71 @@ func (m Model) getPromptString(displayLine int) (prompt string) {
 func (m Model) placeholderView(ctx tea.Context) string {
 	var (
 		s     strings.Builder
-		p     = rw.Truncate(rw.Truncate(m.Placeholder, m.width, "..."), m.width, "")
-		style = m.style.Placeholder.Inline(true)
+		p     = m.Placeholder
+		style = m.style.computedPlaceholder()
 	)
 
-	prompt := m.getPromptString(0)
-	prompt = m.style.Prompt.Render(prompt)
-	s.WriteString(m.style.CursorLine.Render(prompt))
+	// word wrap lines
+	pwordwrap := ansi.Wordwrap(p, m.width, "")
+	// wrap lines (handles lines that could not be word wrapped)
+	pwrap := ansi.Hardwrap(pwordwrap, m.width, true)
+	// split string by new lines
+	plines := strings.Split(strings.TrimSpace(pwrap), "\n")
 
-	if m.ShowLineNumbers {
-		s.WriteString(m.style.CursorLine.Render(m.style.CursorLineNumber.Render((fmt.Sprintf(m.lineNumberFormat, 1)))))
-	}
+	for i := 0; i < m.height; i++ {
+		lineStyle := m.style.computedPlaceholder()
+		lineNumberStyle := m.style.computedLineNumber()
+		if len(plines) > i {
+			lineStyle = m.style.computedCursorLine()
+			lineNumberStyle = m.style.computedCursorLineNumber()
+		}
 
-	m.Cursor.TextStyle = m.style.Placeholder
-	m.Cursor.SetChar(string(p[0]))
-	s.WriteString(m.style.CursorLine.Render(m.Cursor.View(ctx)))
-
-	// The rest of the placeholder text
-	s.WriteString(m.style.CursorLine.Render(style.Render(p[1:] + strings.Repeat(" ", max(0, m.width-uniseg.StringWidth(p))))))
-
-	// The rest of the new lines
-	for i := 1; i < m.height; i++ {
-		s.WriteRune('\n')
+		// render prompt
 		prompt := m.getPromptString(i)
-		prompt = m.style.Prompt.Render(prompt)
-		s.WriteString(prompt)
+		prompt = m.style.computedPrompt().Render(prompt)
+		s.WriteString(lineStyle.Render(prompt))
 
+		// when show line numbers enabled:
+		// - render line number for only the cursor line
+		// - indent other placeholder lines
+		// this is consistent with vim with line numbers enabled
 		if m.ShowLineNumbers {
-			eob := m.style.EndOfBuffer.Render(string(m.EndOfBufferCharacter))
+			var ln string
+
+			switch {
+			case i == 0:
+				ln = strconv.Itoa(i + 1)
+				fallthrough
+			case len(plines) > i:
+				s.WriteString(lineStyle.Render(lineNumberStyle.Render(m.formatLineNumber(ln))))
+			default:
+			}
+		}
+
+		switch {
+		// first line
+		case i == 0:
+			// first character of first line as cursor with character
+			m.Cursor.TextStyle = m.style.computedPlaceholder()
+			m.Cursor.SetChar(string(plines[0][0]))
+			s.WriteString(lineStyle.Render(m.Cursor.View(ctx)))
+
+			// the rest of the first line
+			s.WriteString(lineStyle.Render(style.Render(plines[0][1:] + strings.Repeat(" ", max(0, m.width-uniseg.StringWidth(plines[0]))))))
+		// remaining lines
+		case len(plines) > i:
+			// current line placeholder text
+			if len(plines) > i {
+				s.WriteString(lineStyle.Render(style.Render(plines[i] + strings.Repeat(" ", max(0, m.width-uniseg.StringWidth(plines[i]))))))
+			}
+		default:
+			// end of line buffer character
+			eob := m.style.computedEndOfBuffer().Render(string(m.EndOfBufferCharacter))
 			s.WriteString(eob)
 		}
+
+		// terminate with new line
+		s.WriteRune('\n')
 	}
 
 	m.viewport.SetContent(s.String())

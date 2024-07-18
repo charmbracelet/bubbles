@@ -435,7 +435,7 @@ func (m *Model) renderRow(r int) string {
 		if m.styleFunc != nil {
 			cellStyle = m.styleFunc(r, i, value)
 			if r == m.cursor {
-				cellStyle.Inherit(m.styles.Selected)
+				cellStyle = cellStyle.Inherit(m.styles.Selected)
 			}
 		} else {
 			cellStyle = m.styles.Cell

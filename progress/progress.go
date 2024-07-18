@@ -175,13 +175,15 @@ func New(ctx tea.Context, opts ...Option) Model {
 		ShowPercentage: true,
 		PercentFormat:  " %3.0f%%",
 	}
-	if !m.springCustomized {
-		m.SetSpringOptions(defaultFrequency, defaultDamping)
-	}
 
 	for _, opt := range opts {
 		opt(&m)
 	}
+
+	if !m.springCustomized {
+		m.SetSpringOptions(defaultFrequency, defaultDamping)
+	}
+
 	return m
 }
 
