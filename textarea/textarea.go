@@ -440,7 +440,7 @@ func (m *Model) insertRunesFromUserInput(runes []rune) {
 	// Finally add the tail at the end of the last line inserted.
 	m.value[m.row] = append(m.value[m.row], tail...)
 
-	m.SetCursor(m.col)
+	m.SetCursorColumn(m.col)
 }
 
 // Value returns the value of the text input.
@@ -546,23 +546,47 @@ func (m *Model) CursorUp() {
 	}
 }
 
-// SetCursor moves the cursor to the given position. If the position is
+// SetCursorColumn moves the cursor to the given column. If the column is
 // out of bounds the cursor will be moved to the start or end accordingly.
+//
+// Deprecated: use [SetCursorColumn] instead.
 func (m *Model) SetCursor(col int) {
+	m.SetCursorColumn(col)
+}
+
+// SetCursor moves the cursor to the given row and column. If the cursor is out
+// of bounds it will be moved to the start or end of the row or column
+// accordingly.
+func (m *Model) SetCursorPosition(x, y int) {
+	// Order matters: the row must be set first to avoid resetting the column
+	// offset.
+	m.SetCursorRow(x)
+	m.SetCursorColumn(y)
+}
+
+// SetCursorRow moves the cursor to the given row. If the row is out of bounds
+// the cursor will be moved to the start or end accordingly.
+func (m *Model) SetCursorRow(row int) {
+	m.row = clamp(row, 0, len(m.value)-1)
+}
+
+// SetCursorColumn moves the cursor to the given column. If the column is
+// out of bounds the cursor will be moved to the start or end accordingly.
+func (m *Model) SetCursorColumn(col int) {
 	m.col = clamp(col, 0, len(m.value[m.row]))
-	// Any time that we move the cursor horizontally we need to reset the last
+	// Anytime that we move the cursor horizontally we need to reset the last
 	// offset so that the horizontal position when navigating is adjusted.
 	m.lastCharOffset = 0
 }
 
 // CursorStart moves the cursor to the start of the input field.
 func (m *Model) CursorStart() {
-	m.SetCursor(0)
+	m.SetCursorColumn(0)
 }
 
 // CursorEnd moves the cursor to the end of the input field.
 func (m *Model) CursorEnd() {
-	m.SetCursor(len(m.value[m.row]))
+	m.SetCursorColumn(len(m.value[m.row]))
 }
 
 // Focused returns the focus state on the model.
@@ -596,7 +620,7 @@ func (m *Model) Reset() {
 	m.col = 0
 	m.row = 0
 	m.viewport.GotoTop()
-	m.SetCursor(0)
+	m.SetCursorColumn(0)
 }
 
 // san initializes or retrieves the rune sanitizer.
@@ -613,7 +637,7 @@ func (m *Model) san() runeutil.Sanitizer {
 // not the cursor blink should be reset.
 func (m *Model) deleteBeforeCursor() {
 	m.value[m.row] = m.value[m.row][m.col:]
-	m.SetCursor(0)
+	m.SetCursorColumn(0)
 }
 
 // deleteAfterCursor deletes all text after the cursor. Returns whether or not
@@ -621,7 +645,7 @@ func (m *Model) deleteBeforeCursor() {
 // the cursor so as not to reveal word breaks in the masked input.
 func (m *Model) deleteAfterCursor() {
 	m.value[m.row] = m.value[m.row][:m.col]
-	m.SetCursor(len(m.value[m.row]))
+	m.SetCursorColumn(len(m.value[m.row]))
 }
 
 // transposeLeft exchanges the runes at the cursor and immediately
@@ -633,11 +657,11 @@ func (m *Model) transposeLeft() {
 		return
 	}
 	if m.col >= len(m.value[m.row]) {
-		m.SetCursor(m.col - 1)
+		m.SetCursorColumn(m.col - 1)
 	}
 	m.value[m.row][m.col-1], m.value[m.row][m.col] = m.value[m.row][m.col], m.value[m.row][m.col-1]
 	if m.col < len(m.value[m.row]) {
-		m.SetCursor(m.col + 1)
+		m.SetCursorColumn(m.col + 1)
 	}
 }
 
@@ -653,22 +677,22 @@ func (m *Model) deleteWordLeft() {
 	// call into the corresponding if clause does not apply here.
 	oldCol := m.col //nolint:ifshort
 
-	m.SetCursor(m.col - 1)
+	m.SetCursorColumn(m.col - 1)
 	for unicode.IsSpace(m.value[m.row][m.col]) {
 		if m.col <= 0 {
 			break
 		}
 		// ignore series of whitespace before cursor
-		m.SetCursor(m.col - 1)
+		m.SetCursorColumn(m.col - 1)
 	}
 
 	for m.col > 0 {
 		if !unicode.IsSpace(m.value[m.row][m.col]) {
-			m.SetCursor(m.col - 1)
+			m.SetCursorColumn(m.col - 1)
 		} else {
 			if m.col > 0 {
 				// keep the previous space
-				m.SetCursor(m.col + 1)
+				m.SetCursorColumn(m.col + 1)
 			}
 			break
 		}
@@ -691,12 +715,12 @@ func (m *Model) deleteWordRight() {
 
 	for m.col < len(m.value[m.row]) && unicode.IsSpace(m.value[m.row][m.col]) {
 		// ignore series of whitespace after cursor
-		m.SetCursor(m.col + 1)
+		m.SetCursorColumn(m.col + 1)
 	}
 
 	for m.col < len(m.value[m.row]) {
 		if !unicode.IsSpace(m.value[m.row][m.col]) {
-			m.SetCursor(m.col + 1)
+			m.SetCursorColumn(m.col + 1)
 		} else {
 			break
 		}
@@ -708,13 +732,13 @@ func (m *Model) deleteWordRight() {
 		m.value[m.row] = append(m.value[m.row][:oldCol], m.value[m.row][m.col:]...)
 	}
 
-	m.SetCursor(oldCol)
+	m.SetCursorColumn(oldCol)
 }
 
 // characterRight moves the cursor one character to the right.
 func (m *Model) characterRight() {
 	if m.col < len(m.value[m.row]) {
-		m.SetCursor(m.col + 1)
+		m.SetCursorColumn(m.col + 1)
 	} else {
 		if m.row < len(m.value)-1 {
 			m.row++
@@ -735,7 +759,7 @@ func (m *Model) characterLeft(insideLine bool) {
 		}
 	}
 	if m.col > 0 {
-		m.SetCursor(m.col - 1)
+		m.SetCursorColumn(m.col - 1)
 	}
 }
 
@@ -754,7 +778,7 @@ func (m *Model) wordLeft() {
 		if unicode.IsSpace(m.value[m.row][m.col-1]) {
 			break
 		}
-		m.SetCursor(m.col - 1)
+		m.SetCursorColumn(m.col - 1)
 	}
 }
 
@@ -781,7 +805,7 @@ func (m *Model) doWordRight(fn func(charIdx int, pos int)) {
 			break
 		}
 		fn(charIdx, m.col)
-		m.SetCursor(m.col + 1)
+		m.SetCursorColumn(m.col + 1)
 		charIdx++
 	}
 }
@@ -871,13 +895,13 @@ func (m Model) Width() int {
 // moveToBegin moves the cursor to the beginning of the input.
 func (m *Model) moveToBegin() {
 	m.row = 0
-	m.SetCursor(0)
+	m.SetCursorColumn(0)
 }
 
 // moveToEnd moves the cursor to the end of the input.
 func (m *Model) moveToEnd() {
 	m.row = len(m.value) - 1
-	m.SetCursor(len(m.value[m.row]))
+	m.SetCursorColumn(len(m.value[m.row]))
 }
 
 // SetWidth sets the width of the textarea to fit exactly within the given width.
@@ -998,7 +1022,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			if len(m.value[m.row]) > 0 {
 				m.value[m.row] = append(m.value[m.row][:max(0, m.col-1)], m.value[m.row][m.col:]...)
 				if m.col > 0 {
-					m.SetCursor(m.col - 1)
+					m.SetCursorColumn(m.col - 1)
 				}
 			}
 		case key.Matches(msg, m.KeyMap.DeleteCharacterForward):
