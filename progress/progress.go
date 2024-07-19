@@ -496,6 +496,11 @@ func (m Model) color(c string) termenv.Color {
 
 // IsAnimating returns false if the progress bar reached equilibrium and is no longer animating.
 func (m Model) IsAnimating() bool {
+	// If we are still in indeterminate mode, it's still animating.
+	if m.indeterminate {
+		return true
+	}
+
 	dist := math.Abs(m.percentShown - m.targetPercent)
 	return !(dist < 0.001 && m.velocity < 0.01)
 }
