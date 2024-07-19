@@ -35,6 +35,10 @@ const (
 	defaultWidth     = 40
 	defaultFrequency = 18.0
 	defaultDamping   = 1.0
+
+	// indeterminateBarWidth is percentage of total bar width that will be
+	// used as indeterminate bar.
+	indeterminateBarWidth = 0.2
 )
 
 // Option is used to set options in New. For example:
@@ -170,8 +174,9 @@ type Model struct {
 	velocity         float64
 
 	// Members for indeterminate mode.
-	indeterminate    bool
-	indeterminatePos float64
+	indeterminate              bool
+	indeterminatePos           float64
+	indeterminateStopRequested bool
 
 	// Gradient settings
 	useRamp    bool
@@ -248,9 +253,31 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) updateIndeterminatePercentage() (tea.Model, tea.Cmd) {
-	m.indeterminatePos, m.velocity = m.spring.Update(m.indeterminatePos, m.velocity, m.indeterminatePos+.2)
-	if m.indeterminatePos > 1 {
+	// The value of increment here is taken from the tick duration in [Model.nextFrame]
+	// function. The idea is the filled bar will move one step per tick.
+	increment := 1.0 / float64(fps)
+
+	m.indeterminatePos += increment
+	if m.indeterminatePos >= 1 {
 		m.indeterminatePos -= 1
+	}
+
+	// Handle request for stopping indeterminate progress bar. Once the stop request
+	// is received, don't stop the indeterminate animation until the filled bar reach
+	// the end of the progress bar area.
+	if m.indeterminateStopRequested {
+		start := m.indeterminatePos
+		end := start + indeterminateBarWidth
+
+		// Notice the `-increment` here. This is done to prevent float rounding error
+		// which make the indeterminate progress bar never ends. The drawback is there
+		// will be one last cell that not filled when indeterminate progress bar ends,
+		// but IMHO it's still smooth enough.
+		if start >= 1-indeterminateBarWidth-increment && end <= 1.0 {
+			m.indeterminate = false
+			m.indeterminateStopRequested = false
+			m.indeterminatePos = 0
+		}
 	}
 
 	return m, m.nextFrame()
@@ -287,9 +314,11 @@ func (m Model) Percent() float64 {
 //
 // If you're rendering with ViewAs you won't need this.
 func (m *Model) SetPercent(p float64) tea.Cmd {
-	if m.indeterminate {
-		m.indeterminate = false
-		m.indeterminatePos = 0
+	// Rather than stopping indeterminate progress bar immediately, here we send
+	// request to stop the indeterminate progress bar. This way the progress bar
+	// could be ended gracefully.
+	if m.indeterminate && !m.indeterminateStopRequested {
+		m.indeterminateStopRequested = true
 	}
 
 	m.targetPercent = math.Max(0, math.Min(1, p))
@@ -348,19 +377,20 @@ func (m *Model) nextFrame() tea.Cmd {
 func (m Model) indeterminateBarView(b *strings.Builder, pos float64, textWidth int) {
 	var (
 		start = pos
-		end   = pos + .2
+		end   = pos + indeterminateBarWidth
 		tw    = math.Floor(math.Max(0, float64(m.Width-textWidth)))    // total width
+		tbw   = math.Round(float64(tw) * indeterminateBarWidth)        // total bar width
 		lbw   = math.Round(float64(tw) * math.Max(end-1, 0))           // left bar width
-		rbw   = math.Round(float64(tw) * (math.Min(1, end) - start))   // right bar width
+		rbw   = tbw - lbw                                              // right bar width
 		lew   = math.Round(float64(tw) * (start - math.Max(end-1, 0))) // left empty width
 		rew   = tw - lbw - lew - rbw                                   // right empty width
 	)
 
+	itbw := int(math.Max(0, math.Min(tw, tbw))) // total bar width, in int
 	ilbw := int(math.Max(0, math.Min(tw, lbw))) // left bar width, in int
 	irbw := int(math.Max(0, math.Min(tw, rbw))) // right bar width, in int
 	ilew := int(math.Max(0, math.Min(tw, lew))) // left empty width, in int
 	irew := int(math.Max(0, math.Min(tw, rew))) // right empty width, in int
-	itbw := ilbw + irbw                         // total bar width
 
 	// Prepare color and style
 	empty := termenv.String(string(m.Empty)).Foreground(m.color(m.EmptyColor)).String()
