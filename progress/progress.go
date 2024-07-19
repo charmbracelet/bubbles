@@ -234,7 +234,7 @@ func (m Model) Init() tea.Cmd {
 // SetPercent to create the command you'll need to trigger the animation.
 //
 // If you're rendering with ViewAs you won't need this.
-func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case FrameMsg:
 		if msg.id != m.id || msg.tag != m.tag {
@@ -252,7 +252,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 }
 
-func (m Model) updateIndeterminatePercentage() (tea.Model, tea.Cmd) {
+func (m Model) updateIndeterminatePercentage() (Model, tea.Cmd) {
 	// The value of increment here is taken from the tick duration in [Model.nextFrame]
 	// function. The idea is the filled bar will move one step per tick.
 	increment := 1.0 / float64(fps)
@@ -283,7 +283,7 @@ func (m Model) updateIndeterminatePercentage() (tea.Model, tea.Cmd) {
 	return m, m.nextFrame()
 }
 
-func (m Model) updateDeterminatePercentage() (tea.Model, tea.Cmd) {
+func (m Model) updateDeterminatePercentage() (Model, tea.Cmd) {
 	// If we've more or less reached equilibrium, stop updating.
 	if !m.IsAnimating() {
 		return m, nil
