@@ -555,7 +555,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	}
 
 	// Need to check for completion before, because key is configurable and might be double assigned
-	keyMsg, ok := msg.(tea.KeyMsg)
+	keyMsg, ok := msg.(tea.KeyPressMsg)
 	if ok && key.Matches(keyMsg, m.KeyMap.AcceptSuggestion) {
 		if m.canAcceptSuggestion() {
 			m.value = append(m.value, m.matchedSuggestions[m.currentSuggestionIndex][len(m.value):]...)
@@ -568,7 +568,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	oldPos := m.pos //nolint
 
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		switch {
 		case key.Matches(msg, m.KeyMap.DeleteWordBackward):
 			m.deleteWordBackward()
@@ -616,12 +616,15 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.previousSuggestion()
 		default:
 			// Input one or more regular characters.
-			m.insertRunesFromUserInput(msg.Runes)
+			m.insertRunesFromUserInput([]rune{msg.Rune})
 		}
 
 		// Check again if can be completed
 		// because value might be something that does not match the completion prefix
 		m.updateSuggestions()
+
+	case tea.PasteMsg:
+		m.insertRunesFromUserInput([]rune(msg))
 
 	case pasteMsg:
 		m.insertRunesFromUserInput([]rune(msg))

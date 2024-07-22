@@ -50,7 +50,7 @@ func TestPrevPage(t *testing.T) {
 			model.SetTotalPages(tt.totalPages)
 			model.Page = tt.page
 
-			model, _ = model.Update(tea.KeyMsg{Type: tea.KeyLeft, Alt: false, Runes: []rune{}})
+			model, _ = model.Update(tea.KeyPressMsg{Sym: tea.KeyLeft})
 			if model.Page != tt.expected {
 				t.Errorf("PrevPage() = %d, expected %d", model.Page, tt.expected)
 			}
@@ -75,7 +75,7 @@ func TestNextPage(t *testing.T) {
 			model.SetTotalPages(tt.totalPages)
 			model.Page = tt.page
 
-			model, _ = model.Update(tea.KeyMsg{Type: tea.KeyRight, Alt: false, Runes: []rune{}})
+			model, _ = model.Update(tea.KeyPressMsg{Sym: tea.KeyRight})
 			if model.Page != tt.expected {
 				t.Errorf("NextPage() = %d, expected %d", model.Page, tt.expected)
 			}
