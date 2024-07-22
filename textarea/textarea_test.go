@@ -234,7 +234,7 @@ func TestVerticalNavigationKeepsCursorHorizontalPosition(t *testing.T) {
 		t.Fatal("Expected cursor to be on the fourth character because there are two double width runes on the first line.")
 	}
 
-	downMsg := tea.KeyMsg{Type: tea.KeyDown, Alt: false, Runes: []rune{}}
+	downMsg := tea.KeyPressMsg{Type: tea.KeyDown, Runes: []rune{}}
 	textarea, _ = textarea.Update(downMsg)
 
 	lineInfo = textarea.LineInfo()
@@ -273,7 +273,7 @@ func TestVerticalNavigationShouldRememberPositionWhileTraversing(t *testing.T) {
 	}
 
 	// Let's go up.
-	upMsg := tea.KeyMsg{Type: tea.KeyUp, Alt: false, Runes: []rune{}}
+	upMsg := tea.KeyPressMsg{Type: tea.KeyUp, Runes: []rune{}}
 	textarea, _ = textarea.Update(upMsg)
 
 	// We should be at the end of the second line.
@@ -292,7 +292,7 @@ func TestVerticalNavigationShouldRememberPositionWhileTraversing(t *testing.T) {
 	}
 
 	// Let's go down, twice.
-	downMsg := tea.KeyMsg{Type: tea.KeyDown, Alt: false, Runes: []rune{}}
+	downMsg := tea.KeyPressMsg{Type: tea.KeyDown, Runes: []rune{}}
 	textarea, _ = textarea.Update(downMsg)
 	textarea, _ = textarea.Update(downMsg)
 
@@ -308,7 +308,7 @@ func TestVerticalNavigationShouldRememberPositionWhileTraversing(t *testing.T) {
 	// work.
 
 	textarea, _ = textarea.Update(upMsg)
-	leftMsg := tea.KeyMsg{Type: tea.KeyLeft, Alt: false, Runes: []rune{}}
+	leftMsg := tea.KeyPressMsg{Type: tea.KeyLeft, Runes: []rune{}}
 	textarea, _ = textarea.Update(leftMsg)
 
 	if textarea.col != 4 || textarea.row != 1 {
@@ -1716,7 +1716,7 @@ func newTextArea() Model {
 }
 
 func keyPress(key rune) tea.Msg {
-	return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{key}, Alt: false}
+	return tea.KeyPressMsg{Type: tea.KeyRunes, Runes: []rune{key}}
 }
 
 func sendString(m Model, str string) Model {
