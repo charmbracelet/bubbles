@@ -32,29 +32,45 @@ type DefaultItemStyles struct {
 
 // NewDefaultItemStyles returns style definitions for a default item. See
 // DefaultItemView for when these come into play.
-func NewDefaultItemStyles() (s DefaultItemStyles) {
+func NewDefaultItemStyles(isDark bool) (s DefaultItemStyles) {
+	normalTitleColor := "#1a1a1a"
+	normalDescColor := "#A49FA5"
+	selectedTitleBorderFgColor := "#F793FF"
+	selectedTitleFgColor := "#EE6FF8"
+	selectedDescColor := "#F793FF"
+	dimmedTitleColor := "#A49FA5"
+	dimmedDescColor := "#C2B8C2"
+	if isDark {
+		normalTitleColor = "#dddddd"
+		normalDescColor = "#777777"
+		selectedTitleBorderFgColor = "#AD58B4"
+		selectedTitleFgColor = "#EE6FF8"
+		selectedDescColor = "#AD58B4"
+		dimmedTitleColor = "#777777"
+		dimmedDescColor = "#4D4D4D"
+	}
 	s.NormalTitle = lipgloss.NewStyle().
-		Foreground(lipgloss.AdaptiveColor{Light: "#1a1a1a", Dark: "#dddddd"}).
+		Foreground(lipgloss.Color(normalTitleColor)).
 		Padding(0, 0, 0, 2)
 
 	s.NormalDesc = s.NormalTitle.
-		Foreground(lipgloss.AdaptiveColor{Light: "#A49FA5", Dark: "#777777"})
+		Foreground(lipgloss.Color(normalDescColor))
 
 	s.SelectedTitle = lipgloss.NewStyle().
 		Border(lipgloss.NormalBorder(), false, false, false, true).
-		BorderForeground(lipgloss.AdaptiveColor{Light: "#F793FF", Dark: "#AD58B4"}).
-		Foreground(lipgloss.AdaptiveColor{Light: "#EE6FF8", Dark: "#EE6FF8"}).
+		BorderForeground(lipgloss.Color(selectedTitleBorderFgColor)).
+		Foreground(lipgloss.Color(selectedTitleFgColor)).
 		Padding(0, 0, 0, 1)
 
 	s.SelectedDesc = s.SelectedTitle.
-		Foreground(lipgloss.AdaptiveColor{Light: "#F793FF", Dark: "#AD58B4"})
+		Foreground(lipgloss.Color(selectedDescColor))
 
 	s.DimmedTitle = lipgloss.NewStyle().
-		Foreground(lipgloss.AdaptiveColor{Light: "#A49FA5", Dark: "#777777"}).
+		Foreground(lipgloss.Color(dimmedTitleColor)).
 		Padding(0, 0, 0, 2)
 
 	s.DimmedDesc = s.DimmedTitle.
-		Foreground(lipgloss.AdaptiveColor{Light: "#C2B8C2", Dark: "#4D4D4D"})
+		Foreground(lipgloss.Color(dimmedDescColor))
 
 	s.FilterMatch = lipgloss.NewStyle().Underline(true)
 
@@ -95,7 +111,7 @@ type DefaultDelegate struct {
 func NewDefaultDelegate() DefaultDelegate {
 	return DefaultDelegate{
 		ShowDescription: true,
-		Styles:          NewDefaultItemStyles(),
+		Styles:          NewDefaultItemStyles(true),
 		height:          2,
 		spacing:         1,
 	}

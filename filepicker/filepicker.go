@@ -113,24 +113,18 @@ type Styles struct {
 
 // DefaultStyles defines the default styling for the file picker.
 func DefaultStyles() Styles {
-	return DefaultStylesWithRenderer(lipgloss.DefaultRenderer())
-}
-
-// DefaultStylesWithRenderer defines the default styling for the file picker,
-// with a given Lip Gloss renderer.
-func DefaultStylesWithRenderer(r *lipgloss.Renderer) Styles {
 	return Styles{
-		DisabledCursor:   r.NewStyle().Foreground(lipgloss.Color("247")),
-		Cursor:           r.NewStyle().Foreground(lipgloss.Color("212")),
-		Symlink:          r.NewStyle().Foreground(lipgloss.Color("36")),
-		Directory:        r.NewStyle().Foreground(lipgloss.Color("99")),
-		File:             r.NewStyle(),
-		DisabledFile:     r.NewStyle().Foreground(lipgloss.Color("243")),
-		DisabledSelected: r.NewStyle().Foreground(lipgloss.Color("247")),
-		Permission:       r.NewStyle().Foreground(lipgloss.Color("244")),
-		Selected:         r.NewStyle().Foreground(lipgloss.Color("212")).Bold(true),
-		FileSize:         r.NewStyle().Foreground(lipgloss.Color("240")).Width(fileSizeWidth).Align(lipgloss.Right),
-		EmptyDirectory:   r.NewStyle().Foreground(lipgloss.Color("240")).PaddingLeft(paddingLeft).SetString("Bummer. No Files Found."),
+		DisabledCursor:   lipgloss.NewStyle().Foreground(lipgloss.Color("247")),
+		Cursor:           lipgloss.NewStyle().Foreground(lipgloss.Color("212")),
+		Symlink:          lipgloss.NewStyle().Foreground(lipgloss.Color("36")),
+		Directory:        lipgloss.NewStyle().Foreground(lipgloss.Color("99")),
+		File:             lipgloss.NewStyle(),
+		DisabledFile:     lipgloss.NewStyle().Foreground(lipgloss.Color("243")),
+		DisabledSelected: lipgloss.NewStyle().Foreground(lipgloss.Color("247")),
+		Permission:       lipgloss.NewStyle().Foreground(lipgloss.Color("244")),
+		Selected:         lipgloss.NewStyle().Foreground(lipgloss.Color("212")).Bold(true),
+		FileSize:         lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Width(fileSizeWidth).Align(lipgloss.Right),
+		EmptyDirectory:   lipgloss.NewStyle().Foreground(lipgloss.Color("240")).PaddingLeft(paddingLeft).SetString("Bummer. No Files Found."),
 	}
 }
 

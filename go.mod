@@ -7,7 +7,7 @@ require (
 	github.com/atotto/clipboard v0.1.4
 	github.com/charmbracelet/bubbletea v0.26.7-0.20240722185632-e15f5e8453c6
 	github.com/charmbracelet/harmonica v0.2.0
-	github.com/charmbracelet/lipgloss v0.12.1
+	github.com/charmbracelet/lipgloss v0.12.2-0.20240722162534-2390dea254e8
 	github.com/charmbracelet/x/ansi v0.1.4
 	github.com/dustin/go-humanize v1.0.1
 	github.com/lucasb-eyer/go-colorful v1.2.0
