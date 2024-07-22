@@ -973,7 +973,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	}
 
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		switch {
 		case key.Matches(msg, m.KeyMap.DeleteAfterCursor):
 			m.col = clamp(m.col, 0, len(m.value[m.row]))
@@ -1062,6 +1062,9 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		default:
 			m.insertRunesFromUserInput(msg.Runes)
 		}
+
+	case tea.PasteMsg:
+		m.insertRunesFromUserInput([]rune(msg))
 
 	case pasteMsg:
 		m.insertRunesFromUserInput([]rune(msg))

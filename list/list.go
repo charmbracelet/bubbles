@@ -771,7 +771,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		if key.Matches(msg, m.KeyMap.ForceQuit) {
 			return m, tea.Quit
 		}
@@ -806,7 +806,7 @@ func (m *Model) handleBrowsing(msg tea.Msg) tea.Cmd {
 	numItems := len(m.VisibleItems())
 
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		switch {
 		// Note: we match clear filter before quit because, by default, they're
 		// both mapped to escape.
@@ -875,7 +875,7 @@ func (m *Model) handleFiltering(msg tea.Msg) tea.Cmd {
 	var cmds []tea.Cmd
 
 	// Handle keys
-	if msg, ok := msg.(tea.KeyMsg); ok {
+	if msg, ok := msg.(tea.KeyPressMsg); ok {
 		switch {
 		case key.Matches(msg, m.KeyMap.CancelWhileFiltering):
 			m.resetFiltering()
