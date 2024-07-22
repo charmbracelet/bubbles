@@ -41,6 +41,32 @@ type Styles struct {
 	FullSeparator lipgloss.Style
 }
 
+// DefaultStyles returns a set of default styles for the help bubble.
+func DefaultStyles(isDark bool) Styles {
+	keyColor := "#909090"
+	descColor := "#B2B2B2"
+	sepColor := "#DDDADA"
+	if isDark {
+		keyColor = "#626262"
+		descColor = "#4A4A4A"
+		sepColor = "#3C3C3C"
+	}
+
+	keyStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(keyColor))
+	descStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(descColor))
+	sepStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(sepColor))
+
+	return Styles{
+		ShortKey:       keyStyle,
+		ShortDesc:      descStyle,
+		ShortSeparator: sepStyle,
+		Ellipsis:       sepStyle,
+		FullKey:        keyStyle,
+		FullDesc:       descStyle,
+		FullSeparator:  sepStyle,
+	}
+}
+
 // Model contains the state of the help view.
 type Model struct {
 	Width   int
@@ -58,34 +84,11 @@ type Model struct {
 
 // New creates a new help view with some useful defaults.
 func New() Model {
-	keyStyle := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{
-		Light: "#909090",
-		Dark:  "#626262",
-	})
-
-	descStyle := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{
-		Light: "#B2B2B2",
-		Dark:  "#4A4A4A",
-	})
-
-	sepStyle := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{
-		Light: "#DDDADA",
-		Dark:  "#3C3C3C",
-	})
-
 	return Model{
 		ShortSeparator: " • ",
 		FullSeparator:  "    ",
 		Ellipsis:       "…",
-		Styles: Styles{
-			ShortKey:       keyStyle,
-			ShortDesc:      descStyle,
-			ShortSeparator: sepStyle,
-			Ellipsis:       sepStyle,
-			FullKey:        keyStyle,
-			FullDesc:       descStyle,
-			FullSeparator:  sepStyle,
-		},
+		Styles:         DefaultStyles(true),
 	}
 }
 

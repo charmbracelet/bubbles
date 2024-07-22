@@ -41,9 +41,27 @@ type Styles struct {
 
 // DefaultStyles returns a set of default style definitions for this list
 // component.
-func DefaultStyles() (s Styles) {
-	verySubduedColor := lipgloss.AdaptiveColor{Light: "#DDDADA", Dark: "#3C3C3C"}
-	subduedColor := lipgloss.AdaptiveColor{Light: "#9B9B9B", Dark: "#5C5C5C"}
+func DefaultStyles(isDark bool) (s Styles) {
+	verySubduedColor := "#DDDADA"
+	subduedColor := "#9B9B9B"
+	spinnerColor := "#8E8E8E"
+	filterPromptColor := "#04B575"
+	filterCursorColor := "#EE6FF8"
+	statusBarColor := "#A49FA5"
+	statusBarActiveFilterColor := "#1a1a1a"
+	noItemsColor := "#909090"
+	activePaginationColor := "#847A85"
+	if isDark {
+		verySubduedColor = "#3C3C3C"
+		subduedColor = "#5C5C5C"
+		spinnerColor = "#747373"
+		filterPromptColor = "#ECFD65"
+		filterCursorColor = "#EE6FF8"
+		statusBarColor = "#777777"
+		statusBarActiveFilterColor = "#dddddd"
+		noItemsColor = "#626262"
+		activePaginationColor = "#979797"
+	}
 
 	s.TitleBar = lipgloss.NewStyle().Padding(0, 0, 1, 2)
 
@@ -53,46 +71,46 @@ func DefaultStyles() (s Styles) {
 		Padding(0, 1)
 
 	s.Spinner = lipgloss.NewStyle().
-		Foreground(lipgloss.AdaptiveColor{Light: "#8E8E8E", Dark: "#747373"})
+		Foreground(lipgloss.Color(spinnerColor))
 
 	s.FilterPrompt = lipgloss.NewStyle().
-		Foreground(lipgloss.AdaptiveColor{Light: "#04B575", Dark: "#ECFD65"})
+		Foreground(lipgloss.Color(filterPromptColor))
 
 	s.FilterCursor = lipgloss.NewStyle().
-		Foreground(lipgloss.AdaptiveColor{Light: "#EE6FF8", Dark: "#EE6FF8"})
+		Foreground(lipgloss.Color(filterCursorColor))
 
 	s.DefaultFilterCharacterMatch = lipgloss.NewStyle().Underline(true)
 
 	s.StatusBar = lipgloss.NewStyle().
-		Foreground(lipgloss.AdaptiveColor{Light: "#A49FA5", Dark: "#777777"}).
+		Foreground(lipgloss.Color(statusBarColor)).
 		Padding(0, 0, 1, 2)
 
-	s.StatusEmpty = lipgloss.NewStyle().Foreground(subduedColor)
+	s.StatusEmpty = lipgloss.NewStyle().Foreground(lipgloss.Color(subduedColor))
 
 	s.StatusBarActiveFilter = lipgloss.NewStyle().
-		Foreground(lipgloss.AdaptiveColor{Light: "#1a1a1a", Dark: "#dddddd"})
+		Foreground(lipgloss.Color(statusBarActiveFilterColor))
 
-	s.StatusBarFilterCount = lipgloss.NewStyle().Foreground(verySubduedColor)
+	s.StatusBarFilterCount = lipgloss.NewStyle().Foreground(lipgloss.Color(verySubduedColor))
 
 	s.NoItems = lipgloss.NewStyle().
-		Foreground(lipgloss.AdaptiveColor{Light: "#909090", Dark: "#626262"})
+		Foreground(lipgloss.Color(noItemsColor))
 
-	s.ArabicPagination = lipgloss.NewStyle().Foreground(subduedColor)
+	s.ArabicPagination = lipgloss.NewStyle().Foreground(lipgloss.Color(subduedColor))
 
 	s.PaginationStyle = lipgloss.NewStyle().PaddingLeft(2) //nolint:gomnd
 
 	s.HelpStyle = lipgloss.NewStyle().Padding(1, 0, 0, 2)
 
 	s.ActivePaginationDot = lipgloss.NewStyle().
-		Foreground(lipgloss.AdaptiveColor{Light: "#847A85", Dark: "#979797"}).
+		Foreground(lipgloss.Color(activePaginationColor)).
 		SetString(bullet)
 
 	s.InactivePaginationDot = lipgloss.NewStyle().
-		Foreground(verySubduedColor).
+		Foreground(lipgloss.Color(verySubduedColor)).
 		SetString(bullet)
 
 	s.DividerDot = lipgloss.NewStyle().
-		Foreground(verySubduedColor).
+		Foreground(lipgloss.Color(verySubduedColor)).
 		SetString(" " + bullet + " ")
 
 	return s
