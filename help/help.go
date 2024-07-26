@@ -209,7 +209,7 @@ func (m Model) FullHelpView(groups [][]key.Binding) string {
 		out = append(out, col)
 
 		// Separator
-		if i < len(group)-1 {
+		if i < len(groups)-1 {
 			totalWidth += sepWidth
 			if m.Width > 0 && totalWidth > m.Width {
 				break
