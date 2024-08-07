@@ -418,7 +418,7 @@ func (m Model) headersView() string {
 		renderedCell := style.Render(runewidth.Truncate(col.Title, col.Width, "…"))
 		s = append(s, m.styles.Header.Render(renderedCell))
 	}
-	return lipgloss.JoinHorizontal(lipgloss.Left, s...)
+	return lipgloss.JoinHorizontal(lipgloss.Top, s...)
 }
 
 func (m *Model) renderRow(r int) string {
@@ -442,7 +442,7 @@ func (m *Model) renderRow(r int) string {
 		s = append(s, renderedCell)
 	}
 
-	row := lipgloss.JoinHorizontal(lipgloss.Left, s...)
+	row := lipgloss.JoinHorizontal(lipgloss.Top, s...)
 
 	if r == m.cursor {
 		return m.styles.Selected.Render(row)
