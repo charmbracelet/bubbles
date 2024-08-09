@@ -210,6 +210,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
   of common prompts for cases like selection, text input, and confirmation.
   Each prompt comes with sensible defaults, remappable keybindings, any many
   customization options.
+* [ethanefung/bubble-datepicker](https://github.com/EthanEFung/bubble-datepicker):
+  A jQuery inspired datepicker component.
 * [evertras/bubble-table](https://github.com/Evertras/bubble-table): Interactive,
   customizable, paginated tables.
 * [knipferrc/teacup](https://github.com/knipferrc/teacup): Various handy
