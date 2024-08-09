@@ -111,7 +111,8 @@ func (m *Model) SetContent(s string) {
 // maxYOffset returns the maximum possible value of the y-offset based on the
 // viewport's content and set height.
 func (m Model) maxYOffset() int {
-	return max(0, len(m.lines)-m.Height)
+	linesHeight := countHeightBasedOnWidth(m.lines, m.Width)
+	return max(0, linesHeight-m.Height)
 }
 
 // visibleLines returns the lines that should currently be visible in the
@@ -402,4 +403,17 @@ func max(a, b int) int {
 		return a
 	}
 	return b
+}
+
+func countHeightBasedOnWidth(lines []string, width int) int {
+	h := 0
+	for _, line := range lines {
+		if len(line) <= width {
+			h++
+			continue
+		}
+		h += int(math.Ceil(float64(len(line)) / float64(width)))
+	}
+
+	return h
 }
