@@ -2,8 +2,6 @@ package viewport
 
 import (
 	"testing"
-
-	"github.com/stretchr/testify/assert"
 )
 
 func Test_countHeightBasedOnWidth(t *testing.T) {
@@ -35,7 +33,9 @@ func Test_countHeightBasedOnWidth(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			got := countHeightBasedOnWidth(tt.lines, tt.width)
-			assert.Equal(t, tt.want, got)
+			if tt.want != got {
+				t.Errorf("expected %v, got %v", tt.want, got)
+			}
 		})
 	}
 }
