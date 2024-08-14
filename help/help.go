@@ -120,7 +120,7 @@ func (m Model) ShortHelpView(bindings []key.Binding) string {
 	separator := m.Styles.ShortSeparator.Inline(true).Render(m.ShortSeparator)
 
 	for i, kb := range bindings {
-		if !kb.Enabled() {
+		if !kb.Enabled() || !kb.HelpAvailable() {
 			continue
 		}
 
@@ -187,7 +187,7 @@ func (m Model) FullHelpView(groups [][]key.Binding) string {
 
 		// Separate keys and descriptions into different slices
 		for _, kb := range group {
-			if !kb.Enabled() {
+			if !kb.Enabled() || !kb.HelpAvailable() {
 				continue
 			}
 			keys = append(keys, kb.Help().Key)
