@@ -37,13 +37,15 @@
 package key
 
 import (
+	"strings"
+
 	tea "github.com/charmbracelet/bubbletea"
 )
 
 // Binding describes a set of keybindings and, optionally, their associated
 // help text.
 type Binding struct {
-	keys     []string
+	keys     []tea.Key
 	help     Help
 	disabled bool
 }
@@ -64,7 +66,7 @@ func NewBinding(opts ...BindingOpt) Binding {
 // WithKeys initializes a keybinding with the given keystrokes.
 func WithKeys(keys ...string) BindingOpt {
 	return func(b *Binding) {
-		b.keys = keys
+		b.SetKeys(keys...)
 	}
 }
 
@@ -84,12 +86,21 @@ func WithDisabled() BindingOpt {
 
 // SetKeys sets the keys for the keybinding.
 func (b *Binding) SetKeys(keys ...string) {
-	b.keys = keys
+	b.keys = make([]tea.Key, 0, len(keys))
+	for _, k := range keys {
+		if tk, ok := MakeKey(k); ok {
+			b.keys = append(b.keys, tk)
+		}
+	}
 }
 
 // Keys returns the keys for the keybinding.
 func (b Binding) Keys() []string {
-	return b.keys
+	kn := make([]string, len(b.keys))
+	for i, tk := range b.keys {
+		kn[i] = tk.String()
+	}
+	return kn
 }
 
 // SetHelp sets the help text for the keybinding.
@@ -130,13 +141,82 @@ type Help struct {
 
 // Matches checks if the given KeyMsg matches the given bindings.
 func Matches(k tea.KeyMsg, b ...Binding) bool {
-	keys := k.String()
 	for _, binding := range b {
 		for _, v := range binding.keys {
-			if keys == v && binding.Enabled() {
+			if keyEq(v, tea.Key(k)) && binding.Enabled() {
 				return true
 			}
 		}
 	}
 	return false
 }
+
+func keyEq(a, b tea.Key) bool {
+	if a.Type != b.Type {
+		return false
+	}
+	if a.Alt != b.Alt {
+		return false
+	}
+	if len(a.Runes) != len(b.Runes) {
+		return false
+	}
+	for i, ar := range a.Runes {
+		if b.Runes[i] != ar {
+			return false
+		}
+	}
+	return true
+}
+
+// MakeKey returns a tea.Key for the given keyName.
+func MakeKey(keyName string) (tea.Key, bool) {
+	alt := false
+	if strings.HasPrefix(keyName, "alt+") {
+		alt = true
+		keyName = keyName[4:]
+	}
+	// Is this a special key?
+	k, ok := allKeys[keyName]
+	if ok {
+		k.Alt = alt
+		return k, true
+	}
+	// Not a special key: either a simple key "a" or with an alt
+	// modifier "alt+a".
+	r := []rune(keyName)
+	if len(r) != 1 {
+		// Caller used a key name which we don't understand, bail.
+		return tea.Key{}, false
+	}
+	return tea.Key{
+		Type:  tea.KeyRunes,
+		Runes: r,
+		Alt:   alt,
+	}, true
+}
+
+// allKeys contains the map of all "special" keys and their
+// ctrl/shift/alt combinations.
+var allKeys = func() map[string]tea.Key {
+	result := make(map[string]tea.Key)
+	for i := 0; ; i++ {
+		k := tea.Key{Type: tea.KeyType(i)}
+		keyName := k.String()
+		// fmt.Println("found key:", keyName)
+		if keyName == "" {
+			break
+		}
+		result[keyName] = k
+	}
+	for i := -2; ; i-- {
+		k := tea.Key{Type: tea.KeyType(i)}
+		keyName := k.String()
+		// fmt.Println("found key:", keyName)
+		if keyName == "" {
+			break
+		}
+		result[keyName] = k
+	}
+	return result
+}()
