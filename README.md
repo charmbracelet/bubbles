@@ -190,9 +190,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 ## Additional Bubbles
 
-We have a list of
-[community-created bubbles](https://github.com/charm-community/additional-bubbles)
-in our [charm-community](https://github.com/charm-community) GitHub organization.
+There are also
+[community-owned bubbles.](https://github.com/charm-community/additional-bubbles)
+Check out its README for instructions on how to get your bubble added to this list!
 
 ## Feedback
 
