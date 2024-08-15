@@ -126,7 +126,7 @@ type Help struct {
 	Desc string
 }
 
-// Matches checks if the given KeyMsg matches the given bindings.
+// Matches checks if the given key matches the given bindings.
 func Matches[Key fmt.Stringer](k Key, b ...Binding) bool {
 	keys := k.String()
 	for _, binding := range b {
