@@ -142,22 +142,145 @@ func TestRenderRowStyleFunc(t *testing.T) {
 }
 
 func TestStyleFunc(t *testing.T) {
-	biscuits := New(
-		WithColumns([]Column{
-			{Title: "Name", Width: 25},
-			{Title: "Country of Origin", Width: 16},
-			{Title: "Dunk-able", Width: 12},
-		}),
-		WithRows([]Row{
-			{"Chocolate Digestives", "UK", "Yes"},
-			{"Tim Tams", "Australia", "No"},
-			{"Hobnobs", "UK", "Yes"},
-		}),
-		WithStyleFunc(func(row, col int, value string) lipgloss.Style {
-			return lipgloss.NewStyle()
-		}),
-	)
+	t.Run("StyleFunc returns an empty style", func(t *testing.T) {
+		biscuits := New(
+			WithHeight(5),
+			WithColumns([]Column{
+				{Title: "Name", Width: 25},
+				{Title: "Country of Origin", Width: 16},
+				{Title: "Dunk-able", Width: 12},
+			}),
+			WithRows([]Row{
+				{"Chocolate Digestives", "UK", "Yes"},
+				{"Tim Tams", "Australia", "No"},
+				{"Hobnobs", "UK", "Yes"},
+			}),
+			WithStyleFunc(func(row, col int, value string) lipgloss.Style {
+				return lipgloss.NewStyle()
+			}),
+		)
 
-	got := ansi.Strip(biscuits.View())
-	golden.RequireEqual(t, []byte(got))
+		got := ansi.Strip(biscuits.View())
+		golden.RequireEqual(t, []byte(got))
+	})
+
+	t.Run("Use WithStyles and StyleFunc", func(t *testing.T) {
+		columns := []Column{
+			{Title: "Rank", Width: 4},
+			{Title: "City", Width: 10},
+			{Title: "Country", Width: 10},
+			{Title: "Population", Width: 10},
+		}
+
+		rows := []Row{
+			{"1", "Tokyo", "Japan", "37,274,000"},
+			{"2", "Delhi", "India", "32,065,760"},
+			{"3", "Shanghai", "China", "28,516,904"},
+			{"4", "Dhaka", "Bangladesh", "22,478,116"},
+			{"5", "São Paulo", "Brazil", "22,429,800"},
+			{"6", "Mexico City", "Mexico", "22,085,140"},
+			{"7", "Cairo", "Egypt", "21,750,020"},
+			{"8", "Beijing", "China", "21,333,332"},
+		}
+
+		s := DefaultStyles()
+		s.Header = s.Header.
+			BorderStyle(lipgloss.NormalBorder()).
+			BorderForeground(lipgloss.Color("240")).
+			BorderBottom(true).
+			Bold(false).
+			PaddingRight(1)
+		s.Selected = s.Selected.
+			Foreground(lipgloss.Color("229")).
+			Background(lipgloss.Color("57")).
+			Bold(false)
+		s.Cell = lipgloss.NewStyle().PaddingRight(1)
+
+		table := New(
+			WithColumns(columns),
+			WithRows(rows),
+			WithFocused(true),
+			WithHeight(7),
+			WithStyles(s),
+			WithStyleFunc(func(row, col int, value string) lipgloss.Style {
+				if row == 5 {
+					if col == 1 {
+						return s.Cell.Background(lipgloss.Color("#006341"))
+					} else if col == 2 {
+						return s.Cell.Background(lipgloss.Color("#FFFFFF"))
+					} else if col == 3 {
+						return s.Cell.Background(lipgloss.Color("#C8102E"))
+					} else {
+						return s.Cell
+					}
+				}
+
+				return s.Cell
+			}),
+		)
+
+		got := ansi.Strip(table.View())
+		// got := ansi.Strip(table.View()) if you want to remove colors.
+		golden.RequireEqual(t, []byte(got))
+	})
+
+	t.Run("Use WithStyles after StyleFunc", func(t *testing.T) {
+		columns := []Column{
+			{Title: "Rank", Width: 4},
+			{Title: "City", Width: 10},
+			{Title: "Country", Width: 10},
+			{Title: "Population", Width: 10},
+		}
+
+		rows := []Row{
+			{"1", "Tokyo", "Japan", "37,274,000"},
+			{"2", "Delhi", "India", "32,065,760"},
+			{"3", "Shanghai", "China", "28,516,904"},
+			{"4", "Dhaka", "Bangladesh", "22,478,116"},
+			{"5", "São Paulo", "Brazil", "22,429,800"},
+			{"6", "Mexico City", "Mexico", "22,085,140"},
+			{"7", "Cairo", "Egypt", "21,750,020"},
+			{"8", "Beijing", "China", "21,333,332"},
+		}
+
+		s := DefaultStyles()
+		s.Header = s.Header.
+			BorderStyle(lipgloss.NormalBorder()).
+			BorderForeground(lipgloss.Color("240")).
+			BorderBottom(true).
+			Bold(false).
+			PaddingRight(1)
+		s.Selected = s.Selected.
+			Foreground(lipgloss.Color("229")).
+			Background(lipgloss.Color("57")).
+			Bold(false)
+		s.Cell = lipgloss.NewStyle().PaddingRight(1)
+
+		table := New(
+			WithColumns(columns),
+			WithRows(rows),
+			WithFocused(true),
+			WithHeight(7),
+			WithStyleFunc(func(row, col int, value string) lipgloss.Style {
+				if row == 5 {
+					if col == 1 {
+						return s.Cell.Background(lipgloss.Color("#006341"))
+					} else if col == 2 {
+						return s.Cell.Background(lipgloss.Color("#FFFFFF"))
+					} else if col == 3 {
+						return s.Cell.Background(lipgloss.Color("#C8102E"))
+					} else {
+						return s.Cell
+					}
+				}
+
+				return s.Cell
+			}),
+			WithStyles(s),
+		)
+
+		// let's remove colors from the tests since the ansi sequences can be tricky to debug
+		got := ansi.Strip(table.View())
+		golden.RequireEqual(t, []byte(got))
+	})
 }
