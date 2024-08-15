@@ -14,12 +14,11 @@ import (
 type Model struct {
 	KeyMap KeyMap
 
-	cols      []Column
-	rows      []Row
-	cursor    int
-	focus     bool
-	styles    Styles
-	styleFunc StyleFunc
+	cols   []Column
+	rows   []Row
+	cursor int
+	focus  bool
+	styles Styles
 
 	viewport viewport.Model
 	start    int
@@ -186,13 +185,6 @@ func WithFocused(f bool) Option {
 func WithStyles(s Styles) Option {
 	return func(m *Model) {
 		m.styles = s
-	}
-}
-
-// WithStyleFunc sets the table style func which can determine a cell style per column, row, and selected state.
-func WithStyleFunc(f StyleFunc) Option {
-	return func(m *Model) {
-		m.styleFunc = f
 	}
 }
 
@@ -405,9 +397,6 @@ func (m *Model) FromValues(value, separator string) {
 	m.SetRows(rows)
 }
 
-// StyleFunc is a function that can be used to customize the style of a table cell based on the row and column index.
-type StyleFunc func(row, col int, value string) lipgloss.Style
-
 func (m Model) headersView() string {
 	s := make([]string, 0, len(m.cols))
 	for _, col := range m.cols {
@@ -427,18 +416,8 @@ func (m *Model) renderRow(r int) string {
 		if m.cols[i].Width <= 0 {
 			continue
 		}
-		var cellStyle lipgloss.Style
-		if m.styleFunc != nil {
-			cellStyle = m.styleFunc(r, i, value)
-			if r == m.cursor {
-				cellStyle = cellStyle.Inherit(m.styles.Selected)
-			}
-		} else {
-			cellStyle = m.styles.Cell
-		}
-
 		style := lipgloss.NewStyle().Width(m.cols[i].Width).MaxWidth(m.cols[i].Width).Inline(true)
-		renderedCell := cellStyle.Render(style.Render(runewidth.Truncate(value, m.cols[i].Width, "…")))
+		renderedCell := m.styles.Cell.Render(style.Render(runewidth.Truncate(value, m.cols[i].Width, "…")))
 		s = append(s, renderedCell)
 	}
 
