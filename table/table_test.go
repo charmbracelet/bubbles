@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
+	"github.com/charmbracelet/x/exp/golden"
 )
 
 func TestFromValues(t *testing.T) {
@@ -58,13 +60,11 @@ func deepEqual(a, b []Row) bool {
 	return true
 }
 
-var (
-	cols = []Column{
-		{Title: "col1", Width: 10},
-		{Title: "col2", Width: 10},
-		{Title: "col3", Width: 10},
-	}
-)
+var cols = []Column{
+	{Title: "col1", Width: 10},
+	{Title: "col2", Width: 10},
+	{Title: "col3", Width: 10},
+}
 
 func TestRenderRow(t *testing.T) {
 	tests := []struct {
@@ -109,6 +109,7 @@ func TestRenderRow(t *testing.T) {
 		})
 	}
 }
+
 func TestRenderRowStyleFunc(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -138,4 +139,25 @@ func TestRenderRowStyleFunc(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestStyleFunc(t *testing.T) {
+	biscuits := New(
+		WithColumns([]Column{
+			{Title: "Name", Width: 25},
+			{Title: "Country of Origin", Width: 16},
+			{Title: "Dunk-able", Width: 12},
+		}),
+		WithRows([]Row{
+			{"Chocolate Digestives", "UK", "Yes"},
+			{"Tim Tams", "Australia", "No"},
+			{"Hobnobs", "UK", "Yes"},
+		}),
+		WithStyleFunc(func(row, col int, value string) lipgloss.Style {
+			return lipgloss.NewStyle()
+		}),
+	)
+
+	got := ansi.Strip(biscuits.View())
+	golden.RequireEqual(t, []byte(got))
 }
