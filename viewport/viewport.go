@@ -99,18 +99,18 @@ func (m Model) ScrollPercent() float64 {
 }
 
 // SetContent sets the content by normalizing line endings and splitting the content by lines.
-// For high performance rendering, the Sync command should also be called.
-func (m *Model) SetContent(s string) {
-	// Normalize line endings to '\n'
-	s = strings.ReplaceAll(s, "\r\n", "\n")
-	// Split the string into lines and set them in the Model
-	m.SetLines(strings.Split(s, "\n"))
-}
+// It accepts one or more strings, treating each string as a new line.
+// For high-performance rendering, the Sync command should also be called.
+func (m *Model) SetContent(ss ...string) {
+	lines := make([]string, 0, len(ss))
 
-// SetLines sets the lines and adjusts the display position if necessary.
-// For high performance rendering, the Sync command should also be called.
-func (m *Model) SetLines(s []string) {
-	m.lines = s
+	for _, s := range ss {
+		// Normalize line endings to '\n'
+		s = strings.ReplaceAll(s, "\r\n", "\n")
+		lines = append(lines, strings.Split(s, "\n")...)
+	}
+
+	m.lines = lines
 
 	if m.YOffset > len(m.lines)-1 {
 		m.GotoBottom()
