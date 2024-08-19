@@ -23,7 +23,7 @@ func TestVerticalScrolling(t *testing.T) {
 
 	input := "This is a really long line that should wrap around the text area."
 
-	for _, k := range []rune(input) {
+	for _, k := range input {
 		textarea, _ = textarea.Update(keyPress(k))
 	}
 
@@ -69,7 +69,7 @@ func TestWordWrapOverflowing(t *testing.T) {
 
 	input := "Testing Testing Testing Testing Testing Testing Testing Testing"
 
-	for _, k := range []rune(input) {
+	for _, k := range input {
 		textarea, _ = textarea.Update(keyPress(k))
 		textarea.View()
 	}
@@ -81,7 +81,7 @@ func TestWordWrapOverflowing(t *testing.T) {
 
 	input = "Testing"
 
-	for _, k := range []rune(input) {
+	for _, k := range input {
 		textarea, _ = textarea.Update(keyPress(k))
 		textarea.View()
 	}
