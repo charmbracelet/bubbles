@@ -44,3 +44,4 @@ linters:
     - typecheck
     - unused
     - varcheck
+    - predeclared

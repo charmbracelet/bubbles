@@ -28,3 +28,4 @@ linters:
     - unconvert
     - unparam
     - whitespace
+    - predeclared
