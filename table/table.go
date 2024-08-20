@@ -3,6 +3,7 @@ package table
 import (
 	"strings"
 
+	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
@@ -13,6 +14,7 @@ import (
 // Model defines a state for the table widget.
 type Model struct {
 	KeyMap KeyMap
+	Help   help.Model
 
 	cols   []Column
 	rows   []Row
@@ -35,7 +37,7 @@ type Column struct {
 }
 
 // KeyMap defines keybindings. It satisfies to the help.KeyMap interface, which
-// is used to render the menu.
+// is used to render the help menu.
 type KeyMap struct {
 	LineUp       key.Binding
 	LineDown     key.Binding
@@ -134,6 +136,7 @@ func New(opts ...Option) Model {
 		viewport: viewport.New(0, 20),
 
 		KeyMap: DefaultKeyMap(),
+		Help:   help.New(),
 		styles: DefaultStyles(),
 	}
 
@@ -249,6 +252,13 @@ func (m *Model) Blur() {
 // View renders the component.
 func (m Model) View() string {
 	return m.headersView() + "\n" + m.viewport.View()
+}
+
+// HelpView is a helper method for rendering the help menu from the keymap.
+// Note that this view is not rendered by default and you must call it
+// manually in your application, where applicable.
+func (m Model) HelpView() string {
+	return m.Help.View(m.KeyMap)
 }
 
 // UpdateViewport updates the list content based on the previously defined
