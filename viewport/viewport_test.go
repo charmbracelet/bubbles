@@ -4,27 +4,27 @@ import (
 	"testing"
 )
 
-func Test_countHeightBasedOnWidth(t *testing.T) {
+func Test_linesToActualDisplayedLines(t *testing.T) {
 	t.Parallel()
 	tests := map[string]struct {
 		lines []string
 		width int
-		want  int
+		want  []string
 	}{
-		"Empty lines": {
+		"empty slice": {
 			lines: []string{},
-			width: 0,
-			want:  0,
+			width: 3,
+			want:  []string{},
 		},
-		"Lines within width": {
-			lines: []string{"123", "123"},
-			width: 5,
-			want:  2,
+		"all lines are within width": {
+			lines: []string{"aaa", "bbb", "ccc"},
+			width: 3,
+			want:  []string{"aaa", "bbb", "ccc"},
 		},
-		"Lines over width": {
-			lines: []string{"1234567890", "123"},
-			width: 5,
-			want:  3,
+		"some lines exceeds width": {
+			lines: []string{"aaaaaa", "bbbbbbbb", "ccc"},
+			width: 3,
+			want:  []string{"aaa", "aaa", "bbb", "bbb", "bb", "ccc"},
 		},
 	}
 
@@ -32,9 +32,15 @@ func Test_countHeightBasedOnWidth(t *testing.T) {
 		tt := tt
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			got := countHeightBasedOnWidth(tt.lines, tt.width)
-			if tt.want != got {
-				t.Errorf("expected %v, got %v", tt.want, got)
+			got := linesToActualDisplayedLines(tt.lines, tt.width)
+
+			if len(got) != len(tt.want) {
+				t.Errorf("expected len is %d but got %d", len(tt.want), len(got))
+			}
+			for i := range tt.want {
+				if tt.want[i] != got[i] {
+					t.Errorf("expected %s but got %s", tt.want[i], got[i])
+				}
 			}
 		})
 	}

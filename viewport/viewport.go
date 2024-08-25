@@ -111,7 +111,7 @@ func (m *Model) SetContent(s string) {
 // maxYOffset returns the maximum possible value of the y-offset based on the
 // viewport's content and set height.
 func (m Model) maxYOffset() int {
-	linesHeight := countHeightBasedOnWidth(m.lines, m.Width)
+	linesHeight := len(linesToActualDisplayedLines(m.lines, m.Width))
 	return max(0, linesHeight-m.Height)
 }
 
@@ -119,9 +119,11 @@ func (m Model) maxYOffset() int {
 // viewport.
 func (m Model) visibleLines() (lines []string) {
 	if len(m.lines) > 0 {
+		actualDisplayedLines := linesToActualDisplayedLines(m.lines, m.Width)
 		top := max(0, m.YOffset)
-		bottom := clamp(m.YOffset+m.Height, top, len(m.lines))
-		lines = m.lines[top:bottom]
+		bottom := clamp(m.YOffset+m.Height, top, len(actualDisplayedLines))
+
+		lines = actualDisplayedLines[top:bottom]
 	}
 	return lines
 }
@@ -192,7 +194,7 @@ func (m *Model) LineDown(n int) (lines []string) {
 	// Gather lines to send off for performance scrolling.
 	bottom := clamp(m.YOffset+m.Height, 0, len(m.lines))
 	top := clamp(m.YOffset+m.Height-n, 0, bottom)
-	return m.lines[top:bottom]
+	return linesToActualDisplayedLines(m.lines, m.Width)[top:bottom]
 }
 
 // LineUp moves the view down by the given number of lines. Returns the new
@@ -209,7 +211,7 @@ func (m *Model) LineUp(n int) (lines []string) {
 	// Gather lines to send off for performance scrolling.
 	top := max(0, m.YOffset)
 	bottom := clamp(m.YOffset+n, 0, m.maxYOffset())
-	return m.lines[top:bottom]
+	return linesToActualDisplayedLines(m.lines, m.Width)[top:bottom]
 }
 
 // TotalLineCount returns the total number of lines (both hidden and visible) within the viewport.
@@ -405,15 +407,22 @@ func max(a, b int) int {
 	return b
 }
 
-func countHeightBasedOnWidth(lines []string, width int) int {
-	h := 0
+// linesToActualDisplayedLines converts lines to the actual lines considering window width.
+// If there is a line that is longer than the width, it will be displayed in multiple lines.
+// For more details: https://github.com/charmbracelet/bubbles/pull/578
+// If you want to know actual behavior of this function, please check out the unit tests.
+func linesToActualDisplayedLines(lines []string, width int) []string {
+	var actual []string
 	for _, line := range lines {
 		if len(line) <= width {
-			h++
+			actual = append(actual, line)
 			continue
 		}
-		h += int(math.Ceil(float64(len(line)) / float64(width)))
+		for width < len(line) {
+			actual = append(actual, line[:width])
+			line = line[width:]
+		}
+		actual = append(actual, line)
 	}
-
-	return h
+	return actual
 }
