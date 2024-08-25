@@ -87,12 +87,14 @@ func (m Model) PastBottom() bool {
 
 // ScrollPercent returns the amount scrolled as a float between 0 and 1.
 func (m Model) ScrollPercent() float64 {
-	if m.Height >= len(m.lines) {
+	actualDisplayedLength := len(linesToActualDisplayedLines(m.lines, m.Width))
+
+	if m.Height >= actualDisplayedLength {
 		return 1.0
 	}
 	y := float64(m.YOffset)
 	h := float64(m.Height)
-	t := float64(len(m.lines))
+	t := float64(actualDisplayedLength)
 	v := y / (t - h)
 	return math.Max(0.0, math.Min(1.0, v))
 }
