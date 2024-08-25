@@ -32,7 +32,7 @@ func Test_linesToActualDisplayedLines(t *testing.T) {
 		tt := tt
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			got := linesToActualDisplayedLines(tt.lines, tt.width)
+			got := linesToActuallyDisplayedLines(tt.lines, tt.width)
 
 			if len(got) != len(tt.want) {
 				t.Errorf("expected len is %d but got %d", len(tt.want), len(got))
