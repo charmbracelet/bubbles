@@ -105,7 +105,7 @@ func (m *Model) SetContent(s string) {
 	s = strings.ReplaceAll(s, "\r\n", "\n") // normalize line endings
 	m.lines = strings.Split(s, "\n")
 
-	if m.YOffset > len(m.lines)-1 {
+	if m.YOffset > len(linesToActuallyDisplayedLines(m.lines, m.Width))-1 {
 		m.GotoBottom()
 	}
 }
