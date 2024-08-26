@@ -179,6 +179,8 @@ func TestCellPadding(t *testing.T) {
 				Cell:     lipgloss.NewStyle(),
 			},
 		},
+		// TODO: Adjust the golden file once a desired output has been decided
+		// https://github.com/charmbracelet/bubbles/issues/472
 		"Without padding; too narrow": {
 			tableWidth: 10,
 			styles: Styles{
