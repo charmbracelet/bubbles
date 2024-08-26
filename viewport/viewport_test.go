@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-func Test_linesToActualDisplayedLines(t *testing.T) {
+func Test_linesToActuallyDisplayedLines(t *testing.T) {
 	t.Parallel()
 	tests := map[string]struct {
 		lines []string
