@@ -219,6 +219,10 @@ func TestCellPadding(t *testing.T) {
 
 func TestTableCentering(t *testing.T) {
 	t.Run("Centered in a box", func(t *testing.T) {
+		boxStyle := lipgloss.NewStyle().
+			BorderStyle(lipgloss.NormalBorder()).
+			Align(lipgloss.Center)
+
 		table := New(
 			WithHeight(5),
 			WithWidth(40),
@@ -236,9 +240,7 @@ func TestTableCentering(t *testing.T) {
 		)
 
 		tableView := ansi.Strip(table.View())
-		got := lipgloss.NewStyle().Align(lipgloss.Center).Render(
-			tableView,
-		)
+		got := boxStyle.Render(tableView)
 
 		golden.RequireEqual(t, []byte(got))
 	})
