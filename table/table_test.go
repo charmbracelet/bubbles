@@ -214,3 +214,30 @@ func TestCellPadding(t *testing.T) {
 		})
 	}
 }
+
+func TestTableCentering(t *testing.T) {
+	t.Run("Centered in a box", func(t *testing.T) {
+		table := New(
+			WithHeight(5),
+			WithWidth(40),
+			WithColumns([]Column{
+				{Title: "One", Width: 5},
+				{Title: "Two", Width: 5},
+				{Title: "Three", Width: 5},
+			}),
+			WithRows([]Row{
+				{"r1c1-", "r1c2-", "r1c3-"},
+				{"r2c1-", "r2c2-", "r2c3-"},
+				{"r3c1-", "r3c2-", "r3c3-"},
+				{"r4c1-", "r4c2-", "r4c3-"},
+			}),
+		)
+
+		tableView := ansi.Strip(table.View())
+		got := lipgloss.NewStyle().Align(lipgloss.Center).Render(
+			tableView,
+		)
+
+		golden.RequireEqual(t, []byte(got))
+	})
+}
