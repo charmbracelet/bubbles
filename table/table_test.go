@@ -157,3 +157,60 @@ func TestTableAlignment(t *testing.T) {
 		golden.RequireEqual(t, []byte(got))
 	})
 }
+
+func TestCellPadding(t *testing.T) {
+	tt := map[string]struct {
+		tableWidth int
+		styles     Styles
+	}{
+		"With padding": {
+			tableWidth: 21,
+			styles: Styles{
+				Selected: lipgloss.NewStyle(),
+				Header:   lipgloss.NewStyle().Padding(0, 1),
+				Cell:     lipgloss.NewStyle().Padding(0, 1),
+			},
+		},
+		"Without padding; exact width": {
+			tableWidth: 15,
+			styles: Styles{
+				Selected: lipgloss.NewStyle(),
+				Header:   lipgloss.NewStyle(),
+				Cell:     lipgloss.NewStyle(),
+			},
+		},
+		"Without padding; too narrow": {
+			tableWidth: 10,
+			styles: Styles{
+				Selected: lipgloss.NewStyle(),
+				Header:   lipgloss.NewStyle(),
+				Cell:     lipgloss.NewStyle(),
+			},
+		},
+	}
+
+	for name, tc := range tt {
+		t.Run(name, func(t *testing.T) {
+			table := New(
+				WithHeight(4),
+				WithWidth(tc.tableWidth),
+				WithColumns([]Column{
+					{Title: "One", Width: 5},
+					{Title: "Two", Width: 5},
+					{Title: "Three", Width: 5},
+				}),
+				WithRows([]Row{
+					{"r1c1-", "r1c2-", "r1c3-"},
+					{"r2c1-", "r2c2-", "r2c3-"},
+					{"r3c1-", "r3c2-", "r3c3-"},
+					{"r4c1-", "r4c2-", "r4c3-"},
+				}),
+				WithStyles(tc.styles),
+			)
+
+			got := ansi.Strip(table.View())
+
+			golden.RequireEqual(t, []byte(got))
+		})
+	}
+}
