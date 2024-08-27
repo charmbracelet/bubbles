@@ -1,8 +1,11 @@
 package table
 
 import (
+	"reflect"
 	"testing"
 
+	"github.com/charmbracelet/bubbles/help"
+	"github.com/charmbracelet/bubbles/viewport"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/golden"
@@ -370,6 +373,166 @@ func TestCursorNavigation(t *testing.T) {
 
 			if table.Cursor() != tc.want {
 				t.Errorf("want %d, got %d", tc.want, table.Cursor())
+			}
+		})
+	}
+}
+
+func TestNew(t *testing.T) {
+	tests := map[string]struct {
+		opts []Option
+		want Model
+	}{
+		"Default": {
+			want: Model{
+				// Default fields
+				cursor:   0,
+				viewport: viewport.New(0, 20),
+				KeyMap:   DefaultKeyMap(),
+				Help:     help.New(),
+				styles:   DefaultStyles(),
+			},
+		},
+		"WithColumns": {
+			opts: []Option{
+				WithColumns([]Column{
+					{Title: "Foo", Width: 1},
+					{Title: "Bar", Width: 2},
+				}),
+			},
+			want: Model{
+				// Default fields
+				cursor:   0,
+				viewport: viewport.New(0, 20),
+				KeyMap:   DefaultKeyMap(),
+				Help:     help.New(),
+				styles:   DefaultStyles(),
+
+				// Modified fields
+				cols: []Column{
+					{Title: "Foo", Width: 1},
+					{Title: "Bar", Width: 2},
+				},
+			},
+		},
+		"WithCols; WithRows": {
+			opts: []Option{
+				WithColumns([]Column{
+					{Title: "Foo", Width: 1},
+					{Title: "Bar", Width: 2},
+				}),
+				WithRows([]Row{
+					{"1", "Foo"},
+					{"2", "Bar"},
+				}),
+			},
+			want: Model{
+				// Default fields
+				cursor:   0,
+				viewport: viewport.New(0, 20),
+				KeyMap:   DefaultKeyMap(),
+				Help:     help.New(),
+				styles:   DefaultStyles(),
+
+				// Modified fields
+				cols: []Column{
+					{Title: "Foo", Width: 1},
+					{Title: "Bar", Width: 2},
+				},
+				rows: []Row{
+					{"1", "Foo"},
+					{"2", "Bar"},
+				},
+			},
+		},
+		"WithHeight": {
+			opts: []Option{
+				WithHeight(10),
+			},
+			want: Model{
+				// Default fields
+				cursor: 0,
+				KeyMap: DefaultKeyMap(),
+				Help:   help.New(),
+				styles: DefaultStyles(),
+
+				// Modified fields
+				// Viewport height is 1 less than the provided height when no header is present since lipgloss.Height adds 1
+				viewport: viewport.New(0, 9),
+			},
+		},
+		"WithWidth": {
+			opts: []Option{
+				WithWidth(10),
+			},
+			want: Model{
+				// Default fields
+				cursor: 0,
+				KeyMap: DefaultKeyMap(),
+				Help:   help.New(),
+				styles: DefaultStyles(),
+
+				// Modified fields
+				// Viewport height is 1 less than the provided height when no header is present since lipgloss.Height adds 1
+				viewport: viewport.New(10, 20),
+			},
+		},
+		"WithFocused": {
+			opts: []Option{
+				WithFocused(true),
+			},
+			want: Model{
+				// Default fields
+				cursor:   0,
+				viewport: viewport.New(0, 20),
+				KeyMap:   DefaultKeyMap(),
+				Help:     help.New(),
+				styles:   DefaultStyles(),
+
+				// Modified fields
+				focus: true,
+			},
+		},
+		"WithStyles": {
+			opts: []Option{
+				WithStyles(Styles{}),
+			},
+			want: Model{
+				// Default fields
+				cursor:   0,
+				viewport: viewport.New(0, 20),
+				KeyMap:   DefaultKeyMap(),
+				Help:     help.New(),
+
+				// Modified fields
+				styles: Styles{},
+			},
+		},
+		"WithKeyMap": {
+			opts: []Option{
+				WithKeyMap(KeyMap{}),
+			},
+			want: Model{
+				// Default fields
+				cursor:   0,
+				viewport: viewport.New(0, 20),
+				Help:     help.New(),
+				styles:   DefaultStyles(),
+
+				// Modified fields
+				KeyMap: KeyMap{},
+			},
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			tc.want.UpdateViewport()
+
+			got := New(tc.opts...)
+
+			if !reflect.DeepEqual(tc.want, got) {
+				t.Errorf("\n\nwant %v\n\ngot %v", tc.want, got)
 			}
 		})
 	}
