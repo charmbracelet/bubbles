@@ -245,3 +245,132 @@ func TestTableCentering(t *testing.T) {
 		golden.RequireEqual(t, []byte(got))
 	})
 }
+
+func TestCursorNavigation(t *testing.T) {
+	tests := map[string]struct {
+		rows   []Row
+		action func(*Model)
+		want   int
+	}{
+		"New": {
+			rows: []Row{
+				{"r1"},
+				{"r2"},
+				{"r3"},
+			},
+			action: func(_ *Model) {},
+			want:   0,
+		},
+		"MoveDown": {
+			rows: []Row{
+				{"r1"},
+				{"r2"},
+				{"r3"},
+				{"r4"},
+			},
+			action: func(t *Model) {
+				t.MoveDown(2)
+			},
+			want: 2,
+		},
+		"MoveUp": {
+			rows: []Row{
+				{"r1"},
+				{"r2"},
+				{"r3"},
+				{"r4"},
+			},
+			action: func(t *Model) {
+				t.cursor = 3
+				t.MoveUp(2)
+			},
+			want: 1,
+		},
+		"GotoBottom": {
+			rows: []Row{
+				{"r1"},
+				{"r2"},
+				{"r3"},
+				{"r4"},
+			},
+			action: func(t *Model) {
+				t.GotoBottom()
+			},
+			want: 3,
+		},
+		"GotoTop": {
+			rows: []Row{
+				{"r1"},
+				{"r2"},
+				{"r3"},
+				{"r4"},
+			},
+			action: func(t *Model) {
+				t.cursor = 3
+				t.GotoTop()
+			},
+			want: 0,
+		},
+		"SetCursor": {
+			rows: []Row{
+				{"r1"},
+				{"r2"},
+				{"r3"},
+				{"r4"},
+			},
+			action: func(t *Model) {
+				t.SetCursor(2)
+			},
+			want: 2,
+		},
+		"MoveDown with overflow": {
+			rows: []Row{
+				{"r1"},
+				{"r2"},
+				{"r3"},
+				{"r4"},
+			},
+			action: func(t *Model) {
+				t.MoveDown(5)
+			},
+			want: 3,
+		},
+		"MoveUp with overflow": {
+			rows: []Row{
+				{"r1"},
+				{"r2"},
+				{"r3"},
+				{"r4"},
+			},
+			action: func(t *Model) {
+				t.cursor = 3
+				t.MoveUp(5)
+			},
+			want: 0,
+		},
+		"Blur does not stop movement": {
+			rows: []Row{
+				{"r1"},
+				{"r2"},
+				{"r3"},
+				{"r4"},
+			},
+			action: func(t *Model) {
+				t.Blur()
+				t.MoveDown(2)
+			},
+			want: 2,
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			table := New(WithColumns(cols), WithRows(tc.rows))
+			tc.action(&table)
+
+			if table.Cursor() != tc.want {
+				t.Errorf("want %d, got %d", tc.want, table.Cursor())
+			}
+		})
+	}
+}
