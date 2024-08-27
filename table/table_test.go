@@ -11,7 +11,7 @@ import (
 	"github.com/charmbracelet/x/exp/golden"
 )
 
-var cols = []Column{
+var testCols = []Column{
 	{Title: "col1", Width: 10},
 	{Title: "col2", Width: 10},
 	{Title: "col3", Width: 10},
@@ -177,7 +177,7 @@ func TestNew(t *testing.T) {
 	}
 }
 
-func TestFromValues(t *testing.T) {
+func TestModel_FromValues(t *testing.T) {
 	input := "foo1,bar1\nfoo2,bar2\nfoo3,bar3"
 	table := New(WithColumns([]Column{{Title: "Foo"}, {Title: "Bar"}}))
 	table.FromValues(input, ",")
@@ -191,12 +191,12 @@ func TestFromValues(t *testing.T) {
 		{"foo2", "bar2"},
 		{"foo3", "bar3"},
 	}
-	if !deepEqualRows(table.rows, expect) {
-		t.Fatal("table rows is not equals to the input")
+	if !reflect.DeepEqual(table.rows, expect) {
+		t.Fatalf("\n\nwant %v\n\ngot %v", expect, table.rows)
 	}
 }
 
-func TestFromValuesWithTabSeparator(t *testing.T) {
+func TestModel_FromValues_WithTabSeparator(t *testing.T) {
 	input := "foo1.\tbar1\nfoo,bar,baz\tbar,2"
 	table := New(WithColumns([]Column{{Title: "Foo"}, {Title: "Bar"}}))
 	table.FromValues(input, "\t")
@@ -209,12 +209,12 @@ func TestFromValuesWithTabSeparator(t *testing.T) {
 		{"foo1.", "bar1"},
 		{"foo,bar,baz", "bar,2"},
 	}
-	if !deepEqualRows(table.rows, expect) {
-		t.Fatal("table rows is not equals to the input")
+	if !reflect.DeepEqual(table.rows, expect) {
+		t.Fatalf("\n\nwant %v\n\ngot %v", expect, table.rows)
 	}
 }
 
-func TestRenderRow(t *testing.T) {
+func TestModel_RenderRow(t *testing.T) {
 	tests := []struct {
 		name     string
 		table    *Model
@@ -224,7 +224,7 @@ func TestRenderRow(t *testing.T) {
 			name: "simple row",
 			table: &Model{
 				rows:   []Row{{"Foooooo", "Baaaaar", "Baaaaaz"}},
-				cols:   cols,
+				cols:   testCols,
 				styles: Styles{Cell: lipgloss.NewStyle()},
 			},
 			expected: "Foooooo   Baaaaar   Baaaaaz   ",
@@ -233,7 +233,7 @@ func TestRenderRow(t *testing.T) {
 			name: "simple row with truncations",
 			table: &Model{
 				rows:   []Row{{"Foooooooooo", "Baaaaaaaaar", "Quuuuuuuuux"}},
-				cols:   cols,
+				cols:   testCols,
 				styles: Styles{Cell: lipgloss.NewStyle()},
 			},
 			expected: "Foooooooo…Baaaaaaaa…Quuuuuuuu…",
@@ -242,7 +242,7 @@ func TestRenderRow(t *testing.T) {
 			name: "simple row avoiding truncations",
 			table: &Model{
 				rows:   []Row{{"Fooooooooo", "Baaaaaaaar", "Quuuuuuuux"}},
-				cols:   cols,
+				cols:   testCols,
 				styles: Styles{Cell: lipgloss.NewStyle()},
 			},
 			expected: "FoooooooooBaaaaaaaarQuuuuuuuux",
@@ -361,6 +361,8 @@ func TestCellPadding(t *testing.T) {
 
 			got := ansi.Strip(table.View())
 
+			// TODO: Adjust the golden file once this bug has been resolved
+			// https://github.com/charmbracelet/bubbles/issues/576
 			golden.RequireEqual(t, []byte(got))
 		})
 	}
@@ -514,7 +516,7 @@ func TestCursorNavigation(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			table := New(WithColumns(cols), WithRows(tc.rows))
+			table := New(WithColumns(testCols), WithRows(tc.rows))
 			tc.action(&table)
 
 			if table.Cursor() != tc.want {
@@ -524,16 +526,40 @@ func TestCursorNavigation(t *testing.T) {
 	}
 }
 
-func deepEqualRows(a, b []Row) bool {
-	if len(a) != len(b) {
-		return false
+func TestModel_SetRows(t *testing.T) {
+	table := New(WithColumns(testCols))
+
+	if len(table.rows) != 0 {
+		t.Fatalf("want 0, got %d", len(table.rows))
 	}
-	for i, r := range a {
-		for j, f := range r {
-			if f != b[i][j] {
-				return false
-			}
-		}
+
+	table.SetRows([]Row{{"r1"}, {"r2"}})
+
+	if len(table.rows) != 2 {
+		t.Fatalf("want 2, got %d", len(table.rows))
 	}
-	return true
+
+	want := []Row{{"r1"}, {"r2"}}
+	if !reflect.DeepEqual(table.rows, want) {
+		t.Fatalf("\n\nwant %v\n\ngot %v", want, table.rows)
+	}
+}
+
+func TestModel_SetColumns(t *testing.T) {
+	table := New()
+
+	if len(table.cols) != 0 {
+		t.Fatalf("want 0, got %d", len(table.cols))
+	}
+
+	table.SetColumns([]Column{{Title: "Foo"}, {Title: "Bar"}})
+
+	if len(table.cols) != 2 {
+		t.Fatalf("want 2, got %d", len(table.cols))
+	}
+
+	want := []Column{{Title: "Foo"}, {Title: "Bar"}}
+	if !reflect.DeepEqual(table.cols, want) {
+		t.Fatalf("\n\nwant %v\n\ngot %v", want, table.cols)
+	}
 }
