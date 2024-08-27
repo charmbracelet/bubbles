@@ -11,6 +11,172 @@ import (
 	"github.com/charmbracelet/x/exp/golden"
 )
 
+var cols = []Column{
+	{Title: "col1", Width: 10},
+	{Title: "col2", Width: 10},
+	{Title: "col3", Width: 10},
+}
+
+func TestNew(t *testing.T) {
+	tests := map[string]struct {
+		opts []Option
+		want Model
+	}{
+		"Default": {
+			want: Model{
+				// Default fields
+				cursor:   0,
+				viewport: viewport.New(0, 20),
+				KeyMap:   DefaultKeyMap(),
+				Help:     help.New(),
+				styles:   DefaultStyles(),
+			},
+		},
+		"WithColumns": {
+			opts: []Option{
+				WithColumns([]Column{
+					{Title: "Foo", Width: 1},
+					{Title: "Bar", Width: 2},
+				}),
+			},
+			want: Model{
+				// Default fields
+				cursor:   0,
+				viewport: viewport.New(0, 20),
+				KeyMap:   DefaultKeyMap(),
+				Help:     help.New(),
+				styles:   DefaultStyles(),
+
+				// Modified fields
+				cols: []Column{
+					{Title: "Foo", Width: 1},
+					{Title: "Bar", Width: 2},
+				},
+			},
+		},
+		"WithCols; WithRows": {
+			opts: []Option{
+				WithColumns([]Column{
+					{Title: "Foo", Width: 1},
+					{Title: "Bar", Width: 2},
+				}),
+				WithRows([]Row{
+					{"1", "Foo"},
+					{"2", "Bar"},
+				}),
+			},
+			want: Model{
+				// Default fields
+				cursor:   0,
+				viewport: viewport.New(0, 20),
+				KeyMap:   DefaultKeyMap(),
+				Help:     help.New(),
+				styles:   DefaultStyles(),
+
+				// Modified fields
+				cols: []Column{
+					{Title: "Foo", Width: 1},
+					{Title: "Bar", Width: 2},
+				},
+				rows: []Row{
+					{"1", "Foo"},
+					{"2", "Bar"},
+				},
+			},
+		},
+		"WithHeight": {
+			opts: []Option{
+				WithHeight(10),
+			},
+			want: Model{
+				// Default fields
+				cursor: 0,
+				KeyMap: DefaultKeyMap(),
+				Help:   help.New(),
+				styles: DefaultStyles(),
+
+				// Modified fields
+				// Viewport height is 1 less than the provided height when no header is present since lipgloss.Height adds 1
+				viewport: viewport.New(0, 9),
+			},
+		},
+		"WithWidth": {
+			opts: []Option{
+				WithWidth(10),
+			},
+			want: Model{
+				// Default fields
+				cursor: 0,
+				KeyMap: DefaultKeyMap(),
+				Help:   help.New(),
+				styles: DefaultStyles(),
+
+				// Modified fields
+				// Viewport height is 1 less than the provided height when no header is present since lipgloss.Height adds 1
+				viewport: viewport.New(10, 20),
+			},
+		},
+		"WithFocused": {
+			opts: []Option{
+				WithFocused(true),
+			},
+			want: Model{
+				// Default fields
+				cursor:   0,
+				viewport: viewport.New(0, 20),
+				KeyMap:   DefaultKeyMap(),
+				Help:     help.New(),
+				styles:   DefaultStyles(),
+
+				// Modified fields
+				focus: true,
+			},
+		},
+		"WithStyles": {
+			opts: []Option{
+				WithStyles(Styles{}),
+			},
+			want: Model{
+				// Default fields
+				cursor:   0,
+				viewport: viewport.New(0, 20),
+				KeyMap:   DefaultKeyMap(),
+				Help:     help.New(),
+
+				// Modified fields
+				styles: Styles{},
+			},
+		},
+		"WithKeyMap": {
+			opts: []Option{
+				WithKeyMap(KeyMap{}),
+			},
+			want: Model{
+				// Default fields
+				cursor:   0,
+				viewport: viewport.New(0, 20),
+				Help:     help.New(),
+				styles:   DefaultStyles(),
+
+				// Modified fields
+				KeyMap: KeyMap{},
+			},
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			tc.want.UpdateViewport()
+
+			got := New(tc.opts...)
+
+			if !reflect.DeepEqual(tc.want, got) {
+				t.Errorf("\n\nwant %v\n\ngot %v", tc.want, got)
+			}
+		})
+	}
+}
+
 func TestFromValues(t *testing.T) {
 	input := "foo1,bar1\nfoo2,bar2\nfoo3,bar3"
 	table := New(WithColumns([]Column{{Title: "Foo"}, {Title: "Bar"}}))
@@ -25,7 +191,7 @@ func TestFromValues(t *testing.T) {
 		{"foo2", "bar2"},
 		{"foo3", "bar3"},
 	}
-	if !deepEqual(table.rows, expect) {
+	if !deepEqualRows(table.rows, expect) {
 		t.Fatal("table rows is not equals to the input")
 	}
 }
@@ -43,29 +209,9 @@ func TestFromValuesWithTabSeparator(t *testing.T) {
 		{"foo1.", "bar1"},
 		{"foo,bar,baz", "bar,2"},
 	}
-	if !deepEqual(table.rows, expect) {
+	if !deepEqualRows(table.rows, expect) {
 		t.Fatal("table rows is not equals to the input")
 	}
-}
-
-func deepEqual(a, b []Row) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i, r := range a {
-		for j, f := range r {
-			if f != b[i][j] {
-				return false
-			}
-		}
-	}
-	return true
-}
-
-var cols = []Column{
-	{Title: "col1", Width: 10},
-	{Title: "col2", Width: 10},
-	{Title: "col3", Width: 10},
 }
 
 func TestRenderRow(t *testing.T) {
@@ -378,162 +524,16 @@ func TestCursorNavigation(t *testing.T) {
 	}
 }
 
-func TestNew(t *testing.T) {
-	tests := map[string]struct {
-		opts []Option
-		want Model
-	}{
-		"Default": {
-			want: Model{
-				// Default fields
-				cursor:   0,
-				viewport: viewport.New(0, 20),
-				KeyMap:   DefaultKeyMap(),
-				Help:     help.New(),
-				styles:   DefaultStyles(),
-			},
-		},
-		"WithColumns": {
-			opts: []Option{
-				WithColumns([]Column{
-					{Title: "Foo", Width: 1},
-					{Title: "Bar", Width: 2},
-				}),
-			},
-			want: Model{
-				// Default fields
-				cursor:   0,
-				viewport: viewport.New(0, 20),
-				KeyMap:   DefaultKeyMap(),
-				Help:     help.New(),
-				styles:   DefaultStyles(),
-
-				// Modified fields
-				cols: []Column{
-					{Title: "Foo", Width: 1},
-					{Title: "Bar", Width: 2},
-				},
-			},
-		},
-		"WithCols; WithRows": {
-			opts: []Option{
-				WithColumns([]Column{
-					{Title: "Foo", Width: 1},
-					{Title: "Bar", Width: 2},
-				}),
-				WithRows([]Row{
-					{"1", "Foo"},
-					{"2", "Bar"},
-				}),
-			},
-			want: Model{
-				// Default fields
-				cursor:   0,
-				viewport: viewport.New(0, 20),
-				KeyMap:   DefaultKeyMap(),
-				Help:     help.New(),
-				styles:   DefaultStyles(),
-
-				// Modified fields
-				cols: []Column{
-					{Title: "Foo", Width: 1},
-					{Title: "Bar", Width: 2},
-				},
-				rows: []Row{
-					{"1", "Foo"},
-					{"2", "Bar"},
-				},
-			},
-		},
-		"WithHeight": {
-			opts: []Option{
-				WithHeight(10),
-			},
-			want: Model{
-				// Default fields
-				cursor: 0,
-				KeyMap: DefaultKeyMap(),
-				Help:   help.New(),
-				styles: DefaultStyles(),
-
-				// Modified fields
-				// Viewport height is 1 less than the provided height when no header is present since lipgloss.Height adds 1
-				viewport: viewport.New(0, 9),
-			},
-		},
-		"WithWidth": {
-			opts: []Option{
-				WithWidth(10),
-			},
-			want: Model{
-				// Default fields
-				cursor: 0,
-				KeyMap: DefaultKeyMap(),
-				Help:   help.New(),
-				styles: DefaultStyles(),
-
-				// Modified fields
-				// Viewport height is 1 less than the provided height when no header is present since lipgloss.Height adds 1
-				viewport: viewport.New(10, 20),
-			},
-		},
-		"WithFocused": {
-			opts: []Option{
-				WithFocused(true),
-			},
-			want: Model{
-				// Default fields
-				cursor:   0,
-				viewport: viewport.New(0, 20),
-				KeyMap:   DefaultKeyMap(),
-				Help:     help.New(),
-				styles:   DefaultStyles(),
-
-				// Modified fields
-				focus: true,
-			},
-		},
-		"WithStyles": {
-			opts: []Option{
-				WithStyles(Styles{}),
-			},
-			want: Model{
-				// Default fields
-				cursor:   0,
-				viewport: viewport.New(0, 20),
-				KeyMap:   DefaultKeyMap(),
-				Help:     help.New(),
-
-				// Modified fields
-				styles: Styles{},
-			},
-		},
-		"WithKeyMap": {
-			opts: []Option{
-				WithKeyMap(KeyMap{}),
-			},
-			want: Model{
-				// Default fields
-				cursor:   0,
-				viewport: viewport.New(0, 20),
-				Help:     help.New(),
-				styles:   DefaultStyles(),
-
-				// Modified fields
-				KeyMap: KeyMap{},
-			},
-		},
+func deepEqualRows(a, b []Row) bool {
+	if len(a) != len(b) {
+		return false
 	}
-
-	for name, tc := range tests {
-		t.Run(name, func(t *testing.T) {
-			tc.want.UpdateViewport()
-
-			got := New(tc.opts...)
-
-			if !reflect.DeepEqual(tc.want, got) {
-				t.Errorf("\n\nwant %v\n\ngot %v", tc.want, got)
+	for i, r := range a {
+		for j, f := range r {
+			if f != b[i][j] {
+				return false
 			}
-		})
+		}
 	}
+	return true
 }
