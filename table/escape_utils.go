@@ -28,6 +28,7 @@ func truncate(s string, w int) string {
 	}
 
 	if w <= 0 {
+		// Assumption: we do not want to wrap the ellipsis in the original escape sequences.
 		return "…"
 	}
 
@@ -39,6 +40,7 @@ func truncate(s string, w int) string {
 	cleaned, escapes := extractEscapeSequences(s)
 	truncated := runewidth.Truncate(cleaned, w-1, "")
 
+	// Assumption: we do not want to wrap the ellipsis in the original escape sequences.
 	return applyEscapeSequences(truncated, escapes) + "…"
 }
 
