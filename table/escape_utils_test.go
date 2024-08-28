@@ -29,8 +29,6 @@ func TestTruncate(t *testing.T) {
 			want:  "\u001B[31mhello\u001B[0m",
 		},
 		"string with escape sequence; truncated": {
-			// TODO(?): should the ellipsis be included inside the escape sequence?
-
 			in:    "\x1b[31mhello\x1b[0m",
 			width: 3,
 			want:  "\u001B[31mhe\u001B[0m…",
@@ -40,18 +38,30 @@ func TestTruncate(t *testing.T) {
 			width: 2,
 			want:  "\u001B[31m👋\u001B[0m",
 		},
-		// TODO: fix the following emoji test case
-		//"string with escape sequence, emoji, and combining character; truncated": {
-		//	// NOTE: The combining character may not be rendered correctly in the test output.
-		//	in:    "\x1b[31m👋\u0308\x1b[0m",
-		//	width: 2,
-		//	want:  "\x1b[31m👋\x1b[0m…",
-		//},
-		//"string with escape sequence, emoji, and non-print character": {
-		//	in:    "\x1b[31m👋\u0000\x1b[0m",
-		//	width: 1,
-		//	want:  "\x1b[31m👋\x1b[0m…",
-		//},
+		"string with escape sequence, emoji, and combining character; not truncated": {
+			// NOTE: The combining character may not be rendered correctly in the test output.
+			// NOTE: The combining character has a width of 0, so it will always be included alongside the preceding character.
+			in:    "\x1b[31m👋\u0308\x1b[0m",
+			width: 2,
+			want:  "\x1b[31m👋\u0308\x1b[0m",
+		},
+		"string with escape sequence, emoji, and combining character; truncated": {
+			// NOTE: The combining character may not be rendered correctly in the test output.
+			// NOTE: The emoji has a width of 2. Truncating in the "middle" of an emoji will remove the entire emoji.
+			in:    "\x1b[31m👋\u0308\x1b[0m",
+			width: 1,
+			want:  "\x1b[31m\x1b[0m…",
+		},
+		"string with escape sequence, emoji, and non-print character; not truncated": {
+			in:    "\x1b[31m👋\u0000\x1b[0m",
+			width: 2,
+			want:  "\x1b[31m👋\u0000\x1b[0m",
+		},
+		"string with escape sequence, emoji, and non-print character; truncated": {
+			in:    "\x1b[31m👋\u0000\x1b[0m",
+			width: 1,
+			want:  "\x1b[31m\x1b[0m…",
+		},
 		"string with double escape sequences; truncated between": {
 			in:    "\x1b[31mhello\x1b[0m\x1b[31mhello\x1b[0m",
 			width: 6,
@@ -106,6 +116,14 @@ func TestLengthWithoutEscapeSequences(t *testing.T) {
 		"string with escape sequence": {
 			in:   "\x1b[31mhello\x1b[0m",
 			want: 5,
+		},
+		"string with emoji": {
+			in:   "👋",
+			want: 2,
+		},
+		"string with combining character": {
+			in:   "\u0308",
+			want: 0,
 		},
 		"string with escape sequence and emoji": {
 			in:   "\x1b[31m👋\x1b[0m",
