@@ -307,96 +307,6 @@ func TestTableAlignment(t *testing.T) {
 	})
 }
 
-func TestCellPadding(t *testing.T) {
-	tt := map[string]struct {
-		tableWidth int
-		styles     Styles
-	}{
-		"With padding": {
-			tableWidth: 21,
-			styles: Styles{
-				Selected: lipgloss.NewStyle(),
-				Header:   lipgloss.NewStyle().Padding(0, 1),
-				Cell:     lipgloss.NewStyle().Padding(0, 1),
-			},
-		},
-		"Without padding; exact width": {
-			tableWidth: 15,
-			styles: Styles{
-				Selected: lipgloss.NewStyle(),
-				Header:   lipgloss.NewStyle(),
-				Cell:     lipgloss.NewStyle(),
-			},
-		},
-		// TODO: Adjust the golden file once a desired output has been decided
-		// https://github.com/charmbracelet/bubbles/issues/472
-		"Without padding; too narrow": {
-			tableWidth: 10,
-			styles: Styles{
-				Selected: lipgloss.NewStyle(),
-				Header:   lipgloss.NewStyle(),
-				Cell:     lipgloss.NewStyle(),
-			},
-		},
-	}
-
-	for name, tc := range tt {
-		t.Run(name, func(t *testing.T) {
-			table := New(
-				WithHeight(4),
-				WithWidth(tc.tableWidth),
-				WithColumns([]Column{
-					{Title: "One", Width: 5},
-					{Title: "Two", Width: 5},
-					{Title: "Three", Width: 5},
-				}),
-				WithRows([]Row{
-					{"r1c1-", "r1c2-", "r1c3-"},
-					{"r2c1-", "r2c2-", "r2c3-"},
-					{"r3c1-", "r3c2-", "r3c3-"},
-					{"r4c1-", "r4c2-", "r4c3-"},
-				}),
-				WithStyles(tc.styles),
-			)
-
-			got := ansi.Strip(table.View())
-
-			// TODO: Adjust the golden file once this bug has been resolved
-			// https://github.com/charmbracelet/bubbles/issues/576
-			golden.RequireEqual(t, []byte(got))
-		})
-	}
-}
-
-func TestTableCentering(t *testing.T) {
-	t.Run("Centered in a box", func(t *testing.T) {
-		boxStyle := lipgloss.NewStyle().
-			BorderStyle(lipgloss.NormalBorder()).
-			Align(lipgloss.Center)
-
-		table := New(
-			WithHeight(5),
-			WithWidth(40),
-			WithColumns([]Column{
-				{Title: "One", Width: 5},
-				{Title: "Two", Width: 5},
-				{Title: "Three", Width: 5},
-			}),
-			WithRows([]Row{
-				{"r1c1-", "r1c2-", "r1c3-"},
-				{"r2c1-", "r2c2-", "r2c3-"},
-				{"r3c1-", "r3c2-", "r3c3-"},
-				{"r4c1-", "r4c2-", "r4c3-"},
-			}),
-		)
-
-		tableView := ansi.Strip(table.View())
-		got := boxStyle.Render(tableView)
-
-		golden.RequireEqual(t, []byte(got))
-	})
-}
-
 func TestCursorNavigation(t *testing.T) {
 	tests := map[string]struct {
 		rows   []Row
@@ -562,4 +472,257 @@ func TestModel_SetColumns(t *testing.T) {
 	if !reflect.DeepEqual(table.cols, want) {
 		t.Fatalf("\n\nwant %v\n\ngot %v", want, table.cols)
 	}
+}
+
+func TestModel_View(t *testing.T) {
+	tests := map[string]struct {
+		modelFunc func() Model
+	}{
+		// TODO(?): should the view/output of empty tables use the same default height? (this has height 21)
+		"Empty": {
+			modelFunc: func() Model {
+				return New()
+			},
+		},
+		"Single row and column": {
+			modelFunc: func() Model {
+				return New(
+					WithColumns([]Column{
+						{Title: "Name", Width: 25},
+					}),
+					WithRows([]Row{
+						{"Chocolate Digestives"},
+					}),
+				)
+			},
+		},
+		"Multiple rows and columns": {
+			modelFunc: func() Model {
+				return New(
+					WithColumns([]Column{
+						{Title: "Name", Width: 25},
+						{Title: "Country of Origin", Width: 16},
+						{Title: "Dunk-able", Width: 12},
+					}),
+					WithRows([]Row{
+						{"Chocolate Digestives", "UK", "Yes"},
+						{"Tim Tams", "Australia", "No"},
+						{"Hobnobs", "UK", "Yes"},
+					}),
+				)
+			},
+		},
+		// TODO(fix): since the table height is tied to the viewport height, adding vertical padding to the headers' height directly increases the table height.
+		"Extra padding": {
+			modelFunc: func() Model {
+				s := DefaultStyles()
+				s.Header = lipgloss.NewStyle().Padding(2, 2)
+				s.Cell = lipgloss.NewStyle().Padding(2, 2)
+
+				return New(
+					WithHeight(10),
+					WithColumns([]Column{
+						{Title: "Name", Width: 25},
+						{Title: "Country of Origin", Width: 16},
+						{Title: "Dunk-able", Width: 12},
+					}),
+					WithRows([]Row{
+						{"Chocolate Digestives", "UK", "Yes"},
+						{"Tim Tams", "Australia", "No"},
+						{"Hobnobs", "UK", "Yes"},
+					}),
+					WithStyles(s),
+				)
+			},
+		},
+		"No padding": {
+			modelFunc: func() Model {
+				s := DefaultStyles()
+				s.Header = lipgloss.NewStyle()
+				s.Cell = lipgloss.NewStyle()
+
+				return New(
+					WithHeight(10),
+					WithColumns([]Column{
+						{Title: "Name", Width: 25},
+						{Title: "Country of Origin", Width: 16},
+						{Title: "Dunk-able", Width: 12},
+					}),
+					WithRows([]Row{
+						{"Chocolate Digestives", "UK", "Yes"},
+						{"Tim Tams", "Australia", "No"},
+						{"Hobnobs", "UK", "Yes"},
+					}),
+					WithStyles(s),
+				)
+			},
+		},
+		// TODO(?): the total height is modified with borderd headers, however not with bordered cells. Is this expected/desired?
+		"Bordered headers": {
+			modelFunc: func() Model {
+				return New(
+					WithColumns([]Column{
+						{Title: "Name", Width: 25},
+						{Title: "Country of Origin", Width: 16},
+						{Title: "Dunk-able", Width: 12},
+					}),
+					WithRows([]Row{
+						{"Chocolate Digestives", "UK", "Yes"},
+						{"Tim Tams", "Australia", "No"},
+						{"Hobnobs", "UK", "Yes"},
+					}),
+					WithStyles(Styles{
+						Header: lipgloss.NewStyle().BorderStyle(lipgloss.NormalBorder()),
+					}),
+				)
+			},
+		},
+		// TODO(fix): Headers are not horizontally aligned with cells due to the border adding width to the cells.
+		"Bordered cells": {
+			modelFunc: func() Model {
+				return New(
+					WithColumns([]Column{
+						{Title: "Name", Width: 25},
+						{Title: "Country of Origin", Width: 16},
+						{Title: "Dunk-able", Width: 12},
+					}),
+					WithRows([]Row{
+						{"Chocolate Digestives", "UK", "Yes"},
+						{"Tim Tams", "Australia", "No"},
+						{"Hobnobs", "UK", "Yes"},
+					}),
+					WithStyles(Styles{
+						Cell: lipgloss.NewStyle().BorderStyle(lipgloss.NormalBorder()),
+					}),
+				)
+			},
+		},
+		"Manual height greater than rows": {
+			modelFunc: func() Model {
+				return New(
+					WithHeight(6),
+					WithColumns([]Column{
+						{Title: "Name", Width: 25},
+						{Title: "Country of Origin", Width: 16},
+						{Title: "Dunk-able", Width: 12},
+					}),
+					WithRows([]Row{
+						{"Chocolate Digestives", "UK", "Yes"},
+						{"Tim Tams", "Australia", "No"},
+						{"Hobnobs", "UK", "Yes"},
+					}),
+				)
+			},
+		},
+		"Manual height less than rows": {
+			modelFunc: func() Model {
+				return New(
+					WithHeight(2),
+					WithColumns([]Column{
+						{Title: "Name", Width: 25},
+						{Title: "Country of Origin", Width: 16},
+						{Title: "Dunk-able", Width: 12},
+					}),
+					WithRows([]Row{
+						{"Chocolate Digestives", "UK", "Yes"},
+						{"Tim Tams", "Australia", "No"},
+						{"Hobnobs", "UK", "Yes"},
+					}),
+				)
+			},
+		},
+		// TODO(fix): spaces are added to the right of the viewport to fill the width, but the headers end as though they are not aware of the width.
+		"Manual width greater than columns": {
+			modelFunc: func() Model {
+				return New(
+					WithWidth(80),
+					WithColumns([]Column{
+						{Title: "Name", Width: 25},
+						{Title: "Country of Origin", Width: 16},
+						{Title: "Dunk-able", Width: 12},
+					}),
+					WithRows([]Row{
+						{"Chocolate Digestives", "UK", "Yes"},
+						{"Tim Tams", "Australia", "No"},
+						{"Hobnobs", "UK", "Yes"},
+					}),
+				)
+			},
+		},
+		// TODO(fix): Setting the table width does not affect the total headers' width. Cells are wrapped. Headers are not affected. A desired outcome needs to be determined.
+		"Manual width less than columns": {
+			modelFunc: func() Model {
+				return New(
+					WithWidth(30),
+					WithColumns([]Column{
+						{Title: "Name", Width: 25},
+						{Title: "Country of Origin", Width: 16},
+						{Title: "Dunk-able", Width: 12},
+					}),
+					WithRows([]Row{
+						{"Chocolate Digestives", "UK", "Yes"},
+						{"Tim Tams", "Australia", "No"},
+						{"Hobnobs", "UK", "Yes"},
+					}),
+				)
+			},
+		},
+		"Modified viewport height": {
+			modelFunc: func() Model {
+				m := New(
+					WithColumns([]Column{
+						{Title: "Name", Width: 25},
+						{Title: "Country of Origin", Width: 16},
+						{Title: "Dunk-able", Width: 12},
+					}),
+					WithRows([]Row{
+						{"Chocolate Digestives", "UK", "Yes"},
+						{"Tim Tams", "Australia", "No"},
+						{"Hobnobs", "UK", "Yes"},
+					}),
+				)
+
+				m.viewport.Height = 2
+
+				return m
+			},
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			table := tc.modelFunc()
+
+			got := ansi.Strip(table.View())
+
+			golden.RequireEqual(t, []byte(got))
+		})
+	}
+}
+
+// TODO: Fix table such that this test will fail because the cells are properly centered.
+func TestModel_View_CenteredInABox(t *testing.T) {
+	boxStyle := lipgloss.NewStyle().
+		BorderStyle(lipgloss.NormalBorder()).
+		Align(lipgloss.Center)
+
+	table := New(
+		WithHeight(6),
+		WithWidth(80),
+		WithColumns([]Column{
+			{Title: "Name", Width: 25},
+			{Title: "Country of Origin", Width: 16},
+			{Title: "Dunk-able", Width: 12},
+		}),
+		WithRows([]Row{
+			{"Chocolate Digestives", "UK", "Yes"},
+			{"Tim Tams", "Australia", "No"},
+			{"Hobnobs", "UK", "Yes"},
+		}),
+	)
+
+	tableView := ansi.Strip(table.View())
+	got := boxStyle.Render(tableView)
+
+	golden.RequireEqual(t, []byte(got))
 }
