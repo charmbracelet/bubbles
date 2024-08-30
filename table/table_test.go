@@ -649,7 +649,8 @@ func TestModel_View(t *testing.T) {
 				)
 			},
 		},
-		// TODO(fix): Setting the table width does not affect the total headers' width. Cells are wrapped. Headers are not affected. A desired outcome needs to be determined.
+		// TODO(fix): Setting the table width does not affect the total headers' width. Cells are wrapped.
+		// 	Headers are not affected. Truncation/resizing should match lipgloss.table functionality.
 		"Manual width less than columns": {
 			modelFunc: func() Model {
 				return New(
@@ -700,7 +701,7 @@ func TestModel_View(t *testing.T) {
 	}
 }
 
-// TODO: Fix table such that this test will fail because the cells are properly centered.
+// TODO: Fix table to make this test will pass.
 func TestModel_View_CenteredInABox(t *testing.T) {
 	boxStyle := lipgloss.NewStyle().
 		BorderStyle(lipgloss.NormalBorder()).
