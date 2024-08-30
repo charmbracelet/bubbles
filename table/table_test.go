@@ -54,7 +54,7 @@ func TestNew(t *testing.T) {
 				},
 			},
 		},
-		"WithCols; WithRows": {
+		"WithColumns; WithRows": {
 			opts: []Option{
 				WithColumns([]Column{
 					{Title: "Foo", Width: 1},
