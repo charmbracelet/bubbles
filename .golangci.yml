@@ -28,4 +28,6 @@ linters:
     - unconvert
     - unparam
     - whitespace
-    - predeclared
+    # We're isabling predeclared because the linter is running a newer version
+    # of Go than then Go module.
+    # - predeclared
