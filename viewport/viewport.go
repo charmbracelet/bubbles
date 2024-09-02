@@ -117,12 +117,17 @@ func (m Model) maxYOffset() int {
 // visibleLines returns the lines that should currently be visible in the
 // viewport.
 func (m Model) visibleLines() (lines []string) {
-	if len(m.lines) > 0 {
-		top := max(0, m.YOffset)
-		bottom := clamp(m.YOffset+m.Height, top, len(m.lines))
-		lines = m.lines[top:bottom]
+	if len(m.lines) == 0 {
+		return nil
 	}
-	return lines
+	top := max(0, m.YOffset)
+	bottom := min(m.YOffset+m.Height, len(m.lines))
+	if top >= bottom {
+		// Return early, otherwise we'll panic with a slice out of bounds
+		// error.
+		return nil
+	}
+	return m.lines[top:bottom]
 }
 
 // scrollArea returns the scrollable boundaries for high performance rendering.
@@ -233,6 +238,11 @@ func (m *Model) GotoTop() (lines []string) {
 
 // GotoBottom sets the viewport to the bottom position.
 func (m *Model) GotoBottom() (lines []string) {
+	if len(m.lines) == 0 {
+		// If there are no lines, we can't go to the bottom...because we're
+		// already there.
+		return nil
+	}
 	m.SetYOffset(m.maxYOffset())
 	return m.visibleLines()
 }
