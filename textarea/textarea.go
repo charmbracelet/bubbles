@@ -233,6 +233,8 @@ type Model struct {
 	// there's no limit.
 	MaxWidth int
 
+	SyntaxHighlighter func(string) string
+
 	// If promptFunc is set, it replaces Prompt as a generator for
 	// prompt strings at the beginning of each line.
 	promptFunc func(line int) string
@@ -1115,6 +1117,7 @@ func (m Model) View() string {
 		for wl, wrappedLine := range wrappedLines {
 			prompt := m.getPromptString(displayLine)
 			prompt = m.style.computedPrompt().Render(prompt)
+
 			s.WriteString(style.Render(prompt))
 			displayLine++
 
@@ -1159,7 +1162,13 @@ func (m Model) View() string {
 				padding -= m.width - strwidth
 			}
 			if m.row == l && lineInfo.RowOffset == wl {
-				s.WriteString(style.Render(string(wrappedLine[:lineInfo.ColumnOffset])))
+				ln := string(wrappedLine[:lineInfo.ColumnOffset])
+				if m.SyntaxHighlighter == nil {
+					ln = style.Render(ln)
+				} else {
+					ln = m.SyntaxHighlighter(ln)
+				}
+				s.WriteString(ln)
 				if m.col >= len(line) && lineInfo.CharOffset >= m.width {
 					m.Cursor.SetChar(" ")
 					s.WriteString(m.Cursor.View())
@@ -1169,9 +1178,21 @@ func (m Model) View() string {
 					s.WriteString(style.Render(string(wrappedLine[lineInfo.ColumnOffset+1:])))
 				}
 			} else {
-				s.WriteString(style.Render(string(wrappedLine)))
+				ln := string(wrappedLine)
+				if m.SyntaxHighlighter == nil {
+					ln = style.Render(ln)
+				} else {
+					ln = m.SyntaxHighlighter(ln)
+				}
+				s.WriteString(ln)
 			}
-			s.WriteString(style.Render(strings.Repeat(" ", max(0, padding))))
+
+			pad := strings.Repeat(" ", max(0, padding))
+			if m.SyntaxHighlighter == nil {
+				s.WriteString(style.Render(pad))
+			} else {
+				s.WriteString(pad)
+			}
 			s.WriteRune('\n')
 			newLines++
 		}
