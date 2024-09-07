@@ -87,14 +87,14 @@ func (m Model) PastBottom() bool {
 
 // ScrollPercent returns the amount scrolled as a float between 0 and 1.
 func (m Model) ScrollPercent() float64 {
-	actuallyDisplayedLength := len(linesToActuallyDisplayedLines(m.lines, m.Width))
+	wrappedLines := len(wrap(m.lines, m.Width))
 
-	if m.Height >= actuallyDisplayedLength {
+	if m.Height >= wrappedLines {
 		return 1.0
 	}
 	y := float64(m.YOffset)
 	h := float64(m.Height)
-	t := float64(actuallyDisplayedLength)
+	t := float64(wrappedLines)
 	v := y / (t - h)
 	return math.Max(0.0, math.Min(1.0, v))
 }
@@ -105,7 +105,7 @@ func (m *Model) SetContent(s string) {
 	s = strings.ReplaceAll(s, "\r\n", "\n") // normalize line endings
 	m.lines = strings.Split(s, "\n")
 
-	if m.YOffset > len(linesToActuallyDisplayedLines(m.lines, m.Width))-1 {
+	if m.YOffset > len(wrap(m.lines, m.Width))-1 {
 		m.GotoBottom()
 	}
 }
@@ -113,7 +113,7 @@ func (m *Model) SetContent(s string) {
 // maxYOffset returns the maximum possible value of the y-offset based on the
 // viewport's content and set height.
 func (m Model) maxYOffset() int {
-	linesHeight := len(linesToActuallyDisplayedLines(m.lines, m.Width))
+	linesHeight := len(wrap(m.lines, m.Width))
 	return max(0, linesHeight-m.Height)
 }
 
@@ -121,11 +121,11 @@ func (m Model) maxYOffset() int {
 // viewport.
 func (m Model) visibleLines() (lines []string) {
 	if len(m.lines) > 0 {
-		actuallyDisplayedLines := linesToActuallyDisplayedLines(m.lines, m.Width)
+		wrappedLines := wrap(m.lines, m.Width)
 		top := max(0, m.YOffset)
-		bottom := clamp(m.YOffset+m.Height, top, len(actuallyDisplayedLines))
+		bottom := clamp(m.YOffset+m.Height, top, len(wrappedLines))
 
-		lines = actuallyDisplayedLines[top:bottom]
+		lines = wrappedLines[top:bottom]
 	}
 	return lines
 }
@@ -196,7 +196,7 @@ func (m *Model) LineDown(n int) (lines []string) {
 	// Gather lines to send off for performance scrolling.
 	bottom := clamp(m.YOffset+m.Height, 0, len(m.lines))
 	top := clamp(m.YOffset+m.Height-n, 0, bottom)
-	return linesToActuallyDisplayedLines(m.lines, m.Width)[top:bottom]
+	return wrap(m.lines, m.Width)[top:bottom]
 }
 
 // LineUp moves the view down by the given number of lines. Returns the new
@@ -213,7 +213,7 @@ func (m *Model) LineUp(n int) (lines []string) {
 	// Gather lines to send off for performance scrolling.
 	top := max(0, m.YOffset)
 	bottom := clamp(m.YOffset+n, 0, m.maxYOffset())
-	return linesToActuallyDisplayedLines(m.lines, m.Width)[top:bottom]
+	return wrap(m.lines, m.Width)[top:bottom]
 }
 
 // TotalLineCount returns the total number of lines (both hidden and visible) within the viewport.
@@ -409,22 +409,19 @@ func max(a, b int) int {
 	return b
 }
 
-// linesToActuallyDisplayedLines converts lines to the lines actually displayed considering window width.
-// If there is a line that is longer than the width, it will be displayed in multiple lines.
-// For more details: https://github.com/charmbracelet/bubbles/pull/578
-// If you want to know actual behavior of this function, please check out the unit tests.
-func linesToActuallyDisplayedLines(lines []string, width int) []string {
-	var actual []string
+// wrap returns lines wrapped to the given width.
+func wrap(lines []string, width int) []string {
+	var out []string
 	for _, line := range lines {
 		if len(line) <= width {
-			actual = append(actual, line)
+			out = append(out, line)
 			continue
 		}
 		for width < len(line) {
-			actual = append(actual, line[:width])
+			out = append(out, line[:width])
 			line = line[width:]
 		}
-		actual = append(actual, line)
+		out = append(out, line)
 	}
-	return actual
+	return out
 }

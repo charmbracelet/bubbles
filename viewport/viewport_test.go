@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-func Test_linesToActuallyDisplayedLines(t *testing.T) {
+func TestWrap(t *testing.T) {
 	t.Parallel()
 	tests := map[string]struct {
 		lines []string
@@ -32,7 +32,7 @@ func Test_linesToActuallyDisplayedLines(t *testing.T) {
 		tt := tt
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			got := linesToActuallyDisplayedLines(tt.lines, tt.width)
+			got := wrap(tt.lines, tt.width)
 
 			if len(got) != len(tt.want) {
 				t.Errorf("expected len is %d but got %d", len(tt.want), len(got))
