@@ -26,20 +26,23 @@ func TestWrap(t *testing.T) {
 			width: 3,
 			want:  []string{"aaa", "aaa", "bbb", "bbb", "bb", "ccc"},
 		},
+		"full sentence exceeding width": {
+			lines: []string{"hello bob, I like yogurt in the mornings."},
+			width: 12,
+			want:  []string{"hello bob, I", "like yogurt", "in the", "mornings."},
+		},
 	}
 
 	for name, tt := range tests {
-		tt := tt
 		t.Run(name, func(t *testing.T) {
-			t.Parallel()
 			got := wrap(tt.lines, tt.width)
 
 			if len(got) != len(tt.want) {
-				t.Errorf("expected len is %d but got %d", len(tt.want), len(got))
+				t.Fatalf("expected len is %d but got %d", len(tt.want), len(got))
 			}
 			for i := range tt.want {
 				if tt.want[i] != got[i] {
-					t.Errorf("expected %s but got %s", tt.want[i], got[i])
+					t.Fatalf("expected %s but got %s", tt.want[i], got[i])
 				}
 			}
 		})

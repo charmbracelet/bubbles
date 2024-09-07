@@ -7,6 +7,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 )
 
 // New returns a new model with the given width and height as well as default
@@ -413,15 +414,14 @@ func max(a, b int) int {
 func wrap(lines []string, width int) []string {
 	var out []string
 	for _, line := range lines {
-		if len(line) <= width {
-			out = append(out, line)
-			continue
-		}
-		for width < len(line) {
-			out = append(out, line[:width])
-			line = line[width:]
-		}
-		out = append(out, line)
+		// word wrap lines
+		wrapWords := ansi.Wordwrap(line, width, "")
+		// wrap lines (handles lines that could not be word wrapped)
+		wrap := ansi.Hardwrap(wrapWords, width, true)
+		// split string by new lines
+		wrapLines := strings.Split(strings.TrimSpace(wrap), "\n")
+
+		out = append(out, wrapLines...)
 	}
 	return out
 }
