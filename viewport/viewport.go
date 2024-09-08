@@ -298,6 +298,10 @@ func (m Model) updateAsModel(msg tea.Msg) (Model, tea.Cmd) {
 	var cmd tea.Cmd
 
 	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		if m.PastBottom() {
+			m.SetYOffset(m.maxYOffset())
+		}
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, m.KeyMap.PageDown):
