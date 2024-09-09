@@ -254,7 +254,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.Height = msg.Height - marginBottom
 		}
 		m.max = m.Height - 1
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		switch {
 		case key.Matches(msg, m.KeyMap.GoToTop):
 			m.selected = 0
@@ -463,7 +463,7 @@ func (m Model) didSelectFile(msg tea.Msg) (bool, string) {
 		return false, ""
 	}
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		// If the msg does not match the Select keymap then this could not have been a selection.
 		if !key.Matches(msg, m.KeyMap.Select) {
 			return false, ""
@@ -494,8 +494,8 @@ func (m Model) didSelectFile(msg tea.Msg) (bool, string) {
 			return true, m.Path
 		}
 
-		// If the msg was not a KeyMsg, then the file could not have been selected this iteration.
-		// Only a KeyMsg can select a file.
+		// If the msg was not a KeyPressMsg, then the file could not have been selected this iteration.
+		// Only a KeyPressMsg can select a file.
 	default:
 		return false, ""
 	}

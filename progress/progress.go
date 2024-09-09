@@ -205,8 +205,8 @@ func New(opts ...Option) Model {
 var NewModel = New
 
 // Init exists to satisfy the tea.Model interface.
-func (m Model) Init() tea.Cmd {
-	return nil
+func (m Model) Init() (tea.Model, tea.Cmd) {
+	return m, nil
 }
 
 // Update is used to animate the progress bar during transitions. Use
