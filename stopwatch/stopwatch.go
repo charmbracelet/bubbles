@@ -73,8 +73,8 @@ func (m Model) ID() int {
 }
 
 // Init starts the stopwatch.
-func (m Model) Init() tea.Cmd {
-	return m.Start()
+func (m Model) Init() (Model, tea.Cmd) {
+	return m, m.Start()
 }
 
 // Start starts the stopwatch.

@@ -64,8 +64,8 @@ func (m *Model) setInitialValues() {
 }
 
 // Init exists to satisfy the tea.Model interface for composability purposes.
-func (m Model) Init() tea.Cmd {
-	return nil
+func (m Model) Init() (Model, tea.Cmd) {
+	return m, nil
 }
 
 // AtTop returns whether or not the viewport is at the very top position.

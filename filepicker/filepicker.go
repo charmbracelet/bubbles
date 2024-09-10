@@ -236,8 +236,8 @@ func (m Model) readDir(path string, showHidden bool) tea.Cmd {
 }
 
 // Init initializes the file picker model.
-func (m Model) Init() tea.Cmd {
-	return m.readDir(m.CurrentDirectory, m.ShowHidden)
+func (m Model) Init() (Model, tea.Cmd) {
+	return m, m.readDir(m.CurrentDirectory, m.ShowHidden)
 }
 
 // Update handles user interactions within the file picker model.
