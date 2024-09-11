@@ -1160,6 +1160,20 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
+func (m Model) ghostTextView(offset int) string {
+	if !m.canAcceptSuggestion() {
+		return ""
+	}
+
+	value := linesToString(m.value)
+	suggestion := linesToString(m.matchedSuggestions[m.currentSuggestionIndex])
+	if len(value) >= len(suggestion) {
+		return ""
+	}
+	str := suggestion[len(m.Value())+offset:]
+	return m.style.Placeholder.Inline(true).Render(str)
+}
+
 // View renders the text area in its current state.
 func (m Model) View() string {
 	if m.Value() == "" && m.row == 0 && m.col == 0 && m.Placeholder != "" {
@@ -1242,11 +1256,13 @@ func (m Model) View() string {
 				if m.col >= len(line) && lineInfo.CharOffset >= m.width {
 					m.Cursor.SetChar(" ")
 					s.WriteString(m.Cursor.View())
+					s.WriteString(m.ghostTextView(0))
 					// XXX: suggestions
 				} else {
 					m.Cursor.SetChar(string(wrappedLine[lineInfo.ColumnOffset]))
 					s.WriteString(style.Render(m.Cursor.View()))
 					s.WriteString(style.Render(string(wrappedLine[lineInfo.ColumnOffset+1:])))
+					s.WriteString(m.ghostTextView(1))
 					// XXX: suggestions
 				}
 			} else {
