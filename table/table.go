@@ -11,7 +11,7 @@ import (
 	"github.com/charmbracelet/lipgloss/table"
 )
 
-const HEADER int = 0
+const header int = 0
 
 // Model defines a state for the table widget.
 type Model struct {
@@ -139,7 +139,7 @@ func (m *Model) SetStyles(s Styles) {
 	m.table.BorderStyle(s.BorderStyle)
 	m.table.BorderHeader(s.BorderHeader)
 	m.table.StyleFunc(func(row, col int) lipgloss.Style {
-		if row == HEADER {
+		if row == header {
 			return s.Header
 		}
 		if row == m.cursor {
@@ -403,7 +403,7 @@ func (m *Model) MoveDown(n int) {
 // GotoTop moves the selection to the first row.
 func (m *Model) GotoTop() {
 	// m.MoveUp(m.cursor)
-	m.cursor = HEADER + 1
+	m.cursor = header + 1
 }
 
 // GotoBottom moves the selection to the last row.
