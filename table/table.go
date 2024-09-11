@@ -151,6 +151,8 @@ func (m *Model) SetStyles(s Styles) {
 
 // Option is used to set options in New. For example:
 //
+// TODO change this to WithRows as the example instead
+//
 //	table := New(WithColumns([]Column{{Title: "ID", Width: 10}}))
 type Option func(*Model)
 
@@ -178,12 +180,28 @@ func (m *Model) Headers(headers ...string) *Model {
 	return m
 }
 
+// WithHeaders sets the table headers.
+func WithHeaders(headers []string) Option {
+	return func(m *Model) {
+		m.Headers(headers...)
+	}
+}
+
 // WithColumns sets the table columns (headers).
-// Deprecated: use Headers instead.
+// Deprecated: use WithHeaders instead.
 func WithColumns(cols []Column) Option {
 	return func(m *Model) {
 		m.Headers(colToString(cols)...)
 	}
+}
+
+// colToString helper to unwrap the Column type.
+func colToString(cols []Column) []string {
+	var out []string
+	for _, col := range cols {
+		out = append(out, col.Title)
+	}
+	return out
 }
 
 // Rows appends rows to the table
@@ -191,6 +209,13 @@ func (m *Model) Rows(rows ...[]string) *Model {
 	m.rows = append(m.rows, rows...)
 	m.table.Rows(rows...)
 	return m
+}
+
+// WithRows sets the table rows (data).
+func WithRows(rows []Row) Option {
+	return func(m *Model) {
+		m.SetRows(rows)
+	}
 }
 
 // rowToString helper to unwrap the Row type.
@@ -206,38 +231,17 @@ func rowToString(rows []Row) [][]string {
 	return out
 }
 
-// rowToString helper to unwrap the Row type.
-func colToString(cols []Column) []string {
-	var out []string
-	for _, col := range cols {
-		out = append(out, col.Title)
-	}
-	return out
-}
-
-// WithRows sets the table rows (data).
-// Deprecated: use Rows instead.
-func WithRows(rows []Row) Option {
-	return func(m *Model) {
-		rows := rowToString(rows)
-		m.rows = rows
-		m.table.Rows(rows...)
-	}
-}
-
-/* options */
-
 // WithHeight sets the height of the table.
 func WithHeight(h int) Option {
 	return func(m *Model) {
-		m.table.Height(h)
+		m.SetHeight(h)
 	}
 }
 
 // WithWidth sets the width of the table.
 func WithWidth(w int) Option {
 	return func(m *Model) {
-		m.viewport.Width = w
+		m.SetWidth(w)
 	}
 }
 
