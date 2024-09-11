@@ -1,6 +1,7 @@
 package table
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/charmbracelet/lipgloss"
@@ -10,19 +11,20 @@ import (
 
 func TestFromValues(t *testing.T) {
 	input := "foo1,bar1\nfoo2,bar2\nfoo3,bar3"
-	table := New(WithColumns([]Column{{Title: "Foo"}, {Title: "Bar"}}))
+	table := New().
+		Headers("Foo", "Bar")
 	table.FromValues(input, ",")
 
 	if len(table.rows) != 3 {
 		t.Fatalf("expect table to have 3 rows but it has %d", len(table.rows))
 	}
 
-	expect := []Row{
+	expect := [][]string{
 		{"foo1", "bar1"},
 		{"foo2", "bar2"},
 		{"foo3", "bar3"},
 	}
-	if !deepEqual(table.rows, expect) {
+	if !reflect.DeepEqual(table.rows, expect) {
 		t.Fatal("table rows is not equals to the input")
 	}
 }
@@ -40,7 +42,7 @@ func TestFromValuesWithTabSeparator(t *testing.T) {
 		{"foo1.", "bar1"},
 		{"foo,bar,baz", "bar,2"},
 	}
-	if !deepEqual(table.rows, expect) {
+	if !reflect.DeepEqual(table.rows, expect) {
 		t.Fatal("table rows is not equals to the input")
 	}
 }
@@ -65,50 +67,6 @@ var cols = []Column{
 	{Title: "col3", Width: 10},
 }
 
-func TestRenderRow(t *testing.T) {
-	tests := []struct {
-		name     string
-		table    *Model
-		expected string
-	}{
-		{
-			name: "simple row",
-			table: &Model{
-				rows:   []Row{{"Foooooo", "Baaaaar", "Baaaaaz"}},
-				cols:   cols,
-				styles: Styles{Cell: lipgloss.NewStyle()},
-			},
-			expected: "Foooooo   Baaaaar   Baaaaaz   ",
-		},
-		{
-			name: "simple row with truncations",
-			table: &Model{
-				rows:   []Row{{"Foooooooooo", "Baaaaaaaaar", "Quuuuuuuuux"}},
-				cols:   cols,
-				styles: Styles{Cell: lipgloss.NewStyle()},
-			},
-			expected: "Foooooooo…Baaaaaaaa…Quuuuuuuu…",
-		},
-		{
-			name: "simple row avoiding truncations",
-			table: &Model{
-				rows:   []Row{{"Fooooooooo", "Baaaaaaaar", "Quuuuuuuux"}},
-				cols:   cols,
-				styles: Styles{Cell: lipgloss.NewStyle()},
-			},
-			expected: "FoooooooooBaaaaaaaarQuuuuuuuux",
-		},
-	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			row := tc.table.renderRow(0)
-			if row != tc.expected {
-				t.Fatalf("\n\nWant: \n%s\n\nGot:  \n%s\n", tc.expected, row)
-			}
-		})
-	}
-}
-
 func TestTableAlignment(t *testing.T) {
 	t.Run("No border", func(t *testing.T) {
 		biscuits := New(
@@ -123,6 +81,7 @@ func TestTableAlignment(t *testing.T) {
 				{"Tim Tams", "Australia", "No"},
 				{"Hobnobs", "UK", "Yes"},
 			}),
+			WithStyles(Styles{BorderStyle: lipgloss.NewStyle().BorderStyle(lipgloss.HiddenBorder())}),
 		)
 		got := ansi.Strip(biscuits.View())
 		golden.RequireEqual(t, []byte(got))
@@ -133,9 +92,8 @@ func TestTableAlignment(t *testing.T) {
 			BorderForeground(lipgloss.Color("240"))
 
 		s := DefaultStyles()
+
 		s.Header = s.Header.
-			BorderStyle(lipgloss.NormalBorder()).
-			BorderForeground(lipgloss.Color("240")).
 			BorderBottom(true).
 			Bold(false)
 
