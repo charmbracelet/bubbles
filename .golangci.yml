@@ -15,7 +15,7 @@ issues:
 linters:
   enable:
     - bodyclose
-    - exportloopref
+    - copyloopvar
     - gofumpt
     - goimports
     - gosec
@@ -28,6 +28,6 @@ linters:
     - unconvert
     - unparam
     - whitespace
-    # We're isabling predeclared because the linter is running a newer version
+    # We're disabling predeclared because the linter is running a newer version
     # of Go than then Go module.
     # - predeclared
