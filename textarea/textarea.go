@@ -3,6 +3,7 @@ package textarea
 import (
 	"crypto/sha256"
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
 	"unicode"
@@ -61,6 +62,10 @@ type KeyMap struct {
 	CapitalizeWordForward key.Binding
 
 	TransposeCharacterBackward key.Binding
+
+	AcceptSuggestion key.Binding
+	NextSuggestion   key.Binding
+	PrevSuggestion   key.Binding
 }
 
 // DefaultKeyMap is the default set of key bindings for navigating and acting
@@ -70,8 +75,8 @@ var DefaultKeyMap = KeyMap{
 	CharacterBackward:       key.NewBinding(key.WithKeys("left", "ctrl+b"), key.WithHelp("left", "character backward")),
 	WordForward:             key.NewBinding(key.WithKeys("alt+right", "alt+f"), key.WithHelp("alt+right", "word forward")),
 	WordBackward:            key.NewBinding(key.WithKeys("alt+left", "alt+b"), key.WithHelp("alt+left", "word backward")),
-	LineNext:                key.NewBinding(key.WithKeys("down", "ctrl+n"), key.WithHelp("down", "next line")),
-	LinePrevious:            key.NewBinding(key.WithKeys("up", "ctrl+p"), key.WithHelp("up", "previous line")),
+	LineNext:                key.NewBinding(key.WithKeys("down"), key.WithHelp("down", "next line")),
+	LinePrevious:            key.NewBinding(key.WithKeys("up"), key.WithHelp("up", "previous line")),
 	DeleteWordBackward:      key.NewBinding(key.WithKeys("alt+backspace", "ctrl+w"), key.WithHelp("alt+backspace", "delete word backward")),
 	DeleteWordForward:       key.NewBinding(key.WithKeys("alt+delete", "alt+d"), key.WithHelp("alt+delete", "delete word forward")),
 	DeleteAfterCursor:       key.NewBinding(key.WithKeys("ctrl+k"), key.WithHelp("ctrl+k", "delete after cursor")),
@@ -88,6 +93,10 @@ var DefaultKeyMap = KeyMap{
 	CapitalizeWordForward: key.NewBinding(key.WithKeys("alt+c"), key.WithHelp("alt+c", "capitalize word forward")),
 	LowercaseWordForward:  key.NewBinding(key.WithKeys("alt+l"), key.WithHelp("alt+l", "lowercase word forward")),
 	UppercaseWordForward:  key.NewBinding(key.WithKeys("alt+u"), key.WithHelp("alt+u", "uppercase word forward")),
+
+	AcceptSuggestion: key.NewBinding(key.WithKeys("tab")),
+	NextSuggestion:   key.NewBinding(key.WithKeys("down", "ctrl+n")),
+	PrevSuggestion:   key.NewBinding(key.WithKeys("up", "ctrl+p")),
 
 	TransposeCharacterBackward: key.NewBinding(key.WithKeys("ctrl+t"), key.WithHelp("ctrl+t", "transpose character backward")),
 }
@@ -235,6 +244,15 @@ type Model struct {
 
 	SyntaxHighlighter func(string) string
 
+	// Should the input suggest to complete
+	ShowSuggestions bool
+
+	// suggestions is a list of suggestions that may be used to complete the
+	// input.
+	suggestions            [][][]rune
+	matchedSuggestions     [][][]rune
+	currentSuggestionIndex int
+
 	// If promptFunc is set, it replaces Prompt as a generator for
 	// prompt strings at the beginning of each line.
 	promptFunc func(line int) string
@@ -298,10 +316,11 @@ func New() Model {
 		Cursor:               cur,
 		KeyMap:               DefaultKeyMap,
 
-		value: make([][]rune, minHeight, defaultMaxHeight),
-		focus: false,
-		col:   0,
-		row:   0,
+		suggestions: [][][]rune{},
+		value:       make([][]rune, minHeight, defaultMaxHeight),
+		focus:       false,
+		col:         0,
+		row:         0,
 
 		viewport: &vp,
 	}
@@ -343,6 +362,18 @@ func DefaultStyles() (Style, Style) {
 func (m *Model) SetValue(s string) {
 	m.Reset()
 	m.InsertString(s)
+}
+
+// SetSuggestions sets the suggestions for the input.
+func (m *Model) SetSuggestions(suggestions []string) {
+	m.suggestions = make([][][]rune, len(suggestions))
+	for i, s := range suggestions {
+		for _, line := range strings.Split(s, "\n") {
+			m.suggestions[i] = append(m.suggestions[i], []rune(line))
+		}
+	}
+
+	m.updateSuggestions()
 }
 
 // InsertString inserts a string at the cursor position.
@@ -961,6 +992,15 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		return m, nil
 	}
 
+	// Need to check for completion before, because key is configurable and might be double assigned
+	keyMsg, ok := msg.(tea.KeyMsg)
+	if ok && key.Matches(keyMsg, m.KeyMap.AcceptSuggestion) {
+		if m.canAcceptSuggestion() {
+			m.value = append(m.value, m.matchedSuggestions[m.currentSuggestionIndex][len(m.value):]...)
+			m.CursorEnd()
+		}
+	}
+
 	// Used to determine if the cursor should blink.
 	oldRow, oldCol := m.cursorLineNumber(), m.col
 
@@ -1060,10 +1100,18 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.capitalizeRight()
 		case key.Matches(msg, m.KeyMap.TransposeCharacterBackward):
 			m.transposeLeft()
+		case key.Matches(msg, m.KeyMap.NextSuggestion):
+			m.nextSuggestion()
+		case key.Matches(msg, m.KeyMap.PrevSuggestion):
+			m.previousSuggestion()
 
 		default:
 			m.insertRunesFromUserInput(msg.Runes)
 		}
+
+		// Check again if can be completed
+		// because value might be something that does not match the completion prefix
+		m.updateSuggestions()
 
 	case pasteMsg:
 		m.insertRunesFromUserInput([]rune(msg))
@@ -1172,10 +1220,12 @@ func (m Model) View() string {
 				if m.col >= len(line) && lineInfo.CharOffset >= m.width {
 					m.Cursor.SetChar(" ")
 					s.WriteString(m.Cursor.View())
+					// XXX: suggestions
 				} else {
 					m.Cursor.SetChar(string(wrappedLine[lineInfo.ColumnOffset]))
 					s.WriteString(style.Render(m.Cursor.View()))
 					s.WriteString(style.Render(string(wrappedLine[lineInfo.ColumnOffset+1:])))
+					// XXX: suggestions
 				}
 			} else {
 				ln := string(wrappedLine)
@@ -1401,6 +1451,62 @@ func (m *Model) splitLine(row, col int) {
 
 	m.col = 0
 	m.row++
+}
+
+// canAcceptSuggestion returns whether there is an acceptable suggestion to
+// autocomplete the current value.
+func (m *Model) canAcceptSuggestion() bool {
+	return len(m.matchedSuggestions) > 0
+}
+
+func linesToString(lines [][]rune) string {
+	var result []string
+	for _, line := range lines {
+		result = append(result, string(line))
+	}
+	return strings.Join(result, "\n")
+}
+
+// updateSuggestions refreshes the list of matching suggestions.
+func (m *Model) updateSuggestions() {
+	if !m.ShowSuggestions {
+		return
+	}
+
+	if len(m.value) <= 0 || len(m.suggestions) <= 0 {
+		m.matchedSuggestions = [][][]rune{}
+		return
+	}
+
+	matches := [][][]rune{}
+	for _, s := range m.suggestions {
+		suggestion := linesToString(s)
+
+		if strings.HasPrefix(strings.ToLower(suggestion), strings.ToLower(linesToString(m.value))) {
+			matches = append(matches, s)
+		}
+	}
+	if !reflect.DeepEqual(matches, m.matchedSuggestions) {
+		m.currentSuggestionIndex = 0
+	}
+
+	m.matchedSuggestions = matches
+}
+
+// nextSuggestion selects the next suggestion.
+func (m *Model) nextSuggestion() {
+	m.currentSuggestionIndex = (m.currentSuggestionIndex + 1)
+	if m.currentSuggestionIndex >= len(m.matchedSuggestions) {
+		m.currentSuggestionIndex = 0
+	}
+}
+
+// previousSuggestion selects the previous suggestion.
+func (m *Model) previousSuggestion() {
+	m.currentSuggestionIndex = (m.currentSuggestionIndex - 1)
+	if m.currentSuggestionIndex < 0 {
+		m.currentSuggestionIndex = len(m.matchedSuggestions) - 1
+	}
 }
 
 // Paste is a command for pasting from the clipboard into the text input.
