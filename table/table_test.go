@@ -61,15 +61,10 @@ func deepEqual(a, b []Row) bool {
 	return true
 }
 
-// func TestWithColumns(t *testing.T) {
-// 	t.Run("With columns")
-//
-// 	t.Run("set headers directly")
-// }
-
 func TestTableAlignment(t *testing.T) {
 	t.Run("No border", func(t *testing.T) {
 		s := DefaultStyles()
+		s.Border = lipgloss.HiddenBorder()
 		s.BorderHeader = false
 		biscuits := New(
 			WithHeight(5),
@@ -89,10 +84,6 @@ func TestTableAlignment(t *testing.T) {
 		golden.RequireEqual(t, []byte(got))
 	})
 	t.Run("With border", func(t *testing.T) {
-		s := DefaultStyles()
-		s.Border = lipgloss.NormalBorder()
-		s.BorderStyle = lipgloss.NewStyle().BorderForeground(lipgloss.Color("240"))
-
 		biscuits := New(
 			WithHeight(5),
 			WithColumns([]Column{
@@ -105,7 +96,7 @@ func TestTableAlignment(t *testing.T) {
 				{"Tim Tams", "Australia", "No"},
 				{"Hobnobs", "UK", "Yes"},
 			}),
-			WithStyles(s),
+			WithStyles(DefaultStyles()),
 		)
 		got := ansi.Strip(biscuits.View())
 		golden.RequireEqual(t, []byte(got))

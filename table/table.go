@@ -124,6 +124,7 @@ type Styles struct {
 // DefaultStyles returns a set of default style definitions for this table.
 func DefaultStyles() Styles {
 	return Styles{
+		Border:       lipgloss.NormalBorder(),
 		BorderHeader: true,
 		Selected:     lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("212")),
 		Header:       lipgloss.NewStyle().Bold(true).Padding(0, 1),
