@@ -100,7 +100,7 @@ func DefaultKeyMap() KeyMap {
 
 		TransposeCharacterBackward: key.NewBinding(key.WithKeys("ctrl+t"), key.WithHelp("ctrl+t", "transpose character backward")),
 
-		AcceptSuggestion: key.NewBinding(key.WithKeys("tab")),
+		AcceptSuggestion: key.NewBinding(key.WithKeys("tab", "ctrl+y")),
 		NextSuggestion:   key.NewBinding(key.WithKeys("down", "ctrl+n")),
 		PrevSuggestion:   key.NewBinding(key.WithKeys("up", "ctrl+p")),
 	}
@@ -1017,7 +1017,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	keyMsg, ok := msg.(tea.KeyMsg)
 	if ok && key.Matches(keyMsg, m.KeyMap.AcceptSuggestion) {
 		if m.canAcceptSuggestion() {
-			m.value = append(m.value, m.matchedSuggestions[m.currentSuggestionIndex][len(m.value):]...)
+			m.value = m.matchedSuggestions[m.currentSuggestionIndex]
 			m.CursorEnd()
 		}
 	}
@@ -1160,7 +1160,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-func (m Model) ghostTextView(offset int) string {
+func (m Model) suggestionView(offset int) string {
 	if !m.canAcceptSuggestion() {
 		return ""
 	}
@@ -1170,8 +1170,15 @@ func (m Model) ghostTextView(offset int) string {
 	if len(value) >= len(suggestion) {
 		return ""
 	}
-	str := suggestion[len(m.Value())+offset:]
-	return m.style.Placeholder.Inline(true).Render(str)
+
+	var lines []string
+	for _, line := range strings.Split(suggestion[len(m.Value())+offset:], "\n") {
+		lines = append(lines, m.style.Placeholder.Inline(true).Render(line))
+	}
+	if len(lines) > m.Height() {
+		m.SetHeight(len(lines) + 1)
+	}
+	return strings.Join(lines, "\n")
 }
 
 // View renders the text area in its current state.
@@ -1253,16 +1260,23 @@ func (m Model) View() string {
 					ln = m.SyntaxHighlighter(ln)
 				}
 				s.WriteString(ln)
+
 				if m.col >= len(line) && lineInfo.CharOffset >= m.width {
 					m.Cursor.SetChar(" ")
 					s.WriteString(m.Cursor.View())
-					s.WriteString(m.ghostTextView(0))
-					// XXX: suggestions
+					// XXX: suggestions?
 				} else {
 					m.Cursor.SetChar(string(wrappedLine[lineInfo.ColumnOffset]))
+					if m.canAcceptSuggestion() && len(m.matchedSuggestions) > 0 {
+						suggestion := m.matchedSuggestions[m.currentSuggestionIndex][m.row:]
+						m.Cursor.TextStyle = m.style.Placeholder
+						if len(suggestion) > m.row && len(suggestion[m.row]) > m.col {
+							m.Cursor.SetChar(string(suggestion[m.row][m.col]))
+						}
+					}
 					s.WriteString(style.Render(m.Cursor.View()))
 					s.WriteString(style.Render(string(wrappedLine[lineInfo.ColumnOffset+1:])))
-					s.WriteString(m.ghostTextView(1))
+					s.WriteString(m.suggestionView(1))
 					// XXX: suggestions
 				}
 			} else {
@@ -1516,6 +1530,7 @@ func (m *Model) updateSuggestions() {
 		return
 	}
 
+	// TODO: this should be better
 	matches := [][][]rune{}
 	for _, s := range m.suggestions {
 		suggestion := linesToString(s)
