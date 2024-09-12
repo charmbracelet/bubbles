@@ -1246,7 +1246,10 @@ func (m Model) View() string {
 				} else {
 					m.Cursor.SetChar(string(wrappedLine[lineInfo.ColumnOffset]))
 					if m.canAcceptSuggestion() && len(m.matchedSuggestions) > 0 {
-						suggestion := m.matchedSuggestions[m.currentSuggestionIndex][m.row:]
+						suggestion := m.matchedSuggestions[m.currentSuggestionIndex]
+						if len(suggestion) >= m.row {
+							suggestion = suggestion[m.row:]
+						}
 						m.Cursor.TextStyle = m.style.Placeholder
 						if len(suggestion) > m.row && len(suggestion[m.row]) > m.col {
 							m.Cursor.SetChar(string(suggestion[m.row][m.col]))
