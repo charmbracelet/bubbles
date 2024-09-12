@@ -997,6 +997,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	if ok && key.Matches(keyMsg, m.KeyMap.AcceptSuggestion) {
 		if m.canAcceptSuggestion() {
 			m.value = m.matchedSuggestions[m.currentSuggestionIndex]
+			m.row = len(m.value) - 1
 			m.CursorEnd()
 		}
 	}
