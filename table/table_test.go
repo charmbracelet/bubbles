@@ -13,7 +13,7 @@ func TestFromValues(t *testing.T) {
 	t.Run("Headers", func(t *testing.T) {
 		input := "foo1,bar1\nfoo2,bar2\nfoo3,bar3"
 		table := New()
-		table.Headers("Foo", "Bar")
+		table.SetHeaders("Foo", "Bar")
 		table.FromValues(input, ",")
 
 		if len(table.rows) != 3 {
