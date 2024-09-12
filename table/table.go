@@ -19,7 +19,7 @@ type Model struct {
 	Help   help.Model
 
 	YOffset int
-	Height  int
+	height  int
 	headers []string
 	rows    [][]string
 	cursor  int
@@ -157,8 +157,8 @@ func (m *Model) SetStyles(s Styles) {
 type Option func(*Model)
 
 // New creates a new model for the table widget.
-func New(opts ...Option) *Model {
-	m := &Model{
+func New(opts ...Option) Model {
+	m := Model{
 		cursor: 0,
 		table:  table.New(),
 		KeyMap: DefaultKeyMap(),
@@ -167,23 +167,16 @@ func New(opts ...Option) *Model {
 	}
 
 	for _, opt := range opts {
-		opt(m)
+		opt(&m)
 	}
 
-	return m
-}
-
-// Headers sets the table headers.
-func (m *Model) Headers(headers ...string) *Model {
-	m.headers = headers
-	m.table.Headers(headers...)
 	return m
 }
 
 // WithHeaders sets the table headers.
 func WithHeaders(headers []string) Option {
 	return func(m *Model) {
-		m.Headers(headers...)
+		m.SetHeaders(headers...)
 	}
 }
 
@@ -191,11 +184,11 @@ func WithHeaders(headers []string) Option {
 // Deprecated: use WithHeaders instead.
 func WithColumns(cols []Column) Option {
 	return func(m *Model) {
-		m.Headers(colToString(cols)...)
+		m.SetHeaders(colToString(cols)...)
 	}
 }
 
-// colToString helper to unwrap the Column type.
+// colToString helper to unwrap the Column type to its underlying string type.
 func colToString(cols []Column) []string {
 	var out []string
 	for _, col := range cols {
@@ -204,31 +197,11 @@ func colToString(cols []Column) []string {
 	return out
 }
 
-// Rows appends rows to the table
-func (m *Model) Rows(rows ...[]string) *Model {
-	m.rows = append(m.rows, rows...)
-	m.table.Rows(rows...)
-	return m
-}
-
 // WithRows sets the table rows (data).
 func WithRows(rows []Row) Option {
 	return func(m *Model) {
 		m.SetRows(rows)
 	}
-}
-
-// rowToString helper to unwrap the Row type.
-func rowToString(rows []Row) [][]string {
-	var out [][]string
-	for _, row := range rows {
-		var newRow []string
-		for _, val := range row {
-			newRow = append(newRow, val)
-		}
-		out = append(out, newRow)
-	}
-	return out
 }
 
 // WithHeight sets the height of the table.
@@ -280,13 +253,13 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		case key.Matches(msg, m.KeyMap.LineDown):
 			m.MoveDown(1)
 		case key.Matches(msg, m.KeyMap.PageUp):
-			m.MoveUp(m.viewport.Height)
+			m.MoveUp(m.height)
 		case key.Matches(msg, m.KeyMap.PageDown):
-			m.MoveDown(m.viewport.Height)
+			m.MoveDown(m.height)
 		case key.Matches(msg, m.KeyMap.HalfPageUp):
-			m.MoveUp(m.viewport.Height / 2)
+			m.MoveUp(m.height / 2)
 		case key.Matches(msg, m.KeyMap.HalfPageDown):
-			m.MoveDown(m.viewport.Height / 2)
+			m.MoveDown(m.height / 2)
 		case key.Matches(msg, m.KeyMap.LineDown):
 			m.MoveDown(1)
 		case key.Matches(msg, m.KeyMap.GotoTop):
@@ -337,21 +310,48 @@ func (m Model) SelectedRow() Row {
 	return m.rows[m.cursor]
 }
 
-// SetRows sets the table content to the new value, overwriting previous values.
+// Append appends rows to the table.
+func (m *Model) Append(rows ...[]string) {
+	m.rows = append(m.rows, rows...)
+	m.table.Rows(m.rows...)
+}
+
+// SetRows overwrites existing rows with new ones.
 func (m *Model) SetRows(r []Row) {
+	// lipgloss' table requires []string, so it's easier to convert these.
+	// TODO should we just deprecate the Row type altogether?
 	rows := rowToString(r)
 	m.rows = rows
 	m.table.ClearRows().Rows(rows...)
 }
 
-// SetWidth sets the width of the viewport of the table.
+// rowToString helper to unwrap the Row type.
+func rowToString(rows []Row) [][]string {
+	var out [][]string
+	for _, row := range rows {
+		var newRow []string
+		for _, val := range row {
+			newRow = append(newRow, val)
+		}
+		out = append(out, newRow)
+	}
+	return out
+}
+
+// SetHeaders sets the table headers.
+func (m *Model) SetHeaders(headers []string) {
+	m.headers = headers
+	m.table.Headers(headers...)
+}
+
+// SetWidth sets the width of the table.
 func (m *Model) SetWidth(w int) {
 	m.table.Width(w)
 }
 
-// SetHeight sets the height of the viewport of the table.
+// SetHeight sets the height of the table.
 func (m *Model) SetHeight(h int) {
-	m.Height = h
+	m.height = h
 	m.table.Height(h)
 }
 
@@ -363,20 +363,25 @@ func (m Model) Cursor() int {
 // SetCursor sets the cursor position in the table.
 func (m *Model) SetCursor(n int) {
 	m.cursor = clamp(n, 0, len(m.rows)-1)
+	// TODO should I update YOffset here?
 }
 
 // MoveUp moves the selection up by any number of rows.
 // It can not go above the first row.
 func (m *Model) MoveUp(n int) {
-	//	m.SetCursor(m.cursor-n)
-	m.cursor = clamp(m.cursor-n, 0, len(m.rows)-1)
+	// check that the table has contents
+	if len(m.rows) < 1 {
+		return
+	}
+	firstRow := header + 1
+	m.SetCursor(m.cursor - n)
 	switch {
-	case m.start == 0:
-		m.YOffset = clamp(m.viewport.YOffset, 0, m.cursor)
-	case m.start < m.viewport.Height:
-		m.viewport.YOffset = (clamp(clamp(m.YOffset+n, 0, m.cursor), 0, m.Height))
-	case m.YOffset >= 1:
-		m.YOffset = clamp(m.YOffset+n, 1, m.Height)
+	case m.start == firstRow:
+		m.YOffset = clamp(m.YOffset, firstRow, m.cursor)
+	case m.start < m.height:
+		m.YOffset = (clamp(clamp(m.YOffset+n, firstRow, m.cursor), firstRow, m.height))
+	case m.YOffset >= firstRow+1:
+		m.YOffset = clamp(m.YOffset+n, firstRow+1, m.height)
 	}
 	m.table.Offset(m.YOffset)
 }
@@ -384,16 +389,15 @@ func (m *Model) MoveUp(n int) {
 // MoveDown moves the selection down by any number of rows.
 // It can not go below the last row.
 func (m *Model) MoveDown(n int) {
-	// TODO make this call SetCursor instead?
 	m.SetCursor(m.cursor + n)
 
 	switch {
 	case m.end == len(m.rows) && m.YOffset > 0:
-		m.YOffset = clamp(m.YOffset-n, 1, m.Height)
+		m.YOffset = clamp(m.YOffset-n, 1, m.height)
 	case m.cursor > (m.end-m.start)/2 && m.YOffset > 0:
 		m.YOffset = clamp(m.YOffset-n, 1, m.cursor)
 	case m.YOffset > 1:
-	case m.cursor > m.YOffset+m.Height-1:
+	case m.cursor > m.YOffset+m.height-1:
 		m.YOffset = clamp(m.YOffset+1, 0, 1)
 	}
 	// update table offset
@@ -402,14 +406,12 @@ func (m *Model) MoveDown(n int) {
 
 // GotoTop moves the selection to the first row.
 func (m *Model) GotoTop() {
-	// m.MoveUp(m.cursor)
-	m.cursor = header + 1
+	m.MoveUp(m.cursor)
 }
 
 // GotoBottom moves the selection to the last row.
 func (m *Model) GotoBottom() {
-	//	m.MoveDown(len(m.rows))
-	m.cursor = len(m.rows)
+	m.MoveDown(len(m.rows))
 }
 
 // FromValues create the table rows from a simple string. It uses `\n` by
@@ -427,39 +429,6 @@ func (m *Model) FromValues(value, separator string) {
 
 	m.SetRows(rows)
 }
-
-// func (m Model) headersView() string {
-// 	s := make([]string, 0, len(m.cols))
-// 	for _, col := range m.cols {
-// 		if col.Width <= 0 {
-// 			continue
-// 		}
-// 		style := lipgloss.NewStyle().Width(col.Width).MaxWidth(col.Width).Inline(true)
-// 		renderedCell := style.Render(runewidth.Truncate(col.Title, col.Width, "…"))
-// 		s = append(s, m.styles.Header.Render(renderedCell))
-// 	}
-// 	return lipgloss.JoinHorizontal(lipgloss.Top, s...)
-// }
-
-// func (m *Model) renderRow(r int) string {
-// 	s := make([]string, 0, len(m.headers))
-// 	for i, value := range m.rows[r] {
-// 		if m.headers[i].Width <= 0 {
-// 			continue
-// 		}
-// 		style := lipgloss.NewStyle().Width(m.headers[i].Width).MaxWidth(m.headers[i].Width).Inline(true)
-// 		renderedCell := m.styles.Cell.Render(style.Render(runewidth.Truncate(value, m.headers[i].Width, "…")))
-// 		s = append(s, renderedCell)
-// 	}
-//
-// 	row := lipgloss.JoinHorizontal(lipgloss.Top, s...)
-//
-// 	if r == m.cursor {
-// 		return m.styles.Selected.Render(row)
-// 	}
-//
-// 	return row
-// }
 
 func max(a, b int) int {
 	if a > b {

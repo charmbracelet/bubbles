@@ -12,8 +12,8 @@ import (
 func TestFromValues(t *testing.T) {
 	t.Run("Headers", func(t *testing.T) {
 		input := "foo1,bar1\nfoo2,bar2\nfoo3,bar3"
-		table := New().
-			Headers("Foo", "Bar")
+		table := New()
+		table.Headers("Foo", "Bar")
 		table.FromValues(input, ",")
 
 		if len(table.rows) != 3 {
@@ -49,7 +49,7 @@ func TestFromValues(t *testing.T) {
 	})
 	t.Run("WithHeaders", func(t *testing.T) {
 		input := "foo1,bar1\nfoo2,bar2\nfoo3,bar3"
-		table := New(WithHeaders([]Column{{Title: "Foo"}, {Title: "Bar"}}))
+		table := New(WithHeaders([]string{"Foo", "Bar"}))
 		table.FromValues(input, ",")
 
 		if len(table.rows) != 3 {
