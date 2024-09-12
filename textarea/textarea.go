@@ -256,6 +256,7 @@ type Model struct {
 	MaxWidth int
 
 	SyntaxHighlighter func(string) string
+	Formatter         func(string) string
 
 	// Should the input suggest to complete
 	ShowSuggestions bool
@@ -496,6 +497,7 @@ func (m *Model) insertRunesFromUserInput(runes []rune) {
 	// Finally add the tail at the end of the last line inserted.
 	m.value[m.row] = append(m.value[m.row], tail...)
 
+	m.format()
 	m.SetCursor(m.col)
 }
 
@@ -1018,6 +1020,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	if ok && key.Matches(keyMsg, m.KeyMap.AcceptSuggestion) {
 		if m.canAcceptSuggestion() {
 			m.value = m.matchedSuggestions[m.currentSuggestionIndex]
+			m.format()
 			m.row = len(m.value) - 1
 			m.CursorEnd()
 		}
@@ -1101,7 +1104,11 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		case key.Matches(msg, m.KeyMap.CharacterForward):
 			m.characterRight()
 		case key.Matches(msg, m.KeyMap.LineNext):
-			m.CursorDown()
+			if m.row == 0 {
+				m.nextSuggestion()
+			} else {
+				m.CursorDown()
+			}
 		case key.Matches(msg, m.KeyMap.WordForward):
 			m.wordRight()
 		case key.Matches(msg, m.KeyMap.Paste):
@@ -1109,7 +1116,11 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		case key.Matches(msg, m.KeyMap.CharacterBackward):
 			m.characterLeft(false /* insideLine */)
 		case key.Matches(msg, m.KeyMap.LinePrevious):
-			m.CursorUp()
+			if m.row == 0 {
+				m.previousSuggestion()
+			} else {
+				m.CursorUp()
+			}
 		case key.Matches(msg, m.KeyMap.WordBackward):
 			m.wordLeft()
 		case key.Matches(msg, m.KeyMap.InputBegin):
@@ -1506,6 +1517,7 @@ func (m *Model) splitLine(row, col int) {
 	m.value[row+1] = tail
 
 	m.col = 0
+	m.SetHeight(m.row + 2)
 	m.row++
 }
 
@@ -1513,14 +1525,6 @@ func (m *Model) splitLine(row, col int) {
 // autocomplete the current value.
 func (m *Model) canAcceptSuggestion() bool {
 	return len(m.matchedSuggestions) > 0
-}
-
-func linesToString(lines [][]rune) string {
-	var result []string
-	for _, line := range lines {
-		result = append(result, string(line))
-	}
-	return strings.Join(result, "\n")
 }
 
 // updateSuggestions refreshes the list of matching suggestions.
@@ -1563,6 +1567,17 @@ func (m *Model) previousSuggestion() {
 	m.currentSuggestionIndex = (m.currentSuggestionIndex - 1)
 	if m.currentSuggestionIndex < 0 {
 		m.currentSuggestionIndex = len(m.matchedSuggestions) - 1
+	}
+}
+
+func (m *Model) format() {
+	if m.Formatter == nil {
+		return
+	}
+	m.value = stringToLines(m.Formatter(linesToString(m.value)))
+	m.row = len(m.value) - 1
+	if m.col > len(m.value[m.row]) {
+		m.col = len(m.value[m.row]) - 1
 	}
 }
 
@@ -1663,4 +1678,20 @@ func max(a, b int) int {
 		return a
 	}
 	return b
+}
+
+func stringToLines(s string) [][]rune {
+	var r [][]rune
+	for _, line := range strings.Split(s, "\n") {
+		r = append(r, []rune(line))
+	}
+	return r
+}
+
+func linesToString(lines [][]rune) string {
+	var result []string
+	for _, line := range lines {
+		result = append(result, string(line))
+	}
+	return strings.Join(result, "\n")
 }
