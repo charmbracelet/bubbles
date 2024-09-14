@@ -11,7 +11,10 @@ import (
 	"github.com/charmbracelet/lipgloss/table"
 )
 
-const header int = 0
+const (
+	header   int = 0
+	firstRow int = 1
+)
 
 // Model defines a state for the table widget.
 type Model struct {
@@ -138,15 +141,6 @@ func (m *Model) SetStyles(s Styles) {
 	m.table.Border(s.Border)
 	m.table.BorderStyle(s.BorderStyle)
 	m.table.BorderHeader(s.BorderHeader)
-	m.table.StyleFunc(func(row, col int) lipgloss.Style {
-		if row == header {
-			return s.Header
-		}
-		if row == m.cursor {
-			return s.Selected
-		}
-		return s.Cell
-	})
 }
 
 // Option is used to set options in New. For example:
@@ -159,7 +153,7 @@ type Option func(*Model)
 // New creates a new model for the table widget.
 func New(opts ...Option) Model {
 	m := Model{
-		cursor: 0,
+		cursor: firstRow,
 		table:  table.New(),
 		KeyMap: DefaultKeyMap(),
 		Help:   help.New(),
@@ -290,6 +284,17 @@ func (m *Model) Blur() {
 
 // View renders the component.
 func (m Model) View() string {
+	m.table.StyleFunc(func(row, col int) lipgloss.Style {
+		if row == header {
+			return m.styles.Header
+		}
+		if row == m.cursor {
+			log.Printf("row and cursor match %d\n", m.cursor)
+			return m.styles.Selected
+		}
+		return m.styles.Cell
+	})
+
 	return m.table.String()
 }
 
@@ -322,7 +327,9 @@ func (m *Model) SetRows(r []Row) {
 	// TODO should we just deprecate the Row type altogether?
 	rows := rowToString(r)
 	m.rows = rows
-	m.table.ClearRows().Rows(rows...)
+	// TODO test this
+	m.table.ClearRows()
+	m.table.Rows(rows...)
 }
 
 // rowToString helper to unwrap the Row type.
@@ -374,7 +381,7 @@ func (m *Model) MoveUp(n int) {
 	if len(m.rows) < 1 {
 		return
 	}
-	firstRow := header + 1
+	firstRow := firstRow
 	m.SetCursor(m.cursor - n)
 	switch {
 	case m.start == firstRow:
