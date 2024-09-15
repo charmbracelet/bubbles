@@ -259,7 +259,7 @@ func (m Model) updateIndeterminatePercentage() (Model, tea.Cmd) {
 
 	m.indeterminatePos += increment
 	if m.indeterminatePos >= 1 {
-		m.indeterminatePos -= 1
+		m.indeterminatePos--
 	}
 
 	// Handle request for stopping indeterminate progress bar. Once the stop request
