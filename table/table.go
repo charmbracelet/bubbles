@@ -377,39 +377,37 @@ func (m *Model) SetCursor(n int) {
 // MoveUp moves the selection up by any number of rows.
 // It can not go above the first row.
 func (m *Model) MoveUp(n int) {
+	if m.cursor > firstRow {
+		m.SetCursor(m.cursor - n)
+		m.YOffset = m.YOffset - n
+		m.table.Offset(m.YOffset)
+	}
 	// check that the table has contents
-	if len(m.rows) < 1 {
-		return
-	}
-	firstRow := firstRow
-	m.SetCursor(m.cursor - n)
-	switch {
-	case m.start == firstRow:
-		m.YOffset = clamp(m.YOffset, firstRow, m.cursor)
-	case m.start < m.height:
-		m.YOffset = (clamp(clamp(m.YOffset+n, firstRow, m.cursor), firstRow, m.height))
-	case m.YOffset >= firstRow+1:
-		m.YOffset = clamp(m.YOffset+n, firstRow+1, m.height)
-	}
-	m.table.Offset(m.YOffset)
+	//	if len(m.rows) < 1 {
+	//		return
+	//	}
+	//	firstRow := firstRow
+	//	m.SetCursor(m.cursor - n)
+	//	switch {
+	//	case m.start == firstRow:
+	//		m.YOffset = clamp(m.YOffset, firstRow, m.cursor)
+	//	case m.start < m.height:
+	//		m.YOffset = (clamp(clamp(m.YOffset+n, firstRow, m.cursor), firstRow, m.height))
+	//	case m.YOffset >= firstRow+1:
+	//		m.YOffset = clamp(m.YOffset+n, firstRow+1, m.height)
+	//	}
 }
 
 // MoveDown moves the selection down by any number of rows.
 // It can not go below the last row.
 func (m *Model) MoveDown(n int) {
-	m.SetCursor(m.cursor + n)
-
-	switch {
-	case m.end == len(m.rows) && m.YOffset > 0:
-		m.YOffset = clamp(m.YOffset-n, 1, m.height)
-	case m.cursor > (m.end-m.start)/2 && m.YOffset > 0:
-		m.YOffset = clamp(m.YOffset-n, 1, m.cursor)
-	case m.YOffset > 1:
-	case m.cursor > m.YOffset+m.height-1:
-		m.YOffset = clamp(m.YOffset+1, 0, 1)
+	if m.cursor < len(m.rows) {
+		m.SetCursor(m.cursor + n)
+		m.YOffset = m.YOffset + n
+		m.table.Offset(m.YOffset)
 	}
-	// update table offset
-	m.table.Offset(m.YOffset)
+	// TODO stop setting offset when visible rows less than expected
+	// TODO we should track visible row indices
 }
 
 // GotoTop moves the selection to the first row.
