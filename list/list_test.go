@@ -3,6 +3,7 @@ package list
 import (
 	"fmt"
 	"io"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -11,7 +12,7 @@ import (
 
 type item string
 
-func (i item) FilterValue() string { return "" }
+func (i item) FilterValue() string { return string(i) }
 
 type itemDelegate struct{}
 
@@ -70,5 +71,67 @@ func TestCustomStatusBarItemName(t *testing.T) {
 	expected = "No connections"
 	if !strings.Contains(list.statusView(), expected) {
 		t.Fatalf("Error: expected view to contain %s", expected)
+	}
+}
+
+func TestSetFilterText(t *testing.T) {
+	tc := []Item{item("foo"), item("bar"), item("baz")}
+
+	list := New(tc, itemDelegate{}, 10, 10)
+	list.SetFilterText("ba")
+
+	list.SetFilterState(Unfiltered)
+	expected := tc
+	// TODO: replace with slices.Equal() when project move to go1.18 or later
+	if !reflect.DeepEqual(list.VisibleItems(), expected) {
+		t.Fatalf("Error: expected view to contain only %s", expected)
+	}
+
+	list.SetFilterState(Filtering)
+	expected = []Item{item("bar"), item("baz")}
+	if !reflect.DeepEqual(list.VisibleItems(), expected) {
+		t.Fatalf("Error: expected view to contain only %s", expected)
+	}
+
+	list.SetFilterState(FilterApplied)
+	if !reflect.DeepEqual(list.VisibleItems(), expected) {
+		t.Fatalf("Error: expected view to contain only %s", expected)
+	}
+}
+
+func TestSetFilterState(t *testing.T) {
+	tc := []Item{item("foo"), item("bar"), item("baz")}
+
+	list := New(tc, itemDelegate{}, 10, 10)
+	list.SetFilterText("ba")
+
+	list.SetFilterState(Unfiltered)
+	expected, notExpected := "up", "clear filter"
+
+	lines := strings.Split(list.View(), "\n")
+	footer := lines[len(lines)-1]
+
+	if !strings.Contains(footer, expected) || strings.Contains(footer, notExpected) {
+		t.Fatalf("Error: expected view to contain '%s' not '%s'", expected, notExpected)
+	}
+
+	list.SetFilterState(Filtering)
+	expected, notExpected = "filter", "more"
+
+	lines = strings.Split(list.View(), "\n")
+	footer = lines[len(lines)-1]
+
+	if !strings.Contains(footer, expected) || strings.Contains(footer, notExpected) {
+		t.Fatalf("Error: expected view to contain '%s' not '%s'", expected, notExpected)
+	}
+
+	list.SetFilterState(FilterApplied)
+	expected = "clear"
+
+	lines = strings.Split(list.View(), "\n")
+	footer = lines[len(lines)-1]
+
+	if !strings.Contains(footer, expected) {
+		t.Fatalf("Error: expected view to contain '%s'", expected)
 	}
 }
