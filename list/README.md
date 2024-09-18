@@ -40,7 +40,7 @@ very flexible and powerful.
 If you just want to alter the default style you could do something like:
 
 ```go
-import "github.com/charmbracelet/bubbles/list"
+import "github.com/charmbracelet/bubbles/v2/list"
 
 // Create a new default delegate
 d := list.NewDefaultDelegate()
