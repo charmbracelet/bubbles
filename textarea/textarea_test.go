@@ -6,7 +6,7 @@ import (
 	"unicode"
 
 	"github.com/MakeNowJust/heredoc"
-	tea "github.com/charmbracelet/bubbletea"
+	tea "github.com/charmbracelet/bubbletea/v2"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 )

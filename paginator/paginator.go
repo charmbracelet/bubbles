@@ -8,7 +8,7 @@ import (
 	"fmt"
 
 	"github.com/charmbracelet/bubbles/key"
-	tea "github.com/charmbracelet/bubbletea"
+	tea "github.com/charmbracelet/bubbletea/v2"
 )
 
 // Type specifies the way we render pagination.

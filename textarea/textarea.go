@@ -13,7 +13,7 @@ import (
 	"github.com/charmbracelet/bubbles/runeutil"
 	"github.com/charmbracelet/bubbles/textarea/memoization"
 	"github.com/charmbracelet/bubbles/viewport"
-	tea "github.com/charmbracelet/bubbletea"
+	tea "github.com/charmbracelet/bubbletea/v2"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 	rw "github.com/mattn/go-runewidth"
