@@ -64,7 +64,6 @@ func (km KeyMap) FullHelp() [][]key.Binding {
 
 // DefaultKeyMap returns a default set of keybindings.
 func DefaultKeyMap() KeyMap {
-	const spacebar = " "
 	return KeyMap{
 		LineUp: key.NewBinding(
 			key.WithKeys("up", "k"),
@@ -79,7 +78,7 @@ func DefaultKeyMap() KeyMap {
 			key.WithHelp("b/pgup", "page up"),
 		),
 		PageDown: key.NewBinding(
-			key.WithKeys("f", "pgdown", spacebar),
+			key.WithKeys("f", "pgdown", "space"),
 			key.WithHelp("f/pgdn", "page down"),
 		),
 		HalfPageUp: key.NewBinding(

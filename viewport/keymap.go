@@ -2,8 +2,6 @@ package viewport
 
 import "github.com/charmbracelet/bubbles/v2/key"
 
-const spacebar = " "
-
 // KeyMap defines the keybindings for the viewport. Note that you don't
 // necessary need to use keybindings at all; the viewport can be controlled
 // programmatically with methods like Model.LineDown(1). See the GoDocs for
@@ -21,7 +19,7 @@ type KeyMap struct {
 func DefaultKeyMap() KeyMap {
 	return KeyMap{
 		PageDown: key.NewBinding(
-			key.WithKeys("pgdown", spacebar, "f"),
+			key.WithKeys("pgdown", "space", "f"),
 			key.WithHelp("f/pgdn", "page down"),
 		),
 		PageUp: key.NewBinding(
