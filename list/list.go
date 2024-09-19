@@ -244,11 +244,6 @@ func New(items []Item, delegate ItemDelegate, width, height int) Model {
 	return m
 }
 
-// NewModel returns a new model with sensible defaults.
-//
-// Deprecated: use [New] instead.
-var NewModel = New
-
 // SetFilteringEnabled enables or disables filtering. Note that this is different
 // from ShowFilter, which merely hides or shows the input view.
 func (m *Model) SetFilteringEnabled(v bool) {
