@@ -126,11 +126,6 @@ func New(opts ...Option) Model {
 	return m
 }
 
-// NewModel returns a model with default values.
-//
-// Deprecated: use [New] instead.
-var NewModel = New
-
 // TickMsg indicates that the timer has ticked and we should render a frame.
 type TickMsg struct {
 	Time time.Time
@@ -200,14 +195,6 @@ func (m Model) tick(id, tag int) tea.Cmd {
 			tag:  tag,
 		}
 	})
-}
-
-// Tick is the command used to advance the spinner one frame. Use this command
-// to effectively start the spinner.
-//
-// Deprecated: Use [Model.Tick] instead.
-func Tick() tea.Msg {
-	return TickMsg{Time: time.Now()}
 }
 
 // Option is used to set options in New. For example:
