@@ -7,9 +7,9 @@ import (
 )
 
 type Model struct {
-	state State
-
-	keys KeyMap
+	state          State
+	showIndicators bool
+	keys           KeyMap
 }
 
 type State interface {
@@ -21,8 +21,9 @@ type State interface {
 
 func NewModel(state State, opts ...func(*Model)) Model {
 	m := Model{
-		state: state,
-		keys:  DefaultKeyMap(),
+		state:          state,
+		showIndicators: true,
+		keys:           DefaultKeyMap(),
 	}
 
 	for _, opt := range opts {
@@ -50,9 +51,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) View() string {
+	var leftIndicator, rightIndicator string
+	if m.showIndicators {
+		leftIndicator = "<"
+		rightIndicator = ">"
+	}
+
 	var output string
 
-	output += fmt.Sprintf("< %v >", m.state.GetDisplayValue())
+	output += fmt.Sprintf("%s%s%s", leftIndicator, m.state.GetDisplayValue(), rightIndicator)
 
 	return output
 }
@@ -62,5 +69,11 @@ func (m Model) View() string {
 func WithKeys(keys KeyMap) func(*Model) {
 	return func(m *Model) {
 		m.keys = keys
+	}
+}
+
+func WithoutIndicators() func(*Model) {
+	return func(m *Model) {
+		m.showIndicators = false
 	}
 }
