@@ -289,7 +289,6 @@ func (m Model) View() string {
 			return m.styles.Header
 		}
 		if row == m.cursor {
-			log.Printf("row and cursor match %d\n", m.cursor)
 			return m.styles.Selected
 		}
 		return m.styles.Cell
@@ -379,8 +378,14 @@ func (m *Model) SetCursor(n int) {
 func (m *Model) MoveUp(n int) {
 	if m.cursor > firstRow {
 		m.SetCursor(m.cursor - n)
-		m.YOffset = m.YOffset - n
-		m.table.Offset(m.YOffset)
+
+		// only set the offset outside of the last available rows.
+		// TODO use maxYOffset
+		if m.cursor < len(m.rows)-m.height {
+			m.YOffset = m.YOffset - n
+			m.table.Offset(m.YOffset)
+		}
+
 	}
 	// check that the table has contents
 	//	if len(m.rows) < 1 {
@@ -398,16 +403,34 @@ func (m *Model) MoveUp(n int) {
 	//	}
 }
 
+// maxYOffset returns the maximum possible value of the y-offset based on the
+// table's rows and height.
+func (m Model) maxYOffset() int {
+	return max(0, len(m.rows)-m.height)
+}
+
 // MoveDown moves the selection down by any number of rows.
 // It can not go below the last row.
 func (m *Model) MoveDown(n int) {
+	// once we're at the last set of rows, where there is no truncation
+	// stop setting the y offset and only move cursor
+
+	// visible lines after updating viewport
 	if m.cursor < len(m.rows) {
 		m.SetCursor(m.cursor + n)
-		m.YOffset = m.YOffset + n
-		m.table.Offset(m.YOffset)
+
+		// TODO I need height minus margin and padding... How many rows should
+		// be visible? Does lip gloss table give us that info since it's the one
+		// truncating and _would_ have that info?
+
+		// check if we're in the last set of rows before truncation would
+		// happen.
+		if m.cursor < len(m.rows)-m.height {
+			// TODO use maxOffset?
+			m.YOffset = m.YOffset + n
+			m.table.Offset(m.YOffset)
+		}
 	}
-	// TODO stop setting offset when visible rows less than expected
-	// TODO we should track visible row indices
 }
 
 // GotoTop moves the selection to the first row.
