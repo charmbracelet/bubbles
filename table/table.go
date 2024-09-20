@@ -381,7 +381,7 @@ func (m *Model) MoveUp(n int) {
 
 		// only set the offset outside of the last available rows.
 		// TODO use maxYOffset
-		if m.cursor < len(m.rows)-m.height {
+		if m.cursor < m.maxYOffset() {
 			m.YOffset = m.YOffset - n
 			m.table.Offset(m.YOffset)
 		}
@@ -425,8 +425,7 @@ func (m *Model) MoveDown(n int) {
 
 		// check if we're in the last set of rows before truncation would
 		// happen.
-		if m.cursor < len(m.rows)-m.height {
-			// TODO use maxOffset?
+		if m.cursor < m.maxYOffset() {
 			m.YOffset = m.YOffset + n
 			m.table.Offset(m.YOffset)
 		}
