@@ -3,18 +3,25 @@ package picker
 type IntState struct {
 	min       int
 	max       int
+	selection int
 	ignoreMin bool
 	ignoreMax bool
-	selection int
 }
 
-func NewIntState(min, max int, ignoreMin, ignoreMax bool) *IntState {
+func NewIntState(min, max, selection int, ignoreMin, ignoreMax bool) *IntState {
+	switch {
+	case selection < min && !ignoreMin:
+		selection = min
+	case selection > max && !ignoreMax:
+		selection = max
+	}
+
 	return &IntState{
 		min:       min,
 		max:       max,
 		ignoreMin: ignoreMin,
 		ignoreMax: ignoreMax,
-		selection: min,
+		selection: selection,
 	}
 }
 
