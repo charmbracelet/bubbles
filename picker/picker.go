@@ -20,7 +20,7 @@ type State interface {
 	Prev(canCycle bool)
 }
 
-type DisplayFunc func(interface{}) string
+type DisplayFunc func(stateValue interface{}) string
 
 func NewModel(state State, opts ...func(*Model)) Model {
 	defaultDisplayFunc := func(v interface{}) string {
@@ -60,17 +60,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) View() string {
-	var leftIndicator, rightIndicator string
+	var prevInd, nextInd string
 	if m.showIndicators {
-		leftIndicator = "<"
-		rightIndicator = ">"
+		prevInd = m.GetPrevIndicator()
+		nextInd = m.GetNextIndicator()
 	}
 
-	var output string
-
-	output += fmt.Sprintf("%s%s%s", leftIndicator, m.GetDisplayValue(), rightIndicator)
-
-	return output
+	return fmt.Sprintf("%s%s%s", prevInd, m.GetDisplayValue(), nextInd)
 }
 
 func (m Model) GetValue() interface{} {
@@ -79,6 +75,14 @@ func (m Model) GetValue() interface{} {
 
 func (m Model) GetDisplayValue() string {
 	return m.displayFunc(m.state.GetValue())
+}
+
+func (m Model) GetPrevIndicator() string {
+	return "<"
+}
+
+func (m Model) GetNextIndicator() string {
+	return ">"
 }
 
 // Model Options --------------------
