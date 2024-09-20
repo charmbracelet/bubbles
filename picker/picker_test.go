@@ -196,6 +196,24 @@ func TestNewModel(t *testing.T) {
 	}
 }
 
+func TestModel_View(t *testing.T) {
+	model := NewModel(
+		&ListState[string]{
+			state:     []string{"One", "Two", "Three"},
+			selection: 1,
+		},
+	)
+	want := heredoc.Doc(`
+		< Two >`,
+	)
+
+	got := model.View()
+
+	if want != got {
+		t.Errorf("View: \ngot: \n%q\nwant: \n%q", got, want)
+	}
+}
+
 func TestModel_GetValue(t *testing.T) {
 	tt := map[string]struct {
 		state State
