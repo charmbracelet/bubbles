@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 type Model struct {
@@ -12,10 +13,15 @@ type Model struct {
 	CanCycle       bool
 	DisplayFunc    DisplayFunc
 	Keys           KeyMap
+	Styles         Styles
 }
 
 type State interface {
 	GetValue() interface{}
+
+	NextExists() bool
+	PrevExists() bool
+
 	Next(canCycle bool)
 	Prev(canCycle bool)
 }
@@ -33,6 +39,7 @@ func NewModel(state State, opts ...func(*Model)) Model {
 		CanCycle:       false,
 		DisplayFunc:    defaultDisplayFunc,
 		Keys:           DefaultKeyMap(),
+		Styles:         DefaultStyles(),
 	}
 
 	for _, opt := range opts {
@@ -66,7 +73,15 @@ func (m Model) View() string {
 		nextInd = m.GetNextIndicator()
 	}
 
-	return prevInd + m.GetDisplayValue() + nextInd
+	value := m.Styles.Selection.Render(
+		m.GetDisplayValue(),
+	)
+
+	return lipgloss.JoinHorizontal(lipgloss.Center,
+		prevInd,
+		value,
+		nextInd,
+	)
 }
 
 func (m Model) GetValue() interface{} {
@@ -78,11 +93,20 @@ func (m Model) GetDisplayValue() string {
 }
 
 func (m Model) GetPrevIndicator() string {
-	return "<"
+	return getIndicator(m.Styles.Previous, m.State.PrevExists())
 }
 
 func (m Model) GetNextIndicator() string {
-	return ">"
+	return getIndicator(m.Styles.Next, m.State.NextExists())
+}
+
+func getIndicator(styles IndicatorStyles, exists bool) string {
+	switch exists {
+	case false:
+		return styles.Disabled.Render(styles.Value)
+	default:
+		return styles.Enabled.Render(styles.Value)
+	}
 }
 
 // Model Options --------------------
@@ -108,5 +132,11 @@ func WithCycles() func(*Model) {
 func WithDisplayFunc(df DisplayFunc) func(*Model) {
 	return func(m *Model) {
 		m.DisplayFunc = df
+	}
+}
+
+func WithStyles(s Styles) func(*Model) {
+	return func(m *Model) {
+		m.Styles = s
 	}
 }

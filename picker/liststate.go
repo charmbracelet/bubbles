@@ -15,9 +15,17 @@ func (s *ListState[T]) GetValue() interface{} {
 	return s.state[s.selection]
 }
 
+func (s *ListState[T]) NextExists() bool {
+	return s.selection < len(s.state)-1
+}
+
+func (s *ListState[T]) PrevExists() bool {
+	return s.selection > 0
+}
+
 func (s *ListState[T]) Next(canCycle bool) {
 	switch {
-	case s.selection < len(s.state)-1:
+	case s.NextExists():
 		s.selection++
 
 	case canCycle:
@@ -27,7 +35,7 @@ func (s *ListState[T]) Next(canCycle bool) {
 
 func (s *ListState[T]) Prev(canCycle bool) {
 	switch {
-	case s.selection > 0:
+	case s.PrevExists():
 		s.selection--
 
 	case canCycle:

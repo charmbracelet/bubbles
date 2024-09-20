@@ -29,14 +29,21 @@ func (s *IntState) GetValue() interface{} {
 	return s.selection
 }
 
+func (s *IntState) NextExists() bool {
+	return s.ignoreMax ||
+		s.selection < s.max
+}
+
+func (s *IntState) PrevExists() bool {
+	return s.ignoreMin ||
+		s.selection > s.min
+}
+
 func (s *IntState) Next(canCycle bool) {
 	switch {
-	case s.ignoreMax:
+	case s.NextExists():
 		s.selection++
-
-	case s.selection < s.max:
-		s.selection++
-
+		
 	case canCycle:
 		s.selection = s.min
 	}
@@ -44,10 +51,7 @@ func (s *IntState) Next(canCycle bool) {
 
 func (s *IntState) Prev(canCycle bool) {
 	switch {
-	case s.ignoreMin:
-		s.selection--
-
-	case s.selection > s.min:
+	case s.PrevExists():
 		s.selection--
 
 	case canCycle:
