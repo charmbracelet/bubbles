@@ -226,3 +226,111 @@ func TestIntState_Next(t *testing.T) {
 		})
 	}
 }
+
+func TestIntState_Prev(t *testing.T) {
+	tt := map[string]struct {
+		state         IntState
+		canCycle      bool
+		wantSelection int
+	}{
+		"ignore min; cannot decrement; cannot cycle": {
+			state: IntState{
+				min:       -10,
+				max:       0,
+				selection: -10,
+				ignoreMin: true,
+				ignoreMax: false,
+			},
+			canCycle:      false,
+			wantSelection: -11,
+		},
+		"ignore min; cannot decrement; can cycle": {
+			state: IntState{
+				min:       -10,
+				max:       0,
+				selection: -10,
+				ignoreMin: true,
+				ignoreMax: false,
+			},
+			canCycle:      true,
+			wantSelection: -11,
+		},
+		"ignore min; can decrement; cannot cycle": {
+			state: IntState{
+				min:       -11,
+				max:       0,
+				selection: -10,
+				ignoreMin: true,
+				ignoreMax: false,
+			},
+			canCycle:      false,
+			wantSelection: -11,
+		},
+		"ignore min; can decrement; can cycle": {
+			state: IntState{
+				min:       -11,
+				max:       0,
+				selection: -10,
+				ignoreMin: true,
+				ignoreMax: false,
+			},
+			canCycle:      true,
+			wantSelection: -11,
+		},
+
+		"enforce min; cannot decrement; cannot cycle": {
+			state: IntState{
+				min:       -10,
+				max:       0,
+				selection: -10,
+				ignoreMin: false,
+				ignoreMax: false,
+			},
+			canCycle:      false,
+			wantSelection: -10,
+		},
+		"enforce min; cannot decrement; can cycle": {
+			state: IntState{
+				min:       -10,
+				max:       0,
+				selection: -10,
+				ignoreMin: false,
+				ignoreMax: false,
+			},
+			canCycle:      true,
+			wantSelection: 0,
+		},
+		"enforce min; can decrement; cannot cycle": {
+			state: IntState{
+				min:       -11,
+				max:       0,
+				selection: -10,
+				ignoreMin: false,
+				ignoreMax: false,
+			},
+			canCycle:      false,
+			wantSelection: -11,
+		},
+		"enforce min; can decrement; can cycle": {
+			state: IntState{
+				min:       -11,
+				max:       0,
+				selection: -10,
+				ignoreMin: false,
+				ignoreMax: false,
+			},
+			canCycle:      true,
+			wantSelection: -11,
+		},
+	}
+
+	for name, tc := range tt {
+		t.Run(name, func(t *testing.T) {
+			tc.state.Prev(tc.canCycle)
+
+			if tc.wantSelection != tc.state.selection {
+				t.Errorf("want %v, got %v", tc.wantSelection, tc.state.selection)
+			}
+		})
+	}
+}
