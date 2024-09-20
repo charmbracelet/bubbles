@@ -11,6 +11,7 @@ type Model struct {
 	State          State
 	ShowIndicators bool
 	CanCycle       bool
+	CanJump        bool
 	DisplayFunc    DisplayFunc
 	Keys           KeyMap
 	Styles         Styles
@@ -24,6 +25,8 @@ type State interface {
 
 	Next(canCycle bool)
 	Prev(canCycle bool)
+	JumpForward()
+	JumpBackward()
 }
 
 type DisplayFunc func(stateValue interface{}) string
@@ -58,8 +61,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch {
 		case key.Matches(msg, m.Keys.Next):
 			m.State.Next(m.CanCycle)
+
 		case key.Matches(msg, m.Keys.Prev):
 			m.State.Prev(m.CanCycle)
+
+		case key.Matches(msg, m.Keys.JumpForward):
+			if m.CanJump {
+				m.State.JumpForward()
+			}
+
+		case key.Matches(msg, m.Keys.JumpBackward):
+			if m.CanJump {
+				m.State.JumpBackward()
+			}
 		}
 	}
 
@@ -138,5 +152,11 @@ func WithDisplayFunc(df DisplayFunc) func(*Model) {
 func WithStyles(s Styles) func(*Model) {
 	return func(m *Model) {
 		m.Styles = s
+	}
+}
+
+func WithJumping() func(*Model) {
+	return func(m *Model) {
+		m.CanJump = true
 	}
 }

@@ -42,3 +42,11 @@ func (s *ListState[T]) Prev(canCycle bool) {
 		s.selection = len(s.state) - 1
 	}
 }
+
+func (s *ListState[T]) JumpForward() {
+	s.selection = len(s.state) - 1
+}
+
+func (s *ListState[T]) JumpBackward() {
+	s.selection = 0
+}

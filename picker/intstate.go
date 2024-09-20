@@ -43,7 +43,7 @@ func (s *IntState) Next(canCycle bool) {
 	switch {
 	case s.NextExists():
 		s.selection++
-		
+
 	case canCycle:
 		s.selection = s.min
 	}
@@ -57,4 +57,12 @@ func (s *IntState) Prev(canCycle bool) {
 	case canCycle:
 		s.selection = s.max
 	}
+}
+
+func (s *IntState) JumpForward() {
+	s.selection = s.max
+}
+
+func (s *IntState) JumpBackward() {
+	s.selection = s.min
 }
