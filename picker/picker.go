@@ -7,11 +7,11 @@ import (
 )
 
 type Model struct {
-	state          State
-	showIndicators bool
-	canCycle       bool
-	displayFunc    DisplayFunc
-	keys           KeyMap
+	State          State
+	ShowIndicators bool
+	CanCycle       bool
+	DisplayFunc    DisplayFunc
+	Keys           KeyMap
 }
 
 type State interface {
@@ -28,11 +28,11 @@ func NewModel(state State, opts ...func(*Model)) Model {
 	}
 
 	m := Model{
-		state:          state,
-		showIndicators: true,
-		canCycle:       false,
-		displayFunc:    defaultDisplayFunc,
-		keys:           DefaultKeyMap(),
+		State:          state,
+		ShowIndicators: true,
+		CanCycle:       false,
+		DisplayFunc:    defaultDisplayFunc,
+		Keys:           DefaultKeyMap(),
 	}
 
 	for _, opt := range opts {
@@ -49,10 +49,10 @@ func (m Model) Init() tea.Cmd {
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if msg, ok := msg.(tea.KeyMsg); ok {
 		switch {
-		case key.Matches(msg, m.keys.Next):
-			m.state.Next(m.canCycle)
-		case key.Matches(msg, m.keys.Prev):
-			m.state.Prev(m.canCycle)
+		case key.Matches(msg, m.Keys.Next):
+			m.State.Next(m.CanCycle)
+		case key.Matches(msg, m.Keys.Prev):
+			m.State.Prev(m.CanCycle)
 		}
 	}
 
@@ -61,20 +61,20 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m Model) View() string {
 	var prevInd, nextInd string
-	if m.showIndicators {
+	if m.ShowIndicators {
 		prevInd = m.GetPrevIndicator()
 		nextInd = m.GetNextIndicator()
 	}
 
-	return fmt.Sprintf("%s%s%s", prevInd, m.GetDisplayValue(), nextInd)
+	return prevInd + m.GetDisplayValue() + nextInd
 }
 
 func (m Model) GetValue() interface{} {
-	return m.state.GetValue()
+	return m.State.GetValue()
 }
 
 func (m Model) GetDisplayValue() string {
-	return m.displayFunc(m.state.GetValue())
+	return m.DisplayFunc(m.State.GetValue())
 }
 
 func (m Model) GetPrevIndicator() string {
@@ -89,24 +89,24 @@ func (m Model) GetNextIndicator() string {
 
 func WithKeys(keys KeyMap) func(*Model) {
 	return func(m *Model) {
-		m.keys = keys
+		m.Keys = keys
 	}
 }
 
 func WithoutIndicators() func(*Model) {
 	return func(m *Model) {
-		m.showIndicators = false
+		m.ShowIndicators = false
 	}
 }
 
 func WithCycles() func(*Model) {
 	return func(m *Model) {
-		m.canCycle = true
+		m.CanCycle = true
 	}
 }
 
 func WithDisplayFunc(df DisplayFunc) func(*Model) {
 	return func(m *Model) {
-		m.displayFunc = df
+		m.DisplayFunc = df
 	}
 }
