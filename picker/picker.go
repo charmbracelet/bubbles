@@ -7,6 +7,9 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+// Model is a picker component.
+// By default the View method will render it as a horizontal picker.
+// Methods are exposed to get the value and indicators separately, allowing you to build your own UI (vertical, 4-dimensional, etc).
 type Model struct {
 	State          State
 	ShowIndicators bool
