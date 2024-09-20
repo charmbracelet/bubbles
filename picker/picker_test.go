@@ -2,6 +2,7 @@ package picker
 
 import (
 	"fmt"
+	"github.com/MakeNowJust/heredoc"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/lipgloss"
 	"reflect"
@@ -236,6 +237,49 @@ func TestModel_GetValue(t *testing.T) {
 
 			if !reflect.DeepEqual(got, tc.want) {
 				t.Errorf("\ngot: \n%v \nwant: \n%v", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestGetIndicator(t *testing.T) {
+	tt := map[string]struct {
+		styles  IndicatorStyles
+		enabled bool
+		want    string
+	}{
+		"enabled": {
+			styles: IndicatorStyles{
+				Value:    "test",
+				Enabled:  lipgloss.NewStyle().BorderStyle(lipgloss.NormalBorder()).BorderTop(true),
+				Disabled: lipgloss.NewStyle().BorderStyle(lipgloss.NormalBorder()).BorderBottom(true),
+			},
+			enabled: true,
+			want: heredoc.Doc(`
+				────
+				test`,
+			),
+		},
+		"disabled": {
+			styles: IndicatorStyles{
+				Value:    "test",
+				Enabled:  lipgloss.NewStyle().BorderStyle(lipgloss.NormalBorder()).BorderTop(true),
+				Disabled: lipgloss.NewStyle().BorderStyle(lipgloss.NormalBorder()).BorderBottom(true),
+			},
+			enabled: false,
+			want: heredoc.Doc(`
+				test
+				────`,
+			),
+		},
+	}
+
+	for name, tc := range tt {
+		t.Run(name, func(t *testing.T) {
+			got := getIndicator(tc.styles, tc.enabled)
+
+			if got != tc.want {
+				t.Errorf("\ngot: \n%q \nwant: \n%q", got, tc.want)
 			}
 		})
 	}

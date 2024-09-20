@@ -118,8 +118,8 @@ func (m Model) GetNextIndicator() string {
 	return getIndicator(m.Styles.Next, m.State.NextExists())
 }
 
-func getIndicator(styles IndicatorStyles, exists bool) string {
-	switch exists {
+func getIndicator(styles IndicatorStyles, enabled bool) string {
+	switch enabled {
 	case false:
 		return styles.Disabled.Render(styles.Value)
 	default:
