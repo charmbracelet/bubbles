@@ -101,3 +101,20 @@ func TestNewIntState(t *testing.T) {
 		})
 	}
 }
+
+func TestIntState_GetValue(t *testing.T) {
+	state := IntState{
+		min:       0,
+		max:       10,
+		selection: 5,
+		ignoreMin: false,
+		ignoreMax: false,
+	}
+	want := 5
+
+	got := state.GetValue()
+
+	if want != got {
+		t.Errorf("want %v, got %v", want, got)
+	}
+}
