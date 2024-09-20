@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-func TestNewModel(t *testing.T) {
+func TestNew(t *testing.T) {
 	tt := map[string]struct {
 		state    State
 		opts     []func(*Model)
@@ -161,7 +161,7 @@ func TestNewModel(t *testing.T) {
 	for name, tc := range tt {
 		t.Run(name, func(t *testing.T) {
 			want := tc.wantFunc()
-			got := NewModel(tc.state, tc.opts...)
+			got := New(tc.state, tc.opts...)
 
 			if !reflect.DeepEqual(got.State, want.State) {
 				t.Errorf("State: \ngot: \n%v \nwant: \n%v", got, want)
@@ -197,7 +197,7 @@ func TestNewModel(t *testing.T) {
 }
 
 func TestModel_View(t *testing.T) {
-	model := NewModel(
+	model := New(
 		&ListState[string]{
 			state:     []string{"One", "Two", "Three"},
 			selection: 1,

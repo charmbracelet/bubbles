@@ -34,7 +34,7 @@ type State interface {
 
 type DisplayFunc func(stateValue interface{}) string
 
-func NewModel(state State, opts ...func(*Model)) Model {
+func New(state State, opts ...func(*Model)) Model {
 	defaultDisplayFunc := func(v interface{}) string {
 		return fmt.Sprintf("%v", v)
 	}
