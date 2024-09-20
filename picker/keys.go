@@ -6,13 +6,15 @@ import "github.com/charmbracelet/bubbles/key"
 type KeyMap struct {
 	Next         key.Binding
 	Prev         key.Binding
+	StepForward  key.Binding
+	StepBackward key.Binding
 	JumpForward  key.Binding
 	JumpBackward key.Binding
 }
 
 // DefaultKeyMap returns a default set of key bindings.
-func DefaultKeyMap() KeyMap {
-	return KeyMap{
+func DefaultKeyMap() *KeyMap {
+	return &KeyMap{
 		Next: key.NewBinding(
 			key.WithKeys("right", "l"),
 			key.WithHelp("→/l", "next"),
@@ -20,6 +22,14 @@ func DefaultKeyMap() KeyMap {
 		Prev: key.NewBinding(
 			key.WithKeys("left", "h"),
 			key.WithHelp("←/h", "previous"),
+		),
+		StepForward: key.NewBinding(
+			key.WithKeys("shift+right", "shift+l"),
+			key.WithHelp("shift + →/l", "step forward"),
+		),
+		StepBackward: key.NewBinding(
+			key.WithKeys("shift+left", "shift+h"),
+			key.WithHelp("shift + ←/h", "step backward"),
 		),
 		JumpForward: key.NewBinding(
 			key.WithKeys("up", "k"),

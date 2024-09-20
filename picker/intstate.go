@@ -59,6 +59,20 @@ func (s *IntState) Prev(canCycle bool) {
 	}
 }
 
+func (s *IntState) StepForward(count int) {
+	s.selection += count
+	if s.selection > s.max || s.ignoreMax {
+		s.selection = s.max
+	}
+}
+
+func (s *IntState) StepBackward(count int) {
+	s.selection -= count
+	if s.selection < s.min || s.ignoreMin {
+		s.selection = s.min
+	}
+}
+
 func (s *IntState) JumpForward() {
 	s.selection = s.max
 }

@@ -15,8 +15,9 @@ type Model struct {
 	ShowIndicators bool
 	CanCycle       bool
 	CanJump        bool
+	StepSize       int
 	DisplayFunc    DisplayFunc
-	Keys           KeyMap
+	Keys           *KeyMap
 	Styles         Styles
 }
 
@@ -28,6 +29,8 @@ type State interface {
 
 	Next(canCycle bool)
 	Prev(canCycle bool)
+	StepForward(count int)
+	StepBackward(count int)
 	JumpForward()
 	JumpBackward()
 }
@@ -44,6 +47,7 @@ func New(state State, opts ...func(*Model)) Model {
 		ShowIndicators: true,
 		CanCycle:       false,
 		CanJump:        false,
+		StepSize:       10,
 		DisplayFunc:    defaultDisplayFunc,
 		Keys:           DefaultKeyMap(),
 		Styles:         DefaultStyles(),
@@ -68,6 +72,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case key.Matches(msg, m.Keys.Prev):
 			m.State.Prev(m.CanCycle)
+
+		case key.Matches(msg, m.Keys.StepForward):
+			m.State.StepForward(m.StepSize)
+
+		case key.Matches(msg, m.Keys.StepBackward):
+			m.State.StepBackward(m.StepSize)
 
 		case key.Matches(msg, m.Keys.JumpForward):
 			if m.CanJump {
@@ -129,7 +139,7 @@ func getIndicator(styles IndicatorStyles, enabled bool) string {
 
 // Model Options --------------------
 
-func WithKeys(keys KeyMap) func(*Model) {
+func WithKeys(keys *KeyMap) func(*Model) {
 	return func(m *Model) {
 		m.Keys = keys
 	}
@@ -162,5 +172,11 @@ func WithStyles(s Styles) func(*Model) {
 func WithJumping() func(*Model) {
 	return func(m *Model) {
 		m.CanJump = true
+	}
+}
+
+func WithStepSize(size int) func(*Model) {
+	return func(m *Model) {
+		m.StepSize = size
 	}
 }
