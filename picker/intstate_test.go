@@ -119,6 +119,65 @@ func TestIntState_GetValue(t *testing.T) {
 	}
 }
 
+func TestIntState_NextExists(t *testing.T) {
+	tt := map[string]struct {
+		state IntState
+		want  bool
+	}{
+		"enforce max; can increment": {
+			state: IntState{
+				min:       0,
+				max:       10,
+				selection: 9,
+				ignoreMin: false,
+				ignoreMax: false,
+			},
+			want: true,
+		},
+		"enforce max; cannot increment": {
+			state: IntState{
+				min:       0,
+				max:       10,
+				selection: 10,
+				ignoreMin: false,
+				ignoreMax: false,
+			},
+			want: false,
+		},
+
+		"ignore max; can increment": {
+			state: IntState{
+				min:       0,
+				max:       10,
+				selection: 9,
+				ignoreMin: false,
+				ignoreMax: true,
+			},
+			want: true,
+		},
+		"ignore max; cannot increment": {
+			state: IntState{
+				min:       0,
+				max:       10,
+				selection: 10,
+				ignoreMin: false,
+				ignoreMax: true,
+			},
+			want: true,
+		},
+	}
+
+	for name, tc := range tt {
+		t.Run(name, func(t *testing.T) {
+			got := tc.state.NextExists()
+
+			if tc.want != got {
+				t.Errorf("want %v, got %v", tc.want, got)
+			}
+		})
+	}
+}
+
 func TestIntState_Next(t *testing.T) {
 	tt := map[string]struct {
 		state         IntState
