@@ -194,3 +194,49 @@ func TestNewModel(t *testing.T) {
 		})
 	}
 }
+
+func TestModel_GetValue(t *testing.T) {
+	tt := map[string]struct {
+		state State
+		want  interface{}
+	}{
+		"min": {
+			state: &ListState[string]{
+				state:     []string{"One", "Two", "Three"},
+				selection: 0,
+			},
+			want: "One",
+		},
+		"middle": {
+			state: &ListState[string]{
+				state:     []string{"One", "Two", "Three"},
+				selection: 1,
+			},
+			want: "Two",
+		},
+		"end": {
+			state: &ListState[string]{
+				state:     []string{"One", "Two", "Three"},
+				selection: 2,
+			},
+			want: "Three",
+		},
+	}
+
+	for name, tc := range tt {
+		t.Run(name, func(t *testing.T) {
+			model := Model{
+				State: tc.state,
+				DisplayFunc: func(v interface{}) string {
+					return fmt.Sprintf("%v", v)
+				},
+			}
+
+			got := model.GetDisplayValue()
+
+			if !reflect.DeepEqual(got, tc.want) {
+				t.Errorf("\ngot: \n%v \nwant: \n%v", got, tc.want)
+			}
+		})
+	}
+}
