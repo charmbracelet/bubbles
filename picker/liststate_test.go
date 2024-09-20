@@ -34,6 +34,70 @@ func TestListState_GetValue(t *testing.T) {
 	}
 }
 
+func TestListState_NextExists(t *testing.T) {
+	tt := map[string]struct {
+		state ListState[string]
+		want  bool
+	}{
+		"can increment": {
+			state: ListState[string]{
+				state:     []string{"One", "Two", "Three"},
+				selection: 1,
+			},
+			want: true,
+		},
+		"cannot increment": {
+			state: ListState[string]{
+				state:     []string{"One", "Two", "Three"},
+				selection: 2,
+			},
+			want: false,
+		},
+	}
+
+	for name, tc := range tt {
+		t.Run(name, func(t *testing.T) {
+			got := tc.state.NextExists()
+
+			if tc.want != got {
+				t.Errorf("want %v, got %v", tc.want, got)
+			}
+		})
+	}
+}
+
+func TestListState_PrevExists(t *testing.T) {
+	tt := map[string]struct {
+		state ListState[string]
+		want  bool
+	}{
+		"can increment": {
+			state: ListState[string]{
+				state:     []string{"One", "Two", "Three"},
+				selection: 1,
+			},
+			want: true,
+		},
+		"cannot increment": {
+			state: ListState[string]{
+				state:     []string{"One", "Two", "Three"},
+				selection: 0,
+			},
+			want: false,
+		},
+	}
+
+	for name, tc := range tt {
+		t.Run(name, func(t *testing.T) {
+			got := tc.state.PrevExists()
+
+			if tc.want != got {
+				t.Errorf("want %v, got %v", tc.want, got)
+			}
+		})
+	}
+}
+
 func TestListState_Next(t *testing.T) {
 	tt := map[string]struct {
 		state         ListState[string]
