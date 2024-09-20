@@ -9,20 +9,29 @@ import (
 type Model struct {
 	state          State
 	showIndicators bool
+	canCycle       bool
+	displayFunc    DisplayFunc
 	keys           KeyMap
 }
 
 type State interface {
 	GetValue() interface{}
-	GetDisplayValue() string
-	Next()
-	Prev()
+	Next(canCycle bool)
+	Prev(canCycle bool)
 }
 
+type DisplayFunc func(interface{}) string
+
 func NewModel(state State, opts ...func(*Model)) Model {
+	defaultDisplayFunc := func(v interface{}) string {
+		return fmt.Sprintf("%v", v)
+	}
+
 	m := Model{
 		state:          state,
 		showIndicators: true,
+		canCycle:       false,
+		displayFunc:    defaultDisplayFunc,
 		keys:           DefaultKeyMap(),
 	}
 
@@ -41,9 +50,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if msg, ok := msg.(tea.KeyMsg); ok {
 		switch {
 		case key.Matches(msg, m.keys.Next):
-			m.state.Next()
+			m.state.Next(m.canCycle)
 		case key.Matches(msg, m.keys.Prev):
-			m.state.Prev()
+			m.state.Prev(m.canCycle)
 		}
 	}
 
@@ -59,9 +68,17 @@ func (m Model) View() string {
 
 	var output string
 
-	output += fmt.Sprintf("%s%s%s", leftIndicator, m.state.GetDisplayValue(), rightIndicator)
+	output += fmt.Sprintf("%s%s%s", leftIndicator, m.GetDisplayValue(), rightIndicator)
 
 	return output
+}
+
+func (m Model) GetValue() interface{} {
+	return m.state.GetValue()
+}
+
+func (m Model) GetDisplayValue() string {
+	return m.displayFunc(m.state.GetValue())
 }
 
 // Model Options --------------------
@@ -75,5 +92,17 @@ func WithKeys(keys KeyMap) func(*Model) {
 func WithoutIndicators() func(*Model) {
 	return func(m *Model) {
 		m.showIndicators = false
+	}
+}
+
+func WithCycles() func(*Model) {
+	return func(m *Model) {
+		m.canCycle = true
+	}
+}
+
+func WithDisplayFunc(df DisplayFunc) func(*Model) {
+	return func(m *Model) {
+		m.displayFunc = df
 	}
 }
