@@ -199,3 +199,81 @@ func TestListState_Prev(t *testing.T) {
 		})
 	}
 }
+
+func TestListState_JumpForward(t *testing.T) {
+	tt := map[string]struct {
+		state ListState[string]
+		want  int
+	}{
+		"from min": {
+			state: ListState[string]{
+				state:     []string{"One", "Two", "Three"},
+				selection: 0,
+			},
+			want: 2,
+		},
+		"from middle": {
+			state: ListState[string]{
+				state:     []string{"One", "Two", "Three"},
+				selection: 1,
+			},
+			want: 2,
+		},
+		"from max": {
+			state: ListState[string]{
+				state:     []string{"One", "Two", "Three"},
+				selection: 2,
+			},
+			want: 2,
+		},
+	}
+
+	for name, tc := range tt {
+		t.Run(name, func(t *testing.T) {
+			tc.state.JumpForward()
+
+			if tc.want != tc.state.selection {
+				t.Errorf("want %v, got %v", tc.want, tc.state.selection)
+			}
+		})
+	}
+}
+
+func TestListState_JumpBackward(t *testing.T) {
+	tt := map[string]struct {
+		state ListState[string]
+		want  int
+	}{
+		"from min": {
+			state: ListState[string]{
+				state:     []string{"One", "Two", "Three"},
+				selection: 0,
+			},
+			want: 0,
+		},
+		"from middle": {
+			state: ListState[string]{
+				state:     []string{"One", "Two", "Three"},
+				selection: 1,
+			},
+			want: 0,
+		},
+		"from max": {
+			state: ListState[string]{
+				state:     []string{"One", "Two", "Three"},
+				selection: 2,
+			},
+			want: 0,
+		},
+	}
+
+	for name, tc := range tt {
+		t.Run(name, func(t *testing.T) {
+			tc.state.JumpBackward()
+
+			if tc.want != tc.state.selection {
+				t.Errorf("want %v, got %v", tc.want, tc.state.selection)
+			}
+		})
+	}
+}
