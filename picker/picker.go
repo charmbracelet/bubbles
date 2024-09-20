@@ -43,6 +43,7 @@ func NewModel(state State, opts ...func(*Model)) Model {
 		State:          state,
 		ShowIndicators: true,
 		CanCycle:       false,
+		CanJump:        false,
 		DisplayFunc:    defaultDisplayFunc,
 		Keys:           DefaultKeyMap(),
 		Styles:         DefaultStyles(),
