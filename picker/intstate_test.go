@@ -334,3 +334,87 @@ func TestIntState_Prev(t *testing.T) {
 		})
 	}
 }
+
+func TestIntState_JumpForward(t *testing.T) {
+	tt := map[string]struct {
+		state IntState
+		want  int
+	}{
+		"from min": {
+			state: IntState{
+				min:       0,
+				max:       10,
+				selection: 0,
+			},
+			want: 10,
+		},
+		"from middle": {
+			state: IntState{
+				min:       0,
+				max:       10,
+				selection: 5,
+			},
+			want: 10,
+		},
+		"from max": {
+			state: IntState{
+				min:       0,
+				max:       10,
+				selection: 10,
+			},
+			want: 10,
+		},
+	}
+
+	for name, tc := range tt {
+		t.Run(name, func(t *testing.T) {
+			tc.state.JumpForward()
+
+			if tc.want != tc.state.selection {
+				t.Errorf("want %v, got %v", tc.want, tc.state.selection)
+			}
+		})
+	}
+}
+
+func TestIntState_JumpBackward(t *testing.T) {
+	tt := map[string]struct {
+		state IntState
+		want  int
+	}{
+		"from min": {
+			state: IntState{
+				min:       0,
+				max:       10,
+				selection: 0,
+			},
+			want: 0,
+		},
+		"from middle": {
+			state: IntState{
+				min:       0,
+				max:       10,
+				selection: 5,
+			},
+			want: 0,
+		},
+		"from max": {
+			state: IntState{
+				min:       0,
+				max:       10,
+				selection: 10,
+			},
+			want: 0,
+		},
+	}
+
+	for name, tc := range tt {
+		t.Run(name, func(t *testing.T) {
+			tc.state.JumpBackward()
+
+			if tc.want != tc.state.selection {
+				t.Errorf("want %v, got %v", tc.want, tc.state.selection)
+			}
+		})
+	}
+}
