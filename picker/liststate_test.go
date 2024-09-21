@@ -7,7 +7,7 @@ func TestNewListState(t *testing.T) {
 		state: []string{"One", "Two", "Three"},
 	}
 
-	got := NewListState([]string{"One", "Two", "Three"})
+	got := NewListState([]string{"One", "Two", "Three"}, 2)
 
 	for i := range got.state {
 		if got.state[i] != want.state[i] {
@@ -15,7 +15,7 @@ func TestNewListState(t *testing.T) {
 		}
 	}
 
-	if got.selection != 0 {
+	if got.selection != 2 {
 		t.Errorf("selection: want 0, got %v", got.selection)
 	}
 }
@@ -192,6 +192,74 @@ func TestListState_Prev(t *testing.T) {
 	for name, tc := range tt {
 		t.Run(name, func(t *testing.T) {
 			tc.state.Prev(tc.canCycle)
+
+			if tc.wantSelection != tc.state.selection {
+				t.Errorf("want %v, got %v", tc.wantSelection, tc.state.selection)
+			}
+		})
+	}
+}
+
+func TestListState_StepForward(t *testing.T) {
+	tt := map[string]struct {
+		state         *ListState[string]
+		size          int
+		wantSelection int
+	}{
+		"size 0": {
+			state:         NewListState([]string{"One", "Two", "Three", "Four", "Five", "Six"}, 0),
+			size:          0,
+			wantSelection: 0,
+		},
+		"normal": {
+			state:         NewListState([]string{"One", "Two", "Three", "Four", "Five", "Six"}, 0),
+			size:          2,
+			wantSelection: 2,
+		},
+		"beyond max": {
+			state:         NewListState([]string{"One", "Two", "Three", "Four", "Five", "Six"}, 0),
+			size:          10,
+			wantSelection: 5,
+		},
+	}
+
+	for name, tc := range tt {
+		t.Run(name, func(t *testing.T) {
+			tc.state.StepForward(tc.size)
+
+			if tc.wantSelection != tc.state.selection {
+				t.Errorf("want %v, got %v", tc.wantSelection, tc.state.selection)
+			}
+		})
+	}
+}
+
+func TestListState_StepBackward(t *testing.T) {
+	tt := map[string]struct {
+		state         *ListState[string]
+		size          int
+		wantSelection int
+	}{
+		"size 0": {
+			state:         NewListState([]string{"One", "Two", "Three", "Four", "Five", "Six"}, 5),
+			size:          0,
+			wantSelection: 5,
+		},
+		"normal": {
+			state:         NewListState([]string{"One", "Two", "Three", "Four", "Five", "Six"}, 5),
+			size:          2,
+			wantSelection: 3,
+		},
+		"beyond max": {
+			state:         NewListState([]string{"One", "Two", "Three", "Four", "Five", "Six"}, 5),
+			size:          10,
+			wantSelection: 0,
+		},
+	}
+
+	for name, tc := range tt {
+		t.Run(name, func(t *testing.T) {
+			tc.state.StepBackward(tc.size)
 
 			if tc.wantSelection != tc.state.selection {
 				t.Errorf("want %v, got %v", tc.wantSelection, tc.state.selection)

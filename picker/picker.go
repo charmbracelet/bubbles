@@ -29,8 +29,8 @@ type State interface {
 
 	Next(canCycle bool)
 	Prev(canCycle bool)
-	StepForward(count int)
-	StepBackward(count int)
+	StepForward(size int)
+	StepBackward(size int)
 	JumpForward()
 	JumpBackward()
 }

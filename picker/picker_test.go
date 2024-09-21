@@ -16,11 +16,11 @@ func TestNew(t *testing.T) {
 		wantFunc func() Model
 	}{
 		"default": {
-			state: NewListState([]string{"One", "Two", "Three"}),
+			state: NewListState([]string{"One", "Two", "Three"}, 0),
 			opts:  nil,
 			wantFunc: func() Model {
 				return Model{
-					State:          NewListState([]string{"One", "Two", "Three"}),
+					State:          NewListState([]string{"One", "Two", "Three"}, 0),
 					ShowIndicators: true,
 					CanCycle:       false,
 					CanJump:        false,
@@ -33,22 +33,22 @@ func TestNew(t *testing.T) {
 			},
 		},
 		"WithKeys": {
-			state: NewListState([]string{"One", "Two", "Three"}),
+			state: NewListState([]string{"One", "Two", "Three"}, 0),
 			opts: []func(*Model){
-				WithKeys(KeyMap{
+				WithKeys(&KeyMap{
 					Next: key.NewBinding(key.WithKeys("test", "key")),
 				}),
 			},
 			wantFunc: func() Model {
 				return Model{
-					State:          NewListState([]string{"One", "Two", "Three"}),
+					State:          NewListState([]string{"One", "Two", "Three"}, 0),
 					ShowIndicators: true,
 					CanCycle:       false,
 					CanJump:        false,
 					DisplayFunc: func(v interface{}) string {
 						return fmt.Sprintf("%v", v)
 					},
-					Keys: KeyMap{
+					Keys: &KeyMap{
 						Next: key.NewBinding(key.WithKeys("test", "key")),
 					},
 					Styles: DefaultStyles(),
@@ -56,13 +56,13 @@ func TestNew(t *testing.T) {
 			},
 		},
 		"WithoutIndicators": {
-			state: NewListState([]string{"One", "Two", "Three"}),
+			state: NewListState([]string{"One", "Two", "Three"}, 0),
 			opts: []func(*Model){
 				WithoutIndicators(),
 			},
 			wantFunc: func() Model {
 				return Model{
-					State:          NewListState([]string{"One", "Two", "Three"}),
+					State:          NewListState([]string{"One", "Two", "Three"}, 0),
 					ShowIndicators: false,
 					CanCycle:       false,
 					CanJump:        false,
@@ -75,13 +75,13 @@ func TestNew(t *testing.T) {
 			},
 		},
 		"WithCycles": {
-			state: NewListState([]string{"One", "Two", "Three"}),
+			state: NewListState([]string{"One", "Two", "Three"}, 0),
 			opts: []func(*Model){
 				WithCycles(),
 			},
 			wantFunc: func() Model {
 				return Model{
-					State:          NewListState([]string{"One", "Two", "Three"}),
+					State:          NewListState([]string{"One", "Two", "Three"}, 0),
 					ShowIndicators: true,
 					CanCycle:       true,
 					CanJump:        false,
@@ -94,7 +94,7 @@ func TestNew(t *testing.T) {
 			},
 		},
 		"WithDisplayFunc": {
-			state: NewListState([]string{"One", "Two", "Three"}),
+			state: NewListState([]string{"One", "Two", "Three"}, 0),
 			opts: []func(*Model){
 				WithDisplayFunc(func(_ interface{}) string {
 					return fmt.Sprint("test")
@@ -102,7 +102,7 @@ func TestNew(t *testing.T) {
 			},
 			wantFunc: func() Model {
 				return Model{
-					State:          NewListState([]string{"One", "Two", "Three"}),
+					State:          NewListState([]string{"One", "Two", "Three"}, 0),
 					ShowIndicators: true,
 					CanCycle:       false,
 					CanJump:        false,
@@ -115,7 +115,7 @@ func TestNew(t *testing.T) {
 			},
 		},
 		"WithStyles": {
-			state: NewListState([]string{"One", "Two", "Three"}),
+			state: NewListState([]string{"One", "Two", "Three"}, 0),
 			opts: []func(*Model){
 				WithStyles(Styles{
 					Selection: lipgloss.NewStyle().Width(555).Height(-555),
@@ -123,7 +123,7 @@ func TestNew(t *testing.T) {
 			},
 			wantFunc: func() Model {
 				return Model{
-					State:          NewListState([]string{"One", "Two", "Three"}),
+					State:          NewListState([]string{"One", "Two", "Three"}, 0),
 					ShowIndicators: true,
 					CanCycle:       false,
 					CanJump:        false,
@@ -138,13 +138,13 @@ func TestNew(t *testing.T) {
 			},
 		},
 		"WithJumping": {
-			state: NewListState([]string{"One", "Two", "Three"}),
+			state: NewListState([]string{"One", "Two", "Three"}, 0),
 			opts: []func(*Model){
 				WithJumping(),
 			},
 			wantFunc: func() Model {
 				return Model{
-					State:          NewListState([]string{"One", "Two", "Three"}),
+					State:          NewListState([]string{"One", "Two", "Three"}, 0),
 					ShowIndicators: true,
 					CanCycle:       false,
 					CanJump:        true,

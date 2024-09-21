@@ -5,9 +5,10 @@ type ListState[T any] struct {
 	selection int
 }
 
-func NewListState[T any](state []T) *ListState[T] {
+func NewListState[T any](state []T, selection int) *ListState[T] {
 	return &ListState[T]{
-		state: state,
+		state:     state,
+		selection: selection,
 	}
 }
 
@@ -43,15 +44,15 @@ func (s *ListState[T]) Prev(canCycle bool) {
 	}
 }
 
-func (s *ListState[T]) StepForward(count int) {
-	s.selection += count
+func (s *ListState[T]) StepForward(size int) {
+	s.selection += size
 	if s.selection > len(s.state)-1 {
 		s.selection = len(s.state) - 1
 	}
 }
 
-func (s *ListState[T]) StepBackward(count int) {
-	s.selection -= count
+func (s *ListState[T]) StepBackward(size int) {
+	s.selection -= size
 	if s.selection < 0 {
 		s.selection = 0
 	}
