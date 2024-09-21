@@ -24,6 +24,7 @@ func TestNew(t *testing.T) {
 					ShowIndicators: true,
 					CanCycle:       false,
 					CanJump:        false,
+					StepSize:       10,
 					DisplayFunc: func(v interface{}) string {
 						return fmt.Sprintf("%v", v)
 					},
@@ -45,6 +46,7 @@ func TestNew(t *testing.T) {
 					ShowIndicators: true,
 					CanCycle:       false,
 					CanJump:        false,
+					StepSize:       10,
 					DisplayFunc: func(v interface{}) string {
 						return fmt.Sprintf("%v", v)
 					},
@@ -66,6 +68,7 @@ func TestNew(t *testing.T) {
 					ShowIndicators: false,
 					CanCycle:       false,
 					CanJump:        false,
+					StepSize:       10,
 					DisplayFunc: func(v interface{}) string {
 						return fmt.Sprintf("%v", v)
 					},
@@ -85,6 +88,7 @@ func TestNew(t *testing.T) {
 					ShowIndicators: true,
 					CanCycle:       true,
 					CanJump:        false,
+					StepSize:       10,
 					DisplayFunc: func(v interface{}) string {
 						return fmt.Sprintf("%v", v)
 					},
@@ -106,6 +110,7 @@ func TestNew(t *testing.T) {
 					ShowIndicators: true,
 					CanCycle:       false,
 					CanJump:        false,
+					StepSize:       10,
 					DisplayFunc: func(_ interface{}) string {
 						return fmt.Sprint("test")
 					},
@@ -127,6 +132,7 @@ func TestNew(t *testing.T) {
 					ShowIndicators: true,
 					CanCycle:       false,
 					CanJump:        false,
+					StepSize:       10,
 					DisplayFunc: func(v interface{}) string {
 						return fmt.Sprintf("%v", v)
 					},
@@ -148,6 +154,27 @@ func TestNew(t *testing.T) {
 					ShowIndicators: true,
 					CanCycle:       false,
 					CanJump:        true,
+					StepSize:       10,
+					DisplayFunc: func(v interface{}) string {
+						return fmt.Sprintf("%v", v)
+					},
+					Keys:   DefaultKeyMap(),
+					Styles: DefaultStyles(),
+				}
+			},
+		},
+		"WithStepping": {
+			state: NewListState([]string{"One", "Two", "Three"}, 0),
+			opts: []func(*Model){
+				WithStepSize(2),
+			},
+			wantFunc: func() Model {
+				return Model{
+					State:          NewListState([]string{"One", "Two", "Three"}, 0),
+					ShowIndicators: true,
+					CanCycle:       false,
+					CanJump:        false,
+					StepSize:       2,
 					DisplayFunc: func(v interface{}) string {
 						return fmt.Sprintf("%v", v)
 					},
@@ -177,6 +204,10 @@ func TestNew(t *testing.T) {
 
 			if got.CanJump != want.CanJump {
 				t.Errorf("CanJump: \ngot: \n%v \nwant: \n%v", got, want)
+			}
+
+			if got.StepSize != want.StepSize {
+				t.Errorf("StepSize: \ngot: \n%v \nwant: \n%v", got, want)
 			}
 
 			if got.DisplayFunc == nil {
