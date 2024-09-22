@@ -652,6 +652,7 @@ func (m *Model) setSize(width, height int) {
 	m.Help.Width = width
 	m.FilterInput.Width = width - promptWidth - lipgloss.Width(m.spinnerView())
 	m.updatePagination()
+	m.updateKeybindings()
 }
 
 func (m *Model) resetFiltering() {
