@@ -21,7 +21,7 @@ type Model struct {
 	KeyMap KeyMap
 	Help   help.Model
 
-	YOffset int
+	yoffset int
 	height  int
 	headers []string
 	rows    [][]string
@@ -129,7 +129,7 @@ func DefaultStyles() Styles {
 	return Styles{
 		Border:       lipgloss.NormalBorder(),
 		BorderHeader: true,
-		Selected:     lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("212")),
+		Selected:     lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("212")).Margin(0, 1),
 		Header:       lipgloss.NewStyle().Bold(true).Padding(0, 1),
 		Cell:         lipgloss.NewStyle().Margin(0, 1),
 	}
@@ -285,7 +285,7 @@ func (m *Model) Blur() {
 // View renders the component.
 func (m Model) View() string {
 	m.table.StyleFunc(func(row, col int) lipgloss.Style {
-		if row == header {
+		if row == table.HeaderRow {
 			return m.styles.Header
 		}
 		if row == m.cursor {
@@ -370,43 +370,21 @@ func (m Model) Cursor() int {
 // SetCursor sets the cursor position in the table.
 func (m *Model) SetCursor(n int) {
 	m.cursor = clamp(n, 0, len(m.rows)-1)
-	// TODO should I update YOffset here?
+}
+
+// setYOffset sets the YOffset position in the table.
+func (m *Model) setYOffset(n int) {
+	m.yoffset = clamp(n, 0, len(m.rows)-1)
 }
 
 // MoveUp moves the selection up by any number of rows.
 // It can not go above the first row.
 func (m *Model) MoveUp(n int) {
-	if m.cursor > firstRow {
-		m.SetCursor(m.cursor - n)
+	m.SetCursor(m.cursor - n)
 
-		// only set the offset outside of the last available rows.
-		// TODO use maxYOffset
-		if m.cursor < m.maxYOffset() {
-			m.YOffset = m.YOffset - n
-			m.table.Offset(m.YOffset)
-		}
-
-	}
-	// check that the table has contents
-	//	if len(m.rows) < 1 {
-	//		return
-	//	}
-	//	firstRow := firstRow
-	//	m.SetCursor(m.cursor - n)
-	//	switch {
-	//	case m.start == firstRow:
-	//		m.YOffset = clamp(m.YOffset, firstRow, m.cursor)
-	//	case m.start < m.height:
-	//		m.YOffset = (clamp(clamp(m.YOffset+n, firstRow, m.cursor), firstRow, m.height))
-	//	case m.YOffset >= firstRow+1:
-	//		m.YOffset = clamp(m.YOffset+n, firstRow+1, m.height)
-	//	}
-}
-
-// maxYOffset returns the maximum possible value of the y-offset based on the
-// table's rows and height.
-func (m Model) maxYOffset() int {
-	return max(0, len(m.rows)-m.height)
+	// only set the offset outside of the last available rows.
+	m.setYOffset(m.yoffset - n)
+	m.table.Offset(m.yoffset)
 }
 
 // MoveDown moves the selection down by any number of rows.
@@ -416,20 +394,10 @@ func (m *Model) MoveDown(n int) {
 	// stop setting the y offset and only move cursor
 
 	// visible lines after updating viewport
-	if m.cursor < len(m.rows) {
-		m.SetCursor(m.cursor + n)
+	m.SetCursor(m.cursor + n)
 
-		// TODO I need height minus margin and padding... How many rows should
-		// be visible? Does lip gloss table give us that info since it's the one
-		// truncating and _would_ have that info?
-
-		// check if we're in the last set of rows before truncation would
-		// happen.
-		if m.cursor < m.maxYOffset() {
-			m.YOffset = m.YOffset + n
-			m.table.Offset(m.YOffset)
-		}
-	}
+	m.setYOffset(m.yoffset + n)
+	m.table.Offset(m.yoffset)
 }
 
 // GotoTop moves the selection to the first row.

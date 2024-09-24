@@ -81,7 +81,55 @@ func TestFromValuesWithTabSeparator(t *testing.T) {
 		{"foo,bar,baz", "bar,2"},
 	}
 	if !reflect.DeepEqual(table.rows, expect) {
-		t.Fatal("table rows is not equals to the input")
+		t.Fatal("table rows is not equal to the input")
+	}
+}
+
+func TestSetCursor(t *testing.T) {
+	/*
+	   the range for rows goes from 1 to len(rows) because in the bubble, the
+	   first row is the headers, so we're adding 1 to the standard range.
+	  **/
+	tests := []struct {
+		name     string
+		cursor   int
+		expected int
+	}{
+		{"cursor exceeds rows", 10, 2},
+		{"cursor less than rows", -10, 0},
+		{"cursor at zero", 0, 0},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			table := New(
+				WithRows([]Row{
+					{"Foo"},
+					{"Bar"},
+					{"Baz"},
+				}),
+			)
+			table.SetCursor(tc.cursor)
+			if table.cursor != tc.expected {
+				t.Fatalf("cursor out of range. Should be %d, got: %d\n%s", tc.expected, table.cursor, table.View())
+			}
+		})
+		t.Run(tc.name+"/ table with headers", func(t *testing.T) {
+			table := New(
+				WithColumns([]Column{
+					{Title: "Name", Width: 10},
+				}),
+				WithRows([]Row{
+					{"Foo"},
+					{"Bar"},
+					{"Baz"},
+				}),
+			)
+			table.SetCursor(tc.cursor)
+			t.Fatalf("%#v\n%s", table.SelectedRow(), table.View())
+			if table.cursor != tc.expected {
+				t.Fatalf("cursor out of range. Should be %d, got: %d\n%s", tc.expected, table.cursor, table.View())
+			}
+		})
 	}
 }
 
