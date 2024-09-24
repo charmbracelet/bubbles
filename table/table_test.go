@@ -136,7 +136,6 @@ func TestSetCursor(t *testing.T) {
 func TestTableAlignment(t *testing.T) {
 	t.Run("No border", func(t *testing.T) {
 		s := DefaultStyles()
-		s.Border = lipgloss.HiddenBorder()
 		s.BorderHeader = false
 		biscuits := New(
 			WithHeight(5),
@@ -152,12 +151,20 @@ func TestTableAlignment(t *testing.T) {
 			}),
 			WithStyles(s),
 		)
+
+		// unset borders for styling
+		// TODO maybe do this in View or something instead if border type is hidden?
+		biscuits.table.
+			BorderTop(false).
+			BorderBottom(false).
+			BorderLeft(false).
+			BorderRight(false).
+			BorderColumn(false)
 		got := ansi.Strip(biscuits.View())
 		golden.RequireEqual(t, []byte(got))
 	})
 	t.Run("With border", func(t *testing.T) {
 		biscuits := New(
-			WithHeight(5),
 			WithColumns([]Column{
 				{Title: "Name", Width: 25},
 				{Title: "Country of Origin", Width: 16},
@@ -168,6 +175,7 @@ func TestTableAlignment(t *testing.T) {
 				{"Tim Tams", "Australia", "No"},
 				{"Hobnobs", "UK", "Yes"},
 			}),
+			WithHeight(10),
 			WithStyles(DefaultStyles()),
 		)
 		got := ansi.Strip(biscuits.View())
