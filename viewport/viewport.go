@@ -101,8 +101,14 @@ func (m Model) ScrollPercent() float64 {
 
 // SetContent set the pager's text content.
 func (m *Model) SetContent(s string) {
+	m.lines = nil
+	m.AppendContent(s)
+}
+
+// AppendContent append a string to the pager's text content. For high performance rendering the Sync command should also be called.
+func (m *Model) AppendContent(s string) {
 	s = strings.ReplaceAll(s, "\r\n", "\n") // normalize line endings
-	m.lines = strings.Split(s, "\n")
+	m.lines = append(m.lines, strings.Split(s, "\n")...)
 
 	if m.YOffset > len(m.lines)-1 {
 		m.GotoBottom()
