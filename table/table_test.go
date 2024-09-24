@@ -110,7 +110,7 @@ func TestSetCursor(t *testing.T) {
 			)
 			table.SetCursor(tc.cursor)
 			if table.cursor != tc.expected {
-				t.Fatalf("cursor out of range. Should be %d, got: %d\n%s", tc.expected, table.cursor, table.View())
+				t.Fatalf("wrong cursor value, should be %d, got: %d\n%s", tc.expected, table.cursor, table.View())
 			}
 		})
 		t.Run(tc.name+"/ table with headers", func(t *testing.T) {
@@ -125,9 +125,8 @@ func TestSetCursor(t *testing.T) {
 				}),
 			)
 			table.SetCursor(tc.cursor)
-			t.Fatalf("%#v\n%s", table.SelectedRow(), table.View())
 			if table.cursor != tc.expected {
-				t.Fatalf("cursor out of range. Should be %d, got: %d\n%s", tc.expected, table.cursor, table.View())
+				t.Fatalf("wrong cursor value, should be %d, got: %d\n%s", tc.expected, table.cursor, table.View())
 			}
 		})
 	}
