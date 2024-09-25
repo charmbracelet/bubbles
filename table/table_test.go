@@ -4,7 +4,6 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/golden"
 )
@@ -76,12 +75,12 @@ func TestFromValuesWithTabSeparator(t *testing.T) {
 		t.Fatalf("expect table to have 2 rows but it has %d", len(table.rows))
 	}
 
-	expect := []Row{
+	expect := [][]string{
 		{"foo1.", "bar1"},
 		{"foo,bar,baz", "bar,2"},
 	}
 	if !reflect.DeepEqual(table.rows, expect) {
-		t.Fatal("table rows is not equal to the input")
+		t.Fatalf("table rows is not equal to the input. got: %#v, want %#v", table.rows, expect)
 	}
 }
 
