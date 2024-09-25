@@ -11,11 +11,6 @@ import (
 	"github.com/charmbracelet/lipgloss/table"
 )
 
-const (
-	header   int = 0
-	firstRow int = 1
-)
-
 // Model defines a state for the table widget.
 type Model struct {
 	KeyMap KeyMap
@@ -153,7 +148,6 @@ type Option func(*Model)
 // New creates a new model for the table widget.
 func New(opts ...Option) Model {
 	m := Model{
-		cursor: firstRow,
 		table:  table.New(),
 		KeyMap: DefaultKeyMap(),
 		Help:   help.New(),
