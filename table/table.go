@@ -421,6 +421,12 @@ func (m *Model) SetRows(r []Row) {
 	m.table.Rows(rows...)
 }
 
+// Rows returns the rows set for the table.
+// TODO do we need this? We used to have m.rows public...
+func (m Model) Rows() [][]string {
+	return m.rows
+}
+
 // rowToString helper to unwrap the Row type.
 func rowToString(rows []Row) [][]string {
 	var out [][]string
@@ -449,6 +455,11 @@ func (m *Model) SetWidth(w int) {
 func (m *Model) SetHeight(h int) {
 	m.height = h
 	m.table.Height(h)
+}
+
+// Height returns the height of the table, including borders.
+func (m Model) Height() int {
+	return m.height
 }
 
 // Cursor returns the index of the selected row.
