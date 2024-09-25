@@ -4,6 +4,8 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/lipgloss/table"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/golden"
 )
@@ -136,7 +138,7 @@ func TestTableAlignment(t *testing.T) {
 		s := DefaultStyles()
 		s.BorderHeader = false
 		biscuits := New(
-			WithHeight(5),
+			WithHeight(10),
 			WithColumns([]Column{
 				{Title: "Name", Width: 25},
 				{Title: "Country of Origin", Width: 16},
@@ -172,5 +174,98 @@ func TestTableAlignment(t *testing.T) {
 		)
 		got := ansi.Strip(biscuits.View())
 		golden.RequireEqual(t, []byte(got))
+	})
+}
+
+func TestSetStyleFunc(t *testing.T) {
+	t.Run("single cell styling", func(t *testing.T) {
+		s := DefaultStyles()
+		s.BorderHeader = false
+		biscuits := New(
+			WithColumns([]Column{
+				{Title: "Name", Width: 25},
+				{Title: "Country of Origin", Width: 16},
+				{Title: "Dunk-able", Width: 12},
+			}),
+			WithRows([]Row{
+				{"Chocolate Digestives", "UK", "Yes"},
+				{"Tim Tams", "Australia", "No"},
+				{"Hobnobs", "UK", "Yes"},
+			}),
+		)
+		biscuits.SetStyleFunc(func(row, col int) lipgloss.Style {
+			if row == table.HeaderRow {
+				// TODO this should be exported to be usable outside of the lib.
+				return s.Header
+			}
+			if row == 1 && col == 1 {
+				return s.Cell.Bold(true)
+			}
+			return s.Cell
+		})
+		golden.RequireEqual(t, []byte(biscuits.View()))
+	})
+}
+
+func TestWithStyleFunc(t *testing.T) {
+	t.Run("single cell styling", func(t *testing.T) {
+		s := DefaultStyles()
+		s.BorderHeader = false
+		biscuits := New(
+			WithColumns([]Column{
+				{Title: "Name", Width: 25},
+				{Title: "Country of Origin", Width: 16},
+				{Title: "Dunk-able", Width: 12},
+			}),
+			WithRows([]Row{
+				{"Chocolate Digestives", "UK", "Yes"},
+				{"Tim Tams", "Australia", "No"},
+				{"Hobnobs", "UK", "Yes"},
+			}),
+			WithStyleFunc(func(row, col int) lipgloss.Style {
+				if row == table.HeaderRow {
+					return s.Header
+				}
+				// TODO we should probably make it possible to retrieve Style
+				// from the model in case it has been modified from the
+				// defaults.
+				if row == 1 && col == 1 {
+					return s.Cell.Bold(true)
+				}
+				return s.Cell
+			}))
+		golden.RequireEqual(t, []byte(biscuits.View()))
+	})
+	t.Run("cell styling by content", func(t *testing.T) {
+		rows := []Row{
+			{"Chocolate Digestives", "UK", "Yes"},
+			{"Tim Tams", "Australia", "No"},
+			{"Hobnobs", "UK", "Yes"},
+		}
+		s := DefaultStyles()
+		s.BorderHeader = false
+		biscuits := New(
+			WithColumns([]Column{
+				{Title: "Name", Width: 25},
+				{Title: "Country of Origin", Width: 16},
+				{Title: "Dunk-able", Width: 12},
+			}),
+			WithRows(rows),
+			WithStyleFunc(func(row, col int) lipgloss.Style {
+				if row == table.HeaderRow {
+					return s.Header
+				}
+				// TODO we should probably make it possible to retrieve Style
+				// from the model in case it has been modified from the
+				// defaults.
+
+				// you need to pre-define the rows for this to be accessible in
+				// WithStyleFunc
+				if rows[row][col] == "Yes" {
+					return s.Cell.Bold(true)
+				}
+				return s.Cell
+			}))
+		golden.RequireEqual(t, []byte(biscuits.View()))
 	})
 }

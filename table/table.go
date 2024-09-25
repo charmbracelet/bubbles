@@ -16,13 +16,14 @@ type Model struct {
 	KeyMap KeyMap
 	Help   help.Model
 
-	yoffset int
-	height  int
-	headers []string
-	rows    [][]string
-	cursor  int
-	focus   bool
-	styles  Styles
+	yoffset   int
+	height    int
+	headers   []string
+	rows      [][]string
+	cursor    int
+	focus     bool
+	styles    Styles
+	styleFunc table.StyleFunc
 
 	table *table.Table
 	start int
@@ -136,6 +137,12 @@ func (m *Model) SetStyles(s Styles) {
 	m.table.Border(s.Border)
 	m.table.BorderStyle(s.BorderStyle)
 	m.table.BorderHeader(s.BorderHeader)
+}
+
+// SetStyleFunc sets the table's custom StyleFunc. Use this for conditional
+// styling e.g. styling a cell by its contents or by index.
+func (m *Model) SetStyleFunc(s table.StyleFunc) {
+	m.styleFunc = s
 }
 
 // SetBorder is a shorthand function for setting or unsetting borders on a
@@ -311,6 +318,13 @@ func WithStyles(s Styles) Option {
 	}
 }
 
+// WithStyleFunc sets the table StyleFunc for conditional styling.
+func WithStyleFunc(s table.StyleFunc) Option {
+	return func(m *Model) {
+		m.SetStyleFunc(s)
+	}
+}
+
 // WithKeyMap sets the key map.
 func WithKeyMap(km KeyMap) Option {
 	return func(m *Model) {
@@ -369,16 +383,19 @@ func (m *Model) Blur() {
 
 // View renders the component.
 func (m Model) View() string {
-	m.table.StyleFunc(func(row, col int) lipgloss.Style {
-		if row == table.HeaderRow {
-			return m.styles.Header
-		}
-		if row == m.cursor {
-			return m.styles.Selected
-		}
-		return m.styles.Cell
-	})
-
+	if m.styleFunc != nil {
+		m.table.StyleFunc(m.styleFunc)
+	} else {
+		m.table.StyleFunc(func(row, col int) lipgloss.Style {
+			if row == table.HeaderRow {
+				return m.styles.Header
+			}
+			if row == m.cursor {
+				return m.styles.Selected
+			}
+			return m.styles.Cell
+		})
+	}
 	return m.table.String()
 }
 
