@@ -405,6 +405,12 @@ func (m *Model) Append(rows ...[]string) {
 	m.table.Rows(m.rows...)
 }
 
+// SetColumns sets a new columns state.
+// Deprecated: use SetHeaders instead.
+func (m *Model) SetColumns(c []Column) {
+	m.SetHeaders(colToString(c)...)
+}
+
 // SetRows overwrites existing rows with new ones.
 func (m *Model) SetRows(r []Row) {
 	// lipgloss' table requires []string, so it's easier to convert these.
