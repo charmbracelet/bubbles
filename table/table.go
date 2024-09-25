@@ -429,7 +429,6 @@ func rowToString(rows []Row) [][]string {
 }
 
 // SetHeaders sets the table headers.
-// TODO should this be variadic to match lipgloss table?
 func (m *Model) SetHeaders(headers ...string) {
 	m.headers = headers
 	m.table.Headers(headers...)
