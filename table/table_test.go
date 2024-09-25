@@ -209,6 +209,7 @@ func TestSetStyleFunc(t *testing.T) {
 
 func TestWithStyleFunc(t *testing.T) {
 	t.Run("single cell styling", func(t *testing.T) {
+		// #502
 		s := DefaultStyles()
 		s.BorderHeader = false
 		biscuits := New(
@@ -237,6 +238,7 @@ func TestWithStyleFunc(t *testing.T) {
 		golden.RequireEqual(t, []byte(biscuits.View()))
 	})
 	t.Run("cell styling by content", func(t *testing.T) {
+		// #502
 		rows := []Row{
 			{"Chocolate Digestives", "UK", "Yes"},
 			{"Tim Tams", "Australia", "No"},
@@ -263,6 +265,32 @@ func TestWithStyleFunc(t *testing.T) {
 				// WithStyleFunc
 				if rows[row][col] == "Yes" {
 					return s.Cell.Bold(true)
+				}
+				return s.Cell
+			}))
+		golden.RequireEqual(t, []byte(biscuits.View()))
+	})
+	t.Run("change column text alignment", func(t *testing.T) {
+		// #399
+		s := DefaultStyles()
+		s.BorderHeader = false
+		biscuits := New(
+			WithColumns([]Column{
+				{Title: "Name", Width: 25},
+				{Title: "Country of Origin", Width: 16},
+				{Title: "Dunk-able", Width: 12},
+			}),
+			WithRows([]Row{
+				{"Chocolate Digestives", "UK", "Yes"},
+				{"Tim Tams", "Australia", "No"},
+				{"Hobnobs", "UK", "Yes"},
+			}),
+			WithStyleFunc(func(row, col int) lipgloss.Style {
+				if row == table.HeaderRow {
+					return s.Header
+				}
+				if col == 1 {
+					return s.Cell.Align(lipgloss.Right)
 				}
 				return s.Cell
 			}))
