@@ -138,13 +138,97 @@ func (m *Model) SetStyles(s Styles) {
 	m.table.BorderHeader(s.BorderHeader)
 }
 
-// TODO make this able to be set with same no args as lipgloss.BorderForeground
-func (m *Model) SetBorder(top, right, bottom, left bool) {
+// SetBorder is a shorthand function for setting or unsetting borders on a
+// table. The arguments work as follows:
+//
+// With one argument, the argument is applied to all sides.
+//
+// With two arguments, the arguments are applied to the vertical and horizontal
+// sides, in that order.
+//
+// With three arguments, the arguments are applied to the top side, the
+// horizontal sides, and the bottom side, in that order.
+//
+// With four arguments, the arguments are applied clockwise starting from the
+// top side, followed by the right side, then the bottom, and finally the left.
+//
+// With five arguments, the arguments are applied clockwise starting from the
+// top side, followed by the right side, then the bottom, and finally the left.
+// The final value will set the row separator.
+//
+// With six arguments, the arguments are applied clockwise starting from the
+// top side, followed by the right side, then the bottom, and finally the left.
+// The final two values will set the row and column separators in that order.
+//
+// With more than four arguments nothing will be set.
+func (m *Model) SetBorder(s ...bool) {
+	top, right, bottom, left, rowSeparator, columnSeparator := whichSides(s...)
 	m.table.
 		BorderTop(top).
 		BorderRight(right).
 		BorderBottom(bottom).
-		BorderLeft(left)
+		BorderLeft(left).
+		BorderRow(rowSeparator).
+		BorderColumn(columnSeparator)
+}
+
+// whichSides is a helper method for setting values on sides of a block based on
+// the number of arguments given.
+// 0: set all sides to true
+// 1: set all sides to given arg
+// 2: top -> bottom
+// 3: top -> horizontal -> bottom
+// 4: top -> right -> bottom -> left
+// 5: top -> right -> bottom -> left -> rowSeparator
+// 6: top -> right -> bottom -> left -> rowSeparator -> columnSeparator
+func whichSides(s ...bool) (top, right, bottom, left, rowSeparator, columnSeparator bool) {
+	// set the separators to true unless otherwise set.
+	rowSeparator = true
+	columnSeparator = true
+
+	switch len(s) {
+	case 1:
+		top = s[0]
+		right = s[0]
+		bottom = s[0]
+		left = s[0]
+		rowSeparator = s[0]
+		columnSeparator = s[0]
+	case 2:
+		top = s[0]
+		right = s[1]
+		bottom = s[0]
+		left = s[1]
+	case 3:
+		top = s[0]
+		right = s[1]
+		bottom = s[2]
+		left = s[1]
+	case 4:
+		top = s[0]
+		right = s[1]
+		bottom = s[2]
+		left = s[3]
+	case 5:
+		top = s[0]
+		right = s[1]
+		bottom = s[2]
+		left = s[3]
+		rowSeparator = s[4]
+	case 6:
+		top = s[0]
+		right = s[1]
+		bottom = s[2]
+		left = s[3]
+		rowSeparator = s[4]
+		columnSeparator = s[5]
+	default:
+		top = true
+		right = true
+		bottom = true
+		left = true
+	}
+	return top, right, bottom, left, rowSeparator, columnSeparator
 }
 
 // Option is used to set options in New. For example:

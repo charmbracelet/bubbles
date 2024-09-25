@@ -150,15 +150,8 @@ func TestTableAlignment(t *testing.T) {
 			WithStyles(s),
 		)
 
-		// unset borders
-		// TODO I may need to expose this table OR have a helper func, they
-		// won't be able to do this outside of the library
-		biscuits.table.
-			BorderTop(false).
-			BorderBottom(false).
-			BorderLeft(false).
-			BorderRight(false).
-			BorderColumn(false)
+		// unset borders; hidden border leaves space.
+		biscuits.SetBorder(false)
 		got := ansi.Strip(biscuits.View())
 		golden.RequireEqual(t, []byte(got))
 	})
