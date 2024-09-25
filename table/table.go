@@ -138,11 +138,18 @@ func (m *Model) SetStyles(s Styles) {
 	m.table.BorderHeader(s.BorderHeader)
 }
 
+// TODO make this able to be set with same no args as lipgloss.BorderForeground
+func (m *Model) SetBorder(top, right, bottom, left bool) {
+	m.table.
+		BorderTop(top).
+		BorderRight(right).
+		BorderBottom(bottom).
+		BorderLeft(left)
+}
+
 // Option is used to set options in New. For example:
 //
-// TODO change this to WithRows as the example instead
-//
-//	table := New(WithColumns([]Column{{Title: "ID", Width: 10}}))
+//	table := New(WithRows([]Row{{"Foo"},{"Bar"},{"Baz"},}))
 type Option func(*Model)
 
 // New creates a new model for the table widget.
@@ -320,7 +327,6 @@ func (m *Model) SetRows(r []Row) {
 	// TODO should we just deprecate the Row type altogether?
 	rows := rowToString(r)
 	m.rows = rows
-	// TODO test this
 	m.table.ClearRows()
 	m.table.Rows(rows...)
 }

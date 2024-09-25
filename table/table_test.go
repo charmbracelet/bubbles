@@ -150,8 +150,9 @@ func TestTableAlignment(t *testing.T) {
 			WithStyles(s),
 		)
 
-		// unset borders for styling
-		// TODO maybe do this in View or something instead if border type is hidden?
+		// unset borders
+		// TODO I may need to expose this table OR have a helper func, they
+		// won't be able to do this outside of the library
 		biscuits.table.
 			BorderTop(false).
 			BorderBottom(false).
