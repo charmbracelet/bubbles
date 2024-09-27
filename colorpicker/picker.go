@@ -393,31 +393,30 @@ func (m Model) incrView() string {
 func (m Model) spectrumView() string {
 	h, s, v := m.color.Hsv()
 
-	colorA := colorful.Hsv(0, s, v)
-	colorB := colorful.Hsv(90, s, v)
-	colorC := colorful.Hsv(180, s, v)
-	colorD := colorful.Hsv(270, s, v)
-	colorE := colorful.Hsv(359.9, s, v)
-
-	var b = []strings.Builder{strings.Builder{}, strings.Builder{}, strings.Builder{}, strings.Builder{}}
-	const steps = 40
-	var sectionWidth = steps / len(b)
-	for i := 0; i < steps/len(b); i++ {
-		color := colorA.BlendHsv(colorB, float64(i)/float64(sectionWidth)).Hex()
-		b[0].WriteString(lipgloss.NewStyle().Background(lipgloss.Color(color)).Render(" "))
-		color = colorB.BlendHsv(colorC, float64(i)/float64(sectionWidth)).Hex()
-		b[1].WriteString(lipgloss.NewStyle().Background(lipgloss.Color(color)).Render(" "))
-		color = colorC.BlendHsv(colorD, float64(i)/float64(sectionWidth)).Hex()
-		b[2].WriteString(lipgloss.NewStyle().Background(lipgloss.Color(color)).Render(" "))
-		color = colorD.BlendHsv(colorE, float64(i)/float64(sectionWidth)).Hex()
-		b[3].WriteString(lipgloss.NewStyle().Background(lipgloss.Color(color)).Render(" "))
+	colorStops := []colorful.Color{
+		colorful.Hsv(0, s, v),
+		colorful.Hsv(90, s, v),
+		colorful.Hsv(180, s, v),
+		colorful.Hsv(270, s, v),
+		colorful.Hsv(359.9, s, v),
 	}
 
-	pos := int(math.Floor(h / 360 * steps))
+	const width = 40
+	builders := make([]strings.Builder, 4)
+	sectionWidth := width / len(builders)
+
+	for i := range builders {
+		for j := 0; j < sectionWidth; j++ {
+			color := colorStops[i].BlendHsv(colorStops[i+1], float64(j)/float64(sectionWidth)).Hex()
+			builders[i].WriteString(lipgloss.NewStyle().Background(lipgloss.Color(color)).Render(" "))
+		}
+	}
+
+	pos := int(math.Floor(h / 360 * width))
 	mark := strings.Repeat(" ", pos) + "▲"
 
 	var view strings.Builder
-	for _, b := range b {
+	for _, b := range builders {
 		view.WriteString(b.String())
 	}
 	view.WriteString("\n" + mark)
