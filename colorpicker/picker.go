@@ -2,12 +2,13 @@ package colorpicker
 
 import (
 	"fmt"
-	"image/color"
+	"math"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea/v2"
+	"github.com/charmbracelet/colorprofile"
 	"github.com/charmbracelet/lipgloss"
-	colorconv "github.com/charmbracelet/x/exp/color"
+	"github.com/lucasb-eyer/go-colorful"
 )
 
 type mode int
@@ -22,6 +23,7 @@ type Styles struct {
 	Frame        lipgloss.Style
 	FocusedValue Value
 	BlurredValue Value
+	ActiveValue  Value
 }
 
 type Value struct {
@@ -40,6 +42,7 @@ func DefaultStyles() (s Styles) {
 		Margin(2, 4).
 		Padding(2, 4)
 
+		// Blurred.
 	var v Value
 	v.Label = s.Base.
 		Foreground(lipgloss.Color("241"))
@@ -48,25 +51,45 @@ func DefaultStyles() (s Styles) {
 	v.Unit = s.Base.
 		Foreground(lipgloss.Color("241"))
 	v.Decr = s.Base.
-		Foreground(lipgloss.Color("205")).
+		Foreground(lipgloss.Color("#3e3e3e")).
 		SetString("◀ ")
-	v.Incr = s.Base.
-		Foreground(lipgloss.Color("82")).
+	v.Incr = v.Decr.
 		SetString(" ▶")
-
-	s.FocusedValue = v
 	s.BlurredValue = v
+
+	// Focused
+	v.Value = v.Value.
+		Foreground(lipgloss.Color("#a1a1a1"))
+	v.Unit = v.Unit.
+		Foreground(lipgloss.Color("#878787"))
+	v.Label = v.Unit
+	s.FocusedValue = v
+
+	// Active
+	v.Incr = v.Incr.Foreground(lipgloss.Color("#ff6e9e"))
+	v.Decr = v.Incr
+	s.ActiveValue = v
 
 	return s
 }
 
+type keypress int
+
+const (
+	pressNone keypress = iota
+	pressDecr
+	pressIncr
+)
+
 type Model struct {
-	Mode   mode
-	Styles Styles
-	color  colorconv.Color
-	labels []string
-	inputs []int
-	index  int
+	Mode                 mode
+	Styles               Styles
+	color                colorful.Color
+	labels               []string
+	inputs               []float64
+	index                int
+	keydown              keypress
+	keyboardEnhancements bool
 }
 
 func (m Model) Init() (tea.Model, tea.Cmd) {
@@ -75,8 +98,8 @@ func (m Model) Init() (tea.Model, tea.Cmd) {
 
 func (m Model) InitAs() (Model, tea.Cmd) {
 	m.Styles = DefaultStyles()
-	m.inputs = make([]int, 3)
-	m.SetColor(color.RGBA{0, 0, 0, 255})
+	m.inputs = make([]float64, 3)
+	m.SetColor(colorful.Color{R: 1, G: 0, B: 0})
 	return m, nil
 }
 
@@ -85,7 +108,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) UpdateAs(msg tea.Msg) (Model, tea.Cmd) {
+	m.keydown = pressNone
+
 	switch msg := msg.(type) {
+	case tea.KeyboardEnhancementsMsg:
+		m.keyboardEnhancements = msg.SupportsKeyReleases()
+		return m, tea.Println("Keyboard enhancements supported. Release? %v", m.keyboardEnhancements)
 	case tea.KeyPressMsg:
 		switch {
 		case msg.Code == tea.KeyTab:
@@ -99,18 +127,20 @@ func (m Model) UpdateAs(msg tea.Msg) (Model, tea.Cmd) {
 			m.updateColorFromInputs()
 			switch m.Mode {
 			case modeRGB:
-				r, g, b, _ := m.color.RGBA()
-				m.inputs[0] = int(r)
-				m.inputs[1] = int(g)
-				m.inputs[2] = int(b)
+				// The user is switching from HSV to RGB.
 				m.Mode = modeHSV
+				m.Mode = modeHSV
+				h, s, v := m.color.Hsv()
+				m.inputs[0], m.inputs[1], m.inputs[2] = h, s*100, v*100
 			case modeHSV:
-				h, s, v := m.color.HSV()
-				m.inputs[0] = int(h)
-				m.inputs[1] = int(s * 100)
-				m.inputs[2] = int(v * 100)
+				// The user is switching from RGB to HSV.
 				m.Mode = modeRGB
+				r, g, b := m.color.RGB255()
+				m.inputs[0] = float64(r)
+				m.inputs[1] = float64(g)
+				m.inputs[2] = float64(b)
 			}
+			m.updateColorFromInputs()
 			return m, nil
 
 		case msg.Code == tea.KeyTab && msg.Mod == tea.ModShift:
@@ -118,35 +148,29 @@ func (m Model) UpdateAs(msg tea.Msg) (Model, tea.Cmd) {
 			return m, nil
 
 		case msg.Code == tea.KeyLeft || msg.Code == 'h':
-			decr := 1
+			if m.keyboardEnhancements {
+				m.keydown = pressDecr
+			}
+
+			var decr float64 = 1
 			if msg.Mod == tea.ModShift {
 				decr = 10
 			}
 			m.inputs[m.index] -= decr
 
-			switch m.Mode {
-			case modeRGB:
-				if m.inputs[m.index] < 0 {
-					m.inputs[m.index] = 255
-				}
-			case modeHSV:
-				switch m.index {
-				case 0:
-					if m.inputs[m.index] < 0 {
-						m.inputs[m.index] = 360
-					}
-				case 1, 2:
-					if m.inputs[m.index] < 0 {
-						m.inputs[m.index] = 100
-					}
-				}
+			if m.inputs[m.index] < 0 {
+				m.inputs[m.index] = 0
 			}
 
 			m.updateColorFromInputs()
 			return m, nil
 
 		case msg.Code == tea.KeyRight || msg.Code == 'l':
-			incr := 1
+			if m.keyboardEnhancements {
+				m.keydown = pressIncr
+			}
+
+			var incr float64 = 1
 			if msg.Mod == tea.ModShift {
 				incr = 10
 			}
@@ -155,17 +179,17 @@ func (m Model) UpdateAs(msg tea.Msg) (Model, tea.Cmd) {
 			switch m.Mode {
 			case modeRGB:
 				if m.inputs[m.index] > 255 {
-					m.inputs[m.index] = 0
+					m.inputs[m.index] = 255
 				}
 			case modeHSV:
 				switch m.index {
 				case 0:
-					if m.inputs[m.index] > 360 {
-						m.inputs[m.index] = 0
+					if m.inputs[m.index] > 359 {
+						m.inputs[m.index] = 359
 					}
 				case 1, 2:
 					if m.inputs[m.index] > 100 {
-						m.inputs[m.index] = 0
+						m.inputs[m.index] = 100
 					}
 				}
 			}
@@ -184,34 +208,26 @@ func (m Model) UpdateAs(msg tea.Msg) (Model, tea.Cmd) {
 func (m *Model) updateColorFromInputs() {
 	switch m.Mode {
 	case modeRGB:
-		m.color.FromRGB(
-			uint8(m.inputs[0]),
-			uint8(m.inputs[1]),
-			uint8(m.inputs[2]),
-		)
+		// Colorful.Color uses RGB values between 0 and 1, so we need to
+		// convert to a 0-255 scale.
+		r, g, b := m.inputs[0], m.inputs[1], m.inputs[2]
+		m.color = colorful.Color{R: r / 255, G: g / 255, B: b / 255}
 	case modeHSV:
-		m.color.FromHSV(
-			float64(m.inputs[0]),
-			float64(m.inputs[1])/100,
-			float64(m.inputs[2])/100,
-		)
+		h, s, v := m.inputs[0], m.inputs[1], m.inputs[2]
+		m.color = colorful.Hsv(h, s/100, v/100)
 	}
 }
 
-func (i *Model) SetColor(c color.Color) {
-	r, g, b, _ := c.RGBA()
-	i.color.FromRGB(uint8(r), uint8(g), uint8(b))
+func (i *Model) SetColor(c colorful.Color) {
+	i.color = c
 	switch i.Mode {
 	case modeRGB:
-		r, g, b, _ := c.RGBA()
-		i.inputs[0] = int(r)
-		i.inputs[1] = int(g)
-		i.inputs[2] = int(b)
+		r, g, b := c.RGB255()
+		i.inputs[0] = float64(r)
+		i.inputs[1] = float64(g)
+		i.inputs[2] = float64(b)
 	case modeHSV:
-		h, s, v := i.color.HSV()
-		i.inputs[0] = int(h)
-		i.inputs[1] = int(s)
-		i.inputs[2] = int(v)
+		i.inputs[0], i.inputs[1], i.inputs[2] = i.color.Hsv()
 	}
 	return
 }
@@ -225,42 +241,71 @@ func (m Model) View() string {
 		labels = []string{"H", "S", "V"}
 	}
 
-	// ansi256 := colorprofile.ANSI256.Convert(i.color.Color)
-	// ansi := colorprofile.ANSI.Convert(i.color.Color)
-
 	var (
 		b strings.Builder
 		s = m.Styles
 		p = func(args ...any) {
 			fmt.Fprint(&b, args...)
 		}
+		ansi256Val = fmt.Sprintf("%d", colorprofile.ANSI256.Convert(m.color))
+		ansiVal    = fmt.Sprintf("%d", colorprofile.ANSI.Convert(m.color))
 	)
 
 	const block = "        "
 
-	c := lipgloss.Color(m.Hex())
-	fg := s.Base.Foreground(c)
-	bg := s.Base.Background(c)
-	p(bg.Render(block))
-	p(fg.Render(" " + m.Hex()))
+	// TrueColor
+	var truecolor strings.Builder
+	{
+		c := lipgloss.Color(m.Hex())
+		fg := s.Base.Foreground(c)
+		bg := s.Base.Background(c)
+		truecolor.WriteString("TrueColor      \n\n")
+		truecolor.WriteString(bg.Render(block))
+		truecolor.WriteString("\n")
+		truecolor.WriteString(fg.Render(m.Hex()))
+	}
 
-	// b.WriteString(lipgloss.NewStyle().Background(lipgloss.Color(ansi256)).Render(block))
-	// b.WriteString(" ")
-	// b.WriteString(lipgloss.NewStyle().Background(lipgloss.Color(ansi)).Render(block))
+	// ANSI256
+	var ansi256 strings.Builder
+	{
+		c := lipgloss.Color(ansi256Val)
+		fg := s.Base.Foreground(c).Render
+		bg := s.Base.Background(c).Render
+		ansi256.WriteString("ANSI 256    \n\n")
+		ansi256.WriteString(bg(block))
+		ansi256.WriteString("\n")
+		ansi256.WriteString(fg(ansi256Val))
+	}
+
+	// ANSI
+	var ansi strings.Builder
+	{
+		c := lipgloss.Color(ansiVal)
+		fg := s.Base.Foreground(c).Render
+		bg := s.Base.Background(c).Render
+		ansi.WriteString("ANSI 4-Bit\n\n")
+		ansi.WriteString(bg(block))
+		ansi.WriteString("\n")
+		ansi.WriteString(fg(ansiVal))
+	}
+
+	p(lipgloss.JoinHorizontal(lipgloss.Top, truecolor.String(), ansi256.String(), ansi.String()))
 
 	b.WriteString("\n\n")
 
+	// Adjustment UI.
 	for j, in := range m.inputs {
 		var v Value
+
 		if m.index == j {
 			v = s.FocusedValue
-			p(s.FocusedValue.Decr.String())
+			p(m.decrView())
 		} else {
 			v = s.BlurredValue
 			p(s.Base.Render("  "))
 		}
 		p(v.Label.Render(labels[j] + " "))
-		p(v.Value.Render(fmt.Sprintf("%3d", in)))
+		p(v.Value.Render(fmt.Sprintf("%3.f", in)))
 		if m.Mode == modeHSV {
 			switch j {
 			case 0:
@@ -271,13 +316,112 @@ func (m Model) View() string {
 		} else {
 			p(v.Unit.Render(" "))
 		}
+
+		// Incrementer.
+		var renderIncrementer bool
 		if m.index == j {
-			p(v.Incr.String())
+			switch m.Mode {
+			case modeRGB:
+				renderIncrementer = m.inputs[m.index] < 255
+			case modeHSV:
+				switch j {
+				case 0:
+					renderIncrementer = m.inputs[m.index] < 359
+				case 1, 2:
+					renderIncrementer = m.inputs[m.index] < 100
+				}
+			}
+		}
+		if renderIncrementer {
+			incr := v.Incr
+			if m.keydown == pressIncr {
+				incr = s.ActiveValue.Incr
+			}
+			p(incr.String())
 		} else {
 			p(s.Base.Render("  "))
 		}
 	}
+
+	// Spectrum.
+	p("\n\n" + m.spectrumView() + "\n\n")
+
 	return s.Frame.Render(b.String())
+}
+
+// decrView renders the decrementer for the active value.
+func (m Model) decrView() string {
+	s := m.Styles
+	if m.inputs[m.index] <= 0 {
+		return s.Base.Render("  ")
+	}
+	decr := s.FocusedValue.Decr
+	if m.keydown == pressDecr {
+		decr = s.ActiveValue.Decr
+	}
+	return decr.String()
+}
+
+func (m Model) incrView() string {
+	var (
+		s  = m.Styles
+		ok bool
+	)
+
+	for i, v := range m.inputs {
+		if m.index == i {
+			switch m.Mode {
+			case modeRGB:
+				ok = v < 255
+			case modeHSV:
+				switch i {
+				case 0:
+					ok = v < 359
+				case 1, 2:
+					ok = v < 100
+				}
+			}
+		}
+	}
+
+	if ok {
+		return s.FocusedValue.Incr.String()
+	}
+	return s.Base.Render("  ")
+}
+
+func (m Model) spectrumView() string {
+	h, s, v := m.color.Hsv()
+
+	colorA := colorful.Hsv(0, s, v)
+	colorB := colorful.Hsv(90, s, v)
+	colorC := colorful.Hsv(180, s, v)
+	colorD := colorful.Hsv(270, s, v)
+	colorE := colorful.Hsv(359.9, s, v)
+
+	var b = []strings.Builder{strings.Builder{}, strings.Builder{}, strings.Builder{}, strings.Builder{}}
+	const steps = 40
+	var sectionWidth = steps / len(b)
+	for i := 0; i < steps/len(b); i++ {
+		color := colorA.BlendHsv(colorB, float64(i)/float64(sectionWidth)).Hex()
+		b[0].WriteString(lipgloss.NewStyle().Background(lipgloss.Color(color)).Render(" "))
+		color = colorB.BlendHsv(colorC, float64(i)/float64(sectionWidth)).Hex()
+		b[1].WriteString(lipgloss.NewStyle().Background(lipgloss.Color(color)).Render(" "))
+		color = colorC.BlendHsv(colorD, float64(i)/float64(sectionWidth)).Hex()
+		b[2].WriteString(lipgloss.NewStyle().Background(lipgloss.Color(color)).Render(" "))
+		color = colorD.BlendHsv(colorE, float64(i)/float64(sectionWidth)).Hex()
+		b[3].WriteString(lipgloss.NewStyle().Background(lipgloss.Color(color)).Render(" "))
+	}
+
+	pos := int(math.Floor(h / 360 * steps))
+	mark := strings.Repeat(" ", pos) + "▲"
+
+	var view strings.Builder
+	for _, b := range b {
+		view.WriteString(b.String())
+	}
+	view.WriteString("\n" + mark)
+	return view.String()
 }
 
 func (i Model) Hex() string {

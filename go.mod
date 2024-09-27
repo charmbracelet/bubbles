@@ -6,10 +6,10 @@ require (
 	github.com/MakeNowJust/heredoc v1.0.0
 	github.com/atotto/clipboard v0.1.4
 	github.com/charmbracelet/bubbletea/v2 v2.0.0-alpha.1
+	github.com/charmbracelet/colorprofile v0.1.1
 	github.com/charmbracelet/harmonica v0.2.0
 	github.com/charmbracelet/lipgloss v0.13.0
 	github.com/charmbracelet/x/ansi v0.3.2
-	github.com/charmbracelet/x/exp/color v0.0.0-20240921120225-1488dc3dde36
 	github.com/charmbracelet/x/exp/golden v0.0.0-20240815200342-61de596daa2b
 	github.com/dustin/go-humanize v1.0.1
 	github.com/lucasb-eyer/go-colorful v1.2.0
