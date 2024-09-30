@@ -50,6 +50,7 @@ func New() Model {
 		maxStack:         newStack(),
 		KeyMap:           DefaultKeyMap(),
 		Styles:           DefaultStyles(),
+		FileSelected:     "",
 	}
 }
 
@@ -247,8 +248,18 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		if msg.id != m.id {
 			break
 		}
+		if m.FileSelected != "" {
+			for i, f := range msg.entries {
+				if f.Name() == m.FileSelected {
+					m.selected = i
+					m.FileSelected = ""
+
+					break
+				}
+			}
+		}
 		m.files = msg.entries
-		m.max = max(m.max, m.Height-1)
+		m.max = max(m.Height-1, m.max)
 	case tea.WindowSizeMsg:
 		if m.AutoHeight {
 			m.Height = msg.Height - marginBottom
