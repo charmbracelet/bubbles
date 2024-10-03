@@ -59,6 +59,8 @@ type KeyMap struct {
 	AcceptSuggestion        key.Binding
 	NextSuggestion          key.Binding
 	PrevSuggestion          key.Binding
+	NextHistory             key.Binding
+	PrevHistory             key.Binding
 }
 
 // DefaultKeyMap is the default set of key bindings for navigating and acting
@@ -78,8 +80,11 @@ var DefaultKeyMap = KeyMap{
 	LineEnd:                 key.NewBinding(key.WithKeys("end", "ctrl+e")),
 	Paste:                   key.NewBinding(key.WithKeys("ctrl+v")),
 	AcceptSuggestion:        key.NewBinding(key.WithKeys("tab")),
-	NextSuggestion:          key.NewBinding(key.WithKeys("down", "ctrl+n")),
-	PrevSuggestion:          key.NewBinding(key.WithKeys("up", "ctrl+p")),
+	NextSuggestion:          key.NewBinding(key.WithKeys("ctrl+n")),
+	PrevSuggestion:          key.NewBinding(key.WithKeys("ctrl+p")),
+	// TODO: discuss moving `down` and `up` to this instead of Next/PrevSuggestion
+	NextHistory: key.NewBinding(key.WithKeys("down")),
+	PrevHistory: key.NewBinding(key.WithKeys("up")),
 }
 
 // Model is the Bubble Tea model for this text input element.
@@ -152,6 +157,10 @@ type Model struct {
 	suggestions            [][]rune
 	matchedSuggestions     [][]rune
 	currentSuggestionIndex int
+
+	// history of inputs
+	history      [][]rune
+	historyIndex int
 }
 
 // New creates a new model with default settings.
@@ -170,6 +179,9 @@ func New() Model {
 		value:       nil,
 		focus:       false,
 		pos:         0,
+
+		history:      [][]rune{},
+		historyIndex: 0,
 	}
 }
 
@@ -184,6 +196,7 @@ func (m *Model) SetValue(s string) {
 	// caller. This avoids bugs due to e.g. tab characters and whatnot.
 	runes := m.san().Sanitize([]rune(s))
 	err := m.validate(runes)
+	m.SaveHistory()
 	m.setValueInternal(runes, err)
 }
 
@@ -245,12 +258,14 @@ func (m *Model) Focus() tea.Cmd {
 // Blur removes the focus state on the model.  When the model is blurred it can
 // not receive keyboard input and the cursor will be hidden.
 func (m *Model) Blur() {
+	m.SaveHistory()
 	m.focus = false
 	m.Cursor.Blur()
 }
 
 // Reset sets the input to its default state with no input.
 func (m *Model) Reset() {
+	m.SaveHistory()
 	m.value = nil
 	m.SetCursor(0)
 }
@@ -614,6 +629,10 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.nextSuggestion()
 		case key.Matches(msg, m.KeyMap.PrevSuggestion):
 			m.previousSuggestion()
+		case key.Matches(msg, m.KeyMap.NextHistory):
+			m.nextHistory()
+		case key.Matches(msg, m.KeyMap.PrevHistory):
+			m.prevHistory()
 		default:
 			// Input one or more regular characters.
 			m.insertRunesFromUserInput(msg.Runes)
@@ -624,6 +643,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		m.updateSuggestions()
 
 	case pasteMsg:
+		m.SaveHistory()
 		m.insertRunesFromUserInput([]rune(msg))
 
 	case pasteErrMsg:
@@ -898,4 +918,57 @@ func (m Model) validate(v []rune) error {
 		return m.Validate(string(v))
 	}
 	return nil
+}
+
+func (m *Model) SaveHistory() {
+	if len(m.value) == 0 {
+		return
+	}
+
+	if m.EchoMode != EchoNormal {
+		return
+	}
+
+	// XXX: It seems that doing `append(m.history, m.value)` copies a reference
+	// to the value, which leads to all history items being similar.
+	// This is quite surprising given this other test:
+	// https://go.dev/play/p/MZGpcUzSVch
+	newRecord := make([]rune, len(m.value))
+	for i, r := range m.value {
+		newRecord[i] = r
+	}
+
+	m.history = append(m.history, newRecord)
+	m.historyIndex = len(m.history) - 1
+}
+
+func (m Model) History() []string {
+	// TODO: rename getSuggestions to getStrings
+	return m.getSuggestions(m.history)
+}
+
+func (m *Model) nextHistory() {
+	if len(m.history) == 0 {
+		return
+	}
+
+	m.historyIndex = (m.historyIndex + 1)
+	if m.historyIndex > len(m.history)-1 {
+		m.historyIndex = 0
+	}
+
+	m.setValueInternal(m.history[m.historyIndex], nil)
+}
+
+func (m *Model) prevHistory() {
+	if len(m.history) == 0 {
+		return
+	}
+
+	m.historyIndex = (m.historyIndex - 1)
+	if m.historyIndex < 0 {
+		m.historyIndex = len(m.history) - 1
+	}
+
+	m.setValueInternal(m.history[m.historyIndex], nil)
 }
