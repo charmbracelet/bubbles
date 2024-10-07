@@ -7,7 +7,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
+	"sync/atomic"
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
@@ -15,17 +15,10 @@ import (
 	"github.com/dustin/go-humanize"
 )
 
-var (
-	lastID int
-	idMtx  sync.Mutex
-)
+var lastID int64
 
-// Return the next ID we should use on the Model.
 func nextID() int {
-	idMtx.Lock()
-	defer idMtx.Unlock()
-	lastID++
-	return lastID
+	return int(atomic.AddInt64(&lastID, 1))
 }
 
 // New returns a new filepicker model with default styling and key bindings.
