@@ -456,8 +456,10 @@ func (m Model) MatchesForItem(index int) []int {
 	return m.filteredItems[index].matches
 }
 
-// Index returns the index of the currently selected item as it appears in the
-// entire slice of items.
+// Index returns the index of the currently selected item as it is stored in the
+// filtered list of items.
+// Using this value with SetItem() might be incorrect, consider using
+// GlobalIndex() instead.
 func (m Model) Index() int {
 	return m.Paginator.Page*m.Paginator.PerPage + m.cursor
 }
