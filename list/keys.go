@@ -8,8 +8,14 @@ type KeyMap struct {
 	// Keybindings used when browsing the list.
 	CursorUp    key.Binding
 	CursorDown  key.Binding
-	NextPage    key.Binding
-	PrevPage    key.Binding
+	CursorLeft  key.Binding
+	CursorRight key.Binding
+
+	NextPageVertical   key.Binding
+	PrevPageVertical   key.Binding
+	NextPageHorizontal key.Binding
+	PrevPageHorizontal key.Binding
+
 	GoToStart   key.Binding
 	GoToEnd     key.Binding
 	Filter      key.Binding
@@ -42,13 +48,29 @@ func DefaultKeyMap() KeyMap {
 			key.WithKeys("down", "j"),
 			key.WithHelp("↓/j", "down"),
 		),
-		PrevPage: key.NewBinding(
+		CursorLeft: key.NewBinding(
+			key.WithKeys("left", "h"),
+			key.WithHelp("←/h", "left"),
+		),
+		CursorRight: key.NewBinding(
+			key.WithKeys("right", "l"),
+			key.WithHelp("→/l", "right"),
+		),
+		PrevPageVertical: key.NewBinding(
 			key.WithKeys("left", "h", "pgup", "b", "u"),
 			key.WithHelp("←/h/pgup", "prev page"),
 		),
-		NextPage: key.NewBinding(
+		NextPageVertical: key.NewBinding(
 			key.WithKeys("right", "l", "pgdown", "f", "d"),
 			key.WithHelp("→/l/pgdn", "next page"),
+		),
+		PrevPageHorizontal: key.NewBinding(
+			key.WithKeys("up", "k", "pgup", "b", "u"),
+			key.WithHelp("↑/k/pgup", "prev page"),
+		),
+		NextPageHorizontal: key.NewBinding(
+			key.WithKeys("down", "j", "pgdown", "f", "d"),
+			key.WithHelp("↓/j/pgdn", "next page"),
 		),
 		GoToStart: key.NewBinding(
 			key.WithKeys("home", "g"),

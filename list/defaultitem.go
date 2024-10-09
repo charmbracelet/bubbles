@@ -15,16 +15,22 @@ import (
 // See DefaultItemView for when these come into play.
 type DefaultItemStyles struct {
 	// The Normal state.
-	NormalTitle lipgloss.Style
-	NormalDesc  lipgloss.Style
+	NormalTitleVertical   lipgloss.Style
+	NormalDescVertical    lipgloss.Style
+	NormalTitleHorizontal lipgloss.Style
+	NormalDescHorizontal  lipgloss.Style
 
 	// The selected item state.
-	SelectedTitle lipgloss.Style
-	SelectedDesc  lipgloss.Style
+	SelectedTitleVertical   lipgloss.Style
+	SelectedDescVertical    lipgloss.Style
+	SelectedTitleHorizontal lipgloss.Style
+	SelectedDescHorizontal  lipgloss.Style
 
 	// The dimmed state, for when the filter input is initially activated.
-	DimmedTitle lipgloss.Style
-	DimmedDesc  lipgloss.Style
+	DimmedTitleVertical   lipgloss.Style
+	DimmedDescVertical    lipgloss.Style
+	DimmedTitleHorizontal lipgloss.Style
+	DimmedDescHorizontal  lipgloss.Style
 
 	// Characters matching the current filter, if any.
 	FilterMatch lipgloss.Style
@@ -33,27 +39,53 @@ type DefaultItemStyles struct {
 // NewDefaultItemStyles returns style definitions for a default item. See
 // DefaultItemView for when these come into play.
 func NewDefaultItemStyles() (s DefaultItemStyles) {
-	s.NormalTitle = lipgloss.NewStyle().
+	// Vertical Styles
+	s.NormalTitleVertical = lipgloss.NewStyle().
 		Foreground(lipgloss.AdaptiveColor{Light: "#1a1a1a", Dark: "#dddddd"}).
 		Padding(0, 0, 0, 2)
 
-	s.NormalDesc = s.NormalTitle.
+	s.NormalDescVertical = s.NormalTitleVertical.
 		Foreground(lipgloss.AdaptiveColor{Light: "#A49FA5", Dark: "#777777"})
 
-	s.SelectedTitle = lipgloss.NewStyle().
+	s.SelectedTitleVertical = lipgloss.NewStyle().
 		Border(lipgloss.NormalBorder(), false, false, false, true).
 		BorderForeground(lipgloss.AdaptiveColor{Light: "#F793FF", Dark: "#AD58B4"}).
 		Foreground(lipgloss.AdaptiveColor{Light: "#EE6FF8", Dark: "#EE6FF8"}).
 		Padding(0, 0, 0, 1)
 
-	s.SelectedDesc = s.SelectedTitle.
+	s.SelectedDescVertical = s.SelectedTitleVertical.
 		Foreground(lipgloss.AdaptiveColor{Light: "#F793FF", Dark: "#AD58B4"})
 
-	s.DimmedTitle = lipgloss.NewStyle().
+	s.DimmedTitleVertical = lipgloss.NewStyle().
 		Foreground(lipgloss.AdaptiveColor{Light: "#A49FA5", Dark: "#777777"}).
 		Padding(0, 0, 0, 2)
 
-	s.DimmedDesc = s.DimmedTitle.
+	s.DimmedDescVertical = s.DimmedTitleVertical.
+		Foreground(lipgloss.AdaptiveColor{Light: "#C2B8C2", Dark: "#4D4D4D"})
+
+	// Horizontal Styles
+	s.NormalTitleHorizontal = lipgloss.NewStyle().
+		Foreground(lipgloss.AdaptiveColor{Light: "#1a1a1a", Dark: "#dddddd"}).
+		Padding(0, 0, 2, 0)
+
+	s.NormalDescHorizontal = s.NormalTitleHorizontal.
+		Foreground(lipgloss.AdaptiveColor{Light: "#A49FA5", Dark: "#777777"})
+
+	s.SelectedTitleHorizontal = lipgloss.NewStyle().
+		//Border(lipgloss.NormalBorder(), false, false, true, false).
+		Underline(true).
+		BorderForeground(lipgloss.AdaptiveColor{Light: "#F793FF", Dark: "#AD58B4"}).
+		Foreground(lipgloss.AdaptiveColor{Light: "#EE6FF8", Dark: "#EE6FF8"}).
+		Padding(0, 0, 2, 0)
+
+	s.SelectedDescHorizontal = s.SelectedTitleHorizontal.
+		Foreground(lipgloss.AdaptiveColor{Light: "#F793FF", Dark: "#AD58B4"})
+
+	s.DimmedTitleHorizontal = lipgloss.NewStyle().
+		Foreground(lipgloss.AdaptiveColor{Light: "#A49FA5", Dark: "#777777"}).
+		Padding(0, 0, 2, 0)
+
+	s.DimmedDescHorizontal = s.DimmedTitleHorizontal.
 		Foreground(lipgloss.AdaptiveColor{Light: "#C2B8C2", Dark: "#4D4D4D"})
 
 	s.FilterMatch = lipgloss.NewStyle().Underline(true)
@@ -88,6 +120,7 @@ type DefaultDelegate struct {
 	ShortHelpFunc   func() []key.Binding
 	FullHelpFunc    func() [][]key.Binding
 	height          int
+	width           int
 	spacing         int
 }
 
@@ -97,6 +130,7 @@ func NewDefaultDelegate() DefaultDelegate {
 		ShowDescription: true,
 		Styles:          NewDefaultItemStyles(),
 		height:          2,
+		width:           2,
 		spacing:         1,
 	}
 }
@@ -104,6 +138,11 @@ func NewDefaultDelegate() DefaultDelegate {
 // SetHeight sets delegate's preferred height.
 func (d *DefaultDelegate) SetHeight(i int) {
 	d.height = i
+}
+
+// SetWidth sets delegate's preferred width.
+func (d *DefaultDelegate) SetWidth(i int) {
+	d.width = i
 }
 
 // Height returns the delegate's preferred height.
@@ -114,6 +153,11 @@ func (d DefaultDelegate) Height() int {
 		return d.height
 	}
 	return 1
+}
+
+// Width returns the delegate's preferred width.
+func (d DefaultDelegate) Width() int {
+	return d.width
 }
 
 // SetSpacing sets the delegate's spacing.
@@ -154,8 +198,29 @@ func (d DefaultDelegate) Render(w io.Writer, m Model, index int, item Item) {
 		return
 	}
 
+	var (
+		normalTitle, normalDesc,
+		dimmedTitle, dimmedDesc,
+		selectedTitle, selectedDesc lipgloss.Style
+	)
+
+	switch m.orientation {
+	case Vertical:
+		normalTitle = s.NormalTitleVertical
+		dimmedTitle = s.DimmedTitleVertical
+		dimmedDesc = s.DimmedDescVertical
+		selectedTitle = s.SelectedTitleVertical
+		selectedDesc = s.SelectedDescVertical
+	case Horizontal:
+		normalTitle = s.NormalTitleHorizontal
+		dimmedTitle = s.DimmedTitleHorizontal
+		dimmedDesc = s.DimmedDescHorizontal
+		selectedTitle = s.SelectedTitleHorizontal
+		selectedDesc = s.SelectedDescHorizontal
+	}
+
 	// Prevent text from exceeding list width
-	textwidth := m.width - s.NormalTitle.GetPaddingLeft() - s.NormalTitle.GetPaddingRight()
+	textwidth := m.width - normalTitle.GetPaddingLeft() - normalTitle.GetPaddingRight()
 	title = ansi.Truncate(title, textwidth, ellipsis)
 	if d.ShowDescription {
 		var lines []string
@@ -181,26 +246,26 @@ func (d DefaultDelegate) Render(w io.Writer, m Model, index int, item Item) {
 	}
 
 	if emptyFilter {
-		title = s.DimmedTitle.Render(title)
-		desc = s.DimmedDesc.Render(desc)
+		title = dimmedTitle.Render(title)
+		desc = dimmedDesc.Render(desc)
 	} else if isSelected && m.FilterState() != Filtering {
 		if isFiltered {
 			// Highlight matches
-			unmatched := s.SelectedTitle.Inline(true)
+			unmatched := selectedTitle.Inline(true)
 			matched := unmatched.Inherit(s.FilterMatch)
 			title = lipgloss.StyleRunes(title, matchedRunes, matched, unmatched)
 		}
-		title = s.SelectedTitle.Render(title)
-		desc = s.SelectedDesc.Render(desc)
+		title = selectedTitle.Render(title)
+		desc = selectedDesc.Render(desc)
 	} else {
 		if isFiltered {
 			// Highlight matches
-			unmatched := s.NormalTitle.Inline(true)
+			unmatched := normalTitle.Inline(true)
 			matched := unmatched.Inherit(s.FilterMatch)
 			title = lipgloss.StyleRunes(title, matchedRunes, matched, unmatched)
 		}
-		title = s.NormalTitle.Render(title)
-		desc = s.NormalDesc.Render(desc)
+		title = normalTitle.Render(title)
+		desc = normalDesc.Render(desc)
 	}
 
 	if d.ShowDescription {

@@ -42,7 +42,10 @@ type ItemDelegate interface {
 	// Height is the height of the list item.
 	Height() int
 
-	// Spacing is the size of the horizontal gap between list items in cells.
+	// Width is the width of the list item.
+	Width() int
+
+	// Spacing is the size of the horizontal / vertical gap between list items in cells.
 	Spacing() int
 
 	// Update is the update loop for items. All messages in the list's update
@@ -134,6 +137,14 @@ func (f FilterState) String() string {
 	}[f]
 }
 
+// Orientation describes the orientation of the list.
+type Orientation int
+
+const (
+	Vertical Orientation = iota
+	Horizontal
+)
+
 // Model contains the state of this component.
 type Model struct {
 	showTitle        bool
@@ -192,6 +203,8 @@ type Model struct {
 	filteredItems filteredItems
 
 	delegate ItemDelegate
+
+	orientation Orientation
 }
 
 // New returns a new model with sensible defaults.
@@ -351,6 +364,13 @@ func (m Model) StatusBarItemName() (string, string) {
 func (m *Model) SetShowPagination(v bool) {
 	m.showPagination = v
 	m.updatePagination()
+}
+
+// SetOrientation sets the orientation of the list.
+func (m *Model) SetOrientation(v Orientation) {
+	m.orientation = v
+	m.updatePagination()
+	m.updateKeybindings()
 }
 
 // ShowPagination returns whether the pagination is visible.
@@ -709,10 +729,15 @@ func (m Model) itemsAsFilterItems() filteredItems {
 func (m *Model) updateKeybindings() {
 	switch m.filterState {
 	case Filtering:
+
 		m.KeyMap.CursorUp.SetEnabled(false)
 		m.KeyMap.CursorDown.SetEnabled(false)
-		m.KeyMap.NextPage.SetEnabled(false)
-		m.KeyMap.PrevPage.SetEnabled(false)
+		m.KeyMap.CursorLeft.SetEnabled(false)
+		m.KeyMap.CursorRight.SetEnabled(false)
+		m.KeyMap.NextPageVertical.SetEnabled(false)
+		m.KeyMap.PrevPageVertical.SetEnabled(false)
+		m.KeyMap.NextPageHorizontal.SetEnabled(false)
+		m.KeyMap.PrevPageHorizontal.SetEnabled(false)
 		m.KeyMap.GoToStart.SetEnabled(false)
 		m.KeyMap.GoToEnd.SetEnabled(false)
 		m.KeyMap.Filter.SetEnabled(false)
@@ -725,12 +750,17 @@ func (m *Model) updateKeybindings() {
 
 	default:
 		hasItems := len(m.items) != 0
-		m.KeyMap.CursorUp.SetEnabled(hasItems)
-		m.KeyMap.CursorDown.SetEnabled(hasItems)
+		m.KeyMap.CursorUp.SetEnabled(hasItems && m.orientation == Vertical)
+		m.KeyMap.CursorDown.SetEnabled(hasItems && m.orientation == Vertical)
+
+		m.KeyMap.CursorLeft.SetEnabled(hasItems && m.orientation == Horizontal)
+		m.KeyMap.CursorRight.SetEnabled(hasItems && m.orientation == Horizontal)
 
 		hasPages := m.Paginator.TotalPages > 1
-		m.KeyMap.NextPage.SetEnabled(hasPages)
-		m.KeyMap.PrevPage.SetEnabled(hasPages)
+		m.KeyMap.NextPageVertical.SetEnabled(hasPages && m.orientation == Vertical)
+		m.KeyMap.PrevPageVertical.SetEnabled(hasPages && m.orientation == Vertical)
+		m.KeyMap.NextPageHorizontal.SetEnabled(hasPages && m.orientation == Horizontal)
+		m.KeyMap.PrevPageHorizontal.SetEnabled(hasPages && m.orientation == Horizontal)
 
 		m.KeyMap.GoToStart.SetEnabled(hasItems)
 		m.KeyMap.GoToEnd.SetEnabled(hasItems)
@@ -755,22 +785,27 @@ func (m *Model) updateKeybindings() {
 // Update pagination according to the amount of items for the current state.
 func (m *Model) updatePagination() {
 	index := m.Index()
-	availHeight := m.height
 
-	if m.showTitle || (m.showFilter && m.filteringEnabled) {
-		availHeight -= lipgloss.Height(m.titleView())
-	}
-	if m.showStatusBar {
-		availHeight -= lipgloss.Height(m.statusView())
-	}
-	if m.showPagination {
-		availHeight -= lipgloss.Height(m.paginationView())
-	}
-	if m.showHelp {
-		availHeight -= lipgloss.Height(m.helpView())
-	}
+	switch m.orientation {
+	case Vertical:
+		availHeight := m.height
+		if m.showTitle || (m.showFilter && m.filteringEnabled) {
+			availHeight -= lipgloss.Height(m.titleView())
+		}
+		if m.showStatusBar {
+			availHeight -= lipgloss.Height(m.statusView())
+		}
+		if m.showPagination {
+			availHeight -= lipgloss.Height(m.paginationView())
+		}
+		if m.showHelp {
+			availHeight -= lipgloss.Height(m.helpView())
+		}
 
-	m.Paginator.PerPage = max(1, availHeight/(m.delegate.Height()+m.delegate.Spacing()))
+		m.Paginator.PerPage = max(1, availHeight/(m.delegate.Height()+m.delegate.Spacing()))
+	case Horizontal:
+		m.Paginator.PerPage = max(1, m.width/(m.delegate.Width()+m.delegate.Spacing()))
+	}
 
 	if pages := len(m.VisibleItems()); pages < 1 {
 		m.Paginator.SetTotalPages(1)
@@ -845,16 +880,16 @@ func (m *Model) handleBrowsing(msg tea.Msg) tea.Cmd {
 		case key.Matches(msg, m.KeyMap.Quit):
 			return tea.Quit
 
-		case key.Matches(msg, m.KeyMap.CursorUp):
+		case key.Matches(msg, m.KeyMap.CursorUp, m.KeyMap.CursorLeft):
 			m.CursorUp()
 
-		case key.Matches(msg, m.KeyMap.CursorDown):
+		case key.Matches(msg, m.KeyMap.CursorDown, m.KeyMap.CursorRight):
 			m.CursorDown()
 
-		case key.Matches(msg, m.KeyMap.PrevPage):
+		case key.Matches(msg, m.KeyMap.PrevPageVertical, m.KeyMap.PrevPageHorizontal):
 			m.Paginator.PrevPage()
 
-		case key.Matches(msg, m.KeyMap.NextPage):
+		case key.Matches(msg, m.KeyMap.NextPageVertical, m.KeyMap.NextPageHorizontal):
 			m.Paginator.NextPage()
 
 		case key.Matches(msg, m.KeyMap.GoToStart):
@@ -957,9 +992,19 @@ func (m *Model) handleFiltering(msg tea.Msg) tea.Cmd {
 // ShortHelp returns bindings to show in the abbreviated help view. It's part
 // of the help.KeyMap interface.
 func (m Model) ShortHelp() []key.Binding {
-	kb := []key.Binding{
-		m.KeyMap.CursorUp,
-		m.KeyMap.CursorDown,
+	kb := []key.Binding{}
+
+	switch m.orientation {
+	case Vertical:
+		kb = append(kb,
+			m.KeyMap.CursorUp,
+			m.KeyMap.CursorDown,
+		)
+	case Horizontal:
+		kb = append(kb,
+			m.KeyMap.CursorLeft,
+			m.KeyMap.CursorRight,
+		)
 	}
 
 	filtering := m.filterState == Filtering
@@ -992,14 +1037,29 @@ func (m Model) ShortHelp() []key.Binding {
 // FullHelp returns bindings to show the full help view. It's part of the
 // help.KeyMap interface.
 func (m Model) FullHelp() [][]key.Binding {
-	kb := [][]key.Binding{{
-		m.KeyMap.CursorUp,
-		m.KeyMap.CursorDown,
-		m.KeyMap.NextPage,
-		m.KeyMap.PrevPage,
+	kb := [][]key.Binding{{}}
+
+	switch m.orientation {
+	case Vertical:
+		kb[0] = append(kb[0],
+			m.KeyMap.CursorUp,
+			m.KeyMap.CursorDown,
+			m.KeyMap.NextPageVertical,
+			m.KeyMap.PrevPageVertical,
+		)
+	case Horizontal:
+		kb[0] = append(kb[0],
+			m.KeyMap.CursorLeft,
+			m.KeyMap.CursorRight,
+			m.KeyMap.NextPageHorizontal,
+			m.KeyMap.PrevPageHorizontal,
+		)
+	}
+
+	kb[0] = append(kb[0],
 		m.KeyMap.GoToStart,
 		m.KeyMap.GoToEnd,
-	}}
+	)
 
 	filtering := m.filterState == Filtering
 
@@ -1208,12 +1268,29 @@ func (m Model) populatedView() string {
 	if len(items) > 0 {
 		start, end := m.Paginator.GetSliceBounds(len(items))
 		docs := items[start:end]
+		renderedItems := make([]string, 0, len(docs)*2)
+		var spacer string
+		switch m.orientation {
+		case Vertical:
+			spacer = strings.Repeat("\n", m.delegate.Spacing()+1)
+		case Horizontal:
+			spacer = strings.Repeat(" ", m.delegate.Spacing()+1)
+		}
 
 		for i, item := range docs {
-			m.delegate.Render(&b, m, i+start, item)
+			var itemBuilder strings.Builder
+			m.delegate.Render(&itemBuilder, m, i+start, item)
+			renderedItems = append(renderedItems, itemBuilder.String())
 			if i != len(docs)-1 {
-				fmt.Fprint(&b, strings.Repeat("\n", m.delegate.Spacing()+1))
+				renderedItems = append(renderedItems, spacer)
 			}
+		}
+
+		switch m.orientation {
+		case Horizontal:
+			b.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, renderedItems...))
+		case Vertical:
+			b.WriteString(lipgloss.JoinVertical(lipgloss.Left, renderedItems...))
 		}
 	}
 
@@ -1222,11 +1299,21 @@ func (m Model) populatedView() string {
 	// have been.
 	itemsOnPage := m.Paginator.ItemsOnPage(len(items))
 	if itemsOnPage < m.Paginator.PerPage {
-		n := (m.Paginator.PerPage - itemsOnPage) * (m.delegate.Height() + m.delegate.Spacing())
-		if len(items) == 0 {
-			n -= m.delegate.Height() - 1
+		switch m.orientation {
+		case Vertical:
+			n := (m.Paginator.PerPage - itemsOnPage) * (m.delegate.Height() + m.delegate.Spacing())
+			if len(items) == 0 {
+				n -= m.delegate.Height() - 1
+			}
+			fmt.Fprint(&b, strings.Repeat("\n", n))
+		case Horizontal:
+			n := (m.Paginator.PerPage - itemsOnPage) * (m.delegate.Width() + m.delegate.Spacing())
+			if len(items) == 0 {
+				n -= m.delegate.Width() - 1
+			}
+
+			fmt.Fprint(&b, strings.Repeat(" ", n))
 		}
-		fmt.Fprint(&b, strings.Repeat("\n", n))
 	}
 
 	return b.String()

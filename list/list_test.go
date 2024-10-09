@@ -17,6 +17,7 @@ func (i item) FilterValue() string { return string(i) }
 type itemDelegate struct{}
 
 func (d itemDelegate) Height() int                          { return 1 }
+func (d itemDelegate) Width() int                           { return 1 }
 func (d itemDelegate) Spacing() int                         { return 0 }
 func (d itemDelegate) Update(msg tea.Msg, m *Model) tea.Cmd { return nil }
 func (d itemDelegate) Render(w io.Writer, m Model, index int, listItem Item) {
@@ -133,5 +134,37 @@ func TestSetFilterState(t *testing.T) {
 
 	if !strings.Contains(footer, expected) {
 		t.Fatalf("Error: expected view to contain '%s'", expected)
+	}
+}
+
+func TestSetOrientation(t *testing.T) {
+	tc := []Item{item("foo"), item("bar"), item("baz")}
+
+	list := New(tc, itemDelegate{}, 10, 10)
+	list.SetShowStatusBar(false)
+	list.SetShowPagination(false)
+	list.SetShowHelp(false)
+	list.SetShowTitle(false)
+
+	expected := `1. foo
+        
+  2. bar
+        
+  3. baz`
+
+	got := strings.TrimSpace(list.View())
+	if got != expected {
+		fmt.Println(got)
+		t.Fatalf("Error: expected view to be \n'%s'. was: \n'%s'", expected, got)
+	}
+
+	list.SetOrientation(Horizontal)
+
+	expected = `1. foo  2. bar  3. baz`
+
+	got = strings.TrimSpace(list.View())
+	if got != expected {
+		fmt.Println(got)
+		t.Fatalf("Error: expected view to be \n'%s'. was: \n'%s'", expected, got)
 	}
 }
