@@ -53,6 +53,7 @@ type ItemDelegate interface {
 }
 
 type filteredItem struct {
+	index   int   // index in the unfiltered list
 	item    Item  // item matched
 	matches []int // rune indices of matched items
 }
@@ -484,10 +485,24 @@ func (m Model) MatchesForItem(index int) []int {
 	return m.filteredItems[index].matches
 }
 
-// Index returns the index of the currently selected item as it appears in the
-// entire slice of items.
+// Index returns the index of the currently selected item as it is stored in the
+// filtered list of items.
+// Using this value with SetItem() might be incorrect, consider using
+// GlobalIndex() instead.
 func (m Model) Index() int {
 	return m.Paginator.Page*m.Paginator.PerPage + m.cursor
+}
+
+// GlobalIndex returns the index of the currently selected item as it is stored
+// in the unfiltered list of items. This value can be used with SetItem().
+func (m Model) GlobalIndex() int {
+	index := m.Index()
+
+	if m.filteredItems == nil || index >= len(m.filteredItems) {
+		return index
+	}
+
+	return m.filteredItems[index].index
 }
 
 // Cursor returns the index of the cursor on the current page.
@@ -1256,6 +1271,7 @@ func filterItems(m Model) tea.Cmd {
 		filterMatches := []filteredItem{}
 		for _, r := range m.Filter(m.FilterInput.Value(), targets) {
 			filterMatches = append(filterMatches, filteredItem{
+				index:   r.Index,
 				item:    items[r.Index],
 				matches: r.MatchedIndexes,
 			})
