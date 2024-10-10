@@ -9,7 +9,7 @@ require (
 	github.com/charmbracelet/harmonica v0.2.0
 	github.com/charmbracelet/lipgloss v0.13.0
 	github.com/charmbracelet/x/ansi v0.3.2
-	github.com/charmbracelet/x/exp/golden v0.0.0-20240815200342-61de596daa2b
+	github.com/charmbracelet/x/exp/golden v0.0.0-20241011142426-46044092ad91
 	github.com/dustin/go-humanize v1.0.1
 	github.com/lucasb-eyer/go-colorful v1.2.0
 	github.com/mattn/go-runewidth v0.0.16
