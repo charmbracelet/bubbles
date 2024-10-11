@@ -61,7 +61,7 @@ func NewDefaultItemStyles() (s DefaultItemStyles) {
 	return s
 }
 
-// DefaultItem describes an items designed to work with DefaultDelegate.
+// DefaultItem describes an item designed to work with DefaultDelegate.
 type DefaultItem interface {
 	Item
 	Title() string

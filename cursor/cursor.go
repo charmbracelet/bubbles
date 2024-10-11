@@ -101,6 +101,13 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		cmd := m.BlinkCmd()
 		return m, cmd
 
+	case tea.FocusMsg:
+		return m, m.Focus()
+
+	case tea.BlurMsg:
+		m.Blur()
+		return m, nil
+
 	case BlinkMsg:
 		// We're choosy about whether to accept blinkMsgs so that our cursor
 		// only exactly when it should.

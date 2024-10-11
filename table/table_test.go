@@ -1,10 +1,11 @@
 package table
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
+	"github.com/charmbracelet/x/exp/golden"
 )
 
 func TestFromValues(t *testing.T) {
@@ -58,13 +59,11 @@ func deepEqual(a, b []Row) bool {
 	return true
 }
 
-var (
-	cols = []Column{
-		{Title: "col1", Width: 10},
-		{Title: "col2", Width: 10},
-		{Title: "col3", Width: 10},
-	}
-)
+var cols = []Column{
+	{Title: "col1", Width: 10},
+	{Title: "col2", Width: 10},
+	{Title: "col3", Width: 10},
+}
 
 func TestRenderRow(t *testing.T) {
 	tests := []struct {
@@ -109,33 +108,52 @@ func TestRenderRow(t *testing.T) {
 		})
 	}
 }
-func TestRenderRowStyleFunc(t *testing.T) {
-	tests := []struct {
-		name     string
-		table    *Model
-		expected string
-	}{
-		{
-			name: "simple row",
-			table: &Model{
-				rows: []Row{{"Foooooo", "Baaaaar", "Baaaaaz"}},
-				cols: cols,
-				styleFunc: func(row, col int, value string) lipgloss.Style {
-					if strings.HasSuffix(value, "z") {
-						return lipgloss.NewStyle().Transform(strings.ToLower)
-					}
-					return lipgloss.NewStyle().Transform(strings.ToUpper)
-				},
-			},
-			expected: "FOOOOOO   BAAAAAR   baaaaaz   ",
-		},
-	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			row := tc.table.renderRow(0)
-			if row != tc.expected {
-				t.Fatalf("\n\nWant: \n%s\n\nGot:  \n%s\n", tc.expected, row)
-			}
-		})
-	}
+
+func TestTableAlignment(t *testing.T) {
+	t.Run("No border", func(t *testing.T) {
+		biscuits := New(
+			WithHeight(5),
+			WithColumns([]Column{
+				{Title: "Name", Width: 25},
+				{Title: "Country of Origin", Width: 16},
+				{Title: "Dunk-able", Width: 12},
+			}),
+			WithRows([]Row{
+				{"Chocolate Digestives", "UK", "Yes"},
+				{"Tim Tams", "Australia", "No"},
+				{"Hobnobs", "UK", "Yes"},
+			}),
+		)
+		got := ansi.Strip(biscuits.View())
+		golden.RequireEqual(t, []byte(got))
+	})
+	t.Run("With border", func(t *testing.T) {
+		baseStyle := lipgloss.NewStyle().
+			BorderStyle(lipgloss.NormalBorder()).
+			BorderForeground(lipgloss.Color("240"))
+
+		s := DefaultStyles()
+		s.Header = s.Header.
+			BorderStyle(lipgloss.NormalBorder()).
+			BorderForeground(lipgloss.Color("240")).
+			BorderBottom(true).
+			Bold(false)
+
+		biscuits := New(
+			WithHeight(5),
+			WithColumns([]Column{
+				{Title: "Name", Width: 25},
+				{Title: "Country of Origin", Width: 16},
+				{Title: "Dunk-able", Width: 12},
+			}),
+			WithRows([]Row{
+				{"Chocolate Digestives", "UK", "Yes"},
+				{"Tim Tams", "Australia", "No"},
+				{"Hobnobs", "UK", "Yes"},
+			}),
+			WithStyles(s),
+		)
+		got := ansi.Strip(baseStyle.Render(biscuits.View()))
+		golden.RequireEqual(t, []byte(got))
+	})
 }
