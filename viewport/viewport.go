@@ -102,7 +102,25 @@ func (m Model) ScrollPercent() float64 {
 // SetContent set the pager's text content.
 func (m *Model) SetContent(s string) {
 	s = strings.ReplaceAll(s, "\r\n", "\n") // normalize line endings
-	m.lines = strings.Split(s, "\n")
+	
+	m.lines = []string{} // reset lines
+	
+	// split each line if it exceeds width then append line to m.lines
+	for _, line := range strings.Split(s, "\n") {
+		if len(line) < m.Width {
+			m.lines = append(m.lines, line)
+			continue
+		}
+
+		for j := 0; j < (len(line)); j += m.Width {
+			if j + m.Width > len(line) {
+				m.lines = append(m.lines, line[j:])
+				break
+			}
+
+			m.lines = append(m.lines, line[j:j+m.Width])
+		}
+	}
 
 	if m.YOffset > len(m.lines)-1 {
 		m.GotoBottom()
