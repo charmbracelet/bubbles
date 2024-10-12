@@ -423,7 +423,7 @@ func wrap(lines []string, width int) []string {
 		// wrap lines (handles lines that could not be word wrapped)
 		wrap := ansi.Hardwrap(wrapWords, width, true)
 		// split string by new lines
-		wrapLines := strings.Split(strings.TrimSpace(wrap), "\n")
+		wrapLines := strings.Split(wrap, "\n")
 
 		out = append(out, wrapLines...)
 	}

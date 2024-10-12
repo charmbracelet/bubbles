@@ -31,6 +31,11 @@ func TestWrap(t *testing.T) {
 			width: 12,
 			want:  []string{"hello bob, I", "like yogurt", "in the", "mornings."},
 		},
+		"whitespace of head of line is preserved": {
+			lines: []string{" aaa", "bbb", "ccc"},
+			width: 5,
+			want:  []string{" aaa", "bbb", "ccc"},
+		},
 	}
 
 	for name, tt := range tests {
@@ -42,7 +47,7 @@ func TestWrap(t *testing.T) {
 			}
 			for i := range tt.want {
 				if tt.want[i] != got[i] {
-					t.Fatalf("expected %s but got %s", tt.want[i], got[i])
+					t.Fatalf("expected %q but got %q", tt.want[i], got[i])
 				}
 			}
 		})
