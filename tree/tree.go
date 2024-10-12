@@ -1,6 +1,8 @@
 package tree
 
 import (
+	"fmt"
+
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	ltree "github.com/charmbracelet/lipgloss/tree"
@@ -30,6 +32,7 @@ func DefaultStyles() (s Styles) {
 type KeyMap struct {
 	Down key.Binding
 	Up   key.Binding
+	Quit key.Binding
 }
 
 // DefaultKeyMap is the default set of key bindings for navigating and acting
@@ -37,78 +40,184 @@ type KeyMap struct {
 var DefaultKeyMap = KeyMap{
 	Down: key.NewBinding(key.WithKeys("down", "j", "ctrl+n"), key.WithHelp("down", "next line")),
 	Up:   key.NewBinding(key.WithKeys("up", "k", "ctrl+p"), key.WithHelp("up", "previous line")),
+	Quit: key.NewBinding(key.WithKeys("q", "ctrl+c"), key.WithHelp("q", "quit")),
 }
 
 // Model is the Bubble Tea model for this tree element.
 type Model struct {
-	tree *Tree
+	root *Item
 	// KeyMap encodes the keybindings recognized by the widget.
 	KeyMap KeyMap
 
 	// Styles sets the styling for the tree
 	Styles Styles
 
-	// selectedValue is the value of the selected node.
-	selectedValue string
-}
-
-// Leaf is a node without children.
-type Leaf struct {
-	ltree.Leaf
+	// yOffset is the vertical offset of the selected node.
+	yOffset int
 }
 
 // Tree is a node with children
-type Tree struct {
-	*ltree.Tree
+type Item struct {
+	tree    *ltree.Tree
+	yOffset int
+
+	// TODO: move to lipgloss.Tree?
+	size int
+}
+
+func (t *Item) String() string {
+	return t.tree.String()
+}
+
+// nolint
+func (t *Item) Value() string {
+	return t.tree.Value()
+}
+
+// nolint
+func (t *Item) Children() ltree.Children {
+	return t.tree.Children()
+}
+
+// nolint
+func (t *Item) Hidden() bool {
+	return t.tree.Hidden()
+}
+
+// nolint
+// TODO: add ItemStyleFunc to the Node interface?
+func (t *Item) ItemStyleFunc(f func(children ltree.Children, i int) lipgloss.Style) *Item {
+	t.tree.ItemStyleFunc(f)
+	return t
+}
+
+// nolint
+func (t *Item) RootStyle(style lipgloss.Style) *Item {
+	t.tree.RootStyle(style)
+	return t
+}
+
+// nolint
+func (t *Item) Child(child any) *Item {
+	item := new(Item)
+	item.tree = ltree.Root(child)
+	switch child := child.(type) {
+	case *Item:
+		t.size = t.size + child.size
+		t.tree.Child(child)
+	default:
+		item.size = 1
+		t.size = t.size + item.size
+		t.tree.Child(item)
+	}
+
+	return t
+}
+
+// nolint
+func Root(root any) *Item {
+	t := new(Item)
+	t.size = 1
+	t.tree = ltree.Root(root)
+	return t
+}
+
+func updateStyles(t *Item, itemStyleFunc ltree.StyleFunc) {
+	t.ItemStyleFunc(itemStyleFunc)
+	children := t.tree.Children()
+	for i := 0; i < children.Length(); i++ {
+		child := children.At(i)
+		if child, ok := child.(*Item); ok {
+			child.ItemStyleFunc(itemStyleFunc)
+			updateStyles(child, itemStyleFunc)
+		}
+	}
 }
 
 // New creates a new model with default settings.
-func New() Model {
-	t := ltree.New()
+func New(t *Item) Model {
 	m := Model{
-		tree:          &Tree{t},
-		KeyMap:        DefaultKeyMap,
-		Styles:        DefaultStyles(),
-		selectedValue: t.Value(),
+		root:   t,
+		KeyMap: DefaultKeyMap,
+		Styles: DefaultStyles(),
 	}
-	t.ItemStyleFunc(m.selectedNodeStyle()).RootStyle(m.nodeStyle(t))
+	t.size = calcAttributes(t)
+	m.updateStyles()
 	return m
 }
 
-// Root sets the root value of this tree.
-func (m *Model) Root(root any) *Model {
-	m.tree.Root(root)
-	return m
+func calcAttributes(t *Item) int {
+	size := 1
+	children := t.tree.Children()
+	for i := 0; i < children.Length(); i++ {
+		child := children.At(i)
+		if child, ok := child.(*Item); ok {
+			size = size + child.size
+		}
+	}
+
+	setYOffsets(t)
+	return size
 }
 
-// Root sets the root value of this tree.
-func (m *Model) Child(child any) *Model {
-	m.tree.Child(child)
-	return m
+func setYOffsets(t *Item) {
+	children := t.tree.Children()
+	for i := 0; i < children.Length(); i++ {
+		child := children.At(i)
+		if child, ok := child.(*Item); ok {
+			child.yOffset = t.yOffset + i + 1
+			setYOffsets(child)
+		}
+	}
 }
 
-func (m Model) selectedNodeStyle() func(children ltree.Children, i int) lipgloss.Style {
+// YOffset returns the vertical offset of the selected node.
+// Useful for scrolling to the selected node using a viewport.
+func (m *Model) YOffset() int {
+	return m.yOffset
+}
+
+func (m *Model) selectedNodeStyle() ltree.StyleFunc {
 	return func(children ltree.Children, i int) lipgloss.Style {
 		child := children.At(i)
 		return m.nodeStyle(child)
 	}
 }
 
-func (m Model) nodeStyle(node ltree.Node) lipgloss.Style {
-	st := lipgloss.NewStyle().MaxHeight(1)
-	if node.Value() == m.selectedValue {
-		st = m.Styles.SelectedNode
+func (m *Model) nodeStyle(node ltree.Node) lipgloss.Style {
+	switch node := node.(type) {
+	case *Item:
+		if node.yOffset == m.yOffset {
+			return m.Styles.SelectedNode
+		}
 	}
-	return st
+	return lipgloss.NewStyle().Foreground(lipgloss.Color("1")).MaxHeight(1)
+}
+
+func (m *Model) updateStyles() {
+	// TODO: add RootStyleFunc to the Node interface?
+	m.root.RootStyle(m.nodeStyle(m.root))
+	updateStyles(m.root, m.selectedNodeStyle())
 }
 
 // Update is the Bubble Tea update loop.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
-	switch msg.(type) {
+	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		return m, tea.Quit
+		switch {
+		case key.Matches(msg, m.KeyMap.Down):
+			// TODO: check boundaries
+			m.yOffset = m.yOffset + 1
+			m.updateStyles()
+		case key.Matches(msg, m.KeyMap.Up):
+			// TODO: check boundaries
+			m.yOffset = m.yOffset - 1
+			m.updateStyles()
+		case key.Matches(msg, m.KeyMap.Quit):
+			return m, tea.Quit
+		}
 	}
 
 	return m, tea.Batch(cmds...)
@@ -116,9 +225,28 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 // View renders the component.
 func (m Model) View() string {
-	return lipgloss.JoinHorizontal(
+	s := fmt.Sprintf("yOffset: %d\n", m.yOffset)
+
+	debug := printDebugInfo(m.root)
+
+	t := lipgloss.JoinHorizontal(
 		lipgloss.Top,
+		lipgloss.NewStyle().Faint(true).MarginRight(1).Render(debug),
 		m.Styles.SelectionCursor.Render("> "),
-		m.tree.String(),
+		m.root.String(),
 	)
+	return lipgloss.JoinVertical(lipgloss.Left, s, t)
+}
+
+func printDebugInfo(t *Item) string {
+	debug := fmt.Sprintf("size=%d yOffset=%d", t.size, t.yOffset)
+	children := t.Children()
+	for i := 0; i < children.Length(); i++ {
+		child := children.At(i)
+		if child, ok := child.(*Item); ok {
+			debug = debug + "\n" + printDebugInfo(child)
+		}
+	}
+
+	return debug
 }
