@@ -92,6 +92,13 @@ func (t *Item) ItemStyleFunc(f func(children ltree.Children, i int) lipgloss.Sty
 }
 
 // nolint
+// TODO: add ItemStyleFunc to the Node interface?
+func (t *Item) EnumeratorStyleFunc(f func(children ltree.Children, i int) lipgloss.Style) *Item {
+	t.tree.EnumeratorStyleFunc(f)
+	return t
+}
+
+// nolint
 func (t *Item) RootStyle(style lipgloss.Style) *Item {
 	t.tree.RootStyle(style)
 	return t
@@ -124,14 +131,6 @@ func Root(root any) *Item {
 
 func updateStyles(t *Item, itemStyleFunc ltree.StyleFunc) {
 	t.ItemStyleFunc(itemStyleFunc)
-	children := t.tree.Children()
-	for i := 0; i < children.Length(); i++ {
-		child := children.At(i)
-		if child, ok := child.(*Item); ok {
-			child.ItemStyleFunc(itemStyleFunc)
-			updateStyles(child, itemStyleFunc)
-		}
-	}
 }
 
 // New creates a new model with default settings.
@@ -147,26 +146,28 @@ func New(t *Item) Model {
 }
 
 func calcAttributes(t *Item) int {
-	size := 1
+	rootSize := 1
 	children := t.tree.Children()
 	for i := 0; i < children.Length(); i++ {
 		child := children.At(i)
 		if child, ok := child.(*Item); ok {
-			size = size + child.size
+			rootSize = rootSize + child.size
 		}
 	}
 
 	setYOffsets(t)
-	return size
+	return rootSize
 }
 
 func setYOffsets(t *Item) {
 	children := t.tree.Children()
+	above := 0
 	for i := 0; i < children.Length(); i++ {
 		child := children.At(i)
 		if child, ok := child.(*Item); ok {
-			child.yOffset = t.yOffset + i + 1
+			child.yOffset = t.yOffset + above + i + 1
 			setYOffsets(child)
+			above += child.size - 1
 		}
 	}
 }
@@ -208,18 +209,16 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, m.KeyMap.Down):
-			// TODO: check boundaries
-			m.yOffset = m.yOffset + 1
-			m.updateStyles()
+			m.yOffset = min(m.root.size-1, m.yOffset+1)
 		case key.Matches(msg, m.KeyMap.Up):
-			// TODO: check boundaries
-			m.yOffset = m.yOffset - 1
-			m.updateStyles()
+			m.yOffset = max(0, m.yOffset-1)
 		case key.Matches(msg, m.KeyMap.Quit):
 			return m, tea.Quit
 		}
 	}
 
+	// not sure why, but I think m.yOffset is captured in the closure, so we need to update the styles
+	m.updateStyles()
 	return m, tea.Batch(cmds...)
 }
 
@@ -227,17 +226,29 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 func (m Model) View() string {
 	s := fmt.Sprintf("yOffset: %d\n", m.yOffset)
 
+	// TODO: remove
 	debug := printDebugInfo(m.root)
+
+	cursor := ""
+	for i := 0; i < m.root.size; i++ {
+		if i == m.yOffset {
+			cursor = cursor + m.Styles.SelectedNode.Render("> ")
+		} else {
+			cursor = cursor + "  "
+		}
+		cursor = cursor + "\n"
+	}
 
 	t := lipgloss.JoinHorizontal(
 		lipgloss.Top,
 		lipgloss.NewStyle().Faint(true).MarginRight(1).Render(debug),
-		m.Styles.SelectionCursor.Render("> "),
+		cursor,
 		m.root.String(),
 	)
 	return lipgloss.JoinVertical(lipgloss.Left, s, t)
 }
 
+// TODO: remove
 func printDebugInfo(t *Item) string {
 	debug := fmt.Sprintf("size=%d yOffset=%d", t.size, t.yOffset)
 	children := t.Children()
@@ -249,4 +260,18 @@ func printDebugInfo(t *Item) string {
 	}
 
 	return debug
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }
