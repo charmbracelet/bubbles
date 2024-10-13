@@ -30,17 +30,19 @@ func DefaultStyles() (s Styles) {
 
 // KeyMap is the key bindings for different actions within the tree.
 type KeyMap struct {
-	Down key.Binding
-	Up   key.Binding
-	Quit key.Binding
+	Down   key.Binding
+	Up     key.Binding
+	Toggle key.Binding
+	Quit   key.Binding
 }
 
 // DefaultKeyMap is the default set of key bindings for navigating and acting
 // upon the tree.
 var DefaultKeyMap = KeyMap{
-	Down: key.NewBinding(key.WithKeys("down", "j", "ctrl+n"), key.WithHelp("down", "next line")),
-	Up:   key.NewBinding(key.WithKeys("up", "k", "ctrl+p"), key.WithHelp("up", "previous line")),
-	Quit: key.NewBinding(key.WithKeys("q", "ctrl+c"), key.WithHelp("q", "quit")),
+	Down:   key.NewBinding(key.WithKeys("down", "j", "ctrl+n"), key.WithHelp("down", "next line")),
+	Up:     key.NewBinding(key.WithKeys("up", "k", "ctrl+p"), key.WithHelp("up", "previous line")),
+	Toggle: key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "toggle")),
+	Quit:   key.NewBinding(key.WithKeys("q", "ctrl+c"), key.WithHelp("q", "quit")),
 }
 
 // Model is the Bubble Tea model for this tree element.
@@ -58,20 +60,40 @@ type Model struct {
 
 // Tree is a node with children
 type Item struct {
-	tree    *ltree.Tree
-	yOffset int
+	name string
+
+	// tree is used as the renderer layer
+	tree       *ltree.Tree
+	yOffset    int
+	expandable bool
+	open       bool
 
 	// TODO: move to lipgloss.Tree?
 	size int
 }
 
+// Use to print the Item's tree
 func (t *Item) String() string {
-	return t.tree.String()
+	if t.tree == nil {
+		return t.name
+	}
+	// t.tree != nil only for the root node, why?
+	if t.open {
+		return "▼ " + t.tree.String()
+	}
+	return "▶ " + t.tree.String()
 }
 
-// nolint
+// Returns the name of the Item
+// Value is not called on the root node, why?
 func (t *Item) Value() string {
-	return t.tree.Value()
+	if t.expandable {
+		if t.open {
+			return "▼ " + t.name
+		}
+		return "▶ " + t.name
+	}
+	return t.name
 }
 
 // nolint
@@ -104,17 +126,37 @@ func (t *Item) RootStyle(style lipgloss.Style) *Item {
 	return t
 }
 
+type expandable struct {
+	name string
+	open bool
+}
+
+func (e expandable) String() string {
+	if e.open {
+		return "▼ " + e.name
+	}
+	return "▶ " + e.name
+}
+
 // nolint
 func (t *Item) Child(child any) *Item {
 	item := new(Item)
-	item.tree = ltree.Root(child)
+	item.tree = ltree.Root(item)
 	switch child := child.(type) {
 	case *Item:
+		item.name = child.name
 		t.size = t.size + child.size
+		t.open = t.size > 1
 		t.tree.Child(child)
 	default:
+		item.name = child.(string)
 		item.size = 1
+		item.open = false
 		t.size = t.size + item.size
+		t.open = t.size > 1
+		// leaf exists so we can have a custom string method - so only for rendering the name
+		// otherwise we need have a Node
+		// t.tree.Child(leaf{child.(string)})
 		t.tree.Child(item)
 	}
 
@@ -124,8 +166,11 @@ func (t *Item) Child(child any) *Item {
 // nolint
 func Root(root any) *Item {
 	t := new(Item)
+	t.name = root.(string)
 	t.size = 1
-	t.tree = ltree.Root(root)
+	t.open = true
+	t.expandable = true
+	t.tree = ltree.Root(t)
 	return t
 }
 
@@ -140,23 +185,25 @@ func New(t *Item) Model {
 		KeyMap: DefaultKeyMap,
 		Styles: DefaultStyles(),
 	}
-	t.size = calcAttributes(t)
+	setAttributes(t)
 	m.updateStyles()
 	return m
 }
 
-func calcAttributes(t *Item) int {
-	rootSize := 1
+func setAttributes(t *Item) {
+	setSizes(t)
+	setYOffsets(t)
+}
+
+func setSizes(t *Item) int {
 	children := t.tree.Children()
+	size := 1 + children.Length()
 	for i := 0; i < children.Length(); i++ {
 		child := children.At(i)
-		if child, ok := child.(*Item); ok {
-			rootSize = rootSize + child.size
-		}
+		size = size + setSizes(child.(*Item)) - 1
 	}
-
-	setYOffsets(t)
-	return rootSize
+	t.size = size
+	return size
 }
 
 func setYOffsets(t *Item) {
@@ -212,6 +259,21 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.yOffset = min(m.root.size-1, m.yOffset+1)
 		case key.Matches(msg, m.KeyMap.Up):
 			m.yOffset = max(0, m.yOffset-1)
+		case key.Matches(msg, m.KeyMap.Toggle):
+			node := findNode(m.root, m.yOffset)
+			if node == nil {
+				break
+			}
+			node.open = !node.open
+			if node.open {
+				node.tree.Offset(0, 0)
+			} else {
+				node.tree.Offset(0, node.tree.Children().Length())
+			}
+			setAttributes(m.root)
+			m.yOffset = node.yOffset
+			// TODO: re-calcualte the size and yOffsets
+			// calcAttributes(m.root)
 		case key.Matches(msg, m.KeyMap.Quit):
 			return m, tea.Quit
 		}
@@ -232,7 +294,7 @@ func (m Model) View() string {
 	cursor := ""
 	for i := 0; i < m.root.size; i++ {
 		if i == m.yOffset {
-			cursor = cursor + m.Styles.SelectedNode.Render("> ")
+			cursor = cursor + m.Styles.SelectedNode.Render("👉 ")
 		} else {
 			cursor = cursor + "  "
 		}
@@ -274,4 +336,23 @@ func max(a, b int) int {
 		return a
 	}
 	return b
+}
+
+func findNode(t *Item, yOffset int) *Item {
+	if t.yOffset == yOffset {
+		return t
+	}
+
+	children := t.tree.Children()
+	for i := 0; i < children.Length(); i++ {
+		child := children.At(i)
+		if child, ok := child.(*Item); ok {
+			found := findNode(child, yOffset)
+			if found != nil {
+				return found
+			}
+		}
+	}
+
+	return nil
 }
