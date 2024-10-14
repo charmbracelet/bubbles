@@ -127,6 +127,8 @@ func (t *Item) ItemStyleFunc(f func(children ltree.Children, i int) lipgloss.Sty
 	return t
 }
 
+// TODO: support IndentStyleFunc in lipgloss so we can have a full background for the item?
+
 // EnumeratorStyleFunc sets the enumeration style function. Use this function
 // for conditional styling.
 //
