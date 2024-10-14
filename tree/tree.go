@@ -82,7 +82,7 @@ type Item struct {
 }
 
 // Used to print the Item's tree
-// NOTE: Value is not called on the root node, so we need to repeat the open/closed character
+// TODO: Value is not called on the root node, so we need to repeat the open/closed character
 // Should this be fixed in lipgloss?
 func (t *Item) String() string {
 	if t.open {
