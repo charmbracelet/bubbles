@@ -7,6 +7,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 )
 
 // New returns a new model with the given width and height as well as default
@@ -89,12 +90,14 @@ func (m Model) PastBottom() bool {
 
 // ScrollPercent returns the amount scrolled as a float between 0 and 1.
 func (m Model) ScrollPercent() float64 {
-	if m.Height >= len(m.lines) {
+	wrappedLines := len(wrap(m.lines, m.Width))
+
+	if m.Height >= wrappedLines {
 		return 1.0
 	}
 	y := float64(m.YOffset)
 	h := float64(m.Height)
-	t := float64(len(m.lines))
+	t := float64(wrappedLines)
 	v := y / (t - h)
 	return math.Max(0.0, math.Min(1.0, v))
 }
@@ -104,7 +107,7 @@ func (m *Model) SetContent(s string) {
 	s = strings.ReplaceAll(s, "\r\n", "\n") // normalize line endings
 	m.lines = strings.Split(s, "\n")
 
-	if m.YOffset > len(m.lines)-1 {
+	if m.YOffset > len(wrap(m.lines, m.Width))-1 {
 		m.GotoBottom()
 	}
 }
@@ -112,16 +115,19 @@ func (m *Model) SetContent(s string) {
 // maxYOffset returns the maximum possible value of the y-offset based on the
 // viewport's content and set height.
 func (m Model) maxYOffset() int {
-	return max(0, len(m.lines)-m.Height)
+	linesHeight := len(wrap(m.lines, m.Width))
+	return max(0, linesHeight-m.Height)
 }
 
 // visibleLines returns the lines that should currently be visible in the
 // viewport.
 func (m Model) visibleLines() (lines []string) {
 	if len(m.lines) > 0 {
+		wrappedLines := wrap(m.lines, m.Width)
 		top := max(0, m.YOffset)
-		bottom := clamp(m.YOffset+m.Height, top, len(m.lines))
-		lines = m.lines[top:bottom]
+		bottom := clamp(m.YOffset+m.Height, top, len(wrappedLines))
+
+		lines = wrappedLines[top:bottom]
 	}
 	return lines
 }
@@ -196,7 +202,7 @@ func (m *Model) LineDown(n int) (lines []string) {
 	// XXX: high performance rendering is deprecated in Bubble Tea.
 	bottom := clamp(m.YOffset+m.Height, 0, len(m.lines))
 	top := clamp(m.YOffset+m.Height-n, 0, bottom)
-	return m.lines[top:bottom]
+	return wrap(m.lines, m.Width)[top:bottom]
 }
 
 // LineUp moves the view down by the given number of lines. Returns the new
@@ -215,7 +221,7 @@ func (m *Model) LineUp(n int) (lines []string) {
 	// XXX: high performance rendering is deprecated in Bubble Tea.
 	top := max(0, m.YOffset)
 	bottom := clamp(m.YOffset+n, 0, m.maxYOffset())
-	return m.lines[top:bottom]
+	return wrap(m.lines, m.Width)[top:bottom]
 }
 
 // TotalLineCount returns the total number of lines (both hidden and visible) within the viewport.
@@ -307,6 +313,10 @@ func (m Model) updateAsModel(msg tea.Msg) (Model, tea.Cmd) {
 	var cmd tea.Cmd
 
 	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		if m.PastBottom() {
+			m.SetYOffset(m.maxYOffset())
+		}
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, m.KeyMap.PageDown):
@@ -417,4 +427,20 @@ func max(a, b int) int {
 		return a
 	}
 	return b
+}
+
+// wrap returns lines wrapped to the given width.
+func wrap(lines []string, width int) []string {
+	var out []string
+	for _, line := range lines {
+		// word wrap lines
+		wrapWords := ansi.Wordwrap(line, width, "")
+		// wrap lines (handles lines that could not be word wrapped)
+		wrap := ansi.Hardwrap(wrapWords, width, true)
+		// split string by new lines
+		wrapLines := strings.Split(wrap, "\n")
+
+		out = append(out, wrapLines...)
+	}
+	return out
 }
