@@ -647,31 +647,48 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 // View renders the textinput in its current state.
 func (m Model) View() string {
-	// Placeholder text
-	if len(m.value) == 0 && m.Placeholder != "" {
-		return m.placeholderView()
+	var (
+		p          = m.PromptStyle.Render(m.Prompt)
+		styleText  = m.TextStyle.Inline(true).Render
+		availWidth = m.Width
+	)
+
+	// No input
+	if len(m.value) == 0 {
+		return p + m.placeholderView()
 	}
 
-	styleText := m.TextStyle.Inline(true).Render
-
-	value := m.value[m.offset:m.offsetRight]
+	// Current cursor position in viewport
 	pos := max(0, m.pos-m.offset)
-	v := styleText(m.echoTransform(string(value[:pos])))
 
+	// Render viewable input
+	value := m.value[m.offset:m.offsetRight]
+	v := styleText(m.echoTransform(string(value[:pos])))
+	availWidth -= uniseg.StringWidth(string(value[:pos]))
+
+	// Still have input to render (if the cursor is going back)
 	if pos < len(value) {
-		char := m.echoTransform(string(value[pos]))
-		m.Cursor.SetChar(char)
-		v += m.Cursor.View()                                   // cursor and text under it
-		v += styleText(m.echoTransform(string(value[pos+1:]))) // text after cursor
-		v += m.completionView(0)                               // suggested completion
+		m.Cursor.SetChar(m.echoTransform(string(value[pos])))
+		v += m.Cursor.View()                                   // cursor and thext under it
+		v += styleText(m.echoTransform(string(value[pos+1:]))) // rest of input text after cursor
+		availWidth -= uniseg.StringWidth(string(value[pos+1:]))
+
+		// Render suggested completion
+		compl, complWidth := m.completionView(0, availWidth)
+		v += compl
+		availWidth -= complWidth
 	} else {
 		if m.canAcceptSuggestion() {
 			suggestion := m.matchedSuggestions[m.currentSuggestionIndex]
-			if len(value) < len(suggestion) {
+			// Check the original input lenght,
+			// as that's the one matching the suggestion
+			if len(m.value) < len(suggestion) {
 				m.Cursor.TextStyle = m.CompletionStyle
-				m.Cursor.SetChar(m.echoTransform(string(suggestion[pos])))
+				m.Cursor.SetChar(m.echoTransform(string(suggestion[m.pos])))
 				v += m.Cursor.View()
-				v += m.completionView(1)
+				compl, complWidth := m.completionView(1, availWidth)
+				v += compl
+				availWidth -= complWidth
 			} else {
 				m.Cursor.SetChar(" ")
 				v += m.Cursor.View()
@@ -682,57 +699,92 @@ func (m Model) View() string {
 		}
 	}
 
-	// If a max width and background color were set fill the empty spaces with
-	// the background color.
-	valWidth := uniseg.StringWidth(string(value))
-	if m.Width > 0 && valWidth <= m.Width {
-		padding := max(0, m.Width-valWidth)
-		if valWidth+padding <= m.Width && pos < len(value) {
-			padding++
-		}
-		v += styleText(strings.Repeat(" ", padding))
+	// If Width is set, fill with whitespace if there is available space
+	if m.Width > 0 && availWidth <= m.Width && availWidth > 0 {
+		v += styleText(strings.Repeat(" ", availWidth))
 	}
-
-	return m.PromptStyle.Render(m.Prompt) + v
+	return p + v
 }
 
-// placeholderView returns the prompt and placeholder view, if any.
+// placeholderView returns the prompt and placeholder view.
 func (m Model) placeholderView() string {
+	// No placeholder
+	if len(m.Placeholder) == 0 {
+		m.Cursor.SetChar(" ")
+		return m.Cursor.View()
+	}
+
 	var (
-		v     string
-		p     = []rune(m.Placeholder)
-		style = m.PlaceholderStyle.Inline(true).Render
+		v       string
+		p       = []rune(m.Placeholder)
+		pRender = m.PlaceholderStyle.Inline(true).Render
 	)
 
+	// Render cursor
 	m.Cursor.TextStyle = m.PlaceholderStyle
-	m.Cursor.SetChar(string(p[:1]))
+	m.Cursor.SetChar(string(p[0]))
 	v += m.Cursor.View()
 
-	// If the entire placeholder is already set and no padding is needed, finish
-	if m.Width < 1 && len(p) <= 1 {
-		return m.PromptStyle.Render(m.Prompt) + v
+	// If single char placeholder
+	if len(p) == 1 {
+		return v
 	}
 
-	// If Width is set then size placeholder accordingly
-	if m.Width > 0 {
-		// available width is width - len + cursor offset of 1
-		minWidth := lipgloss.Width(m.Placeholder)
-		availWidth := m.Width - minWidth + 1
+	pWidth := lipgloss.Width(m.Placeholder)
+	availWidth := m.Width - pWidth + 1 // +1 for the cursor
 
-		// if width < len, 'subtract'(add) number to len and dont add padding
-		if availWidth < 0 {
-			minWidth += availWidth
-			availWidth = 0
-		}
-		// append placeholder[len] - cursor, append padding
-		v += style(string(p[1:minWidth]))
-		v += style(strings.Repeat(" ", availWidth))
-	} else {
-		// if there is no width, the placeholder can be any length
-		v += style(string(p[1:]))
+	// If Width is set, truncate placeholder width if there is no available width
+	if m.Width > 0 && availWidth < 0 {
+		pWidth = m.Width + 1 // +1 for the cursor
+		availWidth = 0
 	}
 
-	return m.PromptStyle.Render(m.Prompt) + v
+	// Printable placeholder
+	v += pRender(string(p[1:pWidth]))
+
+	// If Width is set, pad the available width with spaces
+	if m.Width > 0 && availWidth > 0 {
+		v += pRender(strings.Repeat(" ", availWidth))
+	}
+	return v
+}
+
+// completionView returns the rendered completion under the available size
+// and the rendered width.
+func (m Model) completionView(offset int, availWidth int) (string, int) {
+	if !m.canAcceptSuggestion() {
+		return "", 0
+	}
+	var (
+		suggestion = m.matchedSuggestions[m.currentSuggestionIndex]
+		style      = m.CompletionStyle.Inline(true).Render
+	)
+
+	// If the suggestion is already rendered (as part of the input)
+	if len(m.value) >= len(suggestion) {
+		return "", 0
+	}
+
+	// Get possibly visible suggestion
+	from := len(m.value) + offset
+	suggestion = suggestion[from:]
+	suggLen := uniseg.StringWidth(string(suggestion))
+
+	// If no Width set or the visible suggestion fits
+	if m.Width < 1 || suggLen <= availWidth {
+		return style(string(suggestion)), suggLen
+	}
+
+	// No available width
+	if availWidth < 1 {
+		return "", 0
+	}
+
+	// Render visible
+	// Doesn't take into account the lenght of the runes,
+	// so it could be shorter than the available width
+	suggestion = suggestion[:availWidth]
+	return style(string(suggestion)), uniseg.StringWidth(string(suggestion))
 }
 
 // Blink is a command used to initialize cursor blinking.
@@ -796,21 +848,6 @@ func (m Model) CursorMode() CursorMode {
 // Deprecated: use cursor.SetMode().
 func (m *Model) SetCursorMode(mode CursorMode) tea.Cmd {
 	return m.Cursor.SetMode(cursor.Mode(mode))
-}
-
-func (m Model) completionView(offset int) string {
-	var (
-		value = m.value
-		style = m.PlaceholderStyle.Inline(true).Render
-	)
-
-	if m.canAcceptSuggestion() {
-		suggestion := m.matchedSuggestions[m.currentSuggestionIndex]
-		if len(value) < len(suggestion) {
-			return style(string(suggestion[len(value)+offset:]))
-		}
-	}
-	return ""
 }
 
 func (m *Model) getSuggestions(sugs [][]rune) []string {
