@@ -57,6 +57,12 @@ type Model struct {
 	// Styles sets the styling for the tree
 	Styles Styles
 
+	// OpenCharacter is the character used to represent an open node.
+	OpenCharacter string
+
+	// ClosedCharacter is the character used to represent a closed node.
+	ClosedCharacter string
+
 	// yOffset is the vertical offset of the selected node.
 	yOffset int
 }
@@ -77,8 +83,15 @@ type Item struct {
 	// TODO: expose a getter for this in lipgloss
 	rootStyle lipgloss.Style
 
+	opts *itemOptions
+
 	// TODO: move to lipgloss.Tree?
 	size int
+}
+
+type itemOptions struct {
+	openCharacter   string
+	closedCharacter string
 }
 
 // Used to print the Item's tree
@@ -86,18 +99,18 @@ type Item struct {
 // Should this be fixed in lipgloss?
 func (t *Item) String() string {
 	if t.open {
-		return t.rootStyle.Render("▼ ") + t.tree.String()
+		return t.rootStyle.Render(t.opts.openCharacter+" ") + t.tree.String()
 	}
-	return t.rootStyle.Render("▶ ") + t.tree.String()
+	return t.rootStyle.Render(t.opts.closedCharacter+" ") + t.tree.String()
 }
 
 // Value returns the root name of this node.
 func (t *Item) Value() string {
 	if t.isRoot {
 		if t.open {
-			return "▼ " + t.tree.Value()
+			return t.opts.openCharacter + " " + t.tree.Value()
 		}
-		return "▶ " + t.tree.Value()
+		return t.opts.closedCharacter + " " + t.tree.Value()
 	}
 	return t.tree.Value()
 }
@@ -196,11 +209,13 @@ func Root(root any) *Item {
 // New creates a new model with default settings.
 func New(t *Item) Model {
 	m := Model{
-		root:   t,
-		KeyMap: DefaultKeyMap,
-		Styles: DefaultStyles(),
+		root:            t,
+		KeyMap:          DefaultKeyMap,
+		Styles:          DefaultStyles(),
+		OpenCharacter:   "▼",
+		ClosedCharacter: "▶",
 	}
-	setAttributes(t)
+	m.setAttributes()
 	m.updateStyles()
 	return m
 }
@@ -227,7 +242,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			} else {
 				node.tree.Offset(0, node.tree.Children().Length())
 			}
-			setAttributes(m.root)
+			m.setAttributes()
 			m.yOffset = node.yOffset
 		case key.Matches(msg, m.KeyMap.Quit):
 			return m, tea.Quit
@@ -265,9 +280,25 @@ func (m Model) View() string {
 	return lipgloss.JoinVertical(lipgloss.Left, s, t)
 }
 
-func setAttributes(t *Item) {
-	setSizes(t)
-	setYOffsets(t)
+// FlatItems returns all items in the tree as a flat list.
+func (m *Model) FlatItems() []*Item {
+	return m.root.FlatItems()
+}
+
+func (m *Model) setAttributes() {
+	setSizes(m.root)
+	setYOffsets(m.root)
+}
+
+// FlatItems returns all items in the tree as a flat list.
+func (t *Item) FlatItems() []*Item {
+	res := []*Item{t}
+	children := t.tree.Children()
+	for i := 0; i < children.Length(); i++ {
+		child := children.At(i)
+		res = append(res, child.(*Item).FlatItems()...)
+	}
+	return res
 }
 
 // setSizes updates each Item's size
@@ -310,6 +341,15 @@ func (m *Model) updateStyles() {
 	// TODO: add RootStyleFunc to the Node interface?
 	m.root.RootStyle(m.root.rootStyle)
 	m.root.ItemStyleFunc(m.selectedNodeStyle())
+
+	items := m.FlatItems()
+	opts := &itemOptions{
+		openCharacter:   m.OpenCharacter,
+		closedCharacter: m.ClosedCharacter,
+	}
+	for _, item := range items {
+		item.opts = opts
+	}
 }
 
 // selectedNodeStyle sets the node style
