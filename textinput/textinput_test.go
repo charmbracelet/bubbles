@@ -30,3 +30,10 @@ func Test_CurrentSuggestion(t *testing.T) {
 		t.Fatalf("Error: expected first suggestion but was %s", suggestion)
 	}
 }
+
+func Test_SlicingOutsideCap(t *testing.T) {
+	textinput := New()
+	textinput.Placeholder = "作業ディレクトリを指定してください"
+	textinput.Width = 32
+	textinput.View()
+}
