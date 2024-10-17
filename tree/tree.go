@@ -6,7 +6,9 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	ltree "github.com/charmbracelet/lipgloss/tree"
+	"github.com/charmbracelet/x/ansi"
 
+	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 )
 
@@ -16,6 +18,7 @@ type Styles struct {
 	SelectedNode    lipgloss.Style
 	ItemStyle       lipgloss.Style
 	SelectionCursor lipgloss.Style
+	HelpStyle       lipgloss.Style
 }
 
 // DefaultStyles returns a set of default style definitions for this tree
@@ -27,6 +30,7 @@ func DefaultStyles() (s Styles) {
 		Bold(true)
 	s.SelectionCursor = lipgloss.NewStyle().Foreground(lipgloss.Color("9"))
 	s.ItemStyle = lipgloss.NewStyle()
+	s.HelpStyle = lipgloss.NewStyle().Padding(1, 0, 0, 2)
 
 	return s
 }
@@ -36,32 +40,68 @@ type KeyMap struct {
 	Down   key.Binding
 	Up     key.Binding
 	Toggle key.Binding
-	Quit   key.Binding
+
+	// Help toggle keybindings.
+	ShowFullHelp  key.Binding
+	CloseFullHelp key.Binding
+
+	Quit key.Binding
 }
 
 // DefaultKeyMap is the default set of key bindings for navigating and acting
 // upon the tree.
 var DefaultKeyMap = KeyMap{
-	Down:   key.NewBinding(key.WithKeys("down", "j", "ctrl+n"), key.WithHelp("down", "next line")),
-	Up:     key.NewBinding(key.WithKeys("up", "k", "ctrl+p"), key.WithHelp("up", "previous line")),
-	Toggle: key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "toggle")),
-	Quit:   key.NewBinding(key.WithKeys("q", "ctrl+c"), key.WithHelp("q", "quit")),
+	Down: key.NewBinding(
+		key.WithKeys("down", "j", "ctrl+n"),
+		key.WithHelp("down", "next line"),
+	),
+	Up: key.NewBinding(
+		key.WithKeys("up", "k", "ctrl+p"),
+		key.WithHelp("up", "previous line"),
+	),
+	Toggle: key.NewBinding(
+		key.WithKeys("enter"),
+		key.WithHelp("enter", "toggle"),
+	),
+
+	// Toggle help.
+	ShowFullHelp: key.NewBinding(
+		key.WithKeys("?"),
+		key.WithHelp("?", "more"),
+	),
+	CloseFullHelp: key.NewBinding(
+		key.WithKeys("?"),
+		key.WithHelp("?", "close help"),
+	),
+
+	Quit: key.NewBinding(
+		key.WithKeys("q", "ctrl+c"),
+		key.WithHelp("q", "quit"),
+	),
 }
 
 // Model is the Bubble Tea model for this tree element.
 type Model struct {
-	root *Item
-	// KeyMap encodes the keybindings recognized by the widget.
-	KeyMap KeyMap
-
-	// Styles sets the styling for the tree
-	Styles Styles
-
+	showHelp bool
 	// OpenCharacter is the character used to represent an open node.
 	OpenCharacter string
-
 	// ClosedCharacter is the character used to represent a closed node.
 	ClosedCharacter string
+	// KeyMap encodes the keybindings recognized by the widget.
+	KeyMap KeyMap
+	// Styles sets the styling for the tree
+	Styles Styles
+	Help   help.Model
+
+	// Additional key mappings for the short and full help views. This allows
+	// you to add additional key mappings to the help menu without
+	// re-implementing the help component. Of course, you can also disable the
+	// list's help component and implement a new one if you need more
+	// flexibility.
+	AdditionalShortHelpKeys func() []key.Binding
+	AdditionalFullHelpKeys  func() []key.Binding
+
+	root *Item
 
 	// yOffset is the vertical offset of the selected node.
 	yOffset int
@@ -210,10 +250,12 @@ func Root(root any) *Item {
 func New(t *Item) Model {
 	m := Model{
 		root:            t,
+		showHelp:        true,
 		KeyMap:          DefaultKeyMap,
 		Styles:          DefaultStyles(),
 		OpenCharacter:   "▼",
 		ClosedCharacter: "▶",
+		Help:            help.New(),
 	}
 	m.setAttributes()
 	m.updateStyles()
@@ -246,6 +288,10 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.yOffset = node.yOffset
 		case key.Matches(msg, m.KeyMap.Quit):
 			return m, tea.Quit
+		case key.Matches(msg, m.KeyMap.ShowFullHelp):
+			fallthrough
+		case key.Matches(msg, m.KeyMap.CloseFullHelp):
+			m.Help.ShowAll = !m.Help.ShowAll
 		}
 	}
 
@@ -256,7 +302,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 // View renders the component.
 func (m Model) View() string {
-	s := fmt.Sprintf("y=%d\n", m.yOffset)
+	s := fmt.Sprintf("y=%2d current=%s\n", m.yOffset, ansi.Strip(m.ItemAtCurrentOffset().Value()))
 
 	// TODO: remove
 	debug := printDebugInfo(m.root)
@@ -277,7 +323,53 @@ func (m Model) View() string {
 		cursor,
 		m.root.String(),
 	)
-	return lipgloss.JoinVertical(lipgloss.Left, s, t)
+
+	var help string
+	if m.showHelp {
+		help = m.helpView()
+	}
+
+	return lipgloss.JoinVertical(lipgloss.Left, s, t, help)
+}
+
+// ShortHelp returns bindings to show in the abbreviated help view. It's part
+// of the help.KeyMap interface.
+func (m Model) ShortHelp() []key.Binding {
+	kb := []key.Binding{
+		m.KeyMap.Up,
+		m.KeyMap.Down,
+		m.KeyMap.Toggle,
+		m.KeyMap.Quit,
+	}
+
+	if m.AdditionalShortHelpKeys != nil {
+		kb = append(kb, m.AdditionalShortHelpKeys()...)
+	}
+
+	return kb
+}
+
+// FullHelp returns bindings to show the full help view. It's part of the
+// help.KeyMap interface.
+func (m Model) FullHelp() [][]key.Binding {
+	kb := [][]key.Binding{
+		{
+			m.KeyMap.Up,
+			m.KeyMap.Down,
+			m.KeyMap.Toggle,
+			m.KeyMap.Quit,
+		},
+	}
+
+	if m.AdditionalFullHelpKeys != nil {
+		kb = append(kb, m.AdditionalFullHelpKeys())
+	}
+
+	return kb
+}
+
+func (m Model) helpView() string {
+	return m.Styles.HelpStyle.Render(m.Help.View(m))
 }
 
 // FlatItems returns all items in the tree as a flat list.
