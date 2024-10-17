@@ -334,6 +334,16 @@ func (m *Model) YOffset() int {
 	return m.yOffset
 }
 
+// Item returns the item at the given yoffset
+func (m *Model) Item(yoffset int) *Item {
+	return findNode(m.root, yoffset)
+}
+
+// ItemAtCurrentOffset returns the item at the current yoffset
+func (m *Model) ItemAtCurrentOffset() *Item {
+	return findNode(m.root, m.yOffset)
+}
+
 // Since the selected node changes, we need to capture m.yOffset in the
 // style function's closure again
 func (m *Model) updateStyles() {
@@ -372,7 +382,7 @@ func (m *Model) nodeStyle(node ltree.Node) lipgloss.Style {
 
 // TODO: remove
 func printDebugInfo(t *Item) string {
-	debug := fmt.Sprintf("size=%-2d y=%d", t.size, t.yOffset)
+	debug := fmt.Sprintf("size=%2d y=%2d", t.size, t.yOffset)
 	children := t.Children()
 	for i := 0; i < children.Length(); i++ {
 		child := children.At(i)
