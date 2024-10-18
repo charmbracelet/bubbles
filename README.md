@@ -206,6 +206,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
   flexbox and table components.
 * [calyptia/go-bubble-table](https://github.com/calyptia/go-bubble-table): An
   interactive, customizable, scrollable table component.
+* [daltonsw/bubbleup](https://github.com/daltonsw/bubbleup): Notifications and alerts 
+  in your TUI apps with a simple and customizable bubble. Bubble your alerts up like
+  bubbles in a soda.
+  enables bubble your alerts up in your model in a simple and customizable fashion.
 * [erikgeiser/promptkit](https://github.com/erikgeiser/promptkit): A collection
   of common prompts for cases like selection, text input, and confirmation.
   Each prompt comes with sensible defaults, remappable keybindings, any many
