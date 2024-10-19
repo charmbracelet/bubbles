@@ -138,6 +138,9 @@ type Node struct {
 	isRoot bool
 	open   bool
 
+	// value is the root value of the node
+	value any
+
 	// TODO: expose a getter for this in lipgloss
 	rootStyle lipgloss.Style
 
@@ -195,6 +198,11 @@ func (t *Node) Value() string {
 		return s.Render(t.opts.closedCharacter + " " + t.tree.Value())
 	}
 	return s.Render(t.tree.Value())
+}
+
+// GivenValue returns the value passed to the node.
+func (t *Node) GivenValue() any {
+	return t.value
 }
 
 // Children returns the children of an item.
@@ -262,6 +270,32 @@ func (t *Node) Enumerator(enumerator ltree.Enumerator) *Node {
 	return t
 }
 
+// Indenter sets the indenter implementation. This is used to change the way
+// the tree is indented. The default indentor places a border connecting sibling
+// elements and no border for the last child.
+//
+//	└── Foo
+//	    └── Bar
+//	        └── Baz
+//	            └── Qux
+//	                └── Quux
+//
+// You can define your own indenter.
+//
+//	func ArrowIndenter(children tree.Children, index int) string {
+//		return "→ "
+//	}
+//
+//	→ Foo
+//	→ → Bar
+//	→ → → Baz
+//	→ → → → Qux
+//	→ → → → → Quux
+func (t *Node) Indenter(indenter ltree.Indenter) *Node {
+	t.tree.Indenter(indenter)
+	return t
+}
+
 // EnumeratorStyle sets a static style for all enumerators.
 //
 // Use EnumeratorStyleFunc to conditionally set styles based on the tree node.
@@ -317,6 +351,7 @@ func (t *Node) Child(children ...any) *Node {
 			item.tree = ltree.Root(child)
 			item.size = 1
 			item.open = false
+			item.value = child
 			t.size = t.size + item.size
 			t.open = t.size > 1
 			t.tree.Child(item)
@@ -331,6 +366,7 @@ func Root(root any) *Node {
 	t := new(Node)
 	t.size = 1
 	t.open = true
+	t.value = root
 	t.isRoot = true
 	t.tree = ltree.Root(root)
 	return t
@@ -394,11 +430,11 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 // View renders the component.
 func (m Model) View() string {
-	var s, t, debug, cursor string
+	var treeView, leftDebugView, cursor string
 	// TODO: remove
 	if os.Getenv("DEBUG") == "true" {
-		s += fmt.Sprintf("y=%2d\n", m.yOffset)
-		debug = printDebugInfo(m.root) + " "
+		// topDebugView += fmt.Sprintf("y=%2d\n", m.yOffset)
+		leftDebugView = printDebugInfo(m.root) + " "
 		for i := 0; i < m.root.size; i++ {
 			if i == m.yOffset {
 				cursor = cursor + "👉 "
@@ -409,13 +445,13 @@ func (m Model) View() string {
 		}
 	}
 
-	t = m.styles.TreeStyle.Render(m.root.String())
+	treeView = m.styles.TreeStyle.Render(m.root.String())
 
-	t = lipgloss.JoinHorizontal(
+	treeView = lipgloss.JoinHorizontal(
 		lipgloss.Top,
-		debug,
+		leftDebugView,
 		cursor,
-		t,
+		treeView,
 	)
 
 	var help string
@@ -423,7 +459,7 @@ func (m Model) View() string {
 		help = m.helpView()
 	}
 
-	return lipgloss.JoinVertical(lipgloss.Left, s, t, help)
+	return lipgloss.JoinVertical(lipgloss.Left, treeView, help)
 }
 
 // SetStyles sets the styles for this component.
