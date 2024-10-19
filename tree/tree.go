@@ -141,7 +141,7 @@ type Node struct {
 	// value is the root value of the node
 	value any
 
-	// TODO: expose a getter for this in lipgloss
+	// TODO: expose a getter for this in lipgloss?
 	rootStyle lipgloss.Style
 
 	opts *itemOptions
@@ -247,7 +247,7 @@ func (t *Node) ItemStyle(s lipgloss.Style) *Node {
 func (t *Node) ItemStyleFunc(f StyleFunc) *Node {
 	t.tree.ItemStyleFunc(func(children ltree.Children, i int) lipgloss.Style {
 		c := make(Nodes, children.Length())
-		// TODO: if we expose Depth and Size, we can avoid this
+		// TODO: if we expose Depth and Size in lipgloss, we can avoid this
 		for i := 0; i < children.Length(); i++ {
 			c[i] = children.At(i).(*Node)
 		}
@@ -346,8 +346,6 @@ func (t *Node) Child(children ...any) *Node {
 			t.tree.Child(child)
 		default:
 			item := new(Node)
-			// TODO: should I create a tree for leaf nodes?
-			// makes the code a bit simpler
 			item.tree = ltree.Root(child)
 			item.size = 1
 			item.open = false
