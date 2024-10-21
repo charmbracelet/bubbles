@@ -188,7 +188,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 ```
 
-## Additional Bubbles
+## There’s more where that came from
 
 There are also
 [community-owned bubbles.](https://github.com/charm-community/additional-bubbles)
