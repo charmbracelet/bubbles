@@ -89,11 +89,6 @@ func New() Model {
 	}
 }
 
-// NewModel creates a new help view with some useful defaults.
-//
-// Deprecated: use [New] instead.
-var NewModel = New
-
 // Update helps satisfy the Bubble Tea Model interface. It's a no-op.
 func (m Model) Update(_ tea.Msg) (Model, tea.Cmd) {
 	return m, nil

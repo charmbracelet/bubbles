@@ -199,11 +199,6 @@ func New(opts ...Option) Model {
 	return m
 }
 
-// NewModel returns a model with default values.
-//
-// Deprecated: use [New] instead.
-var NewModel = New
-
 // Init exists to satisfy the tea.Model interface.
 func (m Model) Init() (tea.Model, tea.Cmd) {
 	return m, nil

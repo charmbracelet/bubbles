@@ -3,7 +3,6 @@ package textinput
 import (
 	"reflect"
 	"strings"
-	"time"
 	"unicode"
 
 	"github.com/atotto/clipboard"
@@ -93,9 +92,6 @@ type Model struct {
 	EchoCharacter rune
 	Cursor        cursor.Model
 
-	// Deprecated: use [cursor.BlinkSpeed] instead.
-	BlinkSpeed time.Duration
-
 	// Styles. These will be applied as inline styles.
 	//
 	// For an introduction to styling with Lip Gloss see:
@@ -104,9 +100,6 @@ type Model struct {
 	TextStyle        lipgloss.Style
 	PlaceholderStyle lipgloss.Style
 	CompletionStyle  lipgloss.Style
-
-	// Deprecated: use Cursor.Style instead.
-	CursorStyle lipgloss.Style
 
 	// CharLimit is the maximum amount of characters this input element will
 	// accept. If 0 or less, there's no limit.
@@ -172,11 +165,6 @@ func New() Model {
 		pos:         0,
 	}
 }
-
-// NewModel creates a new model with default settings.
-//
-// Deprecated: Use [New] instead.
-var NewModel = New
 
 // SetValue sets the value of the text input.
 func (m *Model) SetValue(s string) {
@@ -771,34 +759,6 @@ func max(a, b int) int {
 		return a
 	}
 	return b
-}
-
-// Deprecated.
-
-// Deprecated: use cursor.Mode.
-type CursorMode int
-
-const (
-	// Deprecated: use cursor.CursorBlink.
-	CursorBlink = CursorMode(cursor.CursorBlink)
-	// Deprecated: use cursor.CursorStatic.
-	CursorStatic = CursorMode(cursor.CursorStatic)
-	// Deprecated: use cursor.CursorHide.
-	CursorHide = CursorMode(cursor.CursorHide)
-)
-
-func (c CursorMode) String() string {
-	return cursor.Mode(c).String()
-}
-
-// Deprecated: use cursor.Mode().
-func (m Model) CursorMode() CursorMode {
-	return CursorMode(m.Cursor.Mode())
-}
-
-// Deprecated: use cursor.SetMode().
-func (m *Model) SetCursorMode(mode CursorMode) tea.Cmd {
-	return m.Cursor.SetMode(cursor.Mode(mode))
 }
 
 func (m Model) completionView(offset int) string {
