@@ -218,8 +218,6 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.MoveUp(m.viewport.Height / 2)
 		case key.Matches(msg, m.KeyMap.HalfPageDown):
 			m.MoveDown(m.viewport.Height / 2)
-		case key.Matches(msg, m.KeyMap.LineDown):
-			m.MoveDown(1)
 		case key.Matches(msg, m.KeyMap.GotoTop):
 			m.GotoTop()
 		case key.Matches(msg, m.KeyMap.GotoBottom):
