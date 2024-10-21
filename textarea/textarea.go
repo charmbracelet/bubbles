@@ -218,9 +218,6 @@ type Model struct {
 	// when switching focus states.
 	style *Style
 
-	// Cursor is the text area cursor.
-	Cursor cursor.Model
-
 	// CharLimit is the maximum number of characters this input element will
 	// accept. If 0 or less, there's no limit.
 	CharLimit int
@@ -278,7 +275,6 @@ type Model struct {
 func New() Model {
 	vp := viewport.New(0, 0)
 	vp.KeyMap = viewport.KeyMap{}
-	cur := cursor.New()
 
 	focusedStyle, blurredStyle := DefaultStyles()
 
@@ -293,7 +289,6 @@ func New() Model {
 		cache:                memoization.NewMemoCache[line, [][]rune](defaultMaxHeight),
 		EndOfBufferCharacter: ' ',
 		ShowLineNumbers:      true,
-		Cursor:               cur,
 		KeyMap:               DefaultKeyMap,
 
 		value: make([][]rune, minHeight, defaultMaxHeight),
@@ -575,7 +570,7 @@ func (m Model) Focused() bool {
 func (m *Model) Focus() tea.Cmd {
 	m.focus = true
 	m.style = &m.FocusedStyle
-	return m.Cursor.Focus()
+	return nil
 }
 
 // Blur removes the focus state on the model. When the model is blurred it can
@@ -583,7 +578,6 @@ func (m *Model) Focus() tea.Cmd {
 func (m *Model) Blur() {
 	m.focus = false
 	m.style = &m.BlurredStyle
-	m.Cursor.Blur()
 }
 
 // Reset sets the input to its default state with no input.
@@ -954,11 +948,6 @@ func (m *Model) SetHeight(h int) {
 
 // Update is the Bubble Tea update loop.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
-	if !m.focus {
-		m.Cursor.Blur()
-		return m, nil
-	}
-
 	// Used to determine if the cursor should blink.
 	oldRow, oldCol := m.cursorLineNumber(), m.col
 
@@ -1075,12 +1064,9 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	cmds = append(cmds, cmd)
 
 	newRow, newCol := m.cursorLineNumber(), m.col
-	m.Cursor, cmd = m.Cursor.Update(msg)
-	if (newRow != oldRow || newCol != oldCol) && m.Cursor.Mode() == cursor.CursorBlink {
-		m.Cursor.Blink = false
-		cmd = m.Cursor.BlinkCmd()
+	if newRow != oldRow || newCol != oldCol {
+		cmds = append(cmds, tea.SetCursorPosition(newCol, newRow))
 	}
-	cmds = append(cmds, cmd)
 
 	m.repositionView()
 
@@ -1092,7 +1078,6 @@ func (m Model) View() string {
 	if m.Value() == "" && m.row == 0 && m.col == 0 && m.Placeholder != "" {
 		return m.placeholderView()
 	}
-	m.Cursor.TextStyle = m.style.computedCursorLine()
 
 	var (
 		s                strings.Builder
@@ -1160,14 +1145,6 @@ func (m Model) View() string {
 			}
 			if m.row == l && lineInfo.RowOffset == wl {
 				s.WriteString(style.Render(string(wrappedLine[:lineInfo.ColumnOffset])))
-				if m.col >= len(line) && lineInfo.CharOffset >= m.width {
-					m.Cursor.SetChar(" ")
-					s.WriteString(m.Cursor.View())
-				} else {
-					m.Cursor.SetChar(string(wrappedLine[lineInfo.ColumnOffset]))
-					s.WriteString(style.Render(m.Cursor.View()))
-					s.WriteString(style.Render(string(wrappedLine[lineInfo.ColumnOffset+1:])))
-				}
 			} else {
 				s.WriteString(style.Render(string(wrappedLine)))
 			}
@@ -1267,11 +1244,6 @@ func (m Model) placeholderView() string {
 		switch {
 		// first line
 		case i == 0:
-			// first character of first line as cursor with character
-			m.Cursor.TextStyle = m.style.computedPlaceholder()
-			m.Cursor.SetChar(string(plines[0][0]))
-			s.WriteString(lineStyle.Render(m.Cursor.View()))
-
 			// the rest of the first line
 			s.WriteString(lineStyle.Render(style.Render(plines[0][1:] + strings.Repeat(" ", max(0, m.width-uniseg.StringWidth(plines[0]))))))
 		// remaining lines
