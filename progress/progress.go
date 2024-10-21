@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"math"
 	"strings"
-	"sync"
+	"sync/atomic"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea/v2"
@@ -17,17 +17,10 @@ import (
 
 // Internal ID management. Used during animating to assure that frame messages
 // can only be received by progress components that sent them.
-var (
-	lastID int
-	idMtx  sync.Mutex
-)
+var lastID int64
 
-// Return the next ID we should use on the model.
 func nextID() int {
-	idMtx.Lock()
-	defer idMtx.Unlock()
-	lastID++
-	return lastID
+	return int(atomic.AddInt64(&lastID, 1))
 }
 
 const (
@@ -198,11 +191,6 @@ func New(opts ...Option) Model {
 
 	return m
 }
-
-// NewModel returns a model with default values.
-//
-// Deprecated: use [New] instead.
-var NewModel = New
 
 // Init exists to satisfy the tea.Model interface.
 func (m Model) Init() (tea.Model, tea.Cmd) {

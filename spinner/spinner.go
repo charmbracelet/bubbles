@@ -1,7 +1,7 @@
 package spinner
 
 import (
-	"sync"
+	"sync/atomic"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea/v2"
@@ -10,17 +10,10 @@ import (
 
 // Internal ID management. Used during animating to ensure that frame messages
 // are received only by spinner components that sent them.
-var (
-	lastID int
-	idMtx  sync.Mutex
-)
+var lastID int64
 
-// Return the next ID we should use on the Model.
 func nextID() int {
-	idMtx.Lock()
-	defer idMtx.Unlock()
-	lastID++
-	return lastID
+	return int(atomic.AddInt64(&lastID, 1))
 }
 
 // Spinner is a set of frames used in animating the spinner.
@@ -126,11 +119,6 @@ func New(opts ...Option) Model {
 	return m
 }
 
-// NewModel returns a model with default values.
-//
-// Deprecated: use [New] instead.
-var NewModel = New
-
 // TickMsg indicates that the timer has ticked and we should render a frame.
 type TickMsg struct {
 	Time time.Time
@@ -200,14 +188,6 @@ func (m Model) tick(id, tag int) tea.Cmd {
 			tag:  tag,
 		}
 	})
-}
-
-// Tick is the command used to advance the spinner one frame. Use this command
-// to effectively start the spinner.
-//
-// Deprecated: Use [Model.Tick] instead.
-func Tick() tea.Msg {
-	return TickMsg{Time: time.Now()}
 }
 
 // Option is used to set options in New. For example:
