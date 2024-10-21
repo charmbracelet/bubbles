@@ -16,8 +16,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
-	rw "github.com/mattn/go-runewidth"
-	"github.com/rivo/uniseg"
+	"github.com/charmbracelet/x/wcwidth"
 )
 
 const (
@@ -462,7 +461,7 @@ func (m Model) Value() string {
 func (m *Model) Length() int {
 	var l int
 	for _, row := range m.value {
-		l += uniseg.StringWidth(string(row))
+		l += wcwidth.StringWidth(string(row))
 	}
 	// We add len(m.value) to include the newline characters.
 	return l + len(m.value) - 1
@@ -507,7 +506,7 @@ func (m *Model) CursorDown() {
 		if m.row >= len(m.value) || m.col >= len(m.value[m.row]) || offset >= nli.CharWidth-1 {
 			break
 		}
-		offset += rw.RuneWidth(m.value[m.row][m.col])
+		offset += wcwidth.RuneWidth(m.value[m.row][m.col])
 		m.col++
 	}
 }
@@ -541,7 +540,7 @@ func (m *Model) CursorUp() {
 		if m.col >= len(m.value[m.row]) || offset >= nli.CharWidth-1 {
 			break
 		}
-		offset += rw.RuneWidth(m.value[m.row][m.col])
+		offset += wcwidth.RuneWidth(m.value[m.row][m.col])
 		m.col++
 	}
 }
@@ -829,19 +828,19 @@ func (m Model) LineInfo() LineInfo {
 				RowOffset:    i + 1,
 				StartColumn:  m.col,
 				Width:        len(grid[i+1]),
-				CharWidth:    uniseg.StringWidth(string(line)),
+				CharWidth:    wcwidth.StringWidth(string(line)),
 			}
 		}
 
 		if counter+len(line) >= m.col {
 			return LineInfo{
-				CharOffset:   uniseg.StringWidth(string(line[:max(0, m.col-counter)])),
+				CharOffset:   wcwidth.StringWidth(string(line[:max(0, m.col-counter)])),
 				ColumnOffset: m.col - counter,
 				Height:       len(grid),
 				RowOffset:    i,
 				StartColumn:  counter,
 				Width:        len(line),
-				CharWidth:    uniseg.StringWidth(string(line)),
+				CharWidth:    wcwidth.StringWidth(string(line)),
 			}
 		}
 
@@ -891,7 +890,7 @@ func (m *Model) SetWidth(w int) {
 	// Update prompt width only if there is no prompt function as SetPromptFunc
 	// updates the prompt width when it is called.
 	if m.promptFunc == nil {
-		m.promptWidth = uniseg.StringWidth(m.Prompt)
+		m.promptWidth = wcwidth.StringWidth(m.Prompt)
 	}
 
 	// Add base style borders and padding to reserved outer width.
@@ -1145,7 +1144,7 @@ func (m Model) View() string {
 				widestLineNumber = lnw
 			}
 
-			strwidth := uniseg.StringWidth(string(wrappedLine))
+			strwidth := wcwidth.StringWidth(string(wrappedLine))
 			padding := m.width - strwidth
 			// If the trailing space causes the line to be wider than the
 			// width, we should not draw it to the screen since it will result
@@ -1212,7 +1211,7 @@ func (m Model) getPromptString(displayLine int) (prompt string) {
 		return prompt
 	}
 	prompt = m.promptFunc(displayLine)
-	pl := uniseg.StringWidth(prompt)
+	pl := wcwidth.StringWidth(prompt)
 	if pl < m.promptWidth {
 		prompt = fmt.Sprintf("%*s%s", m.promptWidth-pl, "", prompt)
 	}
@@ -1273,12 +1272,12 @@ func (m Model) placeholderView() string {
 			s.WriteString(lineStyle.Render(m.Cursor.View()))
 
 			// the rest of the first line
-			s.WriteString(lineStyle.Render(style.Render(plines[0][1:] + strings.Repeat(" ", max(0, m.width-uniseg.StringWidth(plines[0]))))))
+			s.WriteString(lineStyle.Render(style.Render(plines[0][1:] + strings.Repeat(" ", max(0, m.width-wcwidth.StringWidth(plines[0]))))))
 		// remaining lines
 		case len(plines) > i:
 			// current line placeholder text
 			if len(plines) > i {
-				s.WriteString(lineStyle.Render(style.Render(plines[i] + strings.Repeat(" ", max(0, m.width-uniseg.StringWidth(plines[i]))))))
+				s.WriteString(lineStyle.Render(style.Render(plines[i] + strings.Repeat(" ", max(0, m.width-wcwidth.StringWidth(plines[i]))))))
 			}
 		default:
 			// end of line buffer character
@@ -1408,7 +1407,7 @@ func wrap(runes []rune, width int) [][]rune {
 		}
 
 		if spaces > 0 {
-			if uniseg.StringWidth(string(lines[row]))+uniseg.StringWidth(string(word))+spaces > width {
+			if wcwidth.StringWidth(string(lines[row]))+wcwidth.StringWidth(string(word))+spaces > width {
 				row++
 				lines = append(lines, []rune{})
 				lines[row] = append(lines[row], word...)
@@ -1424,8 +1423,8 @@ func wrap(runes []rune, width int) [][]rune {
 		} else {
 			// If the last character is a double-width rune, then we may not be able to add it to this line
 			// as it might cause us to go past the width.
-			lastCharLen := rw.RuneWidth(word[len(word)-1])
-			if uniseg.StringWidth(string(word))+lastCharLen > width {
+			lastCharLen := wcwidth.RuneWidth(word[len(word)-1])
+			if wcwidth.StringWidth(string(word))+lastCharLen > width {
 				// If the current line has any content, let's move to the next
 				// line because the current word fills up the entire line.
 				if len(lines[row]) > 0 {
@@ -1438,7 +1437,7 @@ func wrap(runes []rune, width int) [][]rune {
 		}
 	}
 
-	if uniseg.StringWidth(string(lines[row]))+uniseg.StringWidth(string(word))+spaces >= width {
+	if wcwidth.StringWidth(string(lines[row]))+wcwidth.StringWidth(string(word))+spaces >= width {
 		lines = append(lines, []rune{})
 		lines[row+1] = append(lines[row+1], word...)
 		// We add an extra space at the end of the line to account for the
