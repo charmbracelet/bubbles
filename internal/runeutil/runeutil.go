@@ -1,5 +1,5 @@
-// Package runeutil provides a utility function for use in Bubbles
-// that can process Key messages containing runes.
+// Package runeutil provides utility functions for tidying up incoming runes
+// from Key messages.
 package runeutil
 
 import (
