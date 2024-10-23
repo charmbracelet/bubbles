@@ -103,6 +103,12 @@ type Model struct {
 	PlaceholderStyle lipgloss.Style
 	CompletionStyle  lipgloss.Style
 
+	// Validate is a function that checks whether or not the text within the
+	// input is valid. If it is not valid, the Err field will be set to the
+	// error returned by the function. If the function is not defined, all
+	// input is considered valid.
+	Validate ValidateFunc
+
 	// CharLimit is the maximum amount of characters this input element will
 	// accept. If 0 or less, there's no limit.
 	CharLimit int
@@ -129,12 +135,6 @@ type Model struct {
 	// overflowing.
 	offset      int
 	offsetRight int
-
-	// Validate is a function that checks whether or not the text within the
-	// input is valid. If it is not valid, the `Err` field will be set to the
-	// error returned by the function. If the function is not defined, all
-	// input is considered valid.
-	Validate ValidateFunc
 
 	// rune sanitizer for input.
 	rsan runeutil.Sanitizer
@@ -326,7 +326,7 @@ func (m *Model) insertRunesFromUserInput(v []rune) {
 // If a max width is defined, perform some logic to treat the visible area
 // as a horizontally scrolling viewport.
 func (m *Model) handleOverflow() {
-	if m.Width <= 0 || uniseg.StringWidth(string(m.value)) <= m.Width {
+	if m.Width() <= 0 || uniseg.StringWidth(string(m.value)) <= m.Width() {
 		m.offset = 0
 		m.offsetRight = len(m.value)
 		return
@@ -342,9 +342,9 @@ func (m *Model) handleOverflow() {
 		i := 0
 		runes := m.value[m.offset:]
 
-		for i < len(runes) && w <= m.Width {
+		for i < len(runes) && w <= m.Width() {
 			w += rw.RuneWidth(runes[i])
-			if w <= m.Width+1 {
+			if w <= m.Width()+1 {
 				i++
 			}
 		}
@@ -357,9 +357,9 @@ func (m *Model) handleOverflow() {
 		runes := m.value[:m.offsetRight]
 		i := len(runes) - 1
 
-		for i > 0 && w < m.Width {
+		for i > 0 && w < m.Width() {
 			w += rw.RuneWidth(runes[i])
-			if w <= m.Width {
+			if w <= m.Width() {
 				i--
 			}
 		}
@@ -689,9 +689,9 @@ func (m Model) View() string {
 	// If a max width and background color were set fill the empty spaces with
 	// the background color.
 	valWidth := uniseg.StringWidth(string(value))
-	if m.Width > 0 && valWidth <= m.Width {
-		padding := max(0, m.Width-valWidth)
-		if valWidth+padding <= m.Width && pos < len(value) {
+	if m.Width() > 0 && valWidth <= m.Width() {
+		padding := max(0, m.Width()-valWidth)
+		if valWidth+padding <= m.Width() && pos < len(value) {
 			padding++
 		}
 		v += styleText(strings.Repeat(" ", padding))
@@ -713,15 +713,15 @@ func (m Model) placeholderView() string {
 	v += m.Cursor.View()
 
 	// If the entire placeholder is already set and no padding is needed, finish
-	if m.Width < 1 && len(p) <= 1 {
+	if m.Width() < 1 && len(p) <= 1 {
 		return m.PromptStyle.Render(m.Prompt) + v
 	}
 
 	// If Width is set then size placeholder accordingly
-	if m.Width > 0 {
+	if m.Width() > 0 {
 		// available width is width - len + cursor offset of 1
 		minWidth := lipgloss.Width(m.Placeholder)
-		availWidth := m.Width - minWidth + 1
+		availWidth := m.Width() - minWidth + 1
 
 		// if width < len, 'subtract'(add) number to len and dont add padding
 		if availWidth < 0 {
