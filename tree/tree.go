@@ -33,6 +33,7 @@ type Styles struct {
 // DefaultStyles returns a set of default style definitions for this tree
 // component.
 func DefaultStyles() (s Styles) {
+	s.TreeStyle = lipgloss.NewStyle()
 	s.NodeStyle = lipgloss.NewStyle()
 	s.SelectedNodeStyle = lipgloss.NewStyle().
 		Background(lipgloss.Color("62")).
@@ -140,8 +141,9 @@ type Node struct {
 	depth int
 
 	// isRoot is true for every Node which was added with tree.Root
-	isRoot bool
-	open   bool
+	isRoot        bool
+	initialClosed bool
+	open          bool
 
 	// value is the root value of the node
 	value any
@@ -174,6 +176,28 @@ func (t *Node) Size() int {
 // YOffset returns the vertical offset of the Node
 func (t *Node) YOffset() int {
 	return t.yOffset
+}
+
+// Close closes the node.
+func (t *Node) Close() *Node {
+	t.initialClosed = true
+	t.open = false
+	// reset the offset to 0,0 first
+	t.tree.Offset(0, 0)
+	t.tree.Offset(t.tree.Children().Length(), 0)
+	return t
+}
+
+// Open opens the node.
+func (t *Node) Open() *Node {
+	t.open = true
+	t.tree.Offset(0, 0)
+	return t
+}
+
+// IsOpen returns whether the node is open.
+func (t *Node) IsOpen() bool {
+	return t.open
 }
 
 type itemOptions struct {
@@ -346,9 +370,12 @@ func (t *Node) Child(children ...any) *Node {
 		switch child := child.(type) {
 		case *Node:
 			t.size = t.size + child.size
-			t.open = t.size > 1
-			child.open = child.size > 1
 			t.tree.Child(child)
+
+			// Close the node again as the number of children as changed
+			if t.initialClosed {
+				t.Close()
+			}
 		default:
 			item := new(Node)
 			item.tree = ltree.Root(child)
@@ -356,8 +383,12 @@ func (t *Node) Child(children ...any) *Node {
 			item.open = false
 			item.value = child
 			t.size = t.size + item.size
-			t.open = t.size > 1
 			t.tree.Child(item)
+
+			// Close the node again as the number of children as changed
+			if t.initialClosed {
+				t.Close()
+			}
 		}
 	}
 
@@ -368,8 +399,8 @@ func (t *Node) Child(children ...any) *Node {
 func Root(root any) *Node {
 	t := new(Node)
 	t.size = 1
-	t.open = true
 	t.value = root
+	t.open = true
 	t.isRoot = true
 	t.tree = ltree.Root(root)
 	return t
@@ -389,7 +420,7 @@ func New(t *Node, width, height int) Model {
 		viewport: viewport.Model{},
 	}
 	m.SetStyles(DefaultStyles())
-	m.setSize(width, height)
+	m.SetSize(width, height)
 	m.setAttributes()
 	m.updateStyles()
 	m.viewport.SetContent(m.root.String())
@@ -414,11 +445,11 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			if node == nil {
 				break
 			}
-			node.open = !node.open
-			if node.open {
+			node.open = !node.IsOpen()
+			if node.IsOpen() {
 				node.tree.Offset(0, 0)
 			} else {
-				node.tree.Offset(0, node.tree.Children().Length())
+				node.tree.Offset(node.tree.Children().Length(), 0)
 			}
 			m.setAttributes()
 			diff := m.yOffset - node.yOffset
@@ -439,10 +470,9 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 // View renders the component.
 func (m Model) View() string {
-	var treeView, leftDebugView, cursor string
+	var leftDebugView, cursor string
 	// TODO: remove
 	if os.Getenv("DEBUG") == "true" {
-		// topDebugView += fmt.Sprintf("y=%2d\n", m.yOffset)
 		leftDebugView = printDebugInfo(m.root) + " "
 		for i := 0; i < m.root.size; i++ {
 			if i == m.yOffset {
@@ -454,13 +484,11 @@ func (m Model) View() string {
 		}
 	}
 
-	treeView = m.styles.TreeStyle.Render(m.viewport.View())
-
-	treeView = lipgloss.JoinHorizontal(
+	treeView := lipgloss.JoinHorizontal(
 		lipgloss.Top,
 		leftDebugView,
 		cursor,
-		treeView,
+		m.viewport.View(),
 	)
 
 	var help string
@@ -473,7 +501,8 @@ func (m Model) View() string {
 
 func (m *Model) updateViewport(movement int) {
 	m.updateStyles()
-	m.viewport.SetContent(m.root.String())
+	m.viewport.Style = m.styles.TreeStyle
+	m.viewport.SetContent(m.styles.TreeStyle.Render(m.root.String()))
 	if movement == 0 {
 		return
 	}
@@ -481,18 +510,12 @@ func (m *Model) updateViewport(movement int) {
 	// make sure there are enough lines above and below the selected node
 	height := m.viewport.VisibleLineCount()
 	scrolloff := min(m.ScrollOff, height/2)
-
 	minTop := max(m.yOffset-scrolloff, 0)
 	minBottom := min(m.viewport.TotalLineCount()-1, m.yOffset+scrolloff)
-	isMinTopVisible := m.viewport.YOffset <= minTop
-	//                    0 + 8                         8
-	isMinBottomVisible := m.viewport.YOffset+height >= minBottom+1
 
-	if !isMinTopVisible {
-		// reveal more lines above
+	if m.viewport.YOffset > minTop { // reveal more lines above
 		m.viewport.SetYOffset(minTop)
-	} else if !isMinBottomVisible {
-		// reveal more lines below
+	} else if m.viewport.YOffset+height < minBottom+1 { // reveal more lines below
 		m.viewport.SetYOffset(minBottom - height + 1)
 	}
 }
@@ -520,28 +543,40 @@ func (m *Model) SetStyles(styles Styles) {
 // SetShowHelp shows or hides the help view.
 func (m *Model) SetShowHelp(v bool) {
 	m.showHelp = v
+	m.SetSize(m.width, m.height)
 }
 
-// SetSize sets the width and height of this component.
-func (m *Model) SetSize(width, height int) {
-	m.setSize(width, height)
+// Width returns the current width setting.
+func (m Model) Width() int {
+	return m.width
+}
+
+// Height returns the current height setting.
+func (m Model) Height() int {
+	return m.height
 }
 
 // SetWidth sets the width of this component.
 func (m *Model) SetWidth(v int) {
-	m.setSize(v, m.height)
+	m.SetSize(v, m.height)
 }
 
 // SetHeight sets the height of this component.
 func (m *Model) SetHeight(v int) {
-	m.setSize(m.width, v)
+	m.SetSize(m.width, v)
 }
 
-func (m *Model) setSize(width, height int) {
+// SetSize sets the width and height of this component.
+func (m *Model) SetSize(width, height int) {
 	m.width = width
 	m.height = height
+
 	m.viewport.Width = width
-	m.viewport.Height = height - lipgloss.Height(m.helpView())
+	hv := 0
+	if m.showHelp {
+		hv = lipgloss.Height(m.helpView())
+	}
+	m.viewport.Height = height - hv
 	m.Help.Width = width
 }
 
