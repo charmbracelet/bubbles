@@ -42,6 +42,10 @@ func New() Model {
 		maxStack:         newStack(),
 		KeyMap:           DefaultKeyMap(),
 		Styles:           DefaultStyles(),
+
+		Cursor:         ">",
+		DisabledCursor: ">",
+		Symlink:        "→",
 	}
 }
 
@@ -106,8 +110,8 @@ type Styles struct {
 // DefaultStyles defines the default styling for the file picker.
 func DefaultStyles() Styles {
 	return Styles{
-		DisabledCursor:   lipgloss.NewStyle().Foreground(lipgloss.Color("247")).SetString(">"),
-		Cursor:           lipgloss.NewStyle().Foreground(lipgloss.Color("212")).SetString(">"),
+		Cursor:           lipgloss.NewStyle().Foreground(lipgloss.Color("212")),
+		DisabledCursor:   lipgloss.NewStyle().Foreground(lipgloss.Color("247")),
 		Symlink:          lipgloss.NewStyle().Foreground(lipgloss.Color("36")),
 		Directory:        lipgloss.NewStyle().Foreground(lipgloss.Color("99")),
 		File:             lipgloss.NewStyle(),
@@ -133,6 +137,11 @@ type Model struct {
 	// AllowedTypes specifies which file types the user may select.
 	// If empty the user may select any file.
 	AllowedTypes []string
+
+	// Various characters used in rendering the UI.
+	Cursor         string
+	DisabledCursor string
+	Symlink        string
 
 	KeyMap          KeyMap
 	files           []os.DirEntry
@@ -371,6 +380,11 @@ func (m Model) View() string {
 
 		disabled := !m.canSelect(name) && !f.IsDir()
 
+		cursor := m.Styles.Cursor.Render(m.Cursor)
+		if disabled {
+			cursor = m.Styles.DisabledCursor.Render(m.DisabledCursor)
+		}
+
 		if m.selected == i {
 			selected := ""
 			if m.ShowPermissions {
@@ -381,12 +395,12 @@ func (m Model) View() string {
 			}
 			selected += " " + name
 			if isSymlink {
-				selected += " → " + symlinkPath
+				selected += fmt.Sprintf(" %s %s", m.Symlink, symlinkPath)
 			}
 			if disabled {
-				s.WriteString(m.Styles.DisabledCursor.String() + m.Styles.DisabledSelected.Render(selected))
+				s.WriteString(cursor + m.Styles.DisabledSelected.Render(selected))
 			} else {
-				s.WriteString(m.Styles.Cursor.String() + m.Styles.Selected.Render(selected))
+				s.WriteString(cursor + m.Styles.Selected.Render(selected))
 			}
 			s.WriteRune('\n')
 			continue
@@ -404,7 +418,6 @@ func (m Model) View() string {
 		fileName := style.Render(name)
 
 		// Replace the cursor with an empty space.
-		cursor := m.Styles.Cursor.String()
 		gap := strings.Repeat(" ", lipgloss.Width(cursor))
 		s.WriteString(gap)
 
