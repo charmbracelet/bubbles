@@ -107,16 +107,16 @@ type Model struct {
 	// accept. If 0 or less, there's no limit.
 	CharLimit int
 
-	// Width is the maximum number of characters that can be displayed at once.
-	// It essentially treats the text field like a horizontally scrolling
-	// viewport. If 0 or less this setting is ignored.
-	Width int
-
 	// KeyMap encodes the keybindings recognized by the widget.
 	KeyMap KeyMap
 
 	// Underlying text value.
 	value []rune
+
+	// width is the maximum number of characters that can be displayed at once. It
+	// essentially treats the text field like a horizontally scrolling
+	// viewport. If 0 or less this setting is ignored.
+	width int
 
 	// focus indicates whether user input focus should be on this input
 	// component. When false, ignore keyboard input and hide the cursor.
@@ -196,6 +196,17 @@ func (m *Model) setValueInternal(runes []rune, err error) {
 // Value returns the value of the text input.
 func (m Model) Value() string {
 	return string(m.value)
+}
+
+func (m *Model) SetWidth(w int) {
+	m.width = w
+}
+
+// Width is the maximum number of characters that can be displayed at
+// once. It essentially treats the text field like a horizontally scrolling
+// viewport. If 0 or less this setting is ignored.
+func (m Model) Width() int {
+	return m.width
 }
 
 // Position returns the cursor position.
