@@ -52,10 +52,12 @@ func (c Mode) String() string {
 // Model is the Bubble Tea model for this cursor element.
 type Model struct {
 	BlinkSpeed time.Duration
+
 	// Style for styling the cursor block.
 	Style lipgloss.Style
+
 	// TextStyle is the style used for the cursor when it is hidden (when blinking).
-	// I.e. displaying normal text.
+	// i.e. displaying normal text.
 	TextStyle lipgloss.Style
 
 	// char is the character under the cursor
