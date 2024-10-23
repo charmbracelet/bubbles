@@ -10,6 +10,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/viewport"
 )
 
 // StyleFunc allows the tree to be styled per item.
@@ -97,6 +98,8 @@ var DefaultKeyMap = KeyMap{
 // Model is the Bubble Tea model for this tree element.
 type Model struct {
 	showHelp bool
+	// ScrollOff is the minimal number of lines to keep visible above and below the selected node.
+	ScrollOff int
 	// OpenCharacter is the character used to represent an open node.
 	OpenCharacter string
 	// ClosedCharacter is the character used to represent a closed node.
@@ -115,9 +118,11 @@ type Model struct {
 	AdditionalShortHelpKeys func() []key.Binding
 	AdditionalFullHelpKeys  func() []key.Binding
 
-	root   *Node
-	width  int
-	height int
+	root *Node
+
+	viewport viewport.Model
+	width    int
+	height   int
 	// yOffset is the vertical offset of the selected node.
 	yOffset int
 }
@@ -377,14 +382,17 @@ func New(t *Node, width, height int) Model {
 		OpenCharacter:   "▼",
 		ClosedCharacter: "▶",
 		Help:            help.New(),
+		ScrollOff:       5,
 
 		showHelp: true,
 		root:     t,
+		viewport: viewport.Model{},
 	}
 	m.SetStyles(DefaultStyles())
 	m.setSize(width, height)
 	m.setAttributes()
 	m.updateStyles()
+	m.viewport.SetContent(m.root.String())
 	return m
 }
 
@@ -397,8 +405,10 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		switch {
 		case key.Matches(msg, m.KeyMap.Down):
 			m.yOffset = min(m.root.size-1, m.yOffset+1)
+			m.updateViewport(1)
 		case key.Matches(msg, m.KeyMap.Up):
 			m.yOffset = max(0, m.yOffset-1)
+			m.updateViewport(-1)
 		case key.Matches(msg, m.KeyMap.Toggle):
 			node := findNode(m.root, m.yOffset)
 			if node == nil {
@@ -411,7 +421,9 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				node.tree.Offset(0, node.tree.Children().Length())
 			}
 			m.setAttributes()
+			diff := m.yOffset - node.yOffset
 			m.yOffset = node.yOffset
+			m.updateViewport(diff)
 		case key.Matches(msg, m.KeyMap.Quit):
 			return m, tea.Quit
 		case key.Matches(msg, m.KeyMap.ShowFullHelp):
@@ -422,7 +434,6 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	}
 
 	// not sure why, but I think m.yOffset is captured in the closure, so we need to update the styles
-	m.updateStyles()
 	return m, tea.Batch(cmds...)
 }
 
@@ -443,7 +454,7 @@ func (m Model) View() string {
 		}
 	}
 
-	treeView = m.styles.TreeStyle.Render(m.root.String())
+	treeView = m.styles.TreeStyle.Render(m.viewport.View())
 
 	treeView = lipgloss.JoinHorizontal(
 		lipgloss.Top,
@@ -458,6 +469,32 @@ func (m Model) View() string {
 	}
 
 	return lipgloss.JoinVertical(lipgloss.Left, treeView, help)
+}
+
+func (m *Model) updateViewport(movement int) {
+	m.updateStyles()
+	m.viewport.SetContent(m.root.String())
+	if movement == 0 {
+		return
+	}
+
+	// make sure there are enough lines above and below the selected node
+	height := m.viewport.VisibleLineCount()
+	scrolloff := min(m.ScrollOff, height/2)
+
+	minTop := max(m.yOffset-scrolloff, 0)
+	minBottom := min(m.viewport.TotalLineCount()-1, m.yOffset+scrolloff)
+	isMinTopVisible := m.viewport.YOffset <= minTop
+	//                    0 + 8                         8
+	isMinBottomVisible := m.viewport.YOffset+height >= minBottom+1
+
+	if !isMinTopVisible {
+		// reveal more lines above
+		m.viewport.SetYOffset(minTop)
+	} else if !isMinBottomVisible {
+		// reveal more lines below
+		m.viewport.SetYOffset(minBottom - height + 1)
+	}
 }
 
 // SetStyles sets the styles for this component.
@@ -477,7 +514,7 @@ func (m *Model) SetStyles(styles Styles) {
 		}
 	}
 	m.styles = styles
-	m.updateStyles()
+	m.updateViewport(0)
 }
 
 // SetShowHelp shows or hides the help view.
@@ -503,6 +540,8 @@ func (m *Model) SetHeight(v int) {
 func (m *Model) setSize(width, height int) {
 	m.width = width
 	m.height = height
+	m.viewport.Width = width
+	m.viewport.Height = height - lipgloss.Height(m.helpView())
 	m.Help.Width = width
 }
 
