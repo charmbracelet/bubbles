@@ -191,11 +191,11 @@ func New() Model {
 }
 
 // styles returns the appropriate styles for the current focus state.
-func (m Model) styles() StyleState {
+func (m Model) styles() *StyleState {
 	if m.focus {
-		return m.Styles.Focused
+		return &m.Styles.Focused
 	}
-	return m.Styles.Blurred
+	return &m.Styles.Blurred
 }
 
 // SetValue sets the value of the text input.
