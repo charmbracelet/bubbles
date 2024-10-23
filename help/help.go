@@ -28,6 +28,8 @@ type KeyMap interface {
 
 // Styles is a set of available style definitions for the Help bubble.
 type Styles struct {
+	// The symbol we use in the short help when help items have been truncated
+	// due to width. Periods of ellipsis by default.
 	Ellipsis lipgloss.Style
 
 	// Styling for the short help
@@ -41,51 +43,62 @@ type Styles struct {
 	FullSeparator lipgloss.Style
 }
 
+// BaseStyles returns a set of styles with layouts, but no colors.
+func BaseStyles() Styles {
+	return Styles{
+		Ellipsis:       lipgloss.NewStyle().SetString("…"),
+		ShortSeparator: lipgloss.NewStyle().SetString(" • "),
+		FullSeparator:  lipgloss.NewStyle().SetString("    "),
+	}
+}
+
+// DefaultStylesDark returns a set of dark background styles for help.
+func DefaultStylesDark() Styles {
+	var (
+		s         = BaseStyles()
+		keyColor  = lipgloss.Color("#626262")
+		descColor = lipgloss.Color("#4A4A4A")
+		sepColor  = lipgloss.Color("#3C3C3C")
+	)
+
+	s.ShortKey = s.ShortKey.Foreground(keyColor)
+	s.ShortDesc = s.ShortDesc.Foreground(descColor)
+	s.ShortSeparator = s.ShortSeparator.Foreground(sepColor)
+	s.FullKey = s.FullKey.Foreground(keyColor)
+	s.FullDesc = s.FullDesc.Foreground(descColor)
+	s.FullSeparator = s.FullSeparator.Foreground(sepColor)
+	return s
+}
+
+// DefaultStylesLight returns a set of light background styles for help.
+func DefaultStylesLight() Styles {
+	var (
+		s         = BaseStyles()
+		keyColor  = lipgloss.Color("#909090")
+		descColor = lipgloss.Color("#B2B2B2")
+		sepColor  = lipgloss.Color("#DDDADA")
+	)
+
+	s.ShortKey = s.ShortKey.Foreground(keyColor)
+	s.ShortDesc = s.ShortDesc.Foreground(descColor)
+	s.ShortSeparator = s.ShortSeparator.Foreground(sepColor)
+	s.FullKey = s.FullKey.Foreground(keyColor)
+	s.FullDesc = s.FullDesc.Foreground(descColor)
+	s.FullSeparator = s.FullSeparator.Foreground(sepColor)
+	return s
+}
+
 // Model contains the state of the help view.
 type Model struct {
 	Width   int
 	ShowAll bool // if true, render the "full" help menu
-
-	ShortSeparator string
-	FullSeparator  string
-
-	// The symbol we use in the short help when help items have been truncated
-	// due to width. Periods of ellipsis by default.
-	Ellipsis string
-
-	Styles Styles
+	Styles  Styles
 }
 
 // New creates a new help view with some useful defaults.
 func New() Model {
-	keyStyle := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{
-		Light: "#909090",
-		Dark:  "#626262",
-	})
-
-	descStyle := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{
-		Light: "#B2B2B2",
-		Dark:  "#4A4A4A",
-	})
-
-	sepStyle := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{
-		Light: "#DDDADA",
-		Dark:  "#3C3C3C",
-	})
-
 	return Model{
-		ShortSeparator: " • ",
-		FullSeparator:  "    ",
-		Ellipsis:       "…",
-		Styles: Styles{
-			ShortKey:       keyStyle,
-			ShortDesc:      descStyle,
-			ShortSeparator: sepStyle,
-			Ellipsis:       sepStyle,
-			FullKey:        keyStyle,
-			FullDesc:       descStyle,
-			FullSeparator:  sepStyle,
-		},
+		Styles: DefaultStylesDark(),
 	}
 }
 
@@ -112,7 +125,7 @@ func (m Model) ShortHelpView(bindings []key.Binding) string {
 
 	var b strings.Builder
 	var totalWidth int
-	separator := m.Styles.ShortSeparator.Inline(true).Render(m.ShortSeparator)
+	separator := m.Styles.ShortSeparator.Inline(true).String()
 
 	for i, kb := range bindings {
 		if !kb.Enabled() {
@@ -160,7 +173,7 @@ func (m Model) FullHelpView(groups [][]key.Binding) string {
 		out []string
 
 		totalWidth int
-		separator  = m.Styles.FullSeparator.Inline(true).Render(m.FullSeparator)
+		separator  = m.Styles.FullSeparator.Inline(true).String()
 	)
 
 	// Iterate over groups to build columns
@@ -215,7 +228,7 @@ func (m Model) FullHelpView(groups [][]key.Binding) string {
 func (m Model) shouldAddItem(totalWidth, width int) (tail string, ok bool) {
 	// If there's room for an ellipsis, print that.
 	if m.Width > 0 && totalWidth+width > m.Width {
-		tail = " " + m.Styles.Ellipsis.Inline(true).Render(m.Ellipsis)
+		tail = " " + m.Styles.Ellipsis.Inline(true).String()
 
 		if totalWidth+lipgloss.Width(tail) < m.Width {
 			return tail, false
