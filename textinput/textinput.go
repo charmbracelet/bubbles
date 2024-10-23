@@ -83,6 +83,36 @@ func DefaultKeyMap() KeyMap {
 	}
 }
 
+// Styles is a collection of styles for the text input. There are two states:
+// one for when the input is focused and one for when it is not.
+type Styles struct {
+	Focused StyleState
+	Blurred StyleState
+}
+
+// StyleState is a set of styles for the text input that pertain to focused
+// and unfocused states.
+type StyleState struct {
+	Prompt      lipgloss.Style
+	Text        lipgloss.Style
+	Placeholder lipgloss.Style
+	Completion  lipgloss.Style
+}
+
+// DefaultStyles returns the default styles for the text input.
+func DefaultStyles() Styles {
+	v := StyleState{
+		Prompt:      lipgloss.NewStyle(),
+		Text:        lipgloss.NewStyle(),
+		Placeholder: lipgloss.NewStyle().Faint(true),
+		Completion:  lipgloss.NewStyle().Faint(true),
+	}
+	return Styles{
+		Focused: v,
+		Blurred: v,
+	}
+}
+
 // Model is the Bubble Tea model for this text input element.
 type Model struct {
 	Err error
@@ -94,14 +124,7 @@ type Model struct {
 	EchoCharacter rune
 	Cursor        cursor.Model
 
-	// Styles. These will be applied as inline styles.
-	//
-	// For an introduction to styling with Lip Gloss see:
-	// https://github.com/charmbracelet/lipgloss
-	PromptStyle      lipgloss.Style
-	TextStyle        lipgloss.Style
-	PlaceholderStyle lipgloss.Style
-	CompletionStyle  lipgloss.Style
+	Styles Styles
 
 	// Validate is a function that checks whether or not the text within the
 	// input is valid. If it is not valid, the Err field will be set to the
@@ -152,20 +175,27 @@ type Model struct {
 // New creates a new model with default settings.
 func New() Model {
 	return Model{
-		Prompt:           "> ",
-		EchoCharacter:    '*',
-		CharLimit:        0,
-		PlaceholderStyle: lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
-		ShowSuggestions:  false,
-		CompletionStyle:  lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
-		Cursor:           cursor.New(),
-		KeyMap:           DefaultKeyMap(),
+		Prompt:          "> ",
+		EchoCharacter:   '*',
+		CharLimit:       0,
+		ShowSuggestions: false,
+		Cursor:          cursor.New(),
+		KeyMap:          DefaultKeyMap(),
+		Styles:          DefaultStyles(),
 
 		suggestions: [][]rune{},
 		value:       nil,
 		focus:       false,
 		pos:         0,
 	}
+}
+
+// styles returns the appropriate styles for the current focus state.
+func (m Model) styles() StyleState {
+	if m.focus {
+		return m.Styles.Focused
+	}
+	return m.Styles.Blurred
 }
 
 // SetValue sets the value of the text input.
@@ -656,7 +686,9 @@ func (m Model) View() string {
 		return m.placeholderView()
 	}
 
-	styleText := m.TextStyle.Inline(true).Render
+	s := m.styles()
+
+	styleText := s.Text.Inline(true).Render
 
 	value := m.value[m.offset:m.offsetRight]
 	pos := max(0, m.pos-m.offset)
@@ -672,7 +704,7 @@ func (m Model) View() string {
 		if m.canAcceptSuggestion() {
 			suggestion := m.matchedSuggestions[m.currentSuggestionIndex]
 			if len(value) < len(suggestion) {
-				m.Cursor.TextStyle = m.CompletionStyle
+				m.Cursor.TextStyle = s.Completion
 				m.Cursor.SetChar(m.echoTransform(string(suggestion[pos])))
 				v += m.Cursor.View()
 				v += m.completionView(1)
@@ -697,7 +729,7 @@ func (m Model) View() string {
 		v += styleText(strings.Repeat(" ", padding))
 	}
 
-	return m.PromptStyle.Render(m.Prompt) + v
+	return s.Prompt.Render(m.Prompt) + v
 }
 
 // placeholderView returns the prompt and placeholder view, if any.
@@ -705,16 +737,17 @@ func (m Model) placeholderView() string {
 	var (
 		v     string
 		p     = []rune(m.Placeholder)
-		style = m.PlaceholderStyle.Inline(true).Render
+		s     = m.styles()
+		style = s.Placeholder.Inline(true).Render
 	)
 
-	m.Cursor.TextStyle = m.PlaceholderStyle
+	m.Cursor.TextStyle = s.Placeholder
 	m.Cursor.SetChar(string(p[:1]))
 	v += m.Cursor.View()
 
 	// If the entire placeholder is already set and no padding is needed, finish
 	if m.Width() < 1 && len(p) <= 1 {
-		return m.PromptStyle.Render(m.Prompt) + v
+		return s.Prompt.Render(m.Prompt) + v
 	}
 
 	// If Width is set then size placeholder accordingly
@@ -736,7 +769,7 @@ func (m Model) placeholderView() string {
 		v += style(string(p[1:]))
 	}
 
-	return m.PromptStyle.Render(m.Prompt) + v
+	return s.Prompt.Render(m.Prompt) + v
 }
 
 // Blink is a command used to initialize cursor blinking.
@@ -777,7 +810,7 @@ func max(a, b int) int {
 func (m Model) completionView(offset int) string {
 	var (
 		value = m.value
-		style = m.PlaceholderStyle.Inline(true).Render
+		style = m.styles().Placeholder.Inline(true).Render
 	)
 
 	if m.canAcceptSuggestion() {
