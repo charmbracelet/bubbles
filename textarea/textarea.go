@@ -117,14 +117,17 @@ type LineInfo struct {
 	CharOffset int
 }
 
-// Style that will be applied to the text area.
-//
-// Style can be applied to focused and unfocused states to change the styles
-// depending on the focus state.
+type Styles struct {
+	Focused StyleState
+	Blurred StyleState
+}
+
+// StyleState is a set of styles for the textarea. They can apply to either
+// focused or unfocused states.
 //
 // For an introduction to styling with Lip Gloss see:
 // https://github.com/charmbracelet/lipgloss
-type Style struct {
+type StyleState struct {
 	Base             lipgloss.Style
 	CursorLine       lipgloss.Style
 	CursorLineNumber lipgloss.Style
@@ -135,34 +138,34 @@ type Style struct {
 	Text             lipgloss.Style
 }
 
-func (s Style) computedCursorLine() lipgloss.Style {
+func (s StyleState) computedCursorLine() lipgloss.Style {
 	return s.CursorLine.Inherit(s.Base).Inline(true)
 }
 
-func (s Style) computedCursorLineNumber() lipgloss.Style {
+func (s StyleState) computedCursorLineNumber() lipgloss.Style {
 	return s.CursorLineNumber.
 		Inherit(s.CursorLine).
 		Inherit(s.Base).
 		Inline(true)
 }
 
-func (s Style) computedEndOfBuffer() lipgloss.Style {
+func (s StyleState) computedEndOfBuffer() lipgloss.Style {
 	return s.EndOfBuffer.Inherit(s.Base).Inline(true)
 }
 
-func (s Style) computedLineNumber() lipgloss.Style {
+func (s StyleState) computedLineNumber() lipgloss.Style {
 	return s.LineNumber.Inherit(s.Base).Inline(true)
 }
 
-func (s Style) computedPlaceholder() lipgloss.Style {
+func (s StyleState) computedPlaceholder() lipgloss.Style {
 	return s.Placeholder.Inherit(s.Base).Inline(true)
 }
 
-func (s Style) computedPrompt() lipgloss.Style {
+func (s StyleState) computedPrompt() lipgloss.Style {
 	return s.Prompt.Inherit(s.Base).Inline(true)
 }
 
-func (s Style) computedText() lipgloss.Style {
+func (s StyleState) computedText() lipgloss.Style {
 	return s.Text.Inherit(s.Base).Inline(true)
 }
 
@@ -210,13 +213,15 @@ type Model struct {
 
 	// Styling. FocusedStyle and BlurredStyle are used to style the textarea in
 	// focused and blurred states.
-	FocusedStyle Style
-	BlurredStyle Style
+	Styles Styles
+
 	// style is the current styling to use.
 	// It is used to abstract the differences in focus state when styling the
 	// model, since we can simply assign the set of styles to this variable
 	// when switching focus states.
-	style *Style
+	//
+	// XXX: Make this an internal getter?
+	style *StyleState
 
 	// Cursor is the text area cursor.
 	Cursor cursor.Model
@@ -280,16 +285,12 @@ func New() Model {
 	vp.KeyMap = viewport.KeyMap{}
 	cur := cursor.New()
 
-	focusedStyle, blurredStyle := DefaultStyles()
-
 	m := Model{
 		CharLimit:            defaultCharLimit,
 		MaxHeight:            defaultMaxHeight,
 		MaxWidth:             defaultMaxWidth,
 		Prompt:               lipgloss.ThickBorder().Left + " ",
-		style:                &blurredStyle,
-		FocusedStyle:         focusedStyle,
-		BlurredStyle:         blurredStyle,
+		Styles:               DefaultStyles(),
 		cache:                memoization.NewMemoCache[line, [][]rune](defaultMaxHeight),
 		EndOfBufferCharacter: ' ',
 		ShowLineNumbers:      true,
@@ -304,6 +305,8 @@ func New() Model {
 		viewport: &vp,
 	}
 
+	m.style = &m.Styles.Blurred
+
 	m.SetHeight(defaultHeight)
 	m.SetWidth(defaultWidth)
 
@@ -312,31 +315,32 @@ func New() Model {
 
 // DefaultStyles returns the default styles for focused and blurred states for
 // the textarea.
-func DefaultStyles() (Style, Style) {
+func DefaultStyles() Styles {
+	// XXX: Remove light-dark colors, or don't hard code this.
 	lightDark := lipgloss.LightDark(true)
 
-	focused := Style{
-		Base:             lipgloss.NewStyle(),
-		CursorLine:       lipgloss.NewStyle().Background(lightDark("255", "0")),
-		CursorLineNumber: lipgloss.NewStyle().Foreground(lightDark("240", "0")),
-		EndOfBuffer:      lipgloss.NewStyle().Foreground(lightDark("254", "0")),
-		LineNumber:       lipgloss.NewStyle().Foreground(lightDark("249", "7")),
-		Placeholder:      lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
-		Prompt:           lipgloss.NewStyle().Foreground(lipgloss.Color("7")),
-		Text:             lipgloss.NewStyle(),
+	return Styles{
+		Focused: StyleState{
+			Base:             lipgloss.NewStyle(),
+			CursorLine:       lipgloss.NewStyle().Background(lightDark("255", "0")),
+			CursorLineNumber: lipgloss.NewStyle().Foreground(lightDark("240", "250")),
+			EndOfBuffer:      lipgloss.NewStyle().Foreground(lightDark("254", "0")),
+			LineNumber:       lipgloss.NewStyle().Foreground(lightDark("249", "7")),
+			Placeholder:      lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
+			Prompt:           lipgloss.NewStyle().Foreground(lipgloss.Color("7")),
+			Text:             lipgloss.NewStyle(),
+		},
+		Blurred: StyleState{
+			Base:             lipgloss.NewStyle(),
+			CursorLine:       lipgloss.NewStyle().Foreground(lightDark("245", "7")),
+			CursorLineNumber: lipgloss.NewStyle().Foreground(lightDark("249", "7")),
+			EndOfBuffer:      lipgloss.NewStyle().Foreground(lightDark("254", "0")),
+			LineNumber:       lipgloss.NewStyle().Foreground(lightDark("249", "7")),
+			Placeholder:      lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
+			Prompt:           lipgloss.NewStyle().Foreground(lipgloss.Color("7")),
+			Text:             lipgloss.NewStyle().Foreground(lightDark("245", "7")),
+		},
 	}
-	blurred := Style{
-		Base:             lipgloss.NewStyle(),
-		CursorLine:       lipgloss.NewStyle().Foreground(lightDark("245", "7")),
-		CursorLineNumber: lipgloss.NewStyle().Foreground(lightDark("249", "7")),
-		EndOfBuffer:      lipgloss.NewStyle().Foreground(lightDark("254", "0")),
-		LineNumber:       lipgloss.NewStyle().Foreground(lightDark("249", "7")),
-		Placeholder:      lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
-		Prompt:           lipgloss.NewStyle().Foreground(lipgloss.Color("7")),
-		Text:             lipgloss.NewStyle().Foreground(lightDark("245", "7")),
-	}
-
-	return focused, blurred
 }
 
 // SetValue sets the value of the text input.
@@ -576,7 +580,7 @@ func (m Model) Focused() bool {
 // receive keyboard input and the cursor will be hidden.
 func (m *Model) Focus() tea.Cmd {
 	m.focus = true
-	m.style = &m.FocusedStyle
+	m.style = &m.Styles.Focused
 	return m.Cursor.Focus()
 }
 
@@ -584,7 +588,7 @@ func (m *Model) Focus() tea.Cmd {
 // not receive keyboard input and the cursor will be hidden.
 func (m *Model) Blur() {
 	m.focus = false
-	m.style = &m.BlurredStyle
+	m.style = &m.Styles.Blurred
 	m.Cursor.Blur()
 }
 
