@@ -119,6 +119,7 @@ type LineInfo struct {
 	CharOffset int
 }
 
+// Styles contains all styles for the textarea.
 type Styles struct {
 	Focused StyleState
 	Blurred StyleState
