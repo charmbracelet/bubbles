@@ -197,7 +197,9 @@ type Model struct {
 
 // New returns a new model with sensible defaults.
 func New(items []Item, delegate ItemDelegate, width, height int) Model {
-	styles := DefaultStyles()
+	// XXX: Let the user choose between light and dark colors. We've
+	// temporarily hardcoded the dark colors here.
+	styles := DefaultStyles(true)
 
 	sp := spinner.New()
 	sp.Spinner = spinner.Line

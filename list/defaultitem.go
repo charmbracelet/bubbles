@@ -32,29 +32,31 @@ type DefaultItemStyles struct {
 
 // NewDefaultItemStyles returns style definitions for a default item. See
 // DefaultItemView for when these come into play.
-func NewDefaultItemStyles() (s DefaultItemStyles) {
+func NewDefaultItemStyles(isDark bool) (s DefaultItemStyles) {
+	lightDark := lipgloss.LightDark(isDark)
+
 	s.NormalTitle = lipgloss.NewStyle().
-		Foreground(lipgloss.AdaptiveColor{Light: "#1a1a1a", Dark: "#dddddd"}).
+		Foreground(lightDark("#1a1a1a", "#dddddd")).
 		Padding(0, 0, 0, 2) //nolint:mnd
 
 	s.NormalDesc = s.NormalTitle.
-		Foreground(lipgloss.AdaptiveColor{Light: "#A49FA5", Dark: "#777777"})
+		Foreground(lightDark("#A49FA5", "#777777"))
 
 	s.SelectedTitle = lipgloss.NewStyle().
 		Border(lipgloss.NormalBorder(), false, false, false, true).
-		BorderForeground(lipgloss.AdaptiveColor{Light: "#F793FF", Dark: "#AD58B4"}).
-		Foreground(lipgloss.AdaptiveColor{Light: "#EE6FF8", Dark: "#EE6FF8"}).
+		BorderForeground(lightDark("#F793FF", "#AD58B4")).
+		Foreground(lightDark("#EE6FF8", "#EE6FF8")).
 		Padding(0, 0, 0, 1)
 
 	s.SelectedDesc = s.SelectedTitle.
-		Foreground(lipgloss.AdaptiveColor{Light: "#F793FF", Dark: "#AD58B4"})
+		Foreground(lightDark("#F793FF", "#AD58B4"))
 
 	s.DimmedTitle = lipgloss.NewStyle().
-		Foreground(lipgloss.AdaptiveColor{Light: "#A49FA5", Dark: "#777777"}).
+		Foreground(lightDark("#A49FA5", "#777777")).
 		Padding(0, 0, 0, 2) //nolint:mnd
 
 	s.DimmedDesc = s.DimmedTitle.
-		Foreground(lipgloss.AdaptiveColor{Light: "#C2B8C2", Dark: "#4D4D4D"})
+		Foreground(lightDark("#C2B8C2", "#4D4D4D"))
 
 	s.FilterMatch = lipgloss.NewStyle().Underline(true)
 
@@ -97,9 +99,11 @@ func NewDefaultDelegate() DefaultDelegate {
 	const defaultSpacing = 1
 	return DefaultDelegate{
 		ShowDescription: true,
-		Styles:          NewDefaultItemStyles(),
-		height:          defaultHeight,
-		spacing:         defaultSpacing,
+		// XXX: Let the user choose between light and dark colors. We've
+		// temporarily hardcoded the dark colors here.
+		Styles:  NewDefaultItemStyles(true),
+		height:  defaultHeight,
+		spacing: defaultSpacing,
 	}
 }
 
