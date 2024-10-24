@@ -2,11 +2,9 @@ package help
 
 import (
 	"fmt"
-	"os"
-	"strings"
 	"testing"
 
-	"github.com/charmbracelet/colorprofile"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/golden"
 
 	"github.com/charmbracelet/bubbles/v2/key"
@@ -35,17 +33,8 @@ func TestFullHelp(t *testing.T) {
 		t.Run(fmt.Sprintf("full help %d width", w), func(t *testing.T) {
 			m.Width = w
 			s := m.FullHelpView(kb)
-
-			// Downsample color to NoTTY mode.
-			var b strings.Builder
-			downsampler := colorprofile.NewWriter(&b, os.Environ())
-			downsampler.Profile = colorprofile.NoTTY
-			_, err := downsampler.WriteString(s)
-			if err != nil {
-				t.Error(err)
-			}
-
-			golden.RequireEqual(t, []byte(b.String()))
+			s = ansi.Strip(s)
+			golden.RequireEqual(t, []byte(s))
 		})
 	}
 }
