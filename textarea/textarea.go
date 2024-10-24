@@ -117,14 +117,22 @@ type LineInfo struct {
 	CharOffset int
 }
 
-// Style that will be applied to the text area.
+// Styles are the styles for the textarea, separated into focused and blurred
+// states. The appropriate styles will be chosen based on the focus state of
+// the textarea.
+type Styles struct {
+	Focused StyleState
+	Blurred StyleState
+}
+
+// StyleState that will be applied to the text area.
 //
-// Style can be applied to focused and unfocused states to change the styles
+// StyleState can be applied to focused and unfocused states to change the styles
 // depending on the focus state.
 //
 // For an introduction to styling with Lip Gloss see:
 // https://github.com/charmbracelet/lipgloss
-type Style struct {
+type StyleState struct {
 	Base             lipgloss.Style
 	CursorLine       lipgloss.Style
 	CursorLineNumber lipgloss.Style
@@ -135,34 +143,34 @@ type Style struct {
 	Text             lipgloss.Style
 }
 
-func (s Style) computedCursorLine() lipgloss.Style {
+func (s StyleState) computedCursorLine() lipgloss.Style {
 	return s.CursorLine.Inherit(s.Base).Inline(true)
 }
 
-func (s Style) computedCursorLineNumber() lipgloss.Style {
+func (s StyleState) computedCursorLineNumber() lipgloss.Style {
 	return s.CursorLineNumber.
 		Inherit(s.CursorLine).
 		Inherit(s.Base).
 		Inline(true)
 }
 
-func (s Style) computedEndOfBuffer() lipgloss.Style {
+func (s StyleState) computedEndOfBuffer() lipgloss.Style {
 	return s.EndOfBuffer.Inherit(s.Base).Inline(true)
 }
 
-func (s Style) computedLineNumber() lipgloss.Style {
+func (s StyleState) computedLineNumber() lipgloss.Style {
 	return s.LineNumber.Inherit(s.Base).Inline(true)
 }
 
-func (s Style) computedPlaceholder() lipgloss.Style {
+func (s StyleState) computedPlaceholder() lipgloss.Style {
 	return s.Placeholder.Inherit(s.Base).Inline(true)
 }
 
-func (s Style) computedPrompt() lipgloss.Style {
+func (s StyleState) computedPrompt() lipgloss.Style {
 	return s.Prompt.Inherit(s.Base).Inline(true)
 }
 
-func (s Style) computedText() lipgloss.Style {
+func (s StyleState) computedText() lipgloss.Style {
 	return s.Text.Inherit(s.Base).Inline(true)
 }
 
@@ -210,13 +218,13 @@ type Model struct {
 
 	// Styling. FocusedStyle and BlurredStyle are used to style the textarea in
 	// focused and blurred states.
-	FocusedStyle Style
-	BlurredStyle Style
-	// style is the current styling to use.
+	Styles Styles
+
+	// activeStyle is the current styling to use.
 	// It is used to abstract the differences in focus state when styling the
-	// model, since we can simply assign the set of styles to this variable
+	// model, since we can simply assign the set of activeStyle to this variable
 	// when switching focus states.
-	style *Style
+	activeStyle *StyleState
 
 	// Cursor is the text area cursor.
 	Cursor cursor.Model
@@ -280,16 +288,15 @@ func New() Model {
 	vp.KeyMap = viewport.KeyMap{}
 	cur := cursor.New()
 
-	focusedStyle, blurredStyle := DefaultStyles(true)
+	styles := DefaultStyles(true)
 
 	m := Model{
 		CharLimit:            defaultCharLimit,
 		MaxHeight:            defaultMaxHeight,
 		MaxWidth:             defaultMaxWidth,
 		Prompt:               lipgloss.ThickBorder().Left + " ",
-		style:                &blurredStyle,
-		FocusedStyle:         focusedStyle,
-		BlurredStyle:         blurredStyle,
+		Styles:               styles,
+		activeStyle:          &styles.Blurred,
 		cache:                memoization.NewMemoCache[line, [][]rune](defaultMaxHeight),
 		EndOfBufferCharacter: ' ',
 		ShowLineNumbers:      true,
@@ -312,10 +319,11 @@ func New() Model {
 
 // DefaultStyles returns the default styles for focused and blurred states for
 // the textarea.
-func DefaultStyles(isDark bool) (Style, Style) {
+func DefaultStyles(isDark bool) Styles {
 	lightDark := lipgloss.LightDark(isDark)
 
-	focused := Style{
+	var s Styles
+	s.Focused = StyleState{
 		Base:             lipgloss.NewStyle(),
 		CursorLine:       lipgloss.NewStyle().Background(lightDark("255", "0")),
 		CursorLineNumber: lipgloss.NewStyle().Foreground(lightDark("240", "240")),
@@ -325,7 +333,7 @@ func DefaultStyles(isDark bool) (Style, Style) {
 		Prompt:           lipgloss.NewStyle().Foreground(lipgloss.Color("7")),
 		Text:             lipgloss.NewStyle(),
 	}
-	blurred := Style{
+	s.Blurred = StyleState{
 		Base:             lipgloss.NewStyle(),
 		CursorLine:       lipgloss.NewStyle().Foreground(lightDark("245", "7")),
 		CursorLineNumber: lipgloss.NewStyle().Foreground(lightDark("249", "7")),
@@ -335,8 +343,7 @@ func DefaultStyles(isDark bool) (Style, Style) {
 		Prompt:           lipgloss.NewStyle().Foreground(lipgloss.Color("7")),
 		Text:             lipgloss.NewStyle().Foreground(lightDark("245", "7")),
 	}
-
-	return focused, blurred
+	return s
 }
 
 // SetValue sets the value of the text input.
@@ -578,7 +585,7 @@ func (m Model) Focused() bool {
 // receive keyboard input and the cursor will be hidden.
 func (m *Model) Focus() tea.Cmd {
 	m.focus = true
-	m.style = &m.FocusedStyle
+	m.activeStyle = &m.Styles.Focused
 	return m.Cursor.Focus()
 }
 
@@ -586,7 +593,7 @@ func (m *Model) Focus() tea.Cmd {
 // not receive keyboard input and the cursor will be hidden.
 func (m *Model) Blur() {
 	m.focus = false
-	m.style = &m.BlurredStyle
+	m.activeStyle = &m.Styles.Blurred
 	m.Cursor.Blur()
 }
 
@@ -899,7 +906,7 @@ func (m *Model) SetWidth(w int) {
 	}
 
 	// Add base style borders and padding to reserved outer width.
-	reservedOuter := m.style.Base.GetHorizontalFrameSize()
+	reservedOuter := m.activeStyle.Base.GetHorizontalFrameSize()
 
 	// Add prompt width to reserved inner width.
 	reservedInner := m.promptWidth
@@ -1098,7 +1105,7 @@ func (m Model) View() string {
 	if m.Value() == "" && m.row == 0 && m.col == 0 && m.Placeholder != "" {
 		return m.placeholderView()
 	}
-	m.Cursor.TextStyle = m.style.computedCursorLine()
+	m.Cursor.TextStyle = m.activeStyle.computedCursorLine()
 
 	var (
 		s                strings.Builder
@@ -1113,14 +1120,14 @@ func (m Model) View() string {
 		wrappedLines := m.memoizedWrap(line, m.width)
 
 		if m.row == l {
-			style = m.style.computedCursorLine()
+			style = m.activeStyle.computedCursorLine()
 		} else {
-			style = m.style.computedText()
+			style = m.activeStyle.computedText()
 		}
 
 		for wl, wrappedLine := range wrappedLines {
 			prompt := m.getPromptString(displayLine)
-			prompt = m.style.computedPrompt().Render(prompt)
+			prompt = m.activeStyle.computedPrompt().Render(prompt)
 			s.WriteString(style.Render(prompt))
 			displayLine++
 
@@ -1128,18 +1135,18 @@ func (m Model) View() string {
 			if m.ShowLineNumbers { //nolint:nestif
 				if wl == 0 {
 					if m.row == l {
-						ln = style.Render(m.style.computedCursorLineNumber().Render(m.formatLineNumber(l + 1)))
+						ln = style.Render(m.activeStyle.computedCursorLineNumber().Render(m.formatLineNumber(l + 1)))
 						s.WriteString(ln)
 					} else {
-						ln = style.Render(m.style.computedLineNumber().Render(m.formatLineNumber(l + 1)))
+						ln = style.Render(m.activeStyle.computedLineNumber().Render(m.formatLineNumber(l + 1)))
 						s.WriteString(ln)
 					}
 				} else {
 					if m.row == l {
-						ln = style.Render(m.style.computedCursorLineNumber().Render(m.formatLineNumber(" ")))
+						ln = style.Render(m.activeStyle.computedCursorLineNumber().Render(m.formatLineNumber(" ")))
 						s.WriteString(ln)
 					} else {
-						ln = style.Render(m.style.computedLineNumber().Render(m.formatLineNumber(" ")))
+						ln = style.Render(m.activeStyle.computedLineNumber().Render(m.formatLineNumber(" ")))
 						s.WriteString(ln)
 					}
 				}
@@ -1187,7 +1194,7 @@ func (m Model) View() string {
 	// To do this we can simply pad out a few extra new lines in the view.
 	for i := 0; i < m.height; i++ {
 		prompt := m.getPromptString(displayLine)
-		prompt = m.style.computedPrompt().Render(prompt)
+		prompt = m.activeStyle.computedPrompt().Render(prompt)
 		s.WriteString(prompt)
 		displayLine++
 
@@ -1195,12 +1202,12 @@ func (m Model) View() string {
 		leftGutter := string(m.EndOfBufferCharacter)
 		rightGapWidth := m.Width() - lipgloss.Width(leftGutter) + widestLineNumber
 		rightGap := strings.Repeat(" ", max(0, rightGapWidth))
-		s.WriteString(m.style.computedEndOfBuffer().Render(leftGutter + rightGap))
+		s.WriteString(m.activeStyle.computedEndOfBuffer().Render(leftGutter + rightGap))
 		s.WriteRune('\n')
 	}
 
 	m.viewport.SetContent(s.String())
-	return m.style.Base.Render(m.viewport.View())
+	return m.activeStyle.Base.Render(m.viewport.View())
 }
 
 // formatLineNumber formats the line number for display dynamically based on
@@ -1230,7 +1237,7 @@ func (m Model) placeholderView() string {
 	var (
 		s     strings.Builder
 		p     = m.Placeholder
-		style = m.style.computedPlaceholder()
+		style = m.activeStyle.computedPlaceholder()
 	)
 
 	// word wrap lines
@@ -1241,16 +1248,16 @@ func (m Model) placeholderView() string {
 	plines := strings.Split(strings.TrimSpace(pwrap), "\n")
 
 	for i := 0; i < m.height; i++ {
-		lineStyle := m.style.computedPlaceholder()
-		lineNumberStyle := m.style.computedLineNumber()
+		lineStyle := m.activeStyle.computedPlaceholder()
+		lineNumberStyle := m.activeStyle.computedLineNumber()
 		if len(plines) > i {
-			lineStyle = m.style.computedCursorLine()
-			lineNumberStyle = m.style.computedCursorLineNumber()
+			lineStyle = m.activeStyle.computedCursorLine()
+			lineNumberStyle = m.activeStyle.computedCursorLineNumber()
 		}
 
 		// render prompt
 		prompt := m.getPromptString(i)
-		prompt = m.style.computedPrompt().Render(prompt)
+		prompt = m.activeStyle.computedPrompt().Render(prompt)
 		s.WriteString(lineStyle.Render(prompt))
 
 		// when show line numbers enabled:
@@ -1274,7 +1281,7 @@ func (m Model) placeholderView() string {
 		// first line
 		case i == 0:
 			// first character of first line as cursor with character
-			m.Cursor.TextStyle = m.style.computedPlaceholder()
+			m.Cursor.TextStyle = m.activeStyle.computedPlaceholder()
 			m.Cursor.SetChar(string(plines[0][0]))
 			s.WriteString(lineStyle.Render(m.Cursor.View()))
 
@@ -1288,7 +1295,7 @@ func (m Model) placeholderView() string {
 			}
 		default:
 			// end of line buffer character
-			eob := m.style.computedEndOfBuffer().Render(string(m.EndOfBufferCharacter))
+			eob := m.activeStyle.computedEndOfBuffer().Render(string(m.EndOfBufferCharacter))
 			s.WriteString(eob)
 		}
 
@@ -1297,7 +1304,7 @@ func (m Model) placeholderView() string {
 	}
 
 	m.viewport.SetContent(s.String())
-	return m.style.Base.Render(m.viewport.View())
+	return m.activeStyle.Base.Render(m.viewport.View())
 }
 
 // Blink returns the blink command for the cursor.

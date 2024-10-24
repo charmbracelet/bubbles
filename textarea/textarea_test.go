@@ -1032,7 +1032,7 @@ func TestView(t *testing.T) {
 		{
 			name: "set width with style",
 			modelFunc: func(m Model) Model {
-				m.FocusedStyle.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
+				m.Styles.Focused.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
 				m.Focus()
 
 				m.SetWidth(12)
@@ -1060,7 +1060,7 @@ func TestView(t *testing.T) {
 		{
 			name: "set width with style max width minus one",
 			modelFunc: func(m Model) Model {
-				m.FocusedStyle.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
+				m.Styles.Focused.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
 				m.Focus()
 
 				m.SetWidth(12)
@@ -1088,7 +1088,7 @@ func TestView(t *testing.T) {
 		{
 			name: "set width with style max width",
 			modelFunc: func(m Model) Model {
-				m.FocusedStyle.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
+				m.Styles.Focused.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
 				m.Focus()
 
 				m.SetWidth(12)
@@ -1116,7 +1116,7 @@ func TestView(t *testing.T) {
 		{
 			name: "set width with style max width plus one",
 			modelFunc: func(m Model) Model {
-				m.FocusedStyle.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
+				m.Styles.Focused.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
 				m.Focus()
 
 				m.SetWidth(12)
@@ -1144,7 +1144,7 @@ func TestView(t *testing.T) {
 		{
 			name: "set width without line numbers with style",
 			modelFunc: func(m Model) Model {
-				m.FocusedStyle.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
+				m.Styles.Focused.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
 				m.Focus()
 
 				m.ShowLineNumbers = false
@@ -1173,7 +1173,7 @@ func TestView(t *testing.T) {
 		{
 			name: "set width without line numbers with style max width minus one",
 			modelFunc: func(m Model) Model {
-				m.FocusedStyle.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
+				m.Styles.Focused.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
 				m.Focus()
 
 				m.ShowLineNumbers = false
@@ -1202,7 +1202,7 @@ func TestView(t *testing.T) {
 		{
 			name: "set width without line numbers with style max width",
 			modelFunc: func(m Model) Model {
-				m.FocusedStyle.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
+				m.Styles.Focused.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
 				m.Focus()
 
 				m.ShowLineNumbers = false
@@ -1231,7 +1231,7 @@ func TestView(t *testing.T) {
 		{
 			name: "set width without line numbers with style max width plus one",
 			modelFunc: func(m Model) Model {
-				m.FocusedStyle.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
+				m.Styles.Focused.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
 				m.Focus()
 
 				m.ShowLineNumbers = false
