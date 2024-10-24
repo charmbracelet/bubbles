@@ -43,7 +43,7 @@ func TestGradient(t *testing.T) {
 			expLast := strings.Split(sb.String(), AnsiReset)[0]
 
 			for _, width := range []int{3, 5, 50} {
-				p.Width = width
+				p.SetWidth(width)
 				res := p.ViewAs(1.0)
 
 				// extract colors from the progrss bar by splitting at p.Full+AnsiReset, leaving us with just the color sequences

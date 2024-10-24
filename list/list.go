@@ -205,7 +205,7 @@ func New(items []Item, delegate ItemDelegate, width, height int) Model {
 
 	filterInput := textinput.New()
 	filterInput.Prompt = "Filter: "
-	filterInput.PromptStyle = styles.FilterPrompt
+	filterInput.Styles.Focused.Prompt = styles.FilterPrompt
 	filterInput.Cursor.Style = styles.FilterCursor
 	filterInput.CharLimit = 64
 	filterInput.Focus()
@@ -689,7 +689,7 @@ func (m *Model) setSize(width, height int) {
 	m.width = width
 	m.height = height
 	m.Help.Width = width
-	m.FilterInput.Width = width - promptWidth - lipgloss.Width(m.spinnerView())
+	m.FilterInput.SetWidth(width - promptWidth - lipgloss.Width(m.spinnerView()))
 	m.updatePagination()
 }
 

@@ -30,35 +30,56 @@ type DefaultItemStyles struct {
 	FilterMatch lipgloss.Style
 }
 
-// NewDefaultItemStyles returns style definitions for a default item. See
-// DefaultItemView for when these come into play.
-func NewDefaultItemStyles() (s DefaultItemStyles) {
+// BaseItemStyles returns a set of base styles for a default item. No color
+// will be applied. You can use this as a starting point for your own styles,
+// if you like.
+func BaseItemStyles() (s DefaultItemStyles) {
 	s.NormalTitle = lipgloss.NewStyle().
-		Foreground(lipgloss.AdaptiveColor{Light: "#1a1a1a", Dark: "#dddddd"}).
 		Padding(0, 0, 0, 2)
-
-	s.NormalDesc = s.NormalTitle.
-		Foreground(lipgloss.AdaptiveColor{Light: "#A49FA5", Dark: "#777777"})
-
+	s.NormalDesc = s.NormalTitle
 	s.SelectedTitle = lipgloss.NewStyle().
 		Border(lipgloss.NormalBorder(), false, false, false, true).
-		BorderForeground(lipgloss.AdaptiveColor{Light: "#F793FF", Dark: "#AD58B4"}).
-		Foreground(lipgloss.AdaptiveColor{Light: "#EE6FF8", Dark: "#EE6FF8"}).
 		Padding(0, 0, 0, 1)
-
-	s.SelectedDesc = s.SelectedTitle.
-		Foreground(lipgloss.AdaptiveColor{Light: "#F793FF", Dark: "#AD58B4"})
-
+	s.SelectedDesc = s.SelectedTitle
 	s.DimmedTitle = lipgloss.NewStyle().
-		Foreground(lipgloss.AdaptiveColor{Light: "#A49FA5", Dark: "#777777"}).
 		Padding(0, 0, 0, 2)
+	s.DimmedDesc = s.DimmedTitle
+	s.FilterMatch = lipgloss.NewStyle().
+		Underline(true)
+	return s
+}
 
-	s.DimmedDesc = s.DimmedTitle.
-		Foreground(lipgloss.AdaptiveColor{Light: "#C2B8C2", Dark: "#4D4D4D"})
+func newItemStyles(isDark bool) DefaultItemStyles {
+	lightDark := lipgloss.LightDark(isDark)
+	s := BaseItemStyles()
 
-	s.FilterMatch = lipgloss.NewStyle().Underline(true)
+	s.NormalTitle = s.NormalTitle.
+		Foreground(lightDark("#1a1a1a", "#dddddd"))
+	s.NormalDesc = s.NormalDesc.
+		Foreground(lightDark("#A49FA5", "#777777"))
+	s.SelectedTitle = s.SelectedTitle.
+		BorderForeground(lightDark("#F793FF", "#AD58B4")).
+		Foreground(lightDark("#EE6FF8", "#EE6FF8"))
+	s.SelectedDesc = s.SelectedDesc.
+		Foreground(lightDark("#F793FF", "#AD58B4"))
+	s.DimmedTitle = s.DimmedTitle.
+		Foreground(lightDark("#A49FA5", "#777777"))
+	s.DimmedDesc = s.DimmedDesc.
+		Foreground(lightDark("#C2B8C2", "#4D4D4D"))
 
 	return s
+}
+
+// NewDefaultItemStyles returns light style definitions for a default item. See
+// [DefaultItemView] for when these come into play.
+func NewLightItemStyles() DefaultItemStyles {
+	return newItemStyles(false)
+}
+
+// NewDefaultItemStyles returns default dark style definitions for a default
+// item. See [DefaultItemView] for when these come into play.
+func NewDefaultItemStyles() DefaultItemStyles {
+	return newItemStyles(true)
 }
 
 // DefaultItem describes an item designed to work with DefaultDelegate.
