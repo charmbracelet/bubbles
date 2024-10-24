@@ -492,7 +492,8 @@ func (m *Model) CursorDown() {
 		// Move the cursor to the start of the next line so that we can get
 		// the line information. We need to add 2 columns to account for the
 		// trailing space wrapping.
-		m.col = min(li.StartColumn+li.Width+2, len(m.value[m.row])-1)
+		const trailingSpace = 2
+		m.col = min(li.StartColumn+li.Width+trailingSpace, len(m.value[m.row])-1)
 	}
 
 	nli := m.LineInfo()
@@ -526,7 +527,8 @@ func (m *Model) CursorUp() {
 		// This can be done by moving the cursor to the start of the line and
 		// then subtracting 2 to account for the trailing space we keep on
 		// soft-wrapped lines.
-		m.col = li.StartColumn - 2
+		const trailingSpace = 2
+		m.col = li.StartColumn - trailingSpace
 	}
 
 	nli := m.LineInfo()
@@ -1119,7 +1121,7 @@ func (m Model) View() string {
 			displayLine++
 
 			var ln string
-			if m.ShowLineNumbers {
+			if m.ShowLineNumbers { //nolint:nestif
 				if wl == 0 {
 					if m.row == l {
 						ln = style.Render(m.style.computedCursorLineNumber().Render(m.formatLineNumber(l + 1)))
@@ -1198,7 +1200,7 @@ func (m Model) View() string {
 }
 
 // formatLineNumber formats the line number for display dynamically based on
-// the maximum number of lines
+// the maximum number of lines.
 func (m Model) formatLineNumber(x any) string {
 	// XXX: ultimately we should use a max buffer height, which has yet to be
 	// implemented.
@@ -1407,7 +1409,7 @@ func wrap(runes []rune, width int) [][]rune {
 			word = append(word, r)
 		}
 
-		if spaces > 0 {
+		if spaces > 0 { //nolint:nestif
 			if uniseg.StringWidth(string(lines[row]))+uniseg.StringWidth(string(word))+spaces > width {
 				row++
 				lines = append(lines, []rune{})

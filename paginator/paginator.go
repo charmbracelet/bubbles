@@ -189,7 +189,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 // View renders the pagination to a string.
 func (m Model) View() string {
-	switch m.Type {
+	switch m.Type { //nolint:exhaustive
 	case Dots:
 		return m.dotsView()
 	default:

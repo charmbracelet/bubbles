@@ -168,7 +168,7 @@ func (m *Model) HalfViewDown() (lines []string) {
 		return nil
 	}
 
-	return m.LineDown(m.Height / 2)
+	return m.LineDown(m.Height / 2) //nolint:mnd
 }
 
 // HalfViewUp moves the view up by half the height of the viewport.
@@ -177,7 +177,7 @@ func (m *Model) HalfViewUp() (lines []string) {
 		return nil
 	}
 
-	return m.LineUp(m.Height / 2)
+	return m.LineUp(m.Height / 2) //nolint:mnd
 }
 
 // LineDown moves the view down by the given number of lines.
@@ -350,7 +350,7 @@ func (m Model) updateAsModel(msg tea.Msg) (Model, tea.Cmd) {
 		if !m.MouseWheelEnabled || msg.Action != tea.MouseActionPress {
 			break
 		}
-		switch msg.Button {
+		switch msg.Button { //nolint:exhaustive
 		case tea.MouseButtonWheelUp:
 			lines := m.LineUp(m.MouseWheelDelta)
 			if m.HighPerformanceRendering {

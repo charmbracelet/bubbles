@@ -26,39 +26,39 @@ type Spinner struct {
 var (
 	Line = Spinner{
 		Frames: []string{"|", "/", "-", "\\"},
-		FPS:    time.Second / 10, //nolint:gomnd
+		FPS:    time.Second / 10, //nolint:mnd
 	}
 	Dot = Spinner{
 		Frames: []string{"⣾ ", "⣽ ", "⣻ ", "⢿ ", "⡿ ", "⣟ ", "⣯ ", "⣷ "},
-		FPS:    time.Second / 10, //nolint:gomnd
+		FPS:    time.Second / 10, //nolint:mnd
 	}
 	MiniDot = Spinner{
 		Frames: []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"},
-		FPS:    time.Second / 12, //nolint:gomnd
+		FPS:    time.Second / 12, //nolint:mnd
 	}
 	Jump = Spinner{
 		Frames: []string{"⢄", "⢂", "⢁", "⡁", "⡈", "⡐", "⡠"},
-		FPS:    time.Second / 10, //nolint:gomnd
+		FPS:    time.Second / 10, //nolint:mnd
 	}
 	Pulse = Spinner{
 		Frames: []string{"█", "▓", "▒", "░"},
-		FPS:    time.Second / 8, //nolint:gomnd
+		FPS:    time.Second / 8, //nolint:mnd
 	}
 	Points = Spinner{
 		Frames: []string{"∙∙∙", "●∙∙", "∙●∙", "∙∙●"},
-		FPS:    time.Second / 7, //nolint:gomnd
+		FPS:    time.Second / 7, //nolint:mnd
 	}
 	Globe = Spinner{
 		Frames: []string{"🌍", "🌎", "🌏"},
-		FPS:    time.Second / 4, //nolint:gomnd
+		FPS:    time.Second / 4, //nolint:mnd
 	}
 	Moon = Spinner{
 		Frames: []string{"🌑", "🌒", "🌓", "🌔", "🌕", "🌖", "🌗", "🌘"},
-		FPS:    time.Second / 8, //nolint:gomnd
+		FPS:    time.Second / 8, //nolint:mnd
 	}
 	Monkey = Spinner{
 		Frames: []string{"🙈", "🙉", "🙊"},
-		FPS:    time.Second / 3, //nolint:gomnd
+		FPS:    time.Second / 3, //nolint:mnd
 	}
 	Meter = Spinner{
 		Frames: []string{
@@ -70,15 +70,15 @@ var (
 			"▰▱▱",
 			"▱▱▱",
 		},
-		FPS: time.Second / 7, //nolint:gomnd
+		FPS: time.Second / 7, //nolint:mnd
 	}
 	Hamburger = Spinner{
 		Frames: []string{"☱", "☲", "☴", "☲"},
-		FPS:    time.Second / 3, //nolint:gomnd
+		FPS:    time.Second / 3, //nolint:mnd
 	}
 	Ellipsis = Spinner{
 		Frames: []string{"", ".", "..", "..."},
-		FPS:    time.Second / 3, //nolint:gomnd
+		FPS:    time.Second / 3, //nolint:mnd
 	}
 )
 
