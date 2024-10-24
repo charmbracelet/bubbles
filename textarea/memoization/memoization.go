@@ -1,3 +1,5 @@
+// Package memoization implement a simple memoization cache. It's designed to
+// improve performance in textarea.
 package memoization
 
 import (
