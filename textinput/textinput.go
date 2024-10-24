@@ -596,7 +596,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 	// Let's remember where the position of the cursor currently is so that if
 	// the cursor position changes, we can reset the blink.
-	oldPos := m.pos //nolint
+	oldPos := m.pos
 
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
@@ -694,7 +694,7 @@ func (m Model) View() string {
 	pos := max(0, m.pos-m.offset)
 	v := styleText(m.echoTransform(string(value[:pos])))
 
-	if pos < len(value) {
+	if pos < len(value) { //nolint:nestif
 		char := m.echoTransform(string(value[pos]))
 		m.Cursor.SetChar(char)
 		v += m.Cursor.View()                                   // cursor and text under it

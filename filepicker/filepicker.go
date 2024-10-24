@@ -385,7 +385,7 @@ func (m Model) View() string {
 			cursor = m.Styles.DisabledCursor.Render(m.DisabledCursor)
 		}
 
-		if m.selected == i {
+		if m.selected == i { //nolint:nestif
 			selected := ""
 			if m.ShowPermissions {
 				selected += " " + info.Mode().String()

@@ -35,14 +35,14 @@ type DefaultItemStyles struct {
 // if you like.
 func BaseItemStyles() (s DefaultItemStyles) {
 	s.NormalTitle = lipgloss.NewStyle().
-		Padding(0, 0, 0, 2)
+		Padding(0, 0, 0, 2) //nolint:mnd
 	s.NormalDesc = s.NormalTitle
 	s.SelectedTitle = lipgloss.NewStyle().
 		Border(lipgloss.NormalBorder(), false, false, false, true).
 		Padding(0, 0, 0, 1)
 	s.SelectedDesc = s.SelectedTitle
 	s.DimmedTitle = lipgloss.NewStyle().
-		Padding(0, 0, 0, 2)
+		Padding(0, 0, 0, 2) //nolint:mnd
 	s.DimmedDesc = s.DimmedTitle
 	s.FilterMatch = lipgloss.NewStyle().
 		Underline(true)
@@ -114,11 +114,13 @@ type DefaultDelegate struct {
 
 // NewDefaultDelegate creates a new delegate with default styles.
 func NewDefaultDelegate() DefaultDelegate {
+	const defaultHeight = 2
+	const defaultSpacing = 1
 	return DefaultDelegate{
 		ShowDescription: true,
 		Styles:          NewDefaultItemStyles(),
-		height:          2,
-		spacing:         1,
+		height:          defaultHeight,
+		spacing:         defaultSpacing,
 	}
 }
 

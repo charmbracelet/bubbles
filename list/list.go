@@ -268,7 +268,7 @@ func (m *Model) SetShowTitle(v bool) {
 
 // SetFilterText explicitly sets the filter text without relying on user input.
 // It also sets the filterState to a sane default of FilterApplied, but this
-// can be changed with SetFilterState
+// can be changed with SetFilterState.
 func (m *Model) SetFilterText(filter string) {
 	m.filterState = Filtering
 	m.FilterInput.SetValue(filter)
@@ -284,7 +284,7 @@ func (m *Model) SetFilterText(filter string) {
 	m.updateKeybindings()
 }
 
-// Helper method for setting the filtering state manually
+// Helper method for setting the filtering state manually.
 func (m *Model) SetFilterState(state FilterState) {
 	m.Paginator.Page = 0
 	m.cursor = 0
@@ -717,7 +717,7 @@ func (m Model) itemsAsFilterItems() filteredItems {
 
 // Set keybindings according to the filter state.
 func (m *Model) updateKeybindings() {
-	switch m.filterState {
+	switch m.filterState { //nolint:exhaustive
 	case Filtering:
 		m.KeyMap.CursorUp.SetEnabled(false)
 		m.KeyMap.CursorDown.SetEnabled(false)
@@ -1148,7 +1148,7 @@ func (m Model) statusView() string {
 
 	itemsDisplay := fmt.Sprintf("%d %s", visibleItems, itemName)
 
-	if m.filterState == Filtering {
+	if m.filterState == Filtering { //nolint:nestif
 		// Filter results
 		if visibleItems == 0 {
 			status = m.Styles.StatusEmpty.Render("Nothing matched")
@@ -1164,7 +1164,7 @@ func (m Model) statusView() string {
 
 		if filtered {
 			f := strings.TrimSpace(m.FilterInput.Value())
-			f = ansi.Truncate(f, 10, "…")
+			f = ansi.Truncate(f, 10, "…") //nolint:mnd
 			status += fmt.Sprintf("“%s” ", f)
 		}
 
@@ -1181,7 +1181,7 @@ func (m Model) statusView() string {
 }
 
 func (m Model) paginationView() string {
-	if m.Paginator.TotalPages < 2 { //nolint:gomnd
+	if m.Paginator.TotalPages < 2 { //nolint:mnd
 		return ""
 	}
 

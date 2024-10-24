@@ -144,7 +144,7 @@ func (m *Model) HalfViewDown() {
 		return
 	}
 
-	m.LineDown(m.Height / 2)
+	m.LineDown(m.Height / 2) //nolint:mnd
 }
 
 // HalfViewUp moves the view up by half the height of the viewport.
@@ -153,7 +153,7 @@ func (m *Model) HalfViewUp() {
 		return
 	}
 
-	m.LineUp(m.Height / 2)
+	m.LineUp(m.Height / 2) //nolint:mnd
 }
 
 // LineDown moves the view down by the given number of lines.
@@ -246,7 +246,7 @@ func (m Model) updateAsModel(msg tea.Msg) Model {
 			break
 		}
 
-		switch msg.Button {
+		switch msg.Button { //nolint:exhaustive
 		case tea.MouseWheelDown:
 			m.LineDown(m.MouseWheelDelta)
 

@@ -64,7 +64,7 @@ func BaseStyles() Styles {
 	s.PaginationStyle = lipgloss.NewStyle().
 		PaddingLeft(2) //nolint:gomnd
 	s.HelpStyle = lipgloss.NewStyle().
-		Padding(1, 0, 0, 2)
+		Padding(1, 0, 0, 2) //nolint:mnd
 	s.ActivePaginationDot = lipgloss.NewStyle().
 		SetString(bullet)
 	s.InactivePaginationDot = lipgloss.NewStyle().
@@ -114,8 +114,6 @@ func newStyles(isDark bool) (s Styles) {
 		Foreground(lightDark("#909090", "#626262"))
 	s.ArabicPagination = s.ArabicPagination.
 		Foreground(subduedColor)
-	s.HelpStyle = s.HelpStyle.
-		Padding(1, 0, 0, 2)
 	s.ActivePaginationDot = s.ActivePaginationDot.
 		Foreground(lightDark("#847A85", "#979797")).
 		SetString(bullet)
