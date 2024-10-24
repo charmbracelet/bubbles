@@ -6,12 +6,12 @@ import (
 
 	"github.com/charmbracelet/x/exp/golden"
 
-	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/v2/key"
 )
 
 func TestFullHelp(t *testing.T) {
 	m := New()
-	m.FullSeparator = " | "
+	m.Styles.FullSeparator = m.Styles.FullSeparator.SetString(" | ")
 	k := key.WithKeys("x")
 	kb := [][]key.Binding{
 		{
