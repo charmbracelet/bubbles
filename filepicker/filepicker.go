@@ -379,7 +379,7 @@ func (m Model) View() string {
 
 		disabled := !m.canSelect(name) && !f.IsDir()
 
-		if m.selected == i {
+		if m.selected == i { //nolint:nestif
 			selected := ""
 			if m.ShowPermissions {
 				selected += " " + info.Mode().String()
