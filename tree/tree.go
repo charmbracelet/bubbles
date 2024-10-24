@@ -51,10 +51,19 @@ func DefaultStyles() (s Styles) {
 	return s
 }
 
+const spacebar = " "
+
 // KeyMap is the key bindings for different actions within the tree.
 type KeyMap struct {
-	Down   key.Binding
-	Up     key.Binding
+	Down         key.Binding
+	Up           key.Binding
+	PageDown     key.Binding
+	PageUp       key.Binding
+	HalfPageUp   key.Binding
+	HalfPageDown key.Binding
+	GoToTop      key.Binding
+	GoToBottom   key.Binding
+
 	Toggle key.Binding
 
 	// Help toggle keybindings.
@@ -75,6 +84,31 @@ var DefaultKeyMap = KeyMap{
 		key.WithKeys("up", "k", "ctrl+p"),
 		key.WithHelp("↑/k", "up"),
 	),
+	PageDown: key.NewBinding(
+		key.WithKeys("pgdown", spacebar, "f"),
+		key.WithHelp("f/pgdn", "page down"),
+	),
+	PageUp: key.NewBinding(
+		key.WithKeys("pgup", "b"),
+		key.WithHelp("b/pgup", "page up"),
+	),
+	HalfPageDown: key.NewBinding(
+		key.WithKeys("d", "ctrl+d"),
+		key.WithHelp("d", "½ page down"),
+	),
+	HalfPageUp: key.NewBinding(
+		key.WithKeys("u", "ctrl+u"),
+		key.WithHelp("u", "½ page up"),
+	),
+	GoToTop: key.NewBinding(
+		key.WithKeys("g", "home"),
+		key.WithHelp("g", "top"),
+	),
+	GoToBottom: key.NewBinding(
+		key.WithKeys("G", "end"),
+		key.WithHelp("G", "bottom"),
+	),
+
 	Toggle: key.NewBinding(
 		key.WithKeys("enter"),
 		key.WithHelp("⏎", "toggle"),
@@ -435,11 +469,22 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, m.KeyMap.Down):
-			m.yOffset = min(m.root.size-1, m.yOffset+1)
 			m.updateViewport(1)
 		case key.Matches(msg, m.KeyMap.Up):
-			m.yOffset = max(0, m.yOffset-1)
 			m.updateViewport(-1)
+		case key.Matches(msg, m.KeyMap.PageDown):
+			m.updateViewport(m.viewport.Height)
+		case key.Matches(msg, m.KeyMap.PageUp):
+			m.updateViewport(-m.viewport.Height)
+		case key.Matches(msg, m.KeyMap.HalfPageDown):
+			m.updateViewport(m.viewport.Height / 2)
+		case key.Matches(msg, m.KeyMap.HalfPageUp):
+			m.updateViewport(-m.viewport.Height / 2)
+		case key.Matches(msg, m.KeyMap.GoToTop):
+			m.updateViewport(-m.yOffset)
+		case key.Matches(msg, m.KeyMap.GoToBottom):
+			m.updateViewport(m.root.size)
+
 		case key.Matches(msg, m.KeyMap.Toggle):
 			node := findNode(m.root, m.yOffset)
 			if node == nil {
@@ -452,9 +497,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				node.tree.Offset(node.tree.Children().Length(), 0)
 			}
 			m.setAttributes()
-			diff := m.yOffset - node.yOffset
-			m.yOffset = node.yOffset
-			m.updateViewport(diff)
+			m.updateViewport(m.yOffset - node.yOffset)
 		case key.Matches(msg, m.KeyMap.Quit):
 			return m, tea.Quit
 		case key.Matches(msg, m.KeyMap.ShowFullHelp):
@@ -500,6 +543,7 @@ func (m Model) View() string {
 }
 
 func (m *Model) updateViewport(movement int) {
+	m.yOffset = max(min(m.root.size-1, m.yOffset+movement), 0)
 	m.updateStyles()
 	m.viewport.Style = m.styles.TreeStyle
 	m.viewport.SetContent(m.styles.TreeStyle.Render(m.root.String()))
@@ -584,8 +628,8 @@ func (m *Model) SetSize(width, height int) {
 // of the help.KeyMap interface.
 func (m Model) ShortHelp() []key.Binding {
 	kb := []key.Binding{
-		m.KeyMap.Up,
 		m.KeyMap.Down,
+		m.KeyMap.Up,
 		m.KeyMap.Toggle,
 	}
 
@@ -603,9 +647,19 @@ func (m Model) ShortHelp() []key.Binding {
 func (m Model) FullHelp() [][]key.Binding {
 	kb := [][]key.Binding{
 		{
-			m.KeyMap.Up,
 			m.KeyMap.Down,
+			m.KeyMap.Up,
 			m.KeyMap.Toggle,
+		},
+		{
+			m.KeyMap.PageDown,
+			m.KeyMap.PageUp,
+			m.KeyMap.HalfPageDown,
+			m.KeyMap.HalfPageUp,
+		},
+		{
+			m.KeyMap.GoToTop,
+			m.KeyMap.GoToBottom,
 		},
 	}
 
