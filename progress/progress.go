@@ -330,7 +330,7 @@ func (m Model) percentageView(percent float64) string {
 		return ""
 	}
 	percent = math.Max(0, math.Min(1, percent))
-	percentage := fmt.Sprintf(m.PercentFormat, percent*100) //nolint:gomnd
+	percentage := fmt.Sprintf(m.PercentFormat, percent*100) //nolint:mnd
 	percentage = m.PercentageStyle.Inline(true).Render(percentage)
 	return percentage
 }
