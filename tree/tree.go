@@ -198,40 +198,28 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, m.KeyMap.Down):
-			m.updateViewport(1)
+			m.Down()
 		case key.Matches(msg, m.KeyMap.Up):
-			m.updateViewport(-1)
+			m.Up()
 		case key.Matches(msg, m.KeyMap.PageDown):
-			m.updateViewport(m.viewport.Height)
+			m.PageDown()
 		case key.Matches(msg, m.KeyMap.PageUp):
-			m.updateViewport(-m.viewport.Height)
+			m.PageUp()
 		case key.Matches(msg, m.KeyMap.HalfPageDown):
-			m.updateViewport(m.viewport.Height / 2)
+			m.HalfPageDown()
 		case key.Matches(msg, m.KeyMap.HalfPageUp):
-			m.updateViewport(-m.viewport.Height / 2)
+			m.HalfPageUp()
 		case key.Matches(msg, m.KeyMap.GoToTop):
-			m.updateViewport(-m.yOffset)
+			m.GoToTop()
 		case key.Matches(msg, m.KeyMap.GoToBottom):
-			m.updateViewport(m.root.size)
+			m.GoToBottom()
 
 		case key.Matches(msg, m.KeyMap.Toggle):
-			node := findNode(m.root, m.yOffset)
-			if node == nil {
-				break
-			}
-			m.toggleNode(node, !node.IsOpen())
+			m.ToggleCurrentNode()
 		case key.Matches(msg, m.KeyMap.Open):
-			node := findNode(m.root, m.yOffset)
-			if node == nil {
-				break
-			}
-			m.toggleNode(node, true)
+			m.OpenCurrentNode()
 		case key.Matches(msg, m.KeyMap.Close):
-			node := findNode(m.root, m.yOffset)
-			if node == nil {
-				break
-			}
-			m.toggleNode(node, false)
+			m.CloseCurrentNode()
 
 		case key.Matches(msg, m.KeyMap.Quit):
 			return m, tea.Quit
@@ -268,6 +256,73 @@ func (m Model) View() string {
 	return lipgloss.JoinVertical(lipgloss.Left, treeView, help)
 }
 
+// Down moves the selection down by one item.
+func (m *Model) Down() {
+	m.updateViewport(1)
+}
+
+// Up moves the selection up by one item.
+func (m *Model) Up() {
+	m.updateViewport(-1)
+}
+
+// PageDown moves the selection down by one page.
+func (m *Model) PageDown() {
+	m.updateViewport(m.viewport.Height)
+}
+
+// PageUp moves the selection up by one page.
+func (m *Model) PageUp() {
+	m.updateViewport(-m.viewport.Height)
+}
+
+// HalfPageDown moves the selection down by half a page.
+func (m *Model) HalfPageDown() {
+	m.updateViewport(m.viewport.Height / 2)
+}
+
+// HalfPageUp moves the selection up by half a page.
+func (m *Model) HalfPageUp() {
+	m.updateViewport(-m.viewport.Height / 2)
+}
+
+// GoToTop moves the selection to the top of the tree.
+func (m *Model) GoToTop() {
+	m.updateViewport(-m.yOffset)
+}
+
+// GoToBottom moves the selection to the bottom of the tree.
+func (m *Model) GoToBottom() {
+	m.updateViewport(m.root.size)
+}
+
+// ToggleCurrentNode toggles the current node open/close state.
+func (m *Model) ToggleCurrentNode() {
+	node := findNode(m.root, m.yOffset)
+	if node == nil {
+		return
+	}
+	m.toggleNode(node, !node.IsOpen())
+}
+
+// OpenCurrentNode opens the currently selected node.
+func (m *Model) OpenCurrentNode() {
+	node := findNode(m.root, m.yOffset)
+	if node == nil {
+		return
+	}
+	m.toggleNode(node, true)
+}
+
+// CloseCurrentNode closes the currently selected node.
+func (m *Model) CloseCurrentNode() {
+	node := findNode(m.root, m.yOffset)
+	if node == nil {
+		return
+	}
+	m.toggleNode(node, false)
+}
+
 func (m *Model) toggleNode(node *Node, open bool) {
 	node.open = open
 
@@ -285,7 +340,9 @@ func (m *Model) updateViewport(movement int) {
 	m.updateStyles()
 	m.viewport.Style = m.styles.TreeStyle
 	m.viewport.SetContent(m.styles.TreeStyle.Render(m.root.String()))
-	if movement == 0 {
+
+	// if this is the initial render, make sure we show the root node
+	if m.yOffset == 0 && movement == 0 {
 		return
 	}
 
