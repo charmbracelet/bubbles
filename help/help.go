@@ -41,6 +41,34 @@ type Styles struct {
 	FullSeparator lipgloss.Style
 }
 
+func newStyles(isDark bool) Styles {
+	lightDark := lipgloss.LightDark(isDark)
+
+	keyStyle := lipgloss.NewStyle().Foreground(lightDark("#909090", "#626262"))
+	descStyle := lipgloss.NewStyle().Foreground(lightDark("#B2B2B2", "#4A4A4A"))
+	sepStyle := lipgloss.NewStyle().Foreground(lightDark("#DADADA", "#3C3C3C"))
+
+	return Styles{
+		ShortKey:       keyStyle,
+		ShortDesc:      descStyle,
+		ShortSeparator: sepStyle,
+		Ellipsis:       sepStyle,
+		FullKey:        keyStyle,
+		FullDesc:       descStyle,
+		FullSeparator:  sepStyle,
+	}
+}
+
+// DefaultDarkStyles returns a set of default styles for dark backgrounds.
+func DefaultDarkStyles() Styles {
+	return newStyles(true)
+}
+
+// DefaultLightStyles returns a set of default styles for light backgrounds.
+func DefaultLightStyles() Styles {
+	return newStyles(false)
+}
+
 // Model contains the state of the help view.
 type Model struct {
 	Width   int
@@ -58,34 +86,11 @@ type Model struct {
 
 // New creates a new help view with some useful defaults.
 func New() Model {
-	keyStyle := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{
-		Light: "#909090",
-		Dark:  "#626262",
-	})
-
-	descStyle := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{
-		Light: "#B2B2B2",
-		Dark:  "#4A4A4A",
-	})
-
-	sepStyle := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{
-		Light: "#DDDADA",
-		Dark:  "#3C3C3C",
-	})
-
 	return Model{
 		ShortSeparator: " • ",
 		FullSeparator:  "    ",
 		Ellipsis:       "…",
-		Styles: Styles{
-			ShortKey:       keyStyle,
-			ShortDesc:      descStyle,
-			ShortSeparator: sepStyle,
-			Ellipsis:       sepStyle,
-			FullKey:        keyStyle,
-			FullDesc:       descStyle,
-			FullSeparator:  sepStyle,
-		},
+		Styles:         DefaultDarkStyles(),
 	}
 }
 
