@@ -12,8 +12,7 @@ import (
 	"github.com/charmbracelet/bubbles/runeutil"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	rw "github.com/mattn/go-runewidth"
-	"github.com/rivo/uniseg"
+	"github.com/charmbracelet/x/wcwidth"
 )
 
 // Internal messages for clipboard operations.
@@ -325,7 +324,7 @@ func (m *Model) insertRunesFromUserInput(v []rune) {
 // If a max width is defined, perform some logic to treat the visible area
 // as a horizontally scrolling viewport.
 func (m *Model) handleOverflow() {
-	if m.Width <= 0 || uniseg.StringWidth(string(m.value)) <= m.Width {
+	if m.Width <= 0 || wcwidth.StringWidth(string(m.value)) <= m.Width {
 		m.offset = 0
 		m.offsetRight = len(m.value)
 		return
@@ -342,7 +341,7 @@ func (m *Model) handleOverflow() {
 		runes := m.value[m.offset:]
 
 		for i < len(runes) && w <= m.Width {
-			w += rw.RuneWidth(runes[i])
+			w += wcwidth.RuneWidth(runes[i])
 			if w <= m.Width+1 {
 				i++
 			}
@@ -357,7 +356,7 @@ func (m *Model) handleOverflow() {
 		i := len(runes) - 1
 
 		for i > 0 && w < m.Width {
-			w += rw.RuneWidth(runes[i])
+			w += wcwidth.RuneWidth(runes[i])
 			if w <= m.Width {
 				i--
 			}
@@ -538,7 +537,7 @@ func (m *Model) wordForward() {
 func (m Model) echoTransform(v string) string {
 	switch m.EchoMode {
 	case EchoPassword:
-		return strings.Repeat(string(m.EchoCharacter), uniseg.StringWidth(v))
+		return strings.Repeat(string(m.EchoCharacter), wcwidth.StringWidth(v))
 	case EchoNone:
 		return ""
 	case EchoNormal:
@@ -684,7 +683,7 @@ func (m Model) View() string {
 
 	// If a max width and background color were set fill the empty spaces with
 	// the background color.
-	valWidth := uniseg.StringWidth(string(value))
+	valWidth := wcwidth.StringWidth(string(value))
 	if m.Width > 0 && valWidth <= m.Width {
 		padding := max(0, m.Width-valWidth)
 		if valWidth+padding <= m.Width && pos < len(value) {
