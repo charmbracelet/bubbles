@@ -63,6 +63,8 @@ type KeyMap struct {
 	GoToBottom   key.Binding
 
 	Toggle key.Binding
+	Open   key.Binding
+	Close  key.Binding
 
 	// Help toggle keybindings.
 	ShowFullHelp  key.Binding
@@ -110,6 +112,14 @@ var DefaultKeyMap = KeyMap{
 	Toggle: key.NewBinding(
 		key.WithKeys("enter"),
 		key.WithHelp("⏎", "toggle"),
+	),
+	Open: key.NewBinding(
+		key.WithKeys("l", "right"),
+		key.WithHelp("→/l", "open"),
+	),
+	Close: key.NewBinding(
+		key.WithKeys("h", "left"),
+		key.WithHelp("←/h", "close"),
 	),
 
 	// Toggle help.
@@ -488,14 +498,20 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			if node == nil {
 				break
 			}
-			node.open = !node.IsOpen()
-			if node.IsOpen() {
-				node.tree.Offset(0, 0)
-			} else {
-				node.tree.Offset(node.tree.Children().Length(), 0)
+			m.toggleNode(node, !node.IsOpen())
+		case key.Matches(msg, m.KeyMap.Open):
+			node := findNode(m.root, m.yOffset)
+			if node == nil {
+				break
 			}
-			m.setAttributes()
-			m.updateViewport(m.yOffset - node.yOffset)
+			m.toggleNode(node, true)
+		case key.Matches(msg, m.KeyMap.Close):
+			node := findNode(m.root, m.yOffset)
+			if node == nil {
+				break
+			}
+			m.toggleNode(node, false)
+
 		case key.Matches(msg, m.KeyMap.Quit):
 			return m, tea.Quit
 		case key.Matches(msg, m.KeyMap.ShowFullHelp):
@@ -529,6 +545,18 @@ func (m Model) View() string {
 	}
 
 	return lipgloss.JoinVertical(lipgloss.Left, treeView, help)
+}
+
+func (m *Model) toggleNode(node *Node, open bool) {
+	node.open = open
+
+	// reset the offset to 0,0 first
+	node.tree.Offset(0, 0)
+	if !open {
+		node.tree.Offset(node.tree.Children().Length(), 0)
+	}
+	m.setAttributes()
+	m.updateViewport(m.yOffset - node.yOffset)
 }
 
 func (m *Model) updateViewport(movement int) {
@@ -638,7 +666,11 @@ func (m Model) FullHelp() [][]key.Binding {
 		{
 			m.KeyMap.Down,
 			m.KeyMap.Up,
+		},
+		{
 			m.KeyMap.Toggle,
+			m.KeyMap.Open,
+			m.KeyMap.Close,
 		},
 		{
 			m.KeyMap.PageDown,
