@@ -90,9 +90,9 @@ type itemOptions struct {
 func (t *Node) String() string {
 	s := t.opts.styles.OpenIndicatorStyle
 	if t.open {
-		return s.Render(t.opts.openCharacter) + " " + t.tree.String()
+		return s.Render(t.opts.openCharacter+" ") + t.tree.String()
 	}
-	return s.Render(t.opts.closedCharacter) + " " + t.tree.String()
+	return s.Render(t.opts.closedCharacter+" ") + t.tree.String()
 }
 
 // Value returns the root name of this node.
@@ -112,9 +112,9 @@ func (t *Node) Value() string {
 
 	if t.isRoot {
 		if t.open {
-			return s.OpenIndicatorStyle.Render(t.opts.openCharacter) + " " + v
+			return s.OpenIndicatorStyle.Render(t.opts.openCharacter+" ") + v
 		}
-		return s.OpenIndicatorStyle.Render(t.opts.closedCharacter) + " " + v
+		return s.OpenIndicatorStyle.Render(t.opts.closedCharacter+" ") + v
 	}
 	return v
 }

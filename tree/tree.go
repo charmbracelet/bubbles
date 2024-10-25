@@ -375,7 +375,7 @@ func (m *Model) toggleNode(node *Node, open bool) {
 func (m *Model) updateViewport(movement int) {
 	m.yOffset = max(min(m.root.size-1, m.yOffset+movement), 0)
 	m.updateStyles()
-	// m.viewport.Style = m.styles.TreeStyle
+	m.viewport.Style = lipgloss.NewStyle().Background(m.styles.TreeStyle.GetBackground())
 
 	cursor := m.cursorView()
 	m.viewport.SetContent(
