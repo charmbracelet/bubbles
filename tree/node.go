@@ -81,29 +81,42 @@ type itemOptions struct {
 	openCharacter   string
 	closedCharacter string
 	treeYOffset     int
+	styles          *Styles
 }
 
 // Used to print the Node's tree
 // TODO: Value is not called on the root node, so we need to repeat the open/closed character
 // Should this be fixed in lipgloss?
 func (t *Node) String() string {
-	s := t.rootStyle.UnsetWidth()
+	s := t.opts.styles.OpenIndicatorStyle
 	if t.open {
-		return s.Render(t.opts.openCharacter+" ") + t.tree.String()
+		return s.Render(t.opts.openCharacter) + " " + t.tree.String()
 	}
-	return s.Render(t.opts.closedCharacter+" ") + t.tree.String()
+	return s.Render(t.opts.closedCharacter) + " " + t.tree.String()
 }
 
 // Value returns the root name of this node.
 func (t *Node) Value() string {
-	s := lipgloss.NewStyle()
+	s := t.opts.styles
+	var ns lipgloss.Style
+
+	if t.yOffset == t.opts.treeYOffset {
+		ns = s.selectedNodeFunc(Nodes{t}, 0)
+	} else if t.isRoot {
+		ns = s.parentNodeFunc(Nodes{t}, 0)
+	} else {
+		ns = s.nodeFunc(Nodes{t}, 0)
+	}
+
+	v := ns.Render(t.tree.Value())
+
 	if t.isRoot {
 		if t.open {
-			return s.Render(t.opts.openCharacter + " " + t.tree.Value())
+			return s.OpenIndicatorStyle.Render(t.opts.openCharacter) + " " + v
 		}
-		return s.Render(t.opts.closedCharacter + " " + t.tree.Value())
+		return s.OpenIndicatorStyle.Render(t.opts.closedCharacter) + " " + v
 	}
-	return s.Render(t.tree.Value())
+	return v
 }
 
 // GivenValue returns the value passed to the node.
