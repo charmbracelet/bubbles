@@ -106,69 +106,70 @@ type KeyMap struct {
 	Quit key.Binding
 }
 
-// DefaultKeyMap is the default set of key bindings for navigating and acting
+// DefaultKeyMap returns the default set of key bindings for navigating and acting
 // upon the tree.
-var DefaultKeyMap = KeyMap{
-	Down: key.NewBinding(
+func DefaultKeyMap() KeyMap {
+	return KeyMap{Down: key.NewBinding(
 		key.WithKeys("down", "j", "ctrl+n"),
 		key.WithHelp("↓/j", "down"),
 	),
-	Up: key.NewBinding(
-		key.WithKeys("up", "k", "ctrl+p"),
-		key.WithHelp("↑/k", "up"),
-	),
-	PageDown: key.NewBinding(
-		key.WithKeys("pgdown", spacebar, "f"),
-		key.WithHelp("f/pgdn", "page down"),
-	),
-	PageUp: key.NewBinding(
-		key.WithKeys("pgup", "b"),
-		key.WithHelp("b/pgup", "page up"),
-	),
-	HalfPageDown: key.NewBinding(
-		key.WithKeys("d", "ctrl+d"),
-		key.WithHelp("d", "½ page down"),
-	),
-	HalfPageUp: key.NewBinding(
-		key.WithKeys("u", "ctrl+u"),
-		key.WithHelp("u", "½ page up"),
-	),
-	GoToTop: key.NewBinding(
-		key.WithKeys("g", "home"),
-		key.WithHelp("g", "top"),
-	),
-	GoToBottom: key.NewBinding(
-		key.WithKeys("G", "end"),
-		key.WithHelp("G", "bottom"),
-	),
+		Up: key.NewBinding(
+			key.WithKeys("up", "k", "ctrl+p"),
+			key.WithHelp("↑/k", "up"),
+		),
+		PageDown: key.NewBinding(
+			key.WithKeys("pgdown", spacebar, "f"),
+			key.WithHelp("f/pgdn", "page down"),
+		),
+		PageUp: key.NewBinding(
+			key.WithKeys("pgup", "b"),
+			key.WithHelp("b/pgup", "page up"),
+		),
+		HalfPageDown: key.NewBinding(
+			key.WithKeys("d", "ctrl+d"),
+			key.WithHelp("d", "½ page down"),
+		),
+		HalfPageUp: key.NewBinding(
+			key.WithKeys("u", "ctrl+u"),
+			key.WithHelp("u", "½ page up"),
+		),
+		GoToTop: key.NewBinding(
+			key.WithKeys("g", "home"),
+			key.WithHelp("g", "top"),
+		),
+		GoToBottom: key.NewBinding(
+			key.WithKeys("G", "end"),
+			key.WithHelp("G", "bottom"),
+		),
 
-	Toggle: key.NewBinding(
-		key.WithKeys("enter"),
-		key.WithHelp("⏎", "toggle"),
-	),
-	Open: key.NewBinding(
-		key.WithKeys("l", "right"),
-		key.WithHelp("→/l", "open"),
-	),
-	Close: key.NewBinding(
-		key.WithKeys("h", "left"),
-		key.WithHelp("←/h", "close"),
-	),
+		Toggle: key.NewBinding(
+			key.WithKeys("enter"),
+			key.WithHelp("⏎", "toggle"),
+		),
+		Open: key.NewBinding(
+			key.WithKeys("l", "right"),
+			key.WithHelp("→/l", "open"),
+		),
+		Close: key.NewBinding(
+			key.WithKeys("h", "left"),
+			key.WithHelp("←/h", "close"),
+		),
 
-	// Toggle help.
-	ShowFullHelp: key.NewBinding(
-		key.WithKeys("?"),
-		key.WithHelp("?", "more"),
-	),
-	CloseFullHelp: key.NewBinding(
-		key.WithKeys("?"),
-		key.WithHelp("?", "close help"),
-	),
+		// Toggle help.
+		ShowFullHelp: key.NewBinding(
+			key.WithKeys("?"),
+			key.WithHelp("?", "more"),
+		),
+		CloseFullHelp: key.NewBinding(
+			key.WithKeys("?"),
+			key.WithHelp("?", "close help"),
+		),
 
-	Quit: key.NewBinding(
-		key.WithKeys("q", "ctrl+c"),
-		key.WithHelp("q", "quit"),
-	),
+		Quit: key.NewBinding(
+			key.WithKeys("q", "ctrl+c"),
+			key.WithHelp("q", "quit"),
+		),
+	}
 }
 
 // Model is the Bubble Tea model for this tree element.
@@ -208,7 +209,7 @@ type Model struct {
 // New creates a new model with default settings.
 func New(t *Node, width, height int) Model {
 	m := Model{
-		KeyMap:          DefaultKeyMap,
+		KeyMap:          DefaultKeyMap(),
 		OpenCharacter:   "▼",
 		ClosedCharacter: "▶",
 		CursorCharacter: "→",
@@ -375,14 +376,13 @@ func (m *Model) toggleNode(node *Node, open bool) {
 func (m *Model) updateViewport(movement int) {
 	m.yOffset = max(min(m.root.size-1, m.yOffset+movement), 0)
 	m.updateStyles()
-	m.viewport.Style = lipgloss.NewStyle().Background(m.styles.TreeStyle.GetBackground())
 
 	cursor := m.cursorView()
 	m.viewport.SetContent(
 		lipgloss.JoinHorizontal(
 			lipgloss.Top,
-			m.styles.TreeStyle.UnsetPaddingRight().UnsetMarginRight().Render(cursor),
-			m.styles.TreeStyle.UnsetPaddingLeft().UnsetMarginLeft().Render(m.root.String()),
+			cursor,
+			m.styles.TreeStyle.Render(m.root.String()),
 		),
 	)
 
@@ -626,9 +626,7 @@ func (m *Model) NodeAtCurrentOffset() *Node {
 // style function's closure again
 func (m *Model) updateStyles() {
 	// TODO: add RootStyleFunc to the Node interface?
-	m.root.rootStyle = m.rootStyle()
-	m.root.RootStyle(m.root.rootStyle)
-	// m.root.ItemStyleFunc(m.selectedNodeStyle())
+	m.root.RootStyle(m.rootStyle())
 
 	items := m.FlatNodes()
 	opts := &itemOptions{

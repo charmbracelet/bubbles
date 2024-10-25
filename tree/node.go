@@ -25,9 +25,6 @@ type Node struct {
 	// value is the root value of the node
 	value any
 
-	// TODO: expose a getter for this in lipgloss?
-	rootStyle lipgloss.Style
-
 	opts *itemOptions
 
 	// TODO: move to lipgloss.Tree?
@@ -163,6 +160,8 @@ func (t *Node) ItemStyle(s lipgloss.Style) *Node {
 //			}
 //			return lipgloss.NewStyle().Foreground(dimColor)
 //		})
+//
+// TODO: currently unused as this is set in the Styles struct.
 func (t *Node) ItemStyleFunc(f StyleFunc) *Node {
 	t.tree.ItemStyleFunc(func(children ltree.Children, i int) lipgloss.Style {
 		c := make(Nodes, children.Length())
@@ -177,7 +176,6 @@ func (t *Node) ItemStyleFunc(f StyleFunc) *Node {
 
 // TODO: support IndentStyleFunc in lipgloss so we can have a full background for the item
 
-// TODO: should we re-export RoundedEnumerator from lipgloss?
 // Enumerator sets the enumerator implementation. This can be used to change the
 // way the branches indicators look.  Lipgloss includes predefined enumerators
 // for a classic or rounded tree. For example, you can have a rounded tree:
@@ -218,6 +216,7 @@ func (t *Node) Indenter(indenter ltree.Indenter) *Node {
 // EnumeratorStyle sets a static style for all enumerators.
 //
 // Use EnumeratorStyleFunc to conditionally set styles based on the tree node.
+// TODO: currently unused as this is set in the Styles struct.
 func (t *Node) EnumeratorStyle(style lipgloss.Style) *Node {
 	t.tree.EnumeratorStyle(style)
 	return t
@@ -233,6 +232,8 @@ func (t *Node) EnumeratorStyle(style lipgloss.Style) *Node {
 //		    }
 //		    return lipgloss.NewStyle().Foreground(dimColor)
 //		})
+//
+// TODO: currently unused as this is set in the Styles struct.
 func (t *Node) EnumeratorStyleFunc(f func(children ltree.Children, i int) lipgloss.Style) *Node {
 	t.tree.EnumeratorStyleFunc(f)
 	return t
@@ -262,7 +263,7 @@ func (t *Node) Child(children ...any) *Node {
 			t.size = t.size + child.size
 			t.tree.Child(child)
 
-			// Close the node again as the number of children as changed
+			// Close the node again as the number of children has changed
 			if t.initialClosed {
 				t.Close()
 			}
@@ -275,7 +276,7 @@ func (t *Node) Child(children ...any) *Node {
 			t.size = t.size + item.size
 			t.tree.Child(item)
 
-			// Close the node again as the number of children as changed
+			// Close the node again as the number of children has changed
 			if t.initialClosed {
 				t.Close()
 			}
