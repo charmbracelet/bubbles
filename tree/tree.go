@@ -222,9 +222,11 @@ func New(t *Node, width, height int) Model {
 	}
 	m.SetStyles(DefaultStyles())
 	m.SetSize(width, height)
-	m.setAttributes()
-	m.updateStyles()
-	m.updateViewport(0)
+	if m.root != nil {
+		m.setAttributes()
+		m.updateStyles()
+		m.updateViewport(0)
+	}
 	return m
 }
 
@@ -292,6 +294,14 @@ func (m Model) View() string {
 	}
 
 	return lipgloss.JoinVertical(lipgloss.Left, treeView, help)
+}
+
+// SetNodes sets the tree to the given root node.
+func (m *Model) SetNodes(t *Node) {
+	m.root = t
+	m.setAttributes()
+	m.updateStyles()
+	m.updateViewport(0)
 }
 
 // Down moves the selection down by one item.
@@ -374,6 +384,10 @@ func (m *Model) toggleNode(node *Node, open bool) {
 }
 
 func (m *Model) updateViewport(movement int) {
+	if m.root == nil {
+		return
+	}
+
 	m.yOffset = max(min(m.root.size-1, m.yOffset+movement), 0)
 	m.updateStyles()
 
@@ -435,7 +449,9 @@ func (m *Model) SetStyles(styles Styles) {
 		}
 	}
 
-	m.root.EnumeratorStyle(styles.EnumeratorStyle)
+	if m.root != nil {
+		m.root.EnumeratorStyle(styles.EnumeratorStyle)
+	}
 
 	m.styles = styles
 	m.updateViewport(0)
@@ -626,7 +642,9 @@ func (m *Model) NodeAtCurrentOffset() *Node {
 // style function's closure again
 func (m *Model) updateStyles() {
 	// TODO: add RootStyleFunc to the Node interface?
-	m.root.RootStyle(m.rootStyle())
+	if m.root != nil {
+		m.root.RootStyle(m.rootStyle())
+	}
 
 	items := m.FlatNodes()
 	opts := &itemOptions{
