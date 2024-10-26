@@ -25,7 +25,7 @@ type Node struct {
 	// value is the root value of the node
 	value any
 
-	opts *itemOptions
+	opts itemOptions
 
 	// TODO: move to lipgloss.Tree?
 	size int
@@ -78,7 +78,7 @@ type itemOptions struct {
 	openCharacter   string
 	closedCharacter string
 	treeYOffset     int
-	styles          *Styles
+	styles          Styles
 }
 
 // Used to print the Node's tree
@@ -124,6 +124,28 @@ func (t *Node) GivenValue() any {
 // Children returns the children of an item.
 func (t *Node) Children() ltree.Children {
 	return t.tree.Children()
+}
+
+// ChildNodes returns the children of an item.
+func (t *Node) ChildNodes() []*Node {
+	res := []*Node{}
+	children := t.tree.Children()
+	for i := 0; i < children.Length(); i++ {
+		child := children.At(i)
+		res = append(res, child.(*Node))
+	}
+	return res
+}
+
+// FlatNodes returns all descendant items in as a flat list.
+func (t *Node) AllNodes() []*Node {
+	res := []*Node{t}
+	children := t.tree.Children()
+	for i := 0; i < children.Length(); i++ {
+		child := children.At(i)
+		res = append(res, child.(*Node).AllNodes()...)
+	}
+	return res
 }
 
 // Hidden returns whether this item is hidden.
@@ -269,6 +291,7 @@ func (t *Node) Child(children ...any) *Node {
 			}
 		default:
 			item := new(Node)
+			item.opts.styles = DefaultStyles()
 			item.tree = ltree.Root(child)
 			item.size = 1
 			item.open = false
@@ -289,6 +312,7 @@ func (t *Node) Child(children ...any) *Node {
 // Root returns a new tree with the root set.
 func Root(root any) *Node {
 	t := new(Node)
+	t.opts.styles = DefaultStyles()
 	t.size = 1
 	t.value = root
 	t.open = true
