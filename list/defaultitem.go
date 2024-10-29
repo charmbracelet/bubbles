@@ -94,16 +94,14 @@ type DefaultDelegate struct {
 }
 
 // NewDefaultDelegate creates a new delegate with default styles.
-func NewDefaultDelegate() DefaultDelegate {
+func NewDefaultDelegate(isDark bool) DefaultDelegate {
 	const defaultHeight = 2
 	const defaultSpacing = 1
 	return DefaultDelegate{
 		ShowDescription: true,
-		// XXX: Let the user choose between light and dark colors. We've
-		// temporarily hardcoded the dark colors here.
-		Styles:  NewDefaultItemStyles(true),
-		height:  defaultHeight,
-		spacing: defaultSpacing,
+		Styles:          NewDefaultItemStyles(isDark),
+		height:          defaultHeight,
+		spacing:         defaultSpacing,
 	}
 }
 

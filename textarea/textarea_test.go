@@ -1703,7 +1703,7 @@ func TestView(t *testing.T) {
 }
 
 func newTextArea() Model {
-	textarea := New()
+	textarea := New(true)
 
 	textarea.Prompt = "> "
 	textarea.Placeholder = "Hello, World!"

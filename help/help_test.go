@@ -10,7 +10,7 @@ import (
 )
 
 func TestFullHelp(t *testing.T) {
-	m := New()
+	m := New(true)
 	m.FullSeparator = " | "
 	k := key.WithKeys("x")
 	kb := [][]key.Binding{

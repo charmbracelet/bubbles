@@ -196,10 +196,8 @@ type Model struct {
 }
 
 // New returns a new model with sensible defaults.
-func New(items []Item, delegate ItemDelegate, width, height int) Model {
-	// XXX: Let the user choose between light and dark colors. We've
-	// temporarily hardcoded the dark colors here.
-	styles := DefaultStyles(true)
+func New(items []Item, delegate ItemDelegate, width, height int, isDark bool) Model {
+	styles := DefaultStyles(isDark)
 
 	sp := spinner.New()
 	sp.Spinner = spinner.Line
@@ -239,7 +237,7 @@ func New(items []Item, delegate ItemDelegate, width, height int) Model {
 		items:     items,
 		Paginator: p,
 		spinner:   sp,
-		Help:      help.New(),
+		Help:      help.New(isDark),
 	}
 
 	m.updatePagination()
