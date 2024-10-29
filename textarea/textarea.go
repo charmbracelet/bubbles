@@ -283,12 +283,12 @@ type Model struct {
 }
 
 // New creates a new model with default settings.
-func New() Model {
+func New(isDark bool) Model {
 	vp := viewport.New(0, 0)
 	vp.KeyMap = viewport.KeyMap{}
 	cur := cursor.New()
 
-	styles := DefaultStyles(true)
+	styles := DefaultStyles(isDark)
 
 	m := Model{
 		CharLimit:            defaultCharLimit,

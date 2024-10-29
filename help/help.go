@@ -41,7 +41,8 @@ type Styles struct {
 	FullSeparator lipgloss.Style
 }
 
-func newStyles(isDark bool) Styles {
+// DefaultStyles returns a set of default styles for the help bubble.
+func DefaultStyles(isDark bool) Styles {
 	lightDark := lipgloss.LightDark(isDark)
 
 	keyStyle := lipgloss.NewStyle().Foreground(lightDark("#909090", "#626262"))
@@ -57,16 +58,6 @@ func newStyles(isDark bool) Styles {
 		FullDesc:       descStyle,
 		FullSeparator:  sepStyle,
 	}
-}
-
-// DefaultDarkStyles returns a set of default styles for dark backgrounds.
-func DefaultDarkStyles() Styles {
-	return newStyles(true)
-}
-
-// DefaultLightStyles returns a set of default styles for light backgrounds.
-func DefaultLightStyles() Styles {
-	return newStyles(false)
 }
 
 // Model contains the state of the help view.
@@ -85,12 +76,12 @@ type Model struct {
 }
 
 // New creates a new help view with some useful defaults.
-func New() Model {
+func New(isDark bool) Model {
 	return Model{
 		ShortSeparator: " • ",
 		FullSeparator:  "    ",
 		Ellipsis:       "…",
-		Styles:         DefaultDarkStyles(),
+		Styles:         DefaultStyles(isDark),
 	}
 }
 

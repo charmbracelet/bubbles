@@ -30,7 +30,7 @@ func (d itemDelegate) Render(w io.Writer, m Model, index int, listItem Item) {
 }
 
 func TestStatusBarItemName(t *testing.T) {
-	list := New([]Item{item("foo"), item("bar")}, itemDelegate{}, 10, 10)
+	list := New([]Item{item("foo"), item("bar")}, itemDelegate{}, 10, 10, true)
 	expected := "2 items"
 	if !strings.Contains(list.statusView(), expected) {
 		t.Fatalf("Error: expected view to contain %s", expected)
@@ -44,7 +44,7 @@ func TestStatusBarItemName(t *testing.T) {
 }
 
 func TestStatusBarWithoutItems(t *testing.T) {
-	list := New([]Item{}, itemDelegate{}, 10, 10)
+	list := New([]Item{}, itemDelegate{}, 10, 10, true)
 
 	expected := "No items"
 	if !strings.Contains(list.statusView(), expected) {
@@ -53,7 +53,7 @@ func TestStatusBarWithoutItems(t *testing.T) {
 }
 
 func TestCustomStatusBarItemName(t *testing.T) {
-	list := New([]Item{item("foo"), item("bar")}, itemDelegate{}, 10, 10)
+	list := New([]Item{item("foo"), item("bar")}, itemDelegate{}, 10, 10, true)
 	list.SetStatusBarItemName("connection", "connections")
 
 	expected := "2 connections"
@@ -77,7 +77,7 @@ func TestCustomStatusBarItemName(t *testing.T) {
 func TestSetFilterText(t *testing.T) {
 	tc := []Item{item("foo"), item("bar"), item("baz")}
 
-	list := New(tc, itemDelegate{}, 10, 10)
+	list := New(tc, itemDelegate{}, 10, 10, true)
 	list.SetFilterText("ba")
 
 	list.SetFilterState(Unfiltered)
@@ -102,7 +102,7 @@ func TestSetFilterText(t *testing.T) {
 func TestSetFilterState(t *testing.T) {
 	tc := []Item{item("foo"), item("bar"), item("baz")}
 
-	list := New(tc, itemDelegate{}, 10, 10)
+	list := New(tc, itemDelegate{}, 10, 10, true)
 	list.SetFilterText("ba")
 
 	list.SetFilterState(Unfiltered)
