@@ -99,9 +99,10 @@ type Model struct {
 // New creates a new timer with the given timeout and default 1s interval.
 func New(timeout time.Duration, opts ...Option) Model {
 	m := Model{
-		Timeout: timeout,
-		running: true,
-		id:      nextID(),
+		Timeout:  timeout,
+		Interval: time.Second,
+		running:  true,
+		id:       nextID(),
 	}
 	for _, opt := range opts {
 		opt(&m)
