@@ -867,7 +867,7 @@ func (m Model) LineInfo() LineInfo {
 // scrolling behavior.
 func (m *Model) repositionView() {
 	min := m.viewport.YOffset
-	max := min + m.viewport.Height - 1
+	max := min + m.viewport.Height() - 1
 
 	if row := m.cursorLineNumber(); row < min {
 		m.viewport.LineUp(min - row)
@@ -933,7 +933,7 @@ func (m *Model) SetWidth(w int) {
 	// borders, prompt and line numbers, we need to calculate it by subtracting
 	// the reserved width from them.
 
-	m.viewport.Width = inputWidth - reservedOuter
+	m.viewport.SetWidth(inputWidth - reservedOuter)
 	m.width = inputWidth - reservedOuter - reservedInner
 }
 
@@ -958,10 +958,10 @@ func (m Model) Height() int {
 func (m *Model) SetHeight(h int) {
 	if m.MaxHeight > 0 {
 		m.height = clamp(h, minHeight, m.MaxHeight)
-		m.viewport.Height = clamp(h, minHeight, m.MaxHeight)
+		m.viewport.SetHeight(clamp(h, minHeight, m.MaxHeight))
 	} else {
 		m.height = max(h, minHeight)
-		m.viewport.Height = max(h, minHeight)
+		m.viewport.SetHeight(max(h, minHeight))
 	}
 }
 
