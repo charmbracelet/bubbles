@@ -14,6 +14,19 @@ func nextID() int {
 	return int(atomic.AddInt64(&lastID, 1))
 }
 
+// Option is a configuration option in [New]. For example:
+//
+//	timer := New(time.Second*10, WithInterval(5*time.Second))
+type Option func(*Model)
+
+// WithInterval is an option for setting the interval between ticks. Pass as
+// an argument to [New].
+func WithInterval(interval time.Duration) Option {
+	return func(m *Model) {
+		m.Interval = interval
+	}
+}
+
 // TickMsg is a message that is sent on every timer tick.
 type TickMsg struct {
 	// ID is the identifier of the stopwatch that sends the message. This makes
@@ -47,18 +60,16 @@ type Model struct {
 	Interval time.Duration
 }
 
-// NewWithInterval creates a new stopwatch with the given timeout and tick
-// interval.
-func NewWithInterval(interval time.Duration) Model {
-	return Model{
-		Interval: interval,
-		id:       nextID(),
-	}
-}
-
 // New creates a new stopwatch with 1s interval.
-func New() Model {
-	return NewWithInterval(time.Second)
+func New(opts ...Option) Model {
+	m := Model{
+		id: nextID(),
+	}
+
+	for _, opt := range opts {
+		opt(&m)
+	}
+	return m
 }
 
 // ID returns the unique ID of the model.
