@@ -92,7 +92,7 @@ func WithoutPercentage() Option {
 // waiting for a tea.WindowSizeMsg.
 func WithWidth(w int) Option {
 	return func(m *Model) {
-		m.Width = w
+		m.width = w
 	}
 }
 
@@ -131,7 +131,7 @@ type Model struct {
 	tag int
 
 	// Total width of the progress bar, including percentage, if set.
-	Width int
+	width int
 
 	// "Filled" sections of the progress bar.
 	Full      rune
@@ -171,7 +171,7 @@ type Model struct {
 func New(opts ...Option) Model {
 	m := Model{
 		id:             nextID(),
-		Width:          defaultWidth,
+		width:          defaultWidth,
 		Full:           '█',
 		FullColor:      "#7571F9",
 		Empty:          '░',
@@ -278,6 +278,16 @@ func (m Model) ViewAs(percent float64) string {
 	return b.String()
 }
 
+// SetWidth sets the width of the progress bar.
+func (m *Model) SetWidth(w int) {
+	m.width = w
+}
+
+// Width returns the width of the progress bar.
+func (m Model) Width() int {
+	return m.width
+}
+
 func (m *Model) nextFrame() tea.Cmd {
 	return tea.Tick(time.Second/time.Duration(fps), func(time.Time) tea.Msg {
 		return FrameMsg{id: m.id, tag: m.tag}
@@ -286,7 +296,7 @@ func (m *Model) nextFrame() tea.Cmd {
 
 func (m Model) barView(b *strings.Builder, percent float64, textWidth int) {
 	var (
-		tw = max(0, m.Width-textWidth)                // total width
+		tw = max(0, m.width-textWidth)                // total width
 		fw = int(math.Round((float64(tw) * percent))) // filled width
 		p  float64
 	)

@@ -195,14 +195,14 @@ func (m Model) tick(id, tag int) tea.Cmd {
 //	spinner := New(WithSpinner(Dot))
 type Option func(*Model)
 
-// WithSpinner is an option to set the spinner.
+// WithSpinner is an option to set the spinner. Pass this to [Spinner.New].
 func WithSpinner(spinner Spinner) Option {
 	return func(m *Model) {
 		m.Spinner = spinner
 	}
 }
 
-// WithStyle is an option to set the spinner style.
+// WithStyle is an option to set the spinner style. Pass this to [Spinner.New].
 func WithStyle(style lipgloss.Style) Option {
 	return func(m *Model) {
 		m.Style = style
