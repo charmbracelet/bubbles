@@ -14,6 +14,19 @@ func nextID() int {
 	return int(atomic.AddInt64(&lastID, 1))
 }
 
+// Option is a configuration option in [New]. For example:
+//
+//	timer := New(time.Second*10, WithInterval(5*time.Second))
+type Option func(*Model)
+
+// WithInterval is an option for setting the interval between ticks. Pass as
+// an argument to [New].
+func WithInterval(interval time.Duration) Option {
+	return func(m *Model) {
+		m.Interval = interval
+	}
+}
+
 // Authors note with regard to start and stop commands:
 //
 // Technically speaking, sending commands to start and stop the timer in this
@@ -83,19 +96,17 @@ type Model struct {
 	running bool
 }
 
-// NewWithInterval creates a new timer with the given timeout and tick interval.
-func NewWithInterval(timeout, interval time.Duration) Model {
-	return Model{
-		Timeout:  timeout,
-		Interval: interval,
-		running:  true,
-		id:       nextID(),
-	}
-}
-
 // New creates a new timer with the given timeout and default 1s interval.
-func New(timeout time.Duration) Model {
-	return NewWithInterval(timeout, time.Second)
+func New(timeout time.Duration, opts ...Option) Model {
+	m := Model{
+		Timeout: timeout,
+		running: true,
+		id:      nextID(),
+	}
+	for _, opt := range opts {
+		opt(&m)
+	}
+	return m
 }
 
 // ID returns the model's identifier. This can be used to determine if messages
