@@ -19,7 +19,7 @@ type Option func(*Model)
 // viewport. Pass as an argument to [New].
 func WithWidth(w int) Option {
 	return func(m *Model) {
-		m.Width = w
+		m.width = w
 	}
 }
 
@@ -27,7 +27,7 @@ func WithWidth(w int) Option {
 // viewport. Pass as an argument to [New].
 func WithHeight(h int) Option {
 	return func(m *Model) {
-		m.Height = h
+		m.height = h
 	}
 }
 
@@ -43,8 +43,8 @@ func New(opts ...Option) (m Model) {
 
 // Model is the Bubble Tea model for this viewport element.
 type Model struct {
-	Width  int
-	Height int
+	width  int
+	height int
 	KeyMap KeyMap
 
 	// Whether or not to respond to the mouse. The mouse must be enabled in
@@ -81,6 +81,26 @@ func (m Model) Init() (Model, tea.Cmd) {
 	return m, nil
 }
 
+// Height returns the height of the viewport.
+func (m Model) Height() int {
+	return m.height
+}
+
+// SetHeight sets the height of the viewport.
+func (m *Model) SetHeight(h int) {
+	m.height = h
+}
+
+// Width returns the width of the viewport.
+func (m Model) Width() int {
+	return m.width
+}
+
+// SetWidth sets the width of the viewport.
+func (m *Model) SetWidth(w int) {
+	m.width = w
+}
+
 // AtTop returns whether or not the viewport is at the very top position.
 func (m Model) AtTop() bool {
 	return m.YOffset <= 0
@@ -100,11 +120,11 @@ func (m Model) PastBottom() bool {
 
 // ScrollPercent returns the amount scrolled as a float between 0 and 1.
 func (m Model) ScrollPercent() float64 {
-	if m.Height >= len(m.lines) {
+	if m.Height() >= len(m.lines) {
 		return 1.0
 	}
 	y := float64(m.YOffset)
-	h := float64(m.Height)
+	h := float64(m.Height())
 	t := float64(len(m.lines))
 	v := y / (t - h)
 	return math.Max(0.0, math.Min(1.0, v))
@@ -123,7 +143,7 @@ func (m *Model) SetContent(s string) {
 // maxYOffset returns the maximum possible value of the y-offset based on the
 // viewport's content and set height.
 func (m Model) maxYOffset() int {
-	return max(0, len(m.lines)-m.Height)
+	return max(0, len(m.lines)-m.Height())
 }
 
 // visibleLines returns the lines that should currently be visible in the
@@ -131,7 +151,7 @@ func (m Model) maxYOffset() int {
 func (m Model) visibleLines() (lines []string) {
 	if len(m.lines) > 0 {
 		top := max(0, m.YOffset)
-		bottom := clamp(m.YOffset+m.Height, top, len(m.lines))
+		bottom := clamp(m.YOffset+m.Height(), top, len(m.lines))
 		lines = m.lines[top:bottom]
 	}
 	return lines
@@ -149,7 +169,7 @@ func (m *Model) ViewDown() {
 		return
 	}
 
-	m.LineDown(m.Height)
+	m.LineDown(m.Height())
 }
 
 // ViewUp moves the view up by one height of the viewport. Basically, "page up".
@@ -158,7 +178,7 @@ func (m *Model) ViewUp() {
 		return
 	}
 
-	m.LineUp(m.Height)
+	m.LineUp(m.Height())
 }
 
 // HalfViewDown moves the view down by half the height of the viewport.
@@ -167,7 +187,7 @@ func (m *Model) HalfViewDown() {
 		return
 	}
 
-	m.LineDown(m.Height / 2) //nolint:mnd
+	m.LineDown(m.Height() / 2) //nolint:mnd
 }
 
 // HalfViewUp moves the view up by half the height of the viewport.
@@ -176,7 +196,7 @@ func (m *Model) HalfViewUp() {
 		return
 	}
 
-	m.LineUp(m.Height / 2) //nolint:mnd
+	m.LineUp(m.Height() / 2) //nolint:mnd
 }
 
 // LineDown moves the view down by the given number of lines.
@@ -283,7 +303,7 @@ func (m Model) updateAsModel(msg tea.Msg) Model {
 
 // View renders the viewport into a string.
 func (m Model) View() string {
-	w, h := m.Width, m.Height
+	w, h := m.Width(), m.Height()
 	if sw := m.Style.GetWidth(); sw != 0 {
 		w = min(w, sw)
 	}
