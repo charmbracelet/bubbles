@@ -9,11 +9,34 @@ import (
 	"github.com/charmbracelet/lipgloss/v2"
 )
 
+// Option is a configuration option that works in conjunction with [New]. For
+// example:
+//
+//	timer := New(WithWidth(10, WithHeight(5)))
+type Option func(*Model)
+
+// WithWidth is an initialization option that sets the width of the
+// viewport. Pass as an argument to [New].
+func WithWidth(w int) Option {
+	return func(m *Model) {
+		m.Width = w
+	}
+}
+
+// WithHeight is an initialization option that sets the height of the
+// viewport. Pass as an argument to [New].
+func WithHeight(h int) Option {
+	return func(m *Model) {
+		m.Height = h
+	}
+}
+
 // New returns a new model with the given width and height as well as default
 // key mappings.
-func New(width, height int) (m Model) {
-	m.Width = width
-	m.Height = height
+func New(opts ...Option) (m Model) {
+	for _, opt := range opts {
+		opt(&m)
+	}
 	m.setInitialValues()
 	return m
 }

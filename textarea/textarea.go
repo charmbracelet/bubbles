@@ -286,7 +286,7 @@ type Model struct {
 
 // New creates a new model with default settings.
 func New() Model {
-	vp := viewport.New(0, 0)
+	vp := viewport.New()
 	vp.KeyMap = viewport.KeyMap{}
 	cur := cursor.New()
 

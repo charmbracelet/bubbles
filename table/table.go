@@ -132,7 +132,7 @@ type Option func(*Model)
 func New(opts ...Option) Model {
 	m := Model{
 		cursor:   0,
-		viewport: viewport.New(0, 20), //nolint:mnd
+		viewport: viewport.New(viewport.WithHeight(20)), //nolint:mnd
 
 		KeyMap: DefaultKeyMap(),
 		Help:   help.New(),
