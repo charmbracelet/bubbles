@@ -28,9 +28,11 @@ type KeyMap struct {
 
 // DefaultKeyMap is the default set of key bindings for navigating and acting
 // upon the paginator.
-var DefaultKeyMap = KeyMap{
-	PrevPage: key.NewBinding(key.WithKeys("pgup", "left", "h")),
-	NextPage: key.NewBinding(key.WithKeys("pgdown", "right", "l")),
+func DefaultKeyMap() KeyMap {
+	return KeyMap{
+		PrevPage: key.NewBinding(key.WithKeys("pgup", "left", "h")),
+		NextPage: key.NewBinding(key.WithKeys("pgdown", "right", "l")),
+	}
 }
 
 // Model is the Bubble Tea model for this user interface.
@@ -129,7 +131,7 @@ func New(opts ...Option) Model {
 		Page:         0,
 		PerPage:      1,
 		TotalPages:   1,
-		KeyMap:       DefaultKeyMap,
+		KeyMap:       DefaultKeyMap(),
 		ActiveDot:    "•",
 		InactiveDot:  "○",
 		ArabicFormat: "%d/%d",
