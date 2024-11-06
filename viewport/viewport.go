@@ -57,10 +57,6 @@ type Model struct {
 	// YOffset is the vertical scroll position.
 	YOffset int
 
-	// YPosition is the position of the viewport in relation to the terminal
-	// window. It's used in high performance rendering only.
-	YPosition int
-
 	// Style applies a lipgloss style to the viewport. Realistically, it's most
 	// useful for setting borders, margins and padding.
 	Style lipgloss.Style
