@@ -290,7 +290,7 @@ func New() Model {
 	vp.KeyMap = viewport.KeyMap{}
 	cur := cursor.New()
 
-	styles := DefaultStyles(true)
+	styles := DefaultDarkStyles()
 
 	m := Model{
 		CharLimit:            defaultCharLimit,
@@ -346,6 +346,16 @@ func DefaultStyles(isDark bool) Styles {
 		Text:             lipgloss.NewStyle().Foreground(lightDark("245", "7")),
 	}
 	return s
+}
+
+// DefaultLightStyles returns the default styles for a light background.
+func DefaultLightStyles() Styles {
+	return DefaultStyles(false)
+}
+
+// DefaultDarkStyles returns the default styles for a dark background.
+func DefaultDarkStyles() Styles {
+	return DefaultStyles(true)
 }
 
 // SetValue sets the value of the text input.
