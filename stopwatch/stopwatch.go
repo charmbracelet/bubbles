@@ -36,7 +36,8 @@ type TickMsg struct {
 	// Note, however, that a stopwatch will reject ticks from other
 	// stopwatches, so it's safe to flow all TickMsgs through all stopwatches
 	// and have them still behave appropriately.
-	ID int
+	ID  int
+	tag int
 }
 
 // StartStopMsg is sent when the stopwatch should start or stop.
@@ -54,6 +55,7 @@ type ResetMsg struct {
 type Model struct {
 	d       time.Duration
 	id      int
+	tag     int
 	running bool
 
 	// How long to wait before every tick. Defaults to 1 second.
@@ -86,7 +88,7 @@ func (m Model) Init() (Model, tea.Cmd) {
 func (m Model) Start() tea.Cmd {
 	return tea.Batch(func() tea.Msg {
 		return StartStopMsg{ID: m.id, running: true}
-	}, tick(m.id, m.Interval))
+	}, tick(m.id, m.tag, m.Interval))
 }
 
 // Stop stops the stopwatch.
@@ -133,8 +135,17 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		if !m.running || msg.ID != m.id {
 			break
 		}
+
+		// If a tag is set, and it's not the one we expect, reject the message.
+		// This prevents the stopwatch from receiving too many messages and
+		// thus ticking too fast.
+		if msg.tag > 0 && msg.tag != m.tag {
+			return m, nil
+		}
+
 		m.d += m.Interval
-		return m, tick(m.id, m.Interval)
+		m.tag++
+		return m, tick(m.id, m.tag, m.Interval)
 	}
 
 	return m, nil
@@ -150,8 +161,8 @@ func (m Model) View() string {
 	return m.d.String()
 }
 
-func tick(id int, d time.Duration) tea.Cmd {
+func tick(id int, tag int, d time.Duration) tea.Cmd {
 	return tea.Tick(d, func(_ time.Time) tea.Msg {
-		return TickMsg{ID: id}
+		return TickMsg{ID: id, tag: tag}
 	})
 }
