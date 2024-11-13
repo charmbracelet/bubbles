@@ -1126,7 +1126,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	// Ensure the real cursor is at the correct position.
 	row := m.cursorLineNumber()
 	lineInfo := m.LineInfo()
-	realCol, realRow := m.offsetX+lineInfo.ColumnOffset, m.offsetY+row-m.viewport.YOffset
+	realCol, realRow := m.offsetX+lineInfo.CharOffset, m.offsetY+row-m.viewport.YOffset
 	if realCol != m.realCol || realRow != m.realRow {
 		m.realCol, m.realRow = realCol, realRow
 		cmds = append(cmds, tea.SetCursorPosition(realCol, realRow))
