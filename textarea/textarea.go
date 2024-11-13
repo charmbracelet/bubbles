@@ -293,8 +293,11 @@ type Model struct {
 	// Cursor row.
 	row int
 
-	// The bubble offset in the parent model.
+	// The bubble offset relative to the parent bubble.
 	offsetX, offsetY int
+
+	// The last recorded real cursor position.
+	realCol, realRow int
 
 	// Last character offset, used to maintain state when the cursor is moved
 	// vertically such that we can maintain the same navigating position.
@@ -381,6 +384,11 @@ func DefaultLightStyles() Styles {
 // DefaultDarkStyles returns the default styles for a dark background.
 func DefaultDarkStyles() Styles {
 	return DefaultStyles(true)
+}
+
+// SetOffset sets the offset of the textarea relative to the parent bubble.
+func (m *Model) SetOffset(x, y int) {
+	m.offsetX, m.offsetY = x, y
 }
 
 // SetValue sets the value of the text input.
@@ -534,11 +542,6 @@ func (m *Model) LineCount() int {
 // Line returns the line position.
 func (m Model) Line() int {
 	return m.row
-}
-
-// SetOffset sets the bubble offset in the parent model.
-func (m *Model) SetOffset(x, y int) {
-	m.offsetX, m.offsetY = x, y
 }
 
 // CursorDown moves the cursor down by one line.
@@ -1033,6 +1036,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.format()
 			m.row = len(m.value) - 1
 			m.CursorEnd()
+			m.SetSuggestions(nil)
 		}
 	}
 
@@ -1173,11 +1177,23 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	cmds = append(cmds, tea.SetCursorPosition(m.offsetX+newCol, m.offsetY+newRow))
 
 	m.Cursor, cmd = m.Cursor.Update(msg)
-	if (newRow != oldRow || newCol != oldCol) && m.Cursor.Mode() == cursor.CursorBlink {
-		m.Cursor.Blink = false
-		cmd = m.Cursor.BlinkCmd()
+	if cmd != nil {
+		cmds = append(cmds, cmd)
 	}
-	cmds = append(cmds, cmd)
+
+	if m.Cursor.Mode() == cursor.CursorBlink && (newRow != oldRow || newCol != oldCol) {
+		m.Cursor.Blink = false
+		cmds = append(cmds, m.Cursor.BlinkCmd())
+	}
+
+	// Ensure the real cursor is at the correct position.
+	row := m.cursorLineNumber()
+	lineInfo := m.LineInfo()
+	realCol, realRow := m.offsetX+lineInfo.ColumnOffset, m.offsetY+row-m.viewport.YOffset
+	if realCol != m.realCol || realRow != m.realRow {
+		m.realCol, m.realRow = realCol, realRow
+		cmds = append(cmds, tea.SetCursorPosition(realCol, realRow))
+	}
 
 	m.repositionView()
 
@@ -1197,7 +1213,7 @@ func (m Model) suggestionView(offset int) string {
 
 	var lines []string
 	for _, line := range strings.Split(suggestion[len(m.Value())+offset:], "\n") {
-		lines = append(lines, m.style.Placeholder.Inline(true).Render(line))
+		lines = append(lines, m.activeStyle.Placeholder.Inline(true).Render(line))
 	}
 	if len(lines) > m.Height() {
 		m.SetHeight(len(lines) + 1)
@@ -1276,44 +1292,19 @@ func (m Model) View() string {
 				wrappedLine = []rune(strings.TrimSuffix(string(wrappedLine), " "))
 				padding -= m.width - strwidth
 			}
-			if m.row == l && lineInfo.RowOffset == wl {
-				ln := string(wrappedLine[:lineInfo.ColumnOffset])
-				if m.SyntaxHighlighter == nil {
-					ln = style.Render(ln)
-				} else {
-					ln = m.SyntaxHighlighter(ln)
-				}
-				s.WriteString(ln)
 
-				if m.col >= len(line) && lineInfo.CharOffset >= m.width {
-					m.Cursor.SetChar(" ")
-					s.WriteString(m.Cursor.View())
-					// XXX: suggestions?
-				} else {
-					m.Cursor.SetChar(string(wrappedLine[lineInfo.ColumnOffset]))
-					if m.canAcceptSuggestion() && len(m.matchedSuggestions) > 0 {
-						suggestion := m.matchedSuggestions[m.currentSuggestionIndex]
-						if len(suggestion) >= m.row {
-							suggestion = suggestion[m.row:]
-						}
-						m.Cursor.TextStyle = m.style.Placeholder
-						if len(suggestion) > m.row && len(suggestion[m.row]) > m.col {
-							m.Cursor.SetChar(string(suggestion[m.row][m.col]))
-						}
-					}
-					s.WriteString(style.Render(m.Cursor.View()))
-					s.WriteString(style.Render(string(wrappedLine[lineInfo.ColumnOffset+1:])))
-					s.WriteString(m.suggestionView(1))
-					// XXX: suggestions
-				}
+			ln = string(wrappedLine)
+			if m.SyntaxHighlighter == nil {
+				ln = style.Render(ln)
 			} else {
-				ln := string(wrappedLine)
-				if m.SyntaxHighlighter == nil {
-					ln = style.Render(ln)
-				} else {
-					ln = m.SyntaxHighlighter(ln)
+				ln = m.SyntaxHighlighter(ln)
+			}
+			s.WriteString(ln)
+
+			if m.col < len(line) || lineInfo.CharOffset < m.width {
+				if m.canAcceptSuggestion() && len(m.matchedSuggestions) > 0 {
+					s.WriteString(m.suggestionView(1))
 				}
-				s.WriteString(ln)
 			}
 
 			pad := strings.Repeat(" ", max(0, padding))
