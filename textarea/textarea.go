@@ -664,6 +664,8 @@ func (m *Model) Reset() {
 	m.value = make([][]rune, minHeight, maxLines)
 	m.col = 0
 	m.row = 0
+	m.realCol = 0
+	m.realRow = 0
 	m.viewport.GotoTop()
 	m.SetCursor(0)
 }
