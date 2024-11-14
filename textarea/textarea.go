@@ -27,6 +27,9 @@ const (
 	defaultCharLimit = 400
 	defaultMaxHeight = 99
 	defaultMaxWidth  = 500
+
+	// XXX: in v2, make max lines dynamic and default max lines configurable.
+	maxLines = 10000
 )
 
 // Internal messages for clipboard operations.
@@ -290,13 +293,13 @@ func New() Model {
 		style:                &blurredStyle,
 		FocusedStyle:         focusedStyle,
 		BlurredStyle:         blurredStyle,
-		cache:                memoization.NewMemoCache[line, [][]rune](defaultMaxHeight),
+		cache:                memoization.NewMemoCache[line, [][]rune](maxLines),
 		EndOfBufferCharacter: ' ',
 		ShowLineNumbers:      true,
 		Cursor:               cur,
 		KeyMap:               DefaultKeyMap,
 
-		value: make([][]rune, minHeight, defaultMaxHeight),
+		value: make([][]rune, minHeight, maxLines),
 		focus: false,
 		col:   0,
 		row:   0,
@@ -360,9 +363,8 @@ func (m *Model) insertRunesFromUserInput(runes []rune) {
 	// whatnot.
 	runes = m.san().Sanitize(runes)
 
-	var availSpace int
 	if m.CharLimit > 0 {
-		availSpace = m.CharLimit - m.Length()
+		availSpace := m.CharLimit - m.Length()
 		// If the char limit's been reached, cancel.
 		if availSpace <= 0 {
 			return
@@ -393,9 +395,9 @@ func (m *Model) insertRunesFromUserInput(runes []rune) {
 		lines = append(lines, runes[lstart:])
 	}
 
-	// Obey the maximum height limit.
-	if m.MaxHeight > 0 && len(m.value)+len(lines)-1 > m.MaxHeight {
-		allowedHeight := max(0, m.MaxHeight-len(m.value)+1)
+	// Obey the maximum line limit.
+	if maxLines > 0 && len(m.value)+len(lines)-1 > maxLines {
+		allowedHeight := max(0, maxLines-len(m.value)+1)
 		lines = lines[:allowedHeight]
 	}
 
@@ -590,11 +592,7 @@ func (m *Model) Blur() {
 
 // Reset sets the input to its default state with no input.
 func (m *Model) Reset() {
-	startCap := m.MaxHeight
-	if startCap <= 0 {
-		startCap = defaultMaxHeight
-	}
-	m.value = make([][]rune, minHeight, startCap)
+	m.value = make([][]rune, minHeight, maxLines)
 	m.col = 0
 	m.row = 0
 	m.viewport.GotoTop()
