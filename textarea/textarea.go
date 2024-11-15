@@ -24,7 +24,7 @@ const (
 	minHeight        = 1
 	defaultHeight    = 6
 	defaultWidth     = 40
-	defaultCharLimit = 400
+	defaultCharLimit = 0 // no limit
 	defaultMaxHeight = 99
 	defaultMaxWidth  = 500
 
