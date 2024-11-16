@@ -309,6 +309,17 @@ func (t *Node) Child(children ...any) *Node {
 	return t
 }
 
+// NewNode returns a new node.
+func NewNode() *Node {
+	t := new(Node)
+	t.opts.styles = DefaultStyles()
+	t.size = 1
+	t.open = true
+	t.isRoot = true
+	t.tree = ltree.New()
+	return t
+}
+
 // Root returns a new tree with the root set.
 func Root(root any) *Node {
 	t := new(Node)

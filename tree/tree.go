@@ -7,6 +7,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	ltree "github.com/charmbracelet/lipgloss/tree"
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
@@ -130,6 +131,9 @@ type Model struct {
 
 	root *Node
 
+	enumerator *ltree.Enumerator
+	indenter   *ltree.Indenter
+
 	viewport viewport.Model
 	width    int
 	height   int
@@ -151,6 +155,11 @@ func New(t *Node, width, height int) Model {
 		root:     t,
 		viewport: viewport.Model{},
 	}
+
+	if m.root == nil {
+		m.root = NewNode()
+	}
+
 	m.SetStyles(DefaultStyles())
 	m.SetSize(width, height)
 	if m.root != nil {
@@ -230,6 +239,12 @@ func (m Model) View() string {
 // SetNodes sets the tree to the given root node.
 func (m *Model) SetNodes(t *Node) {
 	m.root = t
+	if m.enumerator != nil {
+		m.root.Enumerator(*m.enumerator)
+	}
+	if m.indenter != nil {
+		m.root.Indenter(*m.indenter)
+	}
 	m.setAttributes()
 	m.updateStyles()
 	m.updateViewport(0)
@@ -562,6 +577,20 @@ func (m *Model) Node(yoffset int) *Node {
 // NodeAtCurrentOffset returns the item at the current yoffset
 func (m *Model) NodeAtCurrentOffset() *Node {
 	return findNode(m.root, m.yOffset)
+}
+
+// Enumerator sets the enumerator for the tree
+func (m *Model) Enumerator(enumerator ltree.Enumerator) *Model {
+	m.enumerator = &enumerator
+	m.root.Enumerator(enumerator)
+	return m
+}
+
+// Indenter sets the indenter for the tree
+func (m *Model) Indenter(indenter ltree.Indenter) *Model {
+	m.indenter = &indenter
+	m.root.Indenter(indenter)
+	return m
 }
 
 // Since the selected node changes, we need to capture m.yOffset in the
