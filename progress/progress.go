@@ -28,6 +28,10 @@ const (
 	defaultWidth     = 40
 	defaultFrequency = 18.0
 	defaultDamping   = 1.0
+
+	// indeterminateBarWidth is percentage of total bar width that will be
+	// used as indeterminate bar.
+	indeterminateBarWidth = 0.2
 )
 
 // Option is used to set options in New. For example:
@@ -115,6 +119,15 @@ func WithColorProfile(p termenv.Profile) Option {
 	}
 }
 
+// StartIndeterminate make the progress bar set in indeterminate mode.
+// Set the percentage with any value using [Model.SetPercent] to switch to
+// determinate mode.
+func StartIndeterminate() Option {
+	return func(m *Model) {
+		m.indeterminate = true
+	}
+}
+
 // FrameMsg indicates that an animation step should occur.
 type FrameMsg struct {
 	id  int
@@ -152,6 +165,11 @@ type Model struct {
 	percentShown     float64 // percent currently displaying
 	targetPercent    float64 // percent to which we're animating
 	velocity         float64
+
+	// Members for indeterminate mode.
+	indeterminate              bool
+	indeterminatePos           float64
+	indeterminateStopRequested bool
 
 	// Gradient settings
 	useRamp    bool
@@ -199,6 +217,9 @@ var NewModel = New
 
 // Init exists to satisfy the tea.Model interface.
 func (m Model) Init() tea.Cmd {
+	if m.indeterminate {
+		return m.nextFrame()
+	}
 	return nil
 }
 
@@ -206,24 +227,63 @@ func (m Model) Init() tea.Cmd {
 // SetPercent to create the command you'll need to trigger the animation.
 //
 // If you're rendering with ViewAs you won't need this.
-func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case FrameMsg:
 		if msg.id != m.id || msg.tag != m.tag {
 			return m, nil
 		}
 
-		// If we've more or less reached equilibrium, stop updating.
-		if !m.IsAnimating() {
-			return m, nil
+		if m.indeterminate {
+			return m.updateIndeterminatePercentage()
+		} else {
+			return m.updateDeterminatePercentage()
 		}
-
-		m.percentShown, m.velocity = m.spring.Update(m.percentShown, m.velocity, m.targetPercent)
-		return m, m.nextFrame()
 
 	default:
 		return m, nil
 	}
+}
+
+func (m Model) updateIndeterminatePercentage() (Model, tea.Cmd) {
+	// The value of increment here is taken from the tick duration in [Model.nextFrame]
+	// function. The idea is the filled bar will move one step per tick.
+	increment := 1.0 / float64(fps)
+
+	m.indeterminatePos += increment
+	if m.indeterminatePos >= 1 {
+		m.indeterminatePos--
+	}
+
+	// Handle request for stopping indeterminate progress bar. Once the stop request
+	// is received, don't stop the indeterminate animation until the filled bar reach
+	// the end of the progress bar area.
+	if m.indeterminateStopRequested {
+		start := m.indeterminatePos
+		end := start + indeterminateBarWidth
+
+		// Notice the `-increment` here. This is done to prevent float rounding error
+		// which make the indeterminate progress bar never ends. The drawback is there
+		// will be one last cell that not filled when indeterminate progress bar ends,
+		// but IMHO it's still smooth enough.
+		if start >= 1-indeterminateBarWidth-increment && end <= 1.0 {
+			m.indeterminate = false
+			m.indeterminateStopRequested = false
+			m.indeterminatePos = 0
+		}
+	}
+
+	return m, m.nextFrame()
+}
+
+func (m Model) updateDeterminatePercentage() (Model, tea.Cmd) {
+	// If we've more or less reached equilibrium, stop updating.
+	if !m.IsAnimating() {
+		return m, nil
+	}
+
+	m.percentShown, m.velocity = m.spring.Update(m.percentShown, m.velocity, m.targetPercent)
+	return m, m.nextFrame()
 }
 
 // SetSpringOptions sets the frequency and damping for the current spring.
@@ -247,6 +307,13 @@ func (m Model) Percent() float64 {
 //
 // If you're rendering with ViewAs you won't need this.
 func (m *Model) SetPercent(p float64) tea.Cmd {
+	// Rather than stopping indeterminate progress bar immediately, here we send
+	// request to stop the indeterminate progress bar. This way the progress bar
+	// could be ended gracefully.
+	if m.indeterminate && !m.indeterminateStopRequested {
+		m.indeterminateStopRequested = true
+	}
+
 	m.targetPercent = math.Max(0, math.Min(1, p))
 	m.tag++
 	return m.nextFrame()
@@ -271,14 +338,25 @@ func (m *Model) DecrPercent(v float64) tea.Cmd {
 // View renders an animated progress bar in its current state. To render
 // a static progress bar based on your own calculations use ViewAs instead.
 func (m Model) View() string {
-	return m.ViewAs(m.percentShown)
+	b := strings.Builder{}
+	percentView := m.percentageView(m.percentShown)
+	percentViewWidth := ansi.StringWidth(percentView)
+
+	if m.indeterminate {
+		m.indeterminateBarView(&b, m.indeterminatePos, percentViewWidth)
+	} else {
+		m.determinateBarView(&b, m.percentShown, percentViewWidth)
+	}
+
+	b.WriteString(percentView)
+	return b.String()
 }
 
 // ViewAs renders the progress bar with a given percentage.
 func (m Model) ViewAs(percent float64) string {
 	b := strings.Builder{}
 	percentView := m.percentageView(percent)
-	m.barView(&b, percent, ansi.StringWidth(percentView))
+	m.determinateBarView(&b, percent, ansi.StringWidth(percentView))
 	b.WriteString(percentView)
 	return b.String()
 }
@@ -289,45 +367,97 @@ func (m *Model) nextFrame() tea.Cmd {
 	})
 }
 
-func (m Model) barView(b *strings.Builder, percent float64, textWidth int) {
+func (m Model) indeterminateBarView(b *strings.Builder, pos float64, textWidth int) {
+	var (
+		start = pos
+		end   = pos + indeterminateBarWidth
+		tw    = math.Floor(math.Max(0, float64(m.Width-textWidth)))    // total width
+		tbw   = math.Round(float64(tw) * indeterminateBarWidth)        // total bar width
+		lbw   = math.Round(float64(tw) * math.Max(end-1, 0))           // left bar width
+		rbw   = tbw - lbw                                              // right bar width
+		lew   = math.Round(float64(tw) * (start - math.Max(end-1, 0))) // left empty width
+		rew   = tw - lbw - lew - rbw                                   // right empty width
+	)
+
+	itbw := int(math.Max(0, math.Min(tw, tbw))) // total bar width, in int
+	ilbw := int(math.Max(0, math.Min(tw, lbw))) // left bar width, in int
+	irbw := int(math.Max(0, math.Min(tw, rbw))) // right bar width, in int
+	ilew := int(math.Max(0, math.Min(tw, lew))) // left empty width, in int
+	irew := int(math.Max(0, math.Min(tw, rew))) // right empty width, in int
+
+	// Prepare color and style
+	empty := termenv.String(string(m.Empty)).Foreground(m.color(m.EmptyColor)).String()
+	colors := m.barColors(itbw)
+
+	// Left bar
+	for i := 0; i < ilbw; i++ {
+		idx := i + irbw
+		b.WriteString(colors[idx])
+	}
+
+	// Left empty
+	b.WriteString(strings.Repeat(empty, ilew))
+
+	// Right bar
+	for i := 0; i < irbw; i++ {
+		b.WriteString(colors[i])
+	}
+
+	// Right empty
+	b.WriteString(strings.Repeat(empty, irew))
+}
+
+func (m Model) determinateBarView(b *strings.Builder, percent float64, textWidth int) {
 	var (
 		tw = max(0, m.Width-textWidth)                // total width
 		fw = int(math.Round((float64(tw) * percent))) // filled width
-		p  float64
 	)
 
 	fw = max(0, min(tw, fw))
 
+	// Prepare color and style
+	empty := termenv.String(string(m.Empty)).Foreground(m.color(m.EmptyColor)).String()
+	colors := m.barColors(fw)
+
+	// Bar fill
+	for i := 0; i < fw; i++ {
+		b.WriteString(colors[i])
+	}
+
+	// Empty fill
+	n := max(0, tw-fw)
+	b.WriteString(strings.Repeat(empty, n))
+}
+
+func (m Model) barColors(barWidth int) []string {
+	colors := make([]string, barWidth)
+
 	if m.useRamp {
 		// Gradient fill
-		for i := 0; i < fw; i++ {
-			if fw == 1 {
+		var p float64
+		for i := 0; i < barWidth; i++ {
+			if barWidth == 1 {
 				// this is up for debate: in a gradient of width=1, should the
 				// single character rendered be the first color, the last color
 				// or exactly 50% in between? I opted for 50%
 				p = 0.5
 			} else if m.scaleRamp {
-				p = float64(i) / float64(fw-1)
+				p = float64(i) / float64(barWidth-1)
 			} else {
-				p = float64(i) / float64(tw-1)
+				p = float64(i) / float64(barWidth-1)
 			}
+
 			c := m.rampColorA.BlendLuv(m.rampColorB, p).Hex()
-			b.WriteString(termenv.
-				String(string(m.Full)).
-				Foreground(m.color(c)).
-				String(),
-			)
+			colors[i] = termenv.String(string(m.Full)).Foreground(m.color(c)).String()
 		}
 	} else {
 		// Solid fill
-		s := termenv.String(string(m.Full)).Foreground(m.color(m.FullColor)).String()
-		b.WriteString(strings.Repeat(s, fw))
+		for i := 0; i < barWidth; i++ {
+			colors[i] = termenv.String(string(m.Full)).Foreground(m.color(m.FullColor)).String()
+		}
 	}
 
-	// Empty fill
-	e := termenv.String(string(m.Empty)).Foreground(m.color(m.EmptyColor)).String()
-	n := max(0, tw-fw)
-	b.WriteString(strings.Repeat(e, n))
+	return colors
 }
 
 func (m Model) percentageView(percent float64) string {
@@ -357,17 +487,27 @@ func (m Model) color(c string) termenv.Color {
 	return m.colorProfile.Color(c)
 }
 
+// IsAnimating returns false if the progress bar reached equilibrium and is no longer animating.
+func (m Model) IsAnimating() bool {
+	// If we are still in indeterminate mode, it's still animating.
+	if m.indeterminate {
+		return true
+	}
+
+	dist := math.Abs(m.percentShown - m.targetPercent)
+	return !(dist < 0.001 && m.velocity < 0.01)
+}
+
+// Indeterminate returns true if the progress bar still in indeterminate mode.
+func (m Model) Indeterminate() bool {
+	return m.indeterminate
+}
+
 func max(a, b int) int {
 	if a > b {
 		return a
 	}
 	return b
-}
-
-// IsAnimating returns false if the progress bar reached equilibrium and is no longer animating.
-func (m *Model) IsAnimating() bool {
-	dist := math.Abs(m.percentShown - m.targetPercent)
-	return !(dist < 0.001 && m.velocity < 0.01)
 }
 
 func min(a, b int) int {
