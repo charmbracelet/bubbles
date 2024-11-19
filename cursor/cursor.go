@@ -209,6 +209,11 @@ func (m *Model) SetChar(char string) {
 	m.char = char
 }
 
+// GetChar retrieves the character under the cursor.
+func (m Model) GetChar() string {
+	return m.char
+}
+
 // View displays the cursor.
 func (m Model) View() string {
 	if m.Blink {
