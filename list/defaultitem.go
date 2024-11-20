@@ -8,7 +8,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/muesli/reflow/truncate"
+	"github.com/charmbracelet/x/ansi"
 )
 
 // DefaultItemStyles defines styling for a default list item.
@@ -35,9 +35,9 @@ type DefaultItemStyles struct {
 func NewDefaultItemStyles() (s DefaultItemStyles) {
 	s.NormalTitle = lipgloss.NewStyle().
 		Foreground(lipgloss.AdaptiveColor{Light: "#1a1a1a", Dark: "#dddddd"}).
-		Padding(0, 0, 0, 2)
+		Padding(0, 0, 0, 2) //nolint:mnd
 
-	s.NormalDesc = s.NormalTitle.Copy().
+	s.NormalDesc = s.NormalTitle.
 		Foreground(lipgloss.AdaptiveColor{Light: "#A49FA5", Dark: "#777777"})
 
 	s.SelectedTitle = lipgloss.NewStyle().
@@ -46,14 +46,14 @@ func NewDefaultItemStyles() (s DefaultItemStyles) {
 		Foreground(lipgloss.AdaptiveColor{Light: "#EE6FF8", Dark: "#EE6FF8"}).
 		Padding(0, 0, 0, 1)
 
-	s.SelectedDesc = s.SelectedTitle.Copy().
+	s.SelectedDesc = s.SelectedTitle.
 		Foreground(lipgloss.AdaptiveColor{Light: "#F793FF", Dark: "#AD58B4"})
 
 	s.DimmedTitle = lipgloss.NewStyle().
 		Foreground(lipgloss.AdaptiveColor{Light: "#A49FA5", Dark: "#777777"}).
-		Padding(0, 0, 0, 2)
+		Padding(0, 0, 0, 2) //nolint:mnd
 
-	s.DimmedDesc = s.DimmedTitle.Copy().
+	s.DimmedDesc = s.DimmedTitle.
 		Foreground(lipgloss.AdaptiveColor{Light: "#C2B8C2", Dark: "#4D4D4D"})
 
 	s.FilterMatch = lipgloss.NewStyle().Underline(true)
@@ -61,7 +61,7 @@ func NewDefaultItemStyles() (s DefaultItemStyles) {
 	return s
 }
 
-// DefaultItem describes an items designed to work with DefaultDelegate.
+// DefaultItem describes an item designed to work with DefaultDelegate.
 type DefaultItem interface {
 	Item
 	Title() string
@@ -93,11 +93,13 @@ type DefaultDelegate struct {
 
 // NewDefaultDelegate creates a new delegate with default styles.
 func NewDefaultDelegate() DefaultDelegate {
+	const defaultHeight = 2
+	const defaultSpacing = 1
 	return DefaultDelegate{
 		ShowDescription: true,
 		Styles:          NewDefaultItemStyles(),
-		height:          2,
-		spacing:         1,
+		height:          defaultHeight,
+		spacing:         defaultSpacing,
 	}
 }
 
@@ -155,15 +157,15 @@ func (d DefaultDelegate) Render(w io.Writer, m Model, index int, item Item) {
 	}
 
 	// Prevent text from exceeding list width
-	textwidth := uint(m.width - s.NormalTitle.GetPaddingLeft() - s.NormalTitle.GetPaddingRight())
-	title = truncate.StringWithTail(title, textwidth, ellipsis)
+	textwidth := m.width - s.NormalTitle.GetPaddingLeft() - s.NormalTitle.GetPaddingRight()
+	title = ansi.Truncate(title, textwidth, ellipsis)
 	if d.ShowDescription {
 		var lines []string
 		for i, line := range strings.Split(desc, "\n") {
 			if i >= d.height-1 {
 				break
 			}
-			lines = append(lines, truncate.StringWithTail(line, textwidth, ellipsis))
+			lines = append(lines, ansi.Truncate(line, textwidth, ellipsis))
 		}
 		desc = strings.Join(lines, "\n")
 	}
@@ -187,7 +189,7 @@ func (d DefaultDelegate) Render(w io.Writer, m Model, index int, item Item) {
 		if isFiltered {
 			// Highlight matches
 			unmatched := s.SelectedTitle.Inline(true)
-			matched := unmatched.Copy().Inherit(s.FilterMatch)
+			matched := unmatched.Inherit(s.FilterMatch)
 			title = lipgloss.StyleRunes(title, matchedRunes, matched, unmatched)
 		}
 		title = s.SelectedTitle.Render(title)
@@ -196,7 +198,7 @@ func (d DefaultDelegate) Render(w io.Writer, m Model, index int, item Item) {
 		if isFiltered {
 			// Highlight matches
 			unmatched := s.NormalTitle.Inline(true)
-			matched := unmatched.Copy().Inherit(s.FilterMatch)
+			matched := unmatched.Inherit(s.FilterMatch)
 			title = lipgloss.StyleRunes(title, matchedRunes, matched, unmatched)
 		}
 		title = s.NormalTitle.Render(title)
@@ -204,10 +206,10 @@ func (d DefaultDelegate) Render(w io.Writer, m Model, index int, item Item) {
 	}
 
 	if d.ShowDescription {
-		fmt.Fprintf(w, "%s\n%s", title, desc)
+		fmt.Fprintf(w, "%s\n%s", title, desc) //nolint: errcheck
 		return
 	}
-	fmt.Fprintf(w, "%s", title)
+	fmt.Fprintf(w, "%s", title) //nolint: errcheck
 }
 
 // ShortHelp returns the delegate's short help.

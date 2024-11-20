@@ -6,6 +6,32 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
+func TestNew(t *testing.T) {
+	model := New()
+
+	if model.PerPage != 1 {
+		t.Errorf("PerPage = %d, expected %d", model.PerPage, 1)
+	}
+	if model.TotalPages != 1 {
+		t.Errorf("TotalPages = %d, expected %d", model.TotalPages, 1)
+	}
+
+	perPage := 42
+	totalPages := 42
+
+	model = New(
+		WithPerPage(perPage),
+		WithTotalPages(totalPages),
+	)
+
+	if model.PerPage != perPage {
+		t.Errorf("PerPage = %d, expected %d", model.PerPage, perPage)
+	}
+	if model.TotalPages != totalPages {
+		t.Errorf("TotalPages = %d, expected %d", model.TotalPages, totalPages)
+	}
+}
+
 func TestSetTotalPages(t *testing.T) {
 	tests := []struct {
 		name         string

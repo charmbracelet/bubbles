@@ -50,6 +50,8 @@ type Model struct {
 	//
 	// This should only be used in program occupying the entire terminal,
 	// which is usually via the alternate screen buffer.
+	//
+	// Deprecated: high performance rendering is now deprecated in Bubble Tea.
 	HighPerformanceRendering bool
 
 	initialized bool
@@ -97,8 +99,7 @@ func (m Model) ScrollPercent() float64 {
 	return math.Max(0.0, math.Min(1.0, v))
 }
 
-// SetContent set the pager's text content. For high performance rendering the
-// Sync command should also be called.
+// SetContent set the pager's text content.
 func (m *Model) SetContent(s string) {
 	s = strings.ReplaceAll(s, "\r\n", "\n") // normalize line endings
 	m.lines = strings.Split(s, "\n")
@@ -126,6 +127,8 @@ func (m Model) visibleLines() (lines []string) {
 }
 
 // scrollArea returns the scrollable boundaries for high performance rendering.
+//
+// XXX: high performance rendering is deprecated in Bubble Tea.
 func (m Model) scrollArea() (top, bottom int) {
 	top = max(0, m.YPosition)
 	bottom = max(top, top+m.Height)
@@ -165,7 +168,7 @@ func (m *Model) HalfViewDown() (lines []string) {
 		return nil
 	}
 
-	return m.LineDown(m.Height / 2)
+	return m.LineDown(m.Height / 2) //nolint:mnd
 }
 
 // HalfViewUp moves the view up by half the height of the viewport.
@@ -174,7 +177,7 @@ func (m *Model) HalfViewUp() (lines []string) {
 		return nil
 	}
 
-	return m.LineUp(m.Height / 2)
+	return m.LineUp(m.Height / 2) //nolint:mnd
 }
 
 // LineDown moves the view down by the given number of lines.
@@ -189,6 +192,8 @@ func (m *Model) LineDown(n int) (lines []string) {
 	m.SetYOffset(m.YOffset + n)
 
 	// Gather lines to send off for performance scrolling.
+	//
+	// XXX: high performance rendering is deprecated in Bubble Tea.
 	bottom := clamp(m.YOffset+m.Height, 0, len(m.lines))
 	top := clamp(m.YOffset+m.Height-n, 0, bottom)
 	return m.lines[top:bottom]
@@ -206,6 +211,8 @@ func (m *Model) LineUp(n int) (lines []string) {
 	m.SetYOffset(m.YOffset - n)
 
 	// Gather lines to send off for performance scrolling.
+	//
+	// XXX: high performance rendering is deprecated in Bubble Tea.
 	top := max(0, m.YOffset)
 	bottom := clamp(m.YOffset+n, 0, m.maxYOffset())
 	return m.lines[top:bottom]
@@ -242,6 +249,8 @@ func (m *Model) GotoBottom() (lines []string) {
 // first render and after a window resize.
 //
 // For high performance rendering only.
+//
+// Deprecated: high performance rendering is deprecated in Bubble Tea.
 func Sync(m Model) tea.Cmd {
 	if len(m.lines) == 0 {
 		return nil
@@ -261,6 +270,9 @@ func ViewDown(m Model, lines []string) tea.Cmd {
 		return nil
 	}
 	top, bottom := m.scrollArea()
+
+	// XXX: high performance rendering is deprecated in Bubble Tea. In a v2 we
+	// won't need to return a command here.
 	return tea.ScrollDown(lines, top, bottom)
 }
 
@@ -272,6 +284,9 @@ func ViewUp(m Model, lines []string) tea.Cmd {
 		return nil
 	}
 	top, bottom := m.scrollArea()
+
+	// XXX: high performance rendering is deprecated in Bubble Tea. In a v2 we
+	// won't need to return a command here.
 	return tea.ScrollUp(lines, top, bottom)
 }
 
@@ -335,7 +350,7 @@ func (m Model) updateAsModel(msg tea.Msg) (Model, tea.Cmd) {
 		if !m.MouseWheelEnabled || msg.Action != tea.MouseActionPress {
 			break
 		}
-		switch msg.Button {
+		switch msg.Button { //nolint:exhaustive
 		case tea.MouseButtonWheelUp:
 			lines := m.LineUp(m.MouseWheelDelta)
 			if m.HighPerformanceRendering {
@@ -378,7 +393,7 @@ func (m Model) View() string {
 		MaxHeight(contentHeight). // truncate height if taller.
 		MaxWidth(contentWidth).   // truncate width if wider.
 		Render(strings.Join(m.visibleLines(), "\n"))
-	return m.Style.Copy().
+	return m.Style.
 		UnsetWidth().UnsetHeight(). // Style size already applied in contents.
 		Render(contents)
 }

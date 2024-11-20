@@ -3,6 +3,7 @@ package table
 import (
 	"strings"
 
+	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
@@ -13,13 +14,13 @@ import (
 // Model defines a state for the table widget.
 type Model struct {
 	KeyMap KeyMap
+	Help   help.Model
 
-	cols      []Column
-	rows      []Row
-	cursor    int
-	focus     bool
-	styles    Styles
-	styleFunc StyleFunc
+	cols   []Column
+	rows   []Row
+	cursor int
+	focus  bool
+	styles Styles
 
 	viewport viewport.Model
 	start    int
@@ -36,7 +37,7 @@ type Column struct {
 }
 
 // KeyMap defines keybindings. It satisfies to the help.KeyMap interface, which
-// is used to render the menu.
+// is used to render the help menu.
 type KeyMap struct {
 	LineUp       key.Binding
 	LineDown     key.Binding
@@ -132,9 +133,10 @@ type Option func(*Model)
 func New(opts ...Option) Model {
 	m := Model{
 		cursor:   0,
-		viewport: viewport.New(0, 20),
+		viewport: viewport.New(0, 20), //nolint:mnd
 
 		KeyMap: DefaultKeyMap(),
+		Help:   help.New(),
 		styles: DefaultStyles(),
 	}
 
@@ -189,13 +191,6 @@ func WithStyles(s Styles) Option {
 	}
 }
 
-// WithStyleFunc sets the table style func which can determine a cell style per column, row, and selected state.
-func WithStyleFunc(f StyleFunc) Option {
-	return func(m *Model) {
-		m.styleFunc = f
-	}
-}
-
 // WithKeyMap sets the key map.
 func WithKeyMap(km KeyMap) Option {
 	return func(m *Model) {
@@ -221,11 +216,9 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		case key.Matches(msg, m.KeyMap.PageDown):
 			m.MoveDown(m.viewport.Height)
 		case key.Matches(msg, m.KeyMap.HalfPageUp):
-			m.MoveUp(m.viewport.Height / 2)
+			m.MoveUp(m.viewport.Height / 2) //nolint:mnd
 		case key.Matches(msg, m.KeyMap.HalfPageDown):
-			m.MoveDown(m.viewport.Height / 2)
-		case key.Matches(msg, m.KeyMap.LineDown):
-			m.MoveDown(1)
+			m.MoveDown(m.viewport.Height / 2) //nolint:mnd
 		case key.Matches(msg, m.KeyMap.GotoTop):
 			m.GotoTop()
 		case key.Matches(msg, m.KeyMap.GotoBottom):
@@ -257,6 +250,13 @@ func (m *Model) Blur() {
 // View renders the component.
 func (m Model) View() string {
 	return m.headersView() + "\n" + m.viewport.View()
+}
+
+// HelpView is a helper method for rendering the help menu from the keymap.
+// Note that this view is not rendered by default and you must call it
+// manually in your application, where applicable.
+func (m Model) HelpView() string {
+	return m.Help.View(m.KeyMap)
 }
 
 // UpdateViewport updates the list content based on the previously defined
@@ -405,11 +405,8 @@ func (m *Model) FromValues(value, separator string) {
 	m.SetRows(rows)
 }
 
-// StyleFunc is a function that can be used to customize the style of a table cell based on the row and column index.
-type StyleFunc func(row, col int, value string) lipgloss.Style
-
 func (m Model) headersView() string {
-	var s = make([]string, 0, len(m.cols))
+	s := make([]string, 0, len(m.cols))
 	for _, col := range m.cols {
 		if col.Width <= 0 {
 			continue
@@ -418,31 +415,21 @@ func (m Model) headersView() string {
 		renderedCell := style.Render(runewidth.Truncate(col.Title, col.Width, "…"))
 		s = append(s, m.styles.Header.Render(renderedCell))
 	}
-	return lipgloss.JoinHorizontal(lipgloss.Left, s...)
+	return lipgloss.JoinHorizontal(lipgloss.Top, s...)
 }
 
 func (m *Model) renderRow(r int) string {
-	var s = make([]string, 0, len(m.cols))
+	s := make([]string, 0, len(m.cols))
 	for i, value := range m.rows[r] {
 		if m.cols[i].Width <= 0 {
 			continue
 		}
-		var cellStyle lipgloss.Style
-		if m.styleFunc != nil {
-			cellStyle = m.styleFunc(r, i, value)
-			if r == m.cursor {
-				cellStyle.Inherit(m.styles.Selected)
-			}
-		} else {
-			cellStyle = m.styles.Cell
-		}
-
 		style := lipgloss.NewStyle().Width(m.cols[i].Width).MaxWidth(m.cols[i].Width).Inline(true)
-		renderedCell := cellStyle.Render(style.Render(runewidth.Truncate(value, m.cols[i].Width, "…")))
+		renderedCell := m.styles.Cell.Render(style.Render(runewidth.Truncate(value, m.cols[i].Width, "…")))
 		s = append(s, renderedCell)
 	}
 
-	row := lipgloss.JoinHorizontal(lipgloss.Left, s...)
+	row := lipgloss.JoinHorizontal(lipgloss.Top, s...)
 
 	if r == m.cursor {
 		return m.styles.Selected.Render(row)

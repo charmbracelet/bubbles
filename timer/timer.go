@@ -2,22 +2,16 @@
 package timer
 
 import (
-	"sync"
+	"sync/atomic"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-var (
-	lastID int
-	idMtx  sync.Mutex
-)
+var lastID int64
 
 func nextID() int {
-	idMtx.Lock()
-	defer idMtx.Unlock()
-	lastID++
-	return lastID
+	return int(atomic.AddInt64(&lastID, 1))
 }
 
 // Authors note with regard to start and stop commands:
@@ -67,6 +61,8 @@ type TickMsg struct {
 	// Timeout returns whether or not this tick is a timeout tick. You can
 	// alternatively listen for TimeoutMsg.
 	Timeout bool
+
+	tag int
 }
 
 // TimeoutMsg is a message that is sent once when the timer times out.
@@ -86,6 +82,7 @@ type Model struct {
 	Interval time.Duration
 
 	id      int
+	tag     int
 	running bool
 }
 
@@ -143,6 +140,13 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			break
 		}
 
+		// If a tag is set, and it's not the one we expect, reject the message.
+		// This prevents the ticker from receiving too many messages and
+		// thus ticking too fast.
+		if msg.tag > 0 && msg.tag != m.tag {
+			return m, nil
+		}
+
 		m.Timeout -= m.Interval
 		return m, tea.Batch(m.tick(), m.timedout())
 	}
@@ -172,7 +176,7 @@ func (m *Model) Toggle() tea.Cmd {
 
 func (m Model) tick() tea.Cmd {
 	return tea.Tick(m.Interval, func(_ time.Time) tea.Msg {
-		return TickMsg{ID: m.id, Timeout: m.Timedout()}
+		return TickMsg{ID: m.id, tag: m.tag, Timeout: m.Timedout()}
 	})
 }
 

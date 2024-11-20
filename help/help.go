@@ -15,7 +15,6 @@ import (
 // Note that if a key is disabled (via key.Binding.SetEnabled) it will not be
 // rendered in the help view, so in theory generated help should self-manage.
 type KeyMap interface {
-
 	// ShortHelp returns a slice of bindings to be displayed in the short
 	// version of the help. The help bubble will render help in the order in
 	// which the help items are returned here.
@@ -82,10 +81,10 @@ func New() Model {
 			ShortKey:       keyStyle,
 			ShortDesc:      descStyle,
 			ShortSeparator: sepStyle,
-			Ellipsis:       sepStyle.Copy(),
-			FullKey:        keyStyle.Copy(),
-			FullDesc:       descStyle.Copy(),
-			FullSeparator:  sepStyle.Copy(),
+			Ellipsis:       sepStyle,
+			FullKey:        keyStyle,
+			FullDesc:       descStyle,
+			FullSeparator:  sepStyle,
 		},
 	}
 }
@@ -118,35 +117,30 @@ func (m Model) ShortHelpView(bindings []key.Binding) string {
 
 	var b strings.Builder
 	var totalWidth int
-	var separator = m.Styles.ShortSeparator.Inline(true).Render(m.ShortSeparator)
+	separator := m.Styles.ShortSeparator.Inline(true).Render(m.ShortSeparator)
 
 	for i, kb := range bindings {
 		if !kb.Enabled() {
 			continue
 		}
 
+		// Sep
 		var sep string
 		if totalWidth > 0 && i < len(bindings) {
 			sep = separator
 		}
 
+		// Item
 		str := sep +
 			m.Styles.ShortKey.Inline(true).Render(kb.Help().Key) + " " +
 			m.Styles.ShortDesc.Inline(true).Render(kb.Help().Desc)
-
 		w := lipgloss.Width(str)
 
-		// If adding this help item would go over the available width, stop
-		// drawing.
-		if m.Width > 0 && totalWidth+w > m.Width {
-			// Although if there's room for an ellipsis, print that.
-			tail := " " + m.Styles.Ellipsis.Inline(true).Render(m.Ellipsis)
-			tailWidth := lipgloss.Width(tail)
-
-			if totalWidth+tailWidth < m.Width {
+		// Tail
+		if tail, ok := m.shouldAddItem(totalWidth, w); !ok {
+			if tail != "" {
 				b.WriteString(tail)
 			}
-
 			break
 		}
 
@@ -171,8 +165,7 @@ func (m Model) FullHelpView(groups [][]key.Binding) string {
 		out []string
 
 		totalWidth int
-		sep        = m.Styles.FullSeparator.Render(m.FullSeparator)
-		sepWidth   = lipgloss.Width(sep)
+		separator  = m.Styles.FullSeparator.Inline(true).Render(m.FullSeparator)
 	)
 
 	// Iterate over groups to build columns
@@ -180,11 +173,16 @@ func (m Model) FullHelpView(groups [][]key.Binding) string {
 		if group == nil || !shouldRenderColumn(group) {
 			continue
 		}
-
 		var (
+			sep          string
 			keys         []string
 			descriptions []string
 		)
+
+		// Sep
+		if totalWidth > 0 && i < len(groups) {
+			sep = separator
+		}
 
 		// Separate keys and descriptions into different slices
 		for _, kb := range group {
@@ -195,32 +193,40 @@ func (m Model) FullHelpView(groups [][]key.Binding) string {
 			descriptions = append(descriptions, kb.Help().Desc)
 		}
 
+		// Column
 		col := lipgloss.JoinHorizontal(lipgloss.Top,
+			sep,
 			m.Styles.FullKey.Render(strings.Join(keys, "\n")),
-			m.Styles.FullKey.Render(" "),
+			" ",
 			m.Styles.FullDesc.Render(strings.Join(descriptions, "\n")),
 		)
+		w := lipgloss.Width(col)
 
-		// Column
-		totalWidth += lipgloss.Width(col)
-		if m.Width > 0 && totalWidth > m.Width {
+		// Tail
+		if tail, ok := m.shouldAddItem(totalWidth, w); !ok {
+			if tail != "" {
+				out = append(out, tail)
+			}
 			break
 		}
 
+		totalWidth += w
 		out = append(out, col)
-
-		// Separator
-		if i < len(group)-1 {
-			totalWidth += sepWidth
-			if m.Width > 0 && totalWidth > m.Width {
-				break
-			}
-		}
-
-		out = append(out, sep)
 	}
 
 	return lipgloss.JoinHorizontal(lipgloss.Top, out...)
+}
+
+func (m Model) shouldAddItem(totalWidth, width int) (tail string, ok bool) {
+	// If there's room for an ellipsis, print that.
+	if m.Width > 0 && totalWidth+width > m.Width {
+		tail = " " + m.Styles.Ellipsis.Inline(true).Render(m.Ellipsis)
+
+		if totalWidth+lipgloss.Width(tail) < m.Width {
+			return tail, false
+		}
+	}
+	return "", true
 }
 
 func shouldRenderColumn(b []key.Binding) (ok bool) {

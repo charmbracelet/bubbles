@@ -6,9 +6,9 @@ import (
 	"unicode"
 
 	"github.com/MakeNowJust/heredoc"
-	"github.com/acarl005/stripansi"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 )
 
 func TestVerticalScrolling(t *testing.T) {
@@ -23,7 +23,7 @@ func TestVerticalScrolling(t *testing.T) {
 
 	input := "This is a really long line that should wrap around the text area."
 
-	for _, k := range []rune(input) {
+	for _, k := range input {
 		textarea, _ = textarea.Update(keyPress(k))
 	}
 
@@ -69,7 +69,7 @@ func TestWordWrapOverflowing(t *testing.T) {
 
 	input := "Testing Testing Testing Testing Testing Testing Testing Testing"
 
-	for _, k := range []rune(input) {
+	for _, k := range input {
 		textarea, _ = textarea.Update(keyPress(k))
 		textarea.View()
 	}
@@ -81,7 +81,7 @@ func TestWordWrapOverflowing(t *testing.T) {
 
 	input = "Testing"
 
-	for _, k := range []rune(input) {
+	for _, k := range input {
 		textarea, _ = textarea.Update(keyPress(k))
 		textarea.View()
 	}
@@ -326,6 +326,8 @@ func TestVerticalNavigationShouldRememberPositionWhileTraversing(t *testing.T) {
 }
 
 func TestView(t *testing.T) {
+	t.Parallel()
+
 	type want struct {
 		view      string
 		cursorRow int
@@ -342,11 +344,11 @@ func TestView(t *testing.T) {
 			want: want{
 				view: heredoc.Doc(`
 					>   1 Hello, World!
-					> ~
-					> ~
-					> ~
-					> ~
-					> ~
+					>
+					>
+					>
+					>
+					>
 				`),
 			},
 		},
@@ -360,11 +362,11 @@ func TestView(t *testing.T) {
 			want: want{
 				view: heredoc.Doc(`
 					>   1 the first line
-					> ~
-					> ~
-					> ~
-					> ~
-					> ~
+					>
+					>
+					>
+					>
+					>
 				`),
 				cursorRow: 0,
 				cursorCol: 14,
@@ -382,9 +384,9 @@ func TestView(t *testing.T) {
 					>   1 the first line
 					>   2 the second line
 					>   3 the third line
-					> ~
-					> ~
-					> ~
+					>
+					>
+					>
 				`),
 				cursorRow: 2,
 				cursorCol: 14,
@@ -401,11 +403,11 @@ func TestView(t *testing.T) {
 			want: want{
 				view: heredoc.Doc(`
 					> the first line
-					> ~
-					> ~
-					> ~
-					> ~
-					> ~
+					>
+					>
+					>
+					>
+					>
 				`),
 				cursorRow: 0,
 				cursorCol: 14,
@@ -424,9 +426,9 @@ func TestView(t *testing.T) {
 					> the first line
 					> the second line
 					> the third line
-					> ~
-					> ~
-					> ~
+					>
+					>
+					>
 				`),
 				cursorRow: 2,
 				cursorCol: 14,
@@ -529,11 +531,11 @@ func TestView(t *testing.T) {
 			want: want{
 				view: heredoc.Doc(`
 					*   1 the first line
-					* ~
-					* ~
-					* ~
-					* ~
-					* ~
+					*
+					*
+					*
+					*
+					*
 				`),
 				cursorRow: 0,
 				cursorCol: 14,
@@ -552,9 +554,9 @@ func TestView(t *testing.T) {
 					*   1 the first line
 					*   2 the second line
 					*   3 the third line
-					* ~
-					* ~
-					* ~
+					*
+					*
+					*
 				`),
 				cursorRow: 2,
 				cursorCol: 14,
@@ -571,11 +573,11 @@ func TestView(t *testing.T) {
 			want: want{
 				view: heredoc.Doc(`
 					>   1 foo
-					> ~
-					> ~
-					> ~
-					> ~
-					> ~
+					>
+					>
+					>
+					>
+					>
 				`),
 				cursorRow: 0,
 				cursorCol: 3,
@@ -594,9 +596,9 @@ func TestView(t *testing.T) {
 					>   1 foo
 					>   2 bar
 					>   3 baz
-					> ~
-					> ~
-					> ~
+					>
+					>
+					>
 				`),
 				cursorRow: 2,
 				cursorCol: 3,
@@ -619,9 +621,9 @@ func TestView(t *testing.T) {
 					foo
 					bar
 					baz
-					~
-					~
-					~
+
+
+
 				`),
 				cursorRow: 2,
 				cursorCol: 3,
@@ -640,11 +642,11 @@ func TestView(t *testing.T) {
 			want: want{
 				view: heredoc.Doc(`
 					>   1 foo bar
-					> ~
-					> ~
-					> ~
-					> ~
-					> ~
+					>
+					>
+					>
+					>
+					>
 				`),
 				cursorRow: 0,
 				cursorCol: 7,
@@ -664,10 +666,10 @@ func TestView(t *testing.T) {
 				view: heredoc.Doc(`
 					>   1 foo bar baz
 					>   2 foo bar
-					> ~
-					> ~
-					> ~
-					> ~
+					>
+					>
+					>
+					>
 				`),
 				cursorRow: 1,
 				cursorCol: 7,
@@ -686,11 +688,11 @@ func TestView(t *testing.T) {
 			want: want{
 				view: heredoc.Doc(`
 					>   1 12
-					> ~
-					> ~
-					> ~
-					> ~
-					> ~
+					>
+					>
+					>
+					>
+					>
 				`),
 				cursorRow: 0,
 				cursorCol: 2,
@@ -709,11 +711,11 @@ func TestView(t *testing.T) {
 			want: want{
 				view: heredoc.Doc(`
 					>   1 123
-					> ~
-					> ~
-					> ~
-					> ~
-					> ~
+					>
+					>
+					>
+					>
+					>
 				`),
 				cursorRow: 0,
 				cursorCol: 3,
@@ -733,10 +735,10 @@ func TestView(t *testing.T) {
 				view: heredoc.Doc(`
 					>   1 1234
 					>
-					> ~
-					> ~
-					> ~
-					> ~
+					>
+					>
+					>
+					>
 				`),
 				cursorRow: 1,
 				cursorCol: 0,
@@ -756,10 +758,10 @@ func TestView(t *testing.T) {
 				view: heredoc.Doc(`
 					>   1 1234
 					>     5
-					> ~
-					> ~
-					> ~
-					> ~
+					>
+					>
+					>
+					>
 				`),
 				cursorRow: 1,
 				cursorCol: 1,
@@ -779,11 +781,11 @@ func TestView(t *testing.T) {
 			want: want{
 				view: heredoc.Doc(`
 					>   1 123
-					> ~
-					> ~
-					> ~
-					> ~
-					> ~
+					>
+					>
+					>
+					>
+					>
 				`),
 				cursorRow: 0,
 				cursorCol: 3,
@@ -804,10 +806,10 @@ func TestView(t *testing.T) {
 				view: heredoc.Doc(`
 					>   1 1234
 					>
-					> ~
-					> ~
-					> ~
-					> ~
+					>
+					>
+					>
+					>
 				`),
 				cursorRow: 1,
 				cursorCol: 0,
@@ -828,10 +830,10 @@ func TestView(t *testing.T) {
 				view: heredoc.Doc(`
 					>   1 1234
 					>     5
-					> ~
-					> ~
-					> ~
-					> ~
+					>
+					>
+					>
+					>
 				`),
 				cursorRow: 1,
 				cursorCol: 1,
@@ -853,8 +855,8 @@ func TestView(t *testing.T) {
 					>     2
 					>     3
 					>
-					> ~
-					> ~
+					>
+					>
 				`),
 				cursorRow: 3,
 				cursorCol: 0,
@@ -876,8 +878,8 @@ func TestView(t *testing.T) {
 					>     2
 					>     3
 					>
-					> ~
-					> ~
+					>
+					>
 				`),
 				cursorRow: 3,
 				cursorCol: 0,
@@ -900,8 +902,8 @@ func TestView(t *testing.T) {
 					> 2
 					> 3
 					>
-					> ~
-					> ~
+					>
+					>
 				`),
 				cursorRow: 3,
 				cursorCol: 0,
@@ -925,8 +927,8 @@ func TestView(t *testing.T) {
 					2
 					3
 
-					~
-					~
+
+
 				`),
 				cursorRow: 3,
 				cursorCol: 0,
@@ -946,10 +948,10 @@ func TestView(t *testing.T) {
 				view: heredoc.Doc(`
 					>   1 12
 					>     3
-					> ~
-					> ~
-					> ~
-					> ~
+					>
+					>
+					>
+					>
 				`),
 				cursorRow: 1,
 				cursorCol: 1,
@@ -969,11 +971,11 @@ func TestView(t *testing.T) {
 			want: want{
 				view: heredoc.Doc(`
 					> 123
-					> ~
-					> ~
-					> ~
-					> ~
-					> ~
+					>
+					>
+					>
+					>
+					>
 				`),
 				cursorRow: 0,
 				cursorCol: 3,
@@ -994,10 +996,10 @@ func TestView(t *testing.T) {
 				view: heredoc.Doc(`
 					> 1234
 					>
-					> ~
-					> ~
-					> ~
-					> ~
+					>
+					>
+					>
+					>
 				`),
 				cursorRow: 1,
 				cursorCol: 0,
@@ -1018,10 +1020,10 @@ func TestView(t *testing.T) {
 				view: heredoc.Doc(`
 					> 1234
 					> 5
-					> ~
-					> ~
-					> ~
-					> ~
+					>
+					>
+					>
+					>
 				`),
 				cursorRow: 1,
 				cursorCol: 1,
@@ -1044,11 +1046,11 @@ func TestView(t *testing.T) {
 				view: heredoc.Doc(`
 					┌──────────┐
 					│>   1 1   │
-					│> ~       │
-					│> ~       │
-					│> ~       │
-					│> ~       │
-					│> ~       │
+					│>         │
+					│>         │
+					│>         │
+					│>         │
+					│>         │
 					└──────────┘
 				`),
 				cursorRow: 0,
@@ -1072,11 +1074,11 @@ func TestView(t *testing.T) {
 				view: heredoc.Doc(`
 					┌──────────┐
 					│>   1 123 │
-					│> ~       │
-					│> ~       │
-					│> ~       │
-					│> ~       │
-					│> ~       │
+					│>         │
+					│>         │
+					│>         │
+					│>         │
+					│>         │
 					└──────────┘
 				`),
 				cursorRow: 0,
@@ -1101,10 +1103,10 @@ func TestView(t *testing.T) {
 					┌──────────┐
 					│>   1 1234│
 					│>         │
-					│> ~       │
-					│> ~       │
-					│> ~       │
-					│> ~       │
+					│>         │
+					│>         │
+					│>         │
+					│>         │
 					└──────────┘
 				`),
 				cursorRow: 1,
@@ -1129,10 +1131,10 @@ func TestView(t *testing.T) {
 					┌──────────┐
 					│>   1 1234│
 					│>     5   │
-					│> ~       │
-					│> ~       │
-					│> ~       │
-					│> ~       │
+					│>         │
+					│>         │
+					│>         │
+					│>         │
 					└──────────┘
 				`),
 				cursorRow: 1,
@@ -1157,11 +1159,11 @@ func TestView(t *testing.T) {
 				view: heredoc.Doc(`
 					┌──────────┐
 					│> 123456  │
-					│> ~       │
-					│> ~       │
-					│> ~       │
-					│> ~       │
-					│> ~       │
+					│>         │
+					│>         │
+					│>         │
+					│>         │
+					│>         │
 					└──────────┘
 				`),
 				cursorRow: 0,
@@ -1186,11 +1188,11 @@ func TestView(t *testing.T) {
 				view: heredoc.Doc(`
 					┌──────────┐
 					│> 1234567 │
-					│> ~       │
-					│> ~       │
-					│> ~       │
-					│> ~       │
-					│> ~       │
+					│>         │
+					│>         │
+					│>         │
+					│>         │
+					│>         │
 					└──────────┘
 				`),
 				cursorRow: 0,
@@ -1216,10 +1218,10 @@ func TestView(t *testing.T) {
 					┌──────────┐
 					│> 12345678│
 					│>         │
-					│> ~       │
-					│> ~       │
-					│> ~       │
-					│> ~       │
+					│>         │
+					│>         │
+					│>         │
+					│>         │
 					└──────────┘
 				`),
 				cursorRow: 1,
@@ -1245,10 +1247,10 @@ func TestView(t *testing.T) {
 					┌──────────┐
 					│> 12345678│
 					│> 9       │
-					│> ~       │
-					│> ~       │
-					│> ~       │
-					│> ~       │
+					│>         │
+					│>         │
+					│>         │
+					│>         │
 					└──────────┘
 				`),
 				cursorRow: 1,
@@ -1264,19 +1266,419 @@ func TestView(t *testing.T) {
 			},
 			want: want{
 				view: heredoc.Doc(`
-					>   1 .
-					> ~
-					> ~
-					> ~
-					> ~
-					> ~
+					>   1 H
+					>     e
+					>     l
+					>     l
+					>     o
+					>     ,
+				`),
+			},
+		},
+		{
+			name: "placeholder single line",
+			modelFunc: func(m Model) Model {
+				m.Placeholder = "placeholder the first line"
+				m.ShowLineNumbers = false
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					> placeholder the first line
+					>
+					>
+					>
+					>
+					>
+					`),
+			},
+		},
+		{
+			name: "placeholder multiple lines",
+			modelFunc: func(m Model) Model {
+				m.Placeholder = "placeholder the first line\nplaceholder the second line\nplaceholder the third line"
+				m.ShowLineNumbers = false
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					> placeholder the first line
+					> placeholder the second line
+					> placeholder the third line
+					>
+					>
+					>
+				`),
+			},
+		},
+		{
+			name: "placeholder single line with line numbers",
+			modelFunc: func(m Model) Model {
+				m.Placeholder = "placeholder the first line"
+				m.ShowLineNumbers = true
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					>   1 placeholder the first line
+					>
+					>
+					>
+					>
+					>
+				`),
+			},
+		},
+		{
+			name: "placeholder multiple lines with line numbers",
+			modelFunc: func(m Model) Model {
+				m.Placeholder = "placeholder the first line\nplaceholder the second line\nplaceholder the third line"
+				m.ShowLineNumbers = true
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					>   1 placeholder the first line
+					>     placeholder the second line
+					>     placeholder the third line
+					>
+					>
+					>
+				`),
+			},
+		},
+		{
+			name: "placeholder single line with end of buffer character",
+			modelFunc: func(m Model) Model {
+				m.Placeholder = "placeholder the first line"
+				m.ShowLineNumbers = false
+				m.EndOfBufferCharacter = '*'
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					> placeholder the first line
+					> *
+					> *
+					> *
+					> *
+					> *
+				`),
+			},
+		},
+		{
+			name: "placeholder multiple lines with with end of buffer character",
+			modelFunc: func(m Model) Model {
+				m.Placeholder = "placeholder the first line\nplaceholder the second line\nplaceholder the third line"
+				m.ShowLineNumbers = false
+				m.EndOfBufferCharacter = '*'
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					> placeholder the first line
+					> placeholder the second line
+					> placeholder the third line
+					> *
+					> *
+					> *
+				`),
+			},
+		},
+		{
+			name: "placeholder single line with line numbers and end of buffer character",
+			modelFunc: func(m Model) Model {
+				m.Placeholder = "placeholder the first line"
+				m.ShowLineNumbers = true
+				m.EndOfBufferCharacter = '*'
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					>   1 placeholder the first line
+					> *
+					> *
+					> *
+					> *
+					> *
+				`),
+			},
+		},
+		{
+			name: "placeholder multiple lines with line numbers and end of buffer character",
+			modelFunc: func(m Model) Model {
+				m.Placeholder = "placeholder the first line\nplaceholder the second line\nplaceholder the third line"
+				m.ShowLineNumbers = true
+				m.EndOfBufferCharacter = '*'
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					>   1 placeholder the first line
+					>     placeholder the second line
+					>     placeholder the third line
+					> *
+					> *
+					> *
+				`),
+			},
+		},
+		{
+			name: "placeholder single line that is longer than max width",
+			modelFunc: func(m Model) Model {
+				m.Placeholder = "placeholder the first line that is longer than the max width"
+				m.SetWidth(40)
+				m.ShowLineNumbers = false
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					> placeholder the first line that is
+					> longer than the max width
+					>
+					>
+					>
+					>
+				`),
+			},
+		},
+		{
+			name: "placeholder multiple lines that are longer than max width",
+			modelFunc: func(m Model) Model {
+				m.Placeholder = "placeholder the first line that is longer than the max width\nplaceholder the second line that is longer than the max width"
+				m.ShowLineNumbers = false
+				m.SetWidth(40)
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					> placeholder the first line that is
+					> longer than the max width
+					> placeholder the second line that is
+					> longer than the max width
+					>
+					>
+				`),
+			},
+		},
+		{
+			name: "placeholder single line that is longer than max width with line numbers",
+			modelFunc: func(m Model) Model {
+				m.Placeholder = "placeholder the first line that is longer than the max width"
+				m.ShowLineNumbers = true
+				m.SetWidth(40)
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					>   1 placeholder the first line that is
+					>     longer than the max width
+					>
+					>
+					>
+					>
+				`),
+			},
+		},
+		{
+			name: "placeholder multiple lines that are longer than max width with line numbers",
+			modelFunc: func(m Model) Model {
+				m.Placeholder = "placeholder the first line that is longer than the max width\nplaceholder the second line that is longer than the max width"
+				m.ShowLineNumbers = true
+				m.SetWidth(40)
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					>   1 placeholder the first line that is
+					>     longer than the max width
+					>     placeholder the second line that
+					>     is longer than the max width
+					>
+					>
+				`),
+			},
+		},
+		{
+			name: "placeholder single line that is longer than max width at limit",
+			modelFunc: func(m Model) Model {
+				m.Placeholder = "123456789012345678"
+				m.ShowLineNumbers = false
+				m.SetWidth(20)
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					> 123456789012345678
+					>
+					>
+					>
+					>
+					>
+				`),
+			},
+		},
+		{
+			name: "placeholder single line that is longer than max width at limit plus one",
+			modelFunc: func(m Model) Model {
+				m.Placeholder = "1234567890123456789"
+				m.ShowLineNumbers = false
+				m.SetWidth(20)
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					> 123456789012345678
+					> 9
+					>
+					>
+					>
+					>
+				`),
+			},
+		},
+		{
+			name: "placeholder single line that is longer than max width with line numbers at limit",
+			modelFunc: func(m Model) Model {
+				m.Placeholder = "12345678901234"
+				m.ShowLineNumbers = true
+				m.SetWidth(20)
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					>   1 12345678901234
+					>
+					>
+					>
+					>
+					>
+				`),
+			},
+		},
+		{
+			name: "placeholder single line that is longer than max width with line numbers at limit plus one",
+			modelFunc: func(m Model) Model {
+				m.Placeholder = "123456789012345"
+				m.ShowLineNumbers = true
+				m.SetWidth(20)
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					>   1 12345678901234
+					>     5
+					>
+					>
+					>
+					>
+				`),
+			},
+		},
+		{
+			name: "placeholder multiple lines that are longer than max width at limit",
+			modelFunc: func(m Model) Model {
+				m.Placeholder = "123456789012345678\n123456789012345678"
+				m.ShowLineNumbers = false
+				m.SetWidth(20)
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					> 123456789012345678
+					> 123456789012345678
+					>
+					>
+					>
+					>
+				`),
+			},
+		},
+		{
+			name: "placeholder multiple lines that are longer than max width at limit plus one",
+			modelFunc: func(m Model) Model {
+				m.Placeholder = "1234567890123456789\n1234567890123456789"
+				m.ShowLineNumbers = false
+				m.SetWidth(20)
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					> 123456789012345678
+					> 9
+					> 123456789012345678
+					> 9
+					>
+					>
+				`),
+			},
+		},
+		{
+			name: "placeholder multiple lines that are longer than max width with line numbers at limit",
+			modelFunc: func(m Model) Model {
+				m.Placeholder = "12345678901234\n12345678901234"
+				m.ShowLineNumbers = true
+				m.SetWidth(20)
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					>   1 12345678901234
+					>     12345678901234
+					>
+					>
+					>
+					>
+				`),
+			},
+		},
+		{
+			name: "placeholder multiple lines that are longer than max width with line numbers at limit plus one",
+			modelFunc: func(m Model) Model {
+				m.Placeholder = "123456789012345\n123456789012345"
+				m.ShowLineNumbers = true
+				m.SetWidth(20)
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					>   1 12345678901234
+					>     5
+					>     12345678901234
+					>     5
+					>
+					>
 				`),
 			},
 		},
 	}
 
 	for _, tt := range tests {
+		tt := tt
+
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			textarea := newTextArea()
 
 			if tt.modelFunc != nil {
@@ -1326,7 +1728,7 @@ func sendString(m Model, str string) Model {
 }
 
 func stripString(str string) string {
-	s := stripansi.Strip(str)
+	s := ansi.Strip(str)
 	ss := strings.Split(s, "\n")
 
 	var lines []string
