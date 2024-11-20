@@ -143,6 +143,7 @@ type Model struct {
 	showPagination   bool
 	showHelp         bool
 	filteringEnabled bool
+	hideEmpty        bool
 
 	itemNameSingular string
 	itemNamePlural   string
@@ -224,6 +225,7 @@ func New(items []Item, delegate ItemDelegate, width, height int) Model {
 		itemNameSingular:      "item",
 		itemNamePlural:        "items",
 		filteringEnabled:      true,
+		hideEmpty:             false,
 		KeyMap:                DefaultKeyMap(),
 		Filter:                DefaultFilter,
 		Styles:                styles,
@@ -373,6 +375,11 @@ func (m Model) ShowHelp() bool {
 // Items returns the items in the list.
 func (m Model) Items() []Item {
 	return m.items
+}
+
+// SetHideEmpty hides or shows the "No items" on empty list.
+func (m *Model) SetHideEmpty(v bool) {
+	m.hideEmpty = v
 }
 
 // SetItems sets the items available in the list. This returns a command.
@@ -1160,7 +1167,7 @@ func (m Model) statusView() string {
 		} else {
 			status = itemsDisplay
 		}
-	} else if len(m.items) == 0 {
+	} else if len(m.items) == 0 && !m.hideEmpty {
 		// Not filtering: no items.
 		status = m.Styles.StatusEmpty.Render("No " + m.itemNamePlural)
 	} else {
