@@ -1221,7 +1221,7 @@ func (m Model) populatedView() string {
 
 	// Empty states
 	if len(items) == 0 {
-		if m.filterState == Filtering {
+		if m.filterState == Filtering || m.hideEmpty {
 			return ""
 		}
 		return m.Styles.NoItems.Render("No " + m.itemNamePlural + ".")
