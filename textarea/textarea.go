@@ -330,23 +330,23 @@ func DefaultStyles(isDark bool) Styles {
 	var s Styles
 	s.Focused = StyleState{
 		Base:             lipgloss.NewStyle(),
-		CursorLine:       lipgloss.NewStyle().Background(lightDark("255", "0")),
-		CursorLineNumber: lipgloss.NewStyle().Foreground(lightDark("240", "240")),
-		EndOfBuffer:      lipgloss.NewStyle().Foreground(lightDark("254", "0")),
-		LineNumber:       lipgloss.NewStyle().Foreground(lightDark("249", "7")),
+		CursorLine:       lipgloss.NewStyle().Background(lightDark(lipgloss.Color("255"), lipgloss.Color("0"))),
+		CursorLineNumber: lipgloss.NewStyle().Foreground(lightDark(lipgloss.Color("240"), lipgloss.Color("240"))),
+		EndOfBuffer:      lipgloss.NewStyle().Foreground(lightDark(lipgloss.Color("254"), lipgloss.Color("0"))),
+		LineNumber:       lipgloss.NewStyle().Foreground(lightDark(lipgloss.Color("249"), lipgloss.Color("7"))),
 		Placeholder:      lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
 		Prompt:           lipgloss.NewStyle().Foreground(lipgloss.Color("7")),
 		Text:             lipgloss.NewStyle(),
 	}
 	s.Blurred = StyleState{
 		Base:             lipgloss.NewStyle(),
-		CursorLine:       lipgloss.NewStyle().Foreground(lightDark("245", "7")),
-		CursorLineNumber: lipgloss.NewStyle().Foreground(lightDark("249", "7")),
-		EndOfBuffer:      lipgloss.NewStyle().Foreground(lightDark("254", "0")),
-		LineNumber:       lipgloss.NewStyle().Foreground(lightDark("249", "7")),
+		CursorLine:       lipgloss.NewStyle().Foreground(lightDark(lipgloss.Color("245"), lipgloss.Color("7"))),
+		CursorLineNumber: lipgloss.NewStyle().Foreground(lightDark(lipgloss.Color("249"), lipgloss.Color("7"))),
+		EndOfBuffer:      lipgloss.NewStyle().Foreground(lightDark(lipgloss.Color("254"), lipgloss.Color("0"))),
+		LineNumber:       lipgloss.NewStyle().Foreground(lightDark(lipgloss.Color("249"), lipgloss.Color("7"))),
 		Placeholder:      lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
 		Prompt:           lipgloss.NewStyle().Foreground(lipgloss.Color("7")),
-		Text:             lipgloss.NewStyle().Foreground(lightDark("245", "7")),
+		Text:             lipgloss.NewStyle().Foreground(lightDark(lipgloss.Color("245"), lipgloss.Color("7"))),
 	}
 	return s
 }
