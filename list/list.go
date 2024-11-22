@@ -143,7 +143,6 @@ type Model struct {
 	showPagination   bool
 	showHelp         bool
 	filteringEnabled bool
-	hideEmpty        bool
 
 	itemNameSingular string
 	itemNamePlural   string
@@ -194,6 +193,11 @@ type Model struct {
 	filteredItems filteredItems
 
 	delegate ItemDelegate
+
+	// Handling of empty list. This allows you
+	// to override the default message that is
+	// shown for an empty list
+	EmptyItemsNote func(string) string
 }
 
 // New returns a new model with sensible defaults.
@@ -222,10 +226,9 @@ func New(items []Item, delegate ItemDelegate, width, height int) Model {
 		showStatusBar:         true,
 		showPagination:        true,
 		showHelp:              true,
+		filteringEnabled:      true,
 		itemNameSingular:      "item",
 		itemNamePlural:        "items",
-		filteringEnabled:      true,
-		hideEmpty:             false,
 		KeyMap:                DefaultKeyMap(),
 		Filter:                DefaultFilter,
 		Styles:                styles,
@@ -240,6 +243,10 @@ func New(items []Item, delegate ItemDelegate, width, height int) Model {
 		Paginator: p,
 		spinner:   sp,
 		Help:      help.New(),
+
+		EmptyItemsNote: func(itemsPlural string) string {
+			return fmt.Sprintf("No %s", itemsPlural)
+		},
 	}
 
 	m.updatePagination()
@@ -377,9 +384,10 @@ func (m Model) Items() []Item {
 	return m.items
 }
 
-// SetHideEmpty hides or shows the "No items" on empty list.
-func (m *Model) SetHideEmpty(v bool) {
-	m.hideEmpty = v
+// RemoveEmptyItemsNote will disable any message handler
+// that is set for EmptyItemsNote
+func (m *Model) RemoveEmptyItemsNote() {
+	m.EmptyItemsNote = nil
 }
 
 // SetItems sets the items available in the list. This returns a command.
@@ -1167,9 +1175,9 @@ func (m Model) statusView() string {
 		} else {
 			status = itemsDisplay
 		}
-	} else if len(m.items) == 0 && !m.hideEmpty {
+	} else if len(m.items) == 0 && m.EmptyItemsNote != nil {
 		// Not filtering: no items.
-		status = m.Styles.StatusEmpty.Render("No " + m.itemNamePlural)
+		status = m.Styles.StatusEmpty.Render(m.EmptyItemsNote(m.itemNamePlural))
 	} else {
 		// Normal
 		filtered := m.FilterState() == FilterApplied
@@ -1221,10 +1229,10 @@ func (m Model) populatedView() string {
 
 	// Empty states
 	if len(items) == 0 {
-		if m.filterState == Filtering || m.hideEmpty {
+		if m.filterState == Filtering || m.EmptyItemsNote == nil {
 			return ""
 		}
-		return m.Styles.NoItems.Render("No " + m.itemNamePlural + ".")
+		return m.Styles.NoItems.Render(m.EmptyItemsNote(m.itemNamePlural + "."))
 	}
 
 	if len(items) > 0 {
