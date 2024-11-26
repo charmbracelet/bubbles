@@ -96,6 +96,26 @@ func WithSolidFill(color string) Option {
 	}
 }
 
+// WithFillCharacters sets the characters used to construct the full and empty components of the progress bar.
+func WithFillCharacters(full rune, empty rune) Option {
+	return func(m *Model) {
+		m.FillSteps = []FillStep{
+			{empty, 0.0},
+			{full, 1.0},
+		}
+	}
+}
+
+// WithGranularFill sets the characters used to construct the full and empty components of the progress bar.
+func WithGranularFill(steps []FillStep) Option {
+	sort.Slice(steps, func(i, j int) bool {
+		return steps[i].completion < steps[j].completion
+	})
+	return func(m *Model) {
+		m.FillSteps = steps
+	}
+}
+
 // WithBinaryFill results in a less granular but possible more widely compatible
 // progress bar as only two characters are used to represent completion of a
 // single block (full/complete and empty/incomplete).
@@ -108,14 +128,9 @@ func WithBinaryFill() Option {
 	}
 }
 
-// WithFillCharacters sets the characters used to construct the full and empty components of the progress bar.
-func WithFillCharacters(steps []FillStep) Option {
-	sort.Slice(steps, func(i, j int) bool {
-		return steps[i].completion < steps[j].completion
-	})
-	return func(m *Model) {
-		m.FillSteps = steps
-	}
+// WithDefaultFill sets the progress bar to use the default fill resolution/characters.
+func WithDefaultFill() Option {
+	return WithGranularFill(defaultFillSteps())
 }
 
 // WithoutPercentage hides the numeric percentage.
