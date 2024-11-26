@@ -36,27 +36,27 @@ func NewDefaultItemStyles(isDark bool) (s DefaultItemStyles) {
 	lightDark := lipgloss.LightDark(isDark)
 
 	s.NormalTitle = lipgloss.NewStyle().
-		Foreground(lightDark("#1a1a1a", "#dddddd")).
+		Foreground(lightDark(lipgloss.Color("#1a1a1a"), lipgloss.Color("#dddddd"))).
 		Padding(0, 0, 0, 2) //nolint:mnd
 
 	s.NormalDesc = s.NormalTitle.
-		Foreground(lightDark("#A49FA5", "#777777"))
+		Foreground(lightDark(lipgloss.Color("#A49FA5"), lipgloss.Color("#777777")))
 
 	s.SelectedTitle = lipgloss.NewStyle().
 		Border(lipgloss.NormalBorder(), false, false, false, true).
-		BorderForeground(lightDark("#F793FF", "#AD58B4")).
-		Foreground(lightDark("#EE6FF8", "#EE6FF8")).
+		BorderForeground(lightDark(lipgloss.Color("#F793FF"), lipgloss.Color("#AD58B4"))).
+		Foreground(lightDark(lipgloss.Color("#EE6FF8"), lipgloss.Color("#EE6FF8"))).
 		Padding(0, 0, 0, 1)
 
 	s.SelectedDesc = s.SelectedTitle.
-		Foreground(lightDark("#F793FF", "#AD58B4"))
+		Foreground(lightDark(lipgloss.Color("#F793FF"), lipgloss.Color("#AD58B4")))
 
 	s.DimmedTitle = lipgloss.NewStyle().
-		Foreground(lightDark("#A49FA5", "#777777")).
+		Foreground(lightDark(lipgloss.Color("#A49FA5"), lipgloss.Color("#777777"))).
 		Padding(0, 0, 0, 2) //nolint:mnd
 
 	s.DimmedDesc = s.DimmedTitle.
-		Foreground(lightDark("#C2B8C2", "#4D4D4D"))
+		Foreground(lightDark(lipgloss.Color("#C2B8C2"), lipgloss.Color("#4D4D4D")))
 
 	s.FilterMatch = lipgloss.NewStyle().Underline(true)
 

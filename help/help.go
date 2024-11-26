@@ -47,9 +47,9 @@ type Styles struct {
 func DefaultStyles(isDark bool) Styles {
 	lightDark := lipgloss.LightDark(isDark)
 
-	keyStyle := lipgloss.NewStyle().Foreground(lightDark("#909090", "#626262"))
-	descStyle := lipgloss.NewStyle().Foreground(lightDark("#B2B2B2", "#4A4A4A"))
-	sepStyle := lipgloss.NewStyle().Foreground(lightDark("#DADADA", "#3C3C3C"))
+	keyStyle := lipgloss.NewStyle().Foreground(lightDark(lipgloss.Color("#909090"), lipgloss.Color("#626262")))
+	descStyle := lipgloss.NewStyle().Foreground(lightDark(lipgloss.Color("#B2B2B2"), lipgloss.Color("#4A4A4A")))
+	sepStyle := lipgloss.NewStyle().Foreground(lightDark(lipgloss.Color("#DADADA"), lipgloss.Color("#3C3C3C")))
 
 	return Styles{
 		ShortKey:       keyStyle,

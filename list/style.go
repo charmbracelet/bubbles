@@ -44,8 +44,8 @@ type Styles struct {
 func DefaultStyles(isDark bool) (s Styles) {
 	lightDark := lipgloss.LightDark(isDark)
 
-	verySubduedColor := lightDark("#DDDADA", "#3C3C3C")
-	subduedColor := lightDark("#9B9B9B", "#5C5C5C")
+	verySubduedColor := lightDark(lipgloss.Color("#DDDADA"), lipgloss.Color("#3C3C3C"))
+	subduedColor := lightDark(lipgloss.Color("#9B9B9B"), lipgloss.Color("#5C5C5C"))
 
 	s.TitleBar = lipgloss.NewStyle().Padding(0, 0, 1, 2) //nolint:mnd
 
@@ -55,29 +55,29 @@ func DefaultStyles(isDark bool) (s Styles) {
 		Padding(0, 1)
 
 	s.Spinner = lipgloss.NewStyle().
-		Foreground(lightDark("#8E8E8E", "#747373"))
+		Foreground(lightDark(lipgloss.Color("#8E8E8E"), lipgloss.Color("#747373")))
 
 	s.FilterPrompt = lipgloss.NewStyle().
-		Foreground(lightDark("#04B575", "#ECFD65"))
+		Foreground(lightDark(lipgloss.Color("#04B575"), lipgloss.Color("#ECFD65")))
 
 	s.FilterCursor = lipgloss.NewStyle().
-		Foreground(lightDark("#EE6FF8", "#EE6FF8"))
+		Foreground(lightDark(lipgloss.Color("#EE6FF8"), lipgloss.Color("#EE6FF8")))
 
 	s.DefaultFilterCharacterMatch = lipgloss.NewStyle().Underline(true)
 
 	s.StatusBar = lipgloss.NewStyle().
-		Foreground(lightDark("#A49FA5", "#777777")).
+		Foreground(lightDark(lipgloss.Color("#A49FA5"), lipgloss.Color("#777777"))).
 		Padding(0, 0, 1, 2) //nolint:mnd
 
 	s.StatusEmpty = lipgloss.NewStyle().Foreground(subduedColor)
 
 	s.StatusBarActiveFilter = lipgloss.NewStyle().
-		Foreground(lightDark("#1a1a1a", "#dddddd"))
+		Foreground(lightDark(lipgloss.Color("#1a1a1a"), lipgloss.Color("#dddddd")))
 
 	s.StatusBarFilterCount = lipgloss.NewStyle().Foreground(verySubduedColor)
 
 	s.NoItems = lipgloss.NewStyle().
-		Foreground(lightDark("#909090", "#626262"))
+		Foreground(lightDark(lipgloss.Color("#909090"), lipgloss.Color("#626262")))
 
 	s.ArabicPagination = lipgloss.NewStyle().Foreground(subduedColor)
 
@@ -86,7 +86,7 @@ func DefaultStyles(isDark bool) (s Styles) {
 	s.HelpStyle = lipgloss.NewStyle().Padding(1, 0, 0, 2) //nolint:mnd
 
 	s.ActivePaginationDot = lipgloss.NewStyle().
-		Foreground(lightDark("#847A85", "#979797")).
+		Foreground(lightDark(lipgloss.Color("#847A85"), lipgloss.Color("#979797"))).
 		SetString(bullet)
 
 	s.InactivePaginationDot = lipgloss.NewStyle().
