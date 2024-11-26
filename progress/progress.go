@@ -3,6 +3,7 @@ package progress
 import (
 	"fmt"
 	"math"
+	"sort"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -29,6 +30,29 @@ const (
 	defaultFrequency = 18.0
 	defaultDamping   = 1.0
 )
+
+// FillStep define each possible step for the completion
+// of a single block in the progress bar. An array of FillStep
+// is used to define the full range of possible completions.
+// in the progress bar.
+type FillStep struct {
+	rune       rune
+	completion float64 // 0% to 100% of that particular block
+}
+
+func defaultFillSteps() []FillStep {
+	return []FillStep{
+		{' ', 0.0},
+		{'▏', 1.0 / 8.0},
+		{'▎', 2.0 / 8.0},
+		{'▍', 3.0 / 8.0},
+		{'▌', 4.0 / 8.0},
+		{'▋', 5.0 / 8.0},
+		{'▊', 6.0 / 8.0},
+		{'▉', 7.0 / 8.0},
+		{'█', 1.0},
+	}
+}
 
 // Option is used to set options in New. For example:
 //
@@ -72,11 +96,25 @@ func WithSolidFill(color string) Option {
 	}
 }
 
-// WithFillCharacters sets the characters used to construct the full and empty components of the progress bar.
-func WithFillCharacters(full rune, empty rune) Option {
+// WithBinaryFill results in a less granular but possible more widely compatible
+// progress bar as only two characters are used to represent completion of a
+// single block (full/complete and empty/incomplete).
+func WithBinaryFill() Option {
 	return func(m *Model) {
-		m.Full = full
-		m.Empty = empty
+		m.FillSteps = []FillStep{
+			{' ', 0.0},
+			{'█', 1.0},
+		}
+	}
+}
+
+// WithFillCharacters sets the characters used to construct the full and empty components of the progress bar.
+func WithFillCharacters(steps []FillStep) Option {
+	sort.Slice(steps, func(i, j int) bool {
+		return steps[i].completion < steps[j].completion
+	})
+	return func(m *Model) {
+		m.FillSteps = steps
 	}
 }
 
@@ -133,12 +171,11 @@ type Model struct {
 	// Total width of the progress bar, including percentage, if set.
 	Width int
 
+	FillSteps []FillStep
+
 	// "Filled" sections of the progress bar.
-	Full      rune
 	FullColor string
 
-	// "Empty" sections of the progress bar.
-	Empty      rune
 	EmptyColor string
 
 	// Settings for rendering the numeric percentage.
@@ -172,9 +209,8 @@ func New(opts ...Option) Model {
 	m := Model{
 		id:             nextID(),
 		Width:          defaultWidth,
-		Full:           '█',
+		FillSteps:      defaultFillSteps(),
 		FullColor:      "#7571F9",
-		Empty:          '░',
 		EmptyColor:     "#606060",
 		ShowPercentage: true,
 		PercentFormat:  " %3.0f%%",
@@ -291,43 +327,55 @@ func (m *Model) nextFrame() tea.Cmd {
 
 func (m Model) barView(b *strings.Builder, percent float64, textWidth int) {
 	var (
-		tw = max(0, m.Width-textWidth)                // total width
-		fw = int(math.Round((float64(tw) * percent))) // filled width
-		p  float64
+		tw = max(0, m.Width-textWidth) // total width of the progress bar
+		fw = percent * float64(tw)     // filled width in exact units
 	)
 
-	fw = max(0, min(tw, fw))
-
-	if m.useRamp {
-		// Gradient fill
-		for i := 0; i < fw; i++ {
-			if fw == 1 {
-				// this is up for debate: in a gradient of width=1, should the
-				// single character rendered be the first color, the last color
-				// or exactly 50% in between? I opted for 50%
-				p = 0.5
-			} else if m.scaleRamp {
-				p = float64(i) / float64(fw-1)
-			} else {
-				p = float64(i) / float64(tw-1)
+	for i := 0; i < tw; i++ {
+		cellPercent := float64(i) / float64(tw) // percentage of each cell
+		if cellPercent < percent {
+			// Filled cell: calculate the closest FillStep
+			step := interpolateFillStep(m.FillSteps, fw-float64(i))
+			color := m.FullColor
+			if m.useRamp {
+				color = m.interpolateRamp(i, tw, true)
 			}
-			c := m.rampColorA.BlendLuv(m.rampColorB, p).Hex()
-			b.WriteString(termenv.
-				String(string(m.Full)).
-				Foreground(m.color(c)).
-				String(),
+			b.WriteString(
+				termenv.String(string(step.rune)).
+					Foreground(m.color(color)).
+					Background(m.color(m.EmptyColor)).
+					String(),
+			)
+		} else {
+			// Empty cell
+			emptyStep := m.FillSteps[0]
+			b.WriteString(
+				termenv.String(string(emptyStep.rune)).
+					Foreground(m.color(m.EmptyColor)).
+					Background(m.color(m.EmptyColor)).
+					String(),
 			)
 		}
-	} else {
-		// Solid fill
-		s := termenv.String(string(m.Full)).Foreground(m.color(m.FullColor)).String()
-		b.WriteString(strings.Repeat(s, fw))
 	}
+}
 
-	// Empty fill
-	e := termenv.String(string(m.Empty)).Foreground(m.color(m.EmptyColor)).String()
-	n := max(0, tw-fw)
-	b.WriteString(strings.Repeat(e, n))
+// Helper: Interpolate between FillSteps
+func interpolateFillStep(steps []FillStep, remaining float64) FillStep {
+	for i := len(steps) - 1; i >= 0; i-- {
+		if remaining >= steps[i].completion {
+			return steps[i]
+		}
+	}
+	return steps[0]
+}
+
+// Helper: Interpolate ramp color
+func (m Model) interpolateRamp(pos, total int, isFilled bool) string {
+	p := float64(pos) / float64(total-1)
+	if m.scaleRamp && isFilled {
+		p = float64(pos) / float64(total-1)
+	}
+	return m.rampColorA.BlendLuv(m.rampColorB, p).Hex()
 }
 
 func (m Model) percentageView(percent float64) string {
