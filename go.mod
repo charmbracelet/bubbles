@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/MakeNowJust/heredoc v1.0.0
 	github.com/atotto/clipboard v0.1.4
-	github.com/charmbracelet/bubbletea/v2 v2.0.0-alpha.2.0.20241121171714-fbd5423ea935
+	github.com/charmbracelet/bubbletea/v2 v2.0.0-alpha.2.0.20241126192050-a8ed96118b08
 	github.com/charmbracelet/harmonica v0.2.0
 	github.com/charmbracelet/lipgloss/v2 v2.0.0-alpha.2.0.20241121164047-8448a9be4804
 	github.com/charmbracelet/x/ansi v0.5.1
