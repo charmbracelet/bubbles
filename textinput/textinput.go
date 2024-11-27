@@ -665,7 +665,7 @@ func (m Model) View() string {
 		v += styleText(m.echoTransform(string(value[pos+1:]))) // text after cursor
 		v += m.completionView(0)                               // suggested completion
 	} else {
-		if m.canAcceptSuggestion() {
+		if m.focus && m.canAcceptSuggestion() {
 			suggestion := m.matchedSuggestions[m.currentSuggestionIndex]
 			if len(value) < len(suggestion) {
 				m.Cursor.TextStyle = m.CompletionStyle
