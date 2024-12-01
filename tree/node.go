@@ -85,11 +85,12 @@ type itemOptions struct {
 // TODO: Value is not called on the root node, so we need to repeat the open/closed character
 // Should this be fixed in lipgloss?
 func (t *Node) String() string {
-	s := t.opts.styles.OpenIndicatorStyle
-	if t.open {
-		return s.Render(t.opts.openCharacter+" ") + t.tree.String()
-	}
-	return s.Render(t.opts.closedCharacter+" ") + t.tree.String()
+	// s := t.opts.styles.OpenIndicatorStyle
+	// if t.open {
+	// 	return s.Render(t.opts.openCharacter+" ") + t.tree.String()
+	// }
+	// return s.Render(t.opts.closedCharacter+" ") + t.tree.String()
+	return t.tree.String()
 }
 
 // Value returns the root name of this node.
@@ -99,6 +100,8 @@ func (t *Node) Value() string {
 
 	if t.yOffset == t.opts.treeYOffset {
 		ns = s.selectedNodeFunc(Nodes{t}, 0)
+	} else if t.yOffset == 0 {
+		ns = s.rootNodeFunc(Nodes{t}, 0)
 	} else if t.isRoot {
 		ns = s.parentNodeFunc(Nodes{t}, 0)
 	} else {
@@ -113,6 +116,8 @@ func (t *Node) Value() string {
 		}
 		return s.OpenIndicatorStyle.Render(t.opts.closedCharacter+" ") + v
 	}
+
+	// leaf
 	return v
 }
 
@@ -261,6 +266,32 @@ func (t *Node) EnumeratorStyleFunc(f func(children ltree.Children, i int) lipglo
 	return t
 }
 
+// IndenterStyle sets a static style for all indenters.
+//
+// Use IndenterStyleFunc to conditionally set styles based on the tree node.
+// TODO: currently unused as this is set in the Styles struct.
+func (t *Node) IndenterStyle(style lipgloss.Style) *Node {
+	t.tree.IndenterStyle(style)
+	return t
+}
+
+// IndenterStyleFunc sets the indenter style function. Use this function
+// for conditional styling.
+//
+//	t := tree.Root("root").
+//		IndenterStyleFunc(func(_ tree.Children, i int) lipgloss.Style {
+//		    if selected == i {
+//		        return lipgloss.NewStyle().Foreground(hightlightColor)
+//		    }
+//		    return lipgloss.NewStyle().Foreground(dimColor)
+//		})
+//
+// TODO: currently unused as this is set in the Styles struct.
+func (t *Node) IndenterStyleFunc(f func(children ltree.Children, i int) lipgloss.Style) *Node {
+	t.tree.IndenterStyleFunc(f)
+	return t
+}
+
 // RootStyle sets a style for the root element.
 func (t *Node) RootStyle(style lipgloss.Style) *Node {
 	t.tree.RootStyle(style)
@@ -328,6 +359,18 @@ func Root(root any) *Node {
 	t.value = root
 	t.open = true
 	t.isRoot = true
-	t.tree = ltree.Root(root)
+	switch root := root.(type) {
+	case *Node:
+		t.tree = ltree.Root(root.Value())
+	default:
+		item := new(Node)
+		item.value = root
+		item.opts.styles = DefaultStyles()
+		item.size = 1
+		item.open = true
+		item.isRoot = true
+		t.tree = ltree.Root(item)
+	}
+
 	return t
 }

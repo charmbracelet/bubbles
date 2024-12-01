@@ -2,7 +2,6 @@ package tree
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -216,17 +215,18 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 // View renders the component.
 func (m Model) View() string {
-	var leftDebugView string
+	// var leftDebugView string
 	// TODO: remove
-	if os.Getenv("DEBUG") == "true" {
-		leftDebugView = printDebugInfo(m.root) + " "
-	}
+	// if os.Getenv("DEBUG") == "true" {
+	// 	leftDebugView = printDebugInfo(m.root) + " "
+	// }
 
-	treeView := lipgloss.JoinHorizontal(
-		lipgloss.Top,
-		leftDebugView,
-		m.viewport.View(),
-	)
+	// treeView := lipgloss.JoinHorizontal(
+	// 	lipgloss.Top,
+	// 	leftDebugView,
+	// 	m.viewport.View(),
+	// )
+	treeView := m.viewport.View()
 
 	var help string
 	if m.showHelp {
@@ -397,9 +397,12 @@ func (m *Model) SetStyles(styles Styles) {
 
 	if m.root != nil {
 		m.root.EnumeratorStyle(styles.EnumeratorStyle)
+		m.root.IndenterStyle(styles.IndenterStyle)
 	}
 
 	m.styles = styles
+	// call SetSize as it takes into account width/height of the styles frame sizes
+	m.SetSize(m.width, m.height)
 	m.updateViewport(0)
 }
 
@@ -420,19 +423,20 @@ func (m Model) Height() int {
 }
 
 // SetWidth sets the width of this component.
-func (m *Model) SetWidth(v int) {
-	m.SetSize(v, m.height)
+func (m *Model) SetWidth(width int) {
+	m.SetSize(width, m.height)
 }
 
 // SetHeight sets the height of this component.
-func (m *Model) SetHeight(v int) {
-	m.SetSize(m.width, v)
+func (m *Model) SetHeight(height int) {
+	m.SetSize(m.width, height)
 }
 
 // SetSize sets the width and height of this component.
 func (m *Model) SetSize(width, height int) {
 	m.width = width
 	m.height = height
+	m.root.tree.Width(width - lipgloss.Width(m.cursorView()) - m.styles.TreeStyle.GetHorizontalFrameSize())
 
 	m.viewport.Width = width
 	hv := 0
@@ -468,11 +472,9 @@ func (m Model) FullHelp() [][]key.Binding {
 		{
 			m.KeyMap.Down,
 			m.KeyMap.Up,
-		},
-		{
-			m.KeyMap.Toggle,
 			m.KeyMap.Open,
 			m.KeyMap.Close,
+			m.KeyMap.Toggle,
 		},
 		{
 			m.KeyMap.PageDown,
@@ -499,6 +501,9 @@ func (m Model) FullHelp() [][]key.Binding {
 }
 
 func (m Model) cursorView() string {
+	if m.CursorCharacter == "" {
+		return ""
+	}
 	cursor := strings.Split(strings.Repeat(" ", m.root.size), "")
 	cursor[m.yOffset] = m.CursorCharacter
 	return m.styles.CursorStyle.Render(lipgloss.JoinVertical(lipgloss.Left, cursor...))
@@ -631,17 +636,11 @@ func (m *Model) selectedNodeStyle() StyleFunc {
 }
 
 func (m *Model) rootStyle() lipgloss.Style {
-	if m.styles.nodeFunc == nil || m.styles.selectedNodeFunc == nil {
-		return lipgloss.NewStyle()
-	}
 	if m.root.yOffset == m.yOffset {
-		s := m.styles.selectedNodeFunc(Nodes{m.root}, 0)
-		// TODO: if we call Value on the root node in lipgloss, we wouldn't need this
-		return s.Width(s.GetWidth() - lipgloss.Width(m.OpenCharacter) - 1)
+		return m.styles.selectedNodeFunc(Nodes{m.root}, 0)
 	}
 
-	s := m.styles.rootNodeFunc(Nodes{m.root}, 0)
-	return s.Width(s.GetWidth() - lipgloss.Width(m.OpenCharacter) - 1)
+	return m.styles.rootNodeFunc(Nodes{m.root}, 0)
 }
 
 // TODO: remove
