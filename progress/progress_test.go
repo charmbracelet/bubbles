@@ -38,7 +38,6 @@ func TestGradient(t *testing.T) {
 			sb.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color(colA)).String())
 			expFirst := strings.Split(sb.String(), AnsiReset)[0]
 			sb.Reset()
-			// sb.WriteString(termenv.String("").Foreground(p.color(colB)).String())
 			sb.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color(colB)).String())
 			expLast := strings.Split(sb.String(), AnsiReset)[0]
 
