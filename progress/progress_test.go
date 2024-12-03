@@ -35,7 +35,6 @@ func TestGradient(t *testing.T) {
 
 			// build the expected colors by colorizing an empty string and then cutting off the following reset sequence
 			sb := strings.Builder{}
-			// sb.WriteString(termenv.String("").Foreground(p.color(colA)).String())
 			sb.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color(colA)).String())
 			expFirst := strings.Split(sb.String(), AnsiReset)[0]
 			sb.Reset()
