@@ -26,9 +26,6 @@ type Node struct {
 	value any
 
 	opts itemOptions
-
-	// TODO: move to lipgloss.Tree?
-	size int
 }
 
 // IsSelected returns whether this item is selected.
@@ -44,7 +41,7 @@ func (t *Node) Depth() int {
 // Size returns the number of nodes in the tree.
 // Note that if a child isn't open, its size is 1
 func (t *Node) Size() int {
-	return t.size
+	return len(t.AllNodes())
 }
 
 // YOffset returns the vertical offset of the Node
@@ -82,32 +79,31 @@ type itemOptions struct {
 }
 
 // Used to print the Node's tree
-// TODO: Value is not called on the root node, so we need to repeat the open/closed character
-// Should this be fixed in lipgloss?
 func (t *Node) String() string {
-	// s := t.opts.styles.OpenIndicatorStyle
-	// if t.open {
-	// 	return s.Render(t.opts.openCharacter+" ") + t.tree.String()
-	// }
-	// return s.Render(t.opts.closedCharacter+" ") + t.tree.String()
-	return t.tree.String()
+	s := t.opts.styles.OpenIndicatorStyle
+	if t.open {
+		return s.Render(t.opts.openCharacter+" ") + t.tree.String()
+	}
+	return s.Render(t.opts.closedCharacter+" ") + t.tree.String()
+}
+
+func (t *Node) getStyle() lipgloss.Style {
+	s := t.opts.styles
+	if t.yOffset == t.opts.treeYOffset {
+		return s.selectedNodeFunc(Nodes{t}, 0)
+	} else if t.yOffset == 0 {
+		return s.rootNodeFunc(Nodes{t}, 0)
+	} else if t.isRoot {
+		return s.parentNodeFunc(Nodes{t}, 0)
+	} else {
+		return s.nodeFunc(Nodes{t}, 0)
+	}
 }
 
 // Value returns the root name of this node.
 func (t *Node) Value() string {
 	s := t.opts.styles
-	var ns lipgloss.Style
-
-	if t.yOffset == t.opts.treeYOffset {
-		ns = s.selectedNodeFunc(Nodes{t}, 0)
-	} else if t.yOffset == 0 {
-		ns = s.rootNodeFunc(Nodes{t}, 0)
-	} else if t.isRoot {
-		ns = s.parentNodeFunc(Nodes{t}, 0)
-	} else {
-		ns = s.nodeFunc(Nodes{t}, 0)
-	}
-
+	ns := t.getStyle()
 	v := ns.Render(t.tree.Value())
 
 	if t.isRoot {
@@ -187,12 +183,9 @@ func (t *Node) ItemStyle(s lipgloss.Style) *Node {
 //			}
 //			return lipgloss.NewStyle().Foreground(dimColor)
 //		})
-//
-// TODO: currently unused as this is set in the Styles struct.
 func (t *Node) ItemStyleFunc(f StyleFunc) *Node {
 	t.tree.ItemStyleFunc(func(children ltree.Children, i int) lipgloss.Style {
 		c := make(Nodes, children.Length())
-		// TODO: if we expose Depth and Size in lipgloss, we can avoid this
 		for i := 0; i < children.Length(); i++ {
 			c[i] = children.At(i).(*Node)
 		}
@@ -200,8 +193,6 @@ func (t *Node) ItemStyleFunc(f StyleFunc) *Node {
 	})
 	return t
 }
-
-// TODO: support IndentStyleFunc in lipgloss so we can have a full background for the item
 
 // Enumerator sets the enumerator implementation. This can be used to change the
 // way the branches indicators look.  Lipgloss includes predefined enumerators
@@ -243,7 +234,6 @@ func (t *Node) Indenter(indenter ltree.Indenter) *Node {
 // EnumeratorStyle sets a static style for all enumerators.
 //
 // Use EnumeratorStyleFunc to conditionally set styles based on the tree node.
-// TODO: currently unused as this is set in the Styles struct.
 func (t *Node) EnumeratorStyle(style lipgloss.Style) *Node {
 	t.tree.EnumeratorStyle(style)
 	return t
@@ -259,8 +249,6 @@ func (t *Node) EnumeratorStyle(style lipgloss.Style) *Node {
 //		    }
 //		    return lipgloss.NewStyle().Foreground(dimColor)
 //		})
-//
-// TODO: currently unused as this is set in the Styles struct.
 func (t *Node) EnumeratorStyleFunc(f func(children ltree.Children, i int) lipgloss.Style) *Node {
 	t.tree.EnumeratorStyleFunc(f)
 	return t
@@ -269,7 +257,6 @@ func (t *Node) EnumeratorStyleFunc(f func(children ltree.Children, i int) lipglo
 // IndenterStyle sets a static style for all indenters.
 //
 // Use IndenterStyleFunc to conditionally set styles based on the tree node.
-// TODO: currently unused as this is set in the Styles struct.
 func (t *Node) IndenterStyle(style lipgloss.Style) *Node {
 	t.tree.IndenterStyle(style)
 	return t
@@ -285,8 +272,6 @@ func (t *Node) IndenterStyle(style lipgloss.Style) *Node {
 //		    }
 //		    return lipgloss.NewStyle().Foreground(dimColor)
 //		})
-//
-// TODO: currently unused as this is set in the Styles struct.
 func (t *Node) IndenterStyleFunc(f func(children ltree.Children, i int) lipgloss.Style) *Node {
 	t.tree.IndenterStyleFunc(f)
 	return t
@@ -313,7 +298,6 @@ func (t *Node) Child(children ...any) *Node {
 	for _, child := range children {
 		switch child := child.(type) {
 		case *Node:
-			t.size = t.size + child.size
 			t.tree.Child(child)
 
 			// Close the node again as the number of children has changed
@@ -324,10 +308,8 @@ func (t *Node) Child(children ...any) *Node {
 			item := new(Node)
 			item.opts.styles = DefaultStyles()
 			item.tree = ltree.Root(child)
-			item.size = 1
 			item.open = false
 			item.value = child
-			t.size = t.size + item.size
 			t.tree.Child(item)
 
 			// Close the node again as the number of children has changed
@@ -344,7 +326,6 @@ func (t *Node) Child(children ...any) *Node {
 func NewNode() *Node {
 	t := new(Node)
 	t.opts.styles = DefaultStyles()
-	t.size = 1
 	t.open = true
 	t.isRoot = true
 	t.tree = ltree.New()
@@ -353,24 +334,8 @@ func NewNode() *Node {
 
 // Root returns a new tree with the root set.
 func Root(root any) *Node {
-	t := new(Node)
-	t.opts.styles = DefaultStyles()
-	t.size = 1
+	t := NewNode()
 	t.value = root
-	t.open = true
-	t.isRoot = true
-	switch root := root.(type) {
-	case *Node:
-		t.tree = ltree.Root(root.Value())
-	default:
-		item := new(Node)
-		item.value = root
-		item.opts.styles = DefaultStyles()
-		item.size = 1
-		item.open = true
-		item.isRoot = true
-		t.tree = ltree.Root(item)
-	}
-
+	t.tree = ltree.Root(root)
 	return t
 }

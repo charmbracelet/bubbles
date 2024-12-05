@@ -1,7 +1,6 @@
 package tree
 
 import (
-	"fmt"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -215,17 +214,6 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 // View renders the component.
 func (m Model) View() string {
-	// var leftDebugView string
-	// TODO: remove
-	// if os.Getenv("DEBUG") == "true" {
-	// 	leftDebugView = printDebugInfo(m.root) + " "
-	// }
-
-	// treeView := lipgloss.JoinHorizontal(
-	// 	lipgloss.Top,
-	// 	leftDebugView,
-	// 	m.viewport.View(),
-	// )
 	treeView := m.viewport.View()
 
 	var help string
@@ -287,7 +275,7 @@ func (m *Model) GoToTop() {
 
 // GoToBottom moves the selection to the bottom of the tree.
 func (m *Model) GoToBottom() {
-	m.updateViewport(m.root.size)
+	m.updateViewport(m.root.Size())
 }
 
 // ToggleCurrentNode toggles the current node open/close state.
@@ -334,7 +322,7 @@ func (m *Model) updateViewport(movement int) {
 		return
 	}
 
-	m.yOffset = max(min(m.root.size-1, m.yOffset+movement), 0)
+	m.yOffset = max(min(m.root.Size()-1, m.yOffset+movement), 0)
 	m.updateStyles()
 
 	cursor := m.cursorView()
@@ -398,6 +386,10 @@ func (m *Model) SetStyles(styles Styles) {
 	if m.root != nil {
 		m.root.EnumeratorStyle(styles.EnumeratorStyle)
 		m.root.IndenterStyle(styles.IndenterStyle)
+		m.root.ItemStyleFunc(func(children Nodes, i int) lipgloss.Style {
+			child := children.At(i)
+			return child.getStyle()
+		})
 	}
 
 	m.styles = styles
@@ -504,7 +496,7 @@ func (m Model) cursorView() string {
 	if m.CursorCharacter == "" {
 		return ""
 	}
-	cursor := strings.Split(strings.Repeat(" ", m.root.size), "")
+	cursor := strings.Split(strings.Repeat(" ", m.root.Size()), "")
 	cursor[m.yOffset] = m.CursorCharacter
 	return m.styles.CursorStyle.Render(lipgloss.JoinVertical(lipgloss.Left, cursor...))
 }
@@ -526,7 +518,6 @@ func (m *Model) AllNodes() []*Node {
 
 func (m *Model) setAttributes() {
 	setDepths(m.root, 0)
-	setSizes(m.root)
 	setYOffsets(m.root)
 }
 
@@ -541,19 +532,6 @@ func setDepths(t *Node, depth int) {
 	}
 }
 
-// setSizes updates each Node's size
-// Note that if a child isn't open, its size is 1
-func setSizes(t *Node) int {
-	children := t.tree.Children()
-	size := 1 + children.Length()
-	for i := 0; i < children.Length(); i++ {
-		child := children.At(i)
-		size = size + setSizes(child.(*Node)) - 1
-	}
-	t.size = size
-	return size
-}
-
 // setYOffsets updates each Node's yOffset based on how many items are "above" it
 func setYOffsets(t *Node) {
 	children := t.tree.Children()
@@ -563,7 +541,7 @@ func setYOffsets(t *Node) {
 		if child, ok := child.(*Node); ok {
 			child.yOffset = t.yOffset + above + i + 1
 			setYOffsets(child)
-			above += child.size - 1
+			above += child.Size() - 1
 		}
 	}
 }
@@ -601,7 +579,6 @@ func (m *Model) Indenter(indenter ltree.Indenter) *Model {
 // Since the selected node changes, we need to capture m.yOffset in the
 // style function's closure again
 func (m *Model) updateStyles() {
-	// TODO: add RootStyleFunc to the Node interface?
 	if m.root != nil {
 		m.root.RootStyle(m.rootStyle())
 	}
@@ -622,18 +599,18 @@ func (m *Model) getItemOpts() *itemOptions {
 	}
 }
 
-// selectedNodeStyle sets the node style
-// and takes into account whether it's selected or not
-func (m *Model) selectedNodeStyle() StyleFunc {
-	return func(children Nodes, i int) lipgloss.Style {
-		child := children.At(i)
-		if child.yOffset == m.yOffset {
-			return m.styles.selectedNodeFunc(children, i)
-		}
-
-		return m.styles.nodeFunc(children, i)
-	}
-}
+// // selectedNodeStyle sets the node style
+// // and takes into account whether it's selected or not
+// func (m *Model) selectedNodeStyle() StyleFunc {
+// 	return func(children Nodes, i int) lipgloss.Style {
+// 		child := children.At(i)
+// 		if child.yOffset == m.yOffset {
+// 			return m.styles.selectedNodeFunc(children, i)
+// 		}
+//
+// 		return m.styles.nodeFunc(children, i)
+// 	}
+// }
 
 func (m *Model) rootStyle() lipgloss.Style {
 	if m.root.yOffset == m.yOffset {
@@ -641,20 +618,6 @@ func (m *Model) rootStyle() lipgloss.Style {
 	}
 
 	return m.styles.rootNodeFunc(Nodes{m.root}, 0)
-}
-
-// TODO: remove
-func printDebugInfo(t *Node) string {
-	debug := fmt.Sprintf("size=%2d y=%2d depth=%2d", t.size, t.yOffset, t.depth)
-	children := t.Children()
-	for i := 0; i < children.Length(); i++ {
-		child := children.At(i)
-		if child, ok := child.(*Node); ok {
-			debug = debug + "\n" + printDebugInfo(child)
-		}
-	}
-
-	return debug
 }
 
 // findNode starts a DFS search for the node with the given yOffset
