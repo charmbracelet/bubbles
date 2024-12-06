@@ -31,14 +31,16 @@ type Styles struct {
 	Ellipsis lipgloss.Style
 
 	// Styling for the short help
-	ShortKey       lipgloss.Style
-	ShortDesc      lipgloss.Style
-	ShortSeparator lipgloss.Style
+	ShortKey        lipgloss.Style
+	ShortDesc       lipgloss.Style
+	ShortSeparator  lipgloss.Style
+	ShortWhitespace lipgloss.Style
 
 	// Styling for the full help
-	FullKey       lipgloss.Style
-	FullDesc      lipgloss.Style
-	FullSeparator lipgloss.Style
+	FullKey        lipgloss.Style
+	FullDesc       lipgloss.Style
+	FullSeparator  lipgloss.Style
+	FullWhitespace lipgloss.Style
 }
 
 // Model contains the state of the help view.
@@ -78,13 +80,15 @@ func New() Model {
 		FullSeparator:  "    ",
 		Ellipsis:       "…",
 		Styles: Styles{
-			ShortKey:       keyStyle,
-			ShortDesc:      descStyle,
-			ShortSeparator: sepStyle,
-			Ellipsis:       sepStyle,
-			FullKey:        keyStyle,
-			FullDesc:       descStyle,
-			FullSeparator:  sepStyle,
+			ShortKey:        keyStyle,
+			ShortDesc:       descStyle,
+			ShortSeparator:  sepStyle,
+			ShortWhitespace: sepStyle,
+			Ellipsis:        sepStyle,
+			FullKey:         keyStyle,
+			FullDesc:        descStyle,
+			FullSeparator:   sepStyle,
+			FullWhitespace:  sepStyle,
 		},
 	}
 }
@@ -132,7 +136,8 @@ func (m Model) ShortHelpView(bindings []key.Binding) string {
 
 		// Item
 		str := sep +
-			m.Styles.ShortKey.Inline(true).Render(kb.Help().Key) + " " +
+			m.Styles.ShortKey.Inline(true).Render(kb.Help().Key) +
+			m.Styles.ShortWhitespace.Inline(true).Render(" ") +
 			m.Styles.ShortDesc.Inline(true).Render(kb.Help().Desc)
 		w := lipgloss.Width(str)
 
@@ -197,7 +202,7 @@ func (m Model) FullHelpView(groups [][]key.Binding) string {
 		col := lipgloss.JoinHorizontal(lipgloss.Top,
 			sep,
 			m.Styles.FullKey.Render(strings.Join(keys, "\n")),
-			" ",
+			m.Styles.FullWhitespace.Render(" "),
 			m.Styles.FullDesc.Render(strings.Join(descriptions, "\n")),
 		)
 		w := lipgloss.Width(col)
