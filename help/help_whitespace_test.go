@@ -55,48 +55,48 @@ func TestWhitespaceStyle(t *testing.T) {
 		})
 	}
 
-// Test with a disabled item and custom style
-for _, tc := range []struct {
-    name     string
-    setupFn  func()
-    bindings [][]key.Binding
-}{
-    {
-        name: "disabled_item",
-        setupFn: func() {
-            m.Width = 40
-        },
-        bindings: [][]key.Binding{{
-            key.NewBinding(k, key.WithHelp("enter", "continue")),
-            key.NewBinding(k, key.WithHelp("ctrl+c", "quit"), key.WithDisabled()),
-        }},
-    },
-    {
-        name: "custom_style",
-        setupFn: func() {
-            m.Width = 40
-            customBg := lipgloss.Color("#00FF00")
-            m.Styles.FullWhitespace = m.Styles.FullWhitespace.Background(customBg)
-            m.Styles.ShortWhitespace = m.Styles.ShortWhitespace.Background(customBg)
-        },
-        bindings: kb,
-    },
-} {
-    t.Run(tc.name+"_full", func(t *testing.T) {
-        tc.setupFn()
-        s := m.FullHelpView(tc.bindings)
-        golden.RequireEqual(t, []byte(s))
-    })
+	// Test with a disabled item and custom style
+	for _, tc := range []struct {
+		name     string
+		setupFn  func()
+		bindings [][]key.Binding
+	}{
+		{
+			name: "disabled_item",
+			setupFn: func() {
+				m.Width = 40
+			},
+			bindings: [][]key.Binding{{
+				key.NewBinding(k, key.WithHelp("enter", "continue")),
+				key.NewBinding(k, key.WithHelp("ctrl+c", "quit"), key.WithDisabled()),
+			}},
+		},
+		{
+			name: "custom_style",
+			setupFn: func() {
+				m.Width = 40
+				customBg := lipgloss.Color("#00FF00")
+				m.Styles.FullWhitespace = m.Styles.FullWhitespace.Background(customBg)
+				m.Styles.ShortWhitespace = m.Styles.ShortWhitespace.Background(customBg)
+			},
+			bindings: kb,
+		},
+	} {
+		t.Run(tc.name+"_full", func(t *testing.T) {
+			tc.setupFn()
+			s := m.FullHelpView(tc.bindings)
+			golden.RequireEqual(t, []byte(s))
+		})
 
-    t.Run(tc.name+"_short", func(t *testing.T) {
-        tc.setupFn()
-        // Flatten the bindings for short help
-        var shortBindings []key.Binding
-        for _, group := range tc.bindings {
-            shortBindings = append(shortBindings, group...)
-        }
-        s := m.ShortHelpView(shortBindings)
-        golden.RequireEqual(t, []byte(s))
-    })
-}
+		t.Run(tc.name+"_short", func(t *testing.T) {
+			tc.setupFn()
+			// Flatten the bindings for short help
+			var shortBindings []key.Binding
+			for _, group := range tc.bindings {
+				shortBindings = append(shortBindings, group...)
+			}
+			s := m.ShortHelpView(shortBindings)
+			golden.RequireEqual(t, []byte(s))
+		})
+	}
 }
