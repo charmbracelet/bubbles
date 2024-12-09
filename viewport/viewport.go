@@ -7,6 +7,27 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/muesli/reflow/wordwrap"
+	"github.com/muesli/reflow/wrap"
+)
+
+// WrapType sets the type of line wrapping the viewport will have.
+type WrapType int
+
+// Line wrap options.
+const (
+	// NoWrap leaves the lines as is.
+	NoWrap WrapType = iota
+
+	// Wrap will try to wrap lines on words first
+	// and will wrap on characters if it encounters long words.
+	Wrap
+
+	// SoftWrapOnly wraps lines on words only.
+	SoftWrapOnly
+
+	// HardWrapOnly Wraps lines on characters only.
+	HardWrapOnly
 )
 
 // New returns a new model with the given width and height as well as default
@@ -53,6 +74,9 @@ type Model struct {
 	//
 	// Deprecated: high performance rendering is now deprecated in Bubble Tea.
 	HighPerformanceRendering bool
+
+	// Wrap sets the wrap mode for the viewport
+	Wrap WrapType
 
 	initialized bool
 	lines       []string
@@ -102,6 +126,16 @@ func (m Model) ScrollPercent() float64 {
 // SetContent set the pager's text content.
 func (m *Model) SetContent(s string) {
 	s = strings.ReplaceAll(s, "\r\n", "\n") // normalize line endings
+
+	switch m.Wrap {
+	case Wrap:
+		s = wrap.String(wordwrap.String(s, m.Width), m.Width)
+	case SoftWrapOnly:
+		s = wordwrap.String(s, m.Width)
+	case HardWrapOnly:
+		s = wrap.String(s, m.Width)
+	}
+
 	m.lines = strings.Split(s, "\n")
 
 	if m.YOffset > len(m.lines)-1 {
