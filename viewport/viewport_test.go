@@ -325,7 +325,7 @@ func TestVisibleLines(t *testing.T) {
 
 		for i := range list {
 			if i == 0 || i == 2 {
-				cutLine := " えお"
+				cutLine := "うえお"
 				if list[i] != cutLine {
 					t.Errorf("line must be `%s`, get `%s`", cutLine, list[i])
 				}

@@ -7,7 +7,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/mattn/go-runewidth"
+	"github.com/charmbracelet/x/ansi"
 )
 
 const (
@@ -137,7 +137,7 @@ func (m Model) visibleLines() (lines []string) {
 	if m.indent > 0 {
 		cutLines := make([]string, len(lines))
 		for i := range lines {
-			cutLines[i] = runewidth.TruncateLeft(lines[i], m.indent, "")
+			cutLines[i] = ansi.TruncateLeft(lines[i], m.indent, "")
 		}
 
 		return cutLines
