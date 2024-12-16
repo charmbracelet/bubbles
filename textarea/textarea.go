@@ -275,6 +275,12 @@ type Model struct {
 	// Cursor row.
 	row int
 
+	// The bubble offset relative to the parent bubble.
+	offsetX, offsetY int
+
+	// The last recorded real cursor position.
+	realCol, realRow int
+
 	// Last character offset, used to maintain state when the cursor is moved
 	// vertically such that we can maintain the same navigating position.
 	lastCharOffset int
@@ -359,6 +365,11 @@ func DefaultLightStyles() Styles {
 // DefaultDarkStyles returns the default styles for a dark background.
 func DefaultDarkStyles() Styles {
 	return DefaultStyles(true)
+}
+
+// SetOffset sets the offset of the textarea relative to the parent bubble.
+func (m *Model) SetOffset(x, y int) {
+	m.offsetX, m.offsetY = x, y
 }
 
 // SetValue sets the value of the text input.
@@ -616,6 +627,8 @@ func (m *Model) Reset() {
 	m.value = make([][]rune, minHeight, maxLines)
 	m.col = 0
 	m.row = 0
+	m.realCol = 0
+	m.realRow = 0
 	m.viewport.GotoTop()
 	m.SetCursor(0)
 }
@@ -1099,11 +1112,23 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 	newRow, newCol := m.cursorLineNumber(), m.col
 	m.Cursor, cmd = m.Cursor.Update(msg)
-	if (newRow != oldRow || newCol != oldCol) && m.Cursor.Mode() == cursor.CursorBlink {
-		m.Cursor.Blink = false
-		cmd = m.Cursor.BlinkCmd()
+	if cmd != nil {
+		cmds = append(cmds, cmd)
 	}
-	cmds = append(cmds, cmd)
+
+	if m.Cursor.Mode() == cursor.CursorBlink && (newRow != oldRow || newCol != oldCol) {
+		m.Cursor.Blink = false
+		cmds = append(cmds, m.Cursor.BlinkCmd())
+	}
+
+	// Ensure the real cursor is at the correct position.
+	row := m.cursorLineNumber()
+	lineInfo := m.LineInfo()
+	realCol, realRow := m.offsetX+lineInfo.CharOffset, m.offsetY+row-m.viewport.YOffset
+	if realCol != m.realCol || realRow != m.realRow {
+		m.realCol, m.realRow = realCol, realRow
+		cmds = append(cmds, tea.SetCursorPosition(realCol, realRow))
+	}
 
 	m.repositionView()
 
@@ -1181,7 +1206,9 @@ func (m Model) View() string {
 				wrappedLine = []rune(strings.TrimSuffix(string(wrappedLine), " "))
 				padding -= m.width - strwidth
 			}
-			if m.row == l && lineInfo.RowOffset == wl {
+
+			// We don't need to render the cursor if it's hidden.
+			if m.Cursor.Mode() != cursor.CursorHide && m.row == l && lineInfo.RowOffset == wl {
 				s.WriteString(style.Render(string(wrappedLine[:lineInfo.ColumnOffset])))
 				if m.col >= len(line) && lineInfo.CharOffset >= m.width {
 					m.Cursor.SetChar(" ")
