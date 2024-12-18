@@ -14,7 +14,7 @@ func TestNew(t *testing.T) {
 		m := New(10, 10)
 
 		if !m.initialized {
-			t.Errorf("on create by New Model should be initialized")
+			t.Errorf("on create by New, Model should be initialized")
 		}
 
 		if m.horizontalStep != defaultHorizontalStep {
@@ -354,6 +354,28 @@ func TestVisibleLines(t *testing.T) {
 			if list[i] != initList[i] {
 				t.Errorf("line must be `%s`, get `%s`", list[i], initList[i])
 			}
+		}
+	})
+}
+
+func TestRightOverscroll(t *testing.T) {
+	t.Parallel()
+
+	t.Run("prevent right overscroll", func(t *testing.T) {
+		t.Parallel()
+		content := "Content is short"
+		m := New(len(content)+1, 5)
+		m.SetContent(content)
+
+		for i := 0; i < 10; i++ {
+			m.MoveRight()
+		}
+
+		visibleLines := m.visibleLines()
+		visibleLine := visibleLines[0]
+
+		if visibleLine != content {
+			t.Error("visible line should stay the same as content")
 		}
 	})
 }
