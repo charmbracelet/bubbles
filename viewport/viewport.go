@@ -134,16 +134,15 @@ func (m Model) visibleLines() (lines []string) {
 		lines = m.lines[top:bottom]
 	}
 
-	if m.indent > 0 {
-		cutLines := make([]string, len(lines))
-		for i := range lines {
-			cutLines[i] = ansi.TruncateLeft(lines[i], m.indent, "")
+	cutLines := make([]string, len(lines))
+	for i, line := range lines {
+		if m.indent > 0 {
+			line = ansi.TruncateLeft(line, m.indent, "")
 		}
-
-		return cutLines
+		line = ansi.Truncate(line, m.Width, "")
+		cutLines[i] = line
 	}
-
-	return lines
+	return cutLines
 }
 
 // scrollArea returns the scrollable boundaries for high performance rendering.
