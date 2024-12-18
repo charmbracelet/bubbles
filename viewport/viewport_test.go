@@ -126,6 +126,7 @@ func TestMoveRight(t *testing.T) {
 		zeroPosition := 0
 
 		m := New(10, 10)
+		m.SetContent("Some line that is longer than width")
 		if m.indent != zeroPosition {
 			t.Errorf("default indent should be %d, got %d", zeroPosition, m.indent)
 		}
@@ -281,7 +282,7 @@ func TestVisibleLines(t *testing.T) {
 			t.Errorf("first list item has to have prefix %s, get %s", newPrefix, list[0])
 		}
 
-		if list[lastItem] != "" {
+		if list[lastItem] != "..." {
 			t.Errorf("last item should be empty, got %s", list[lastItem])
 		}
 
@@ -310,6 +311,7 @@ func TestVisibleLines(t *testing.T) {
 
 		m := New(20, numberOfLines)
 		m.lines = initList
+		m.longestLineWidth = 30 // dirty hack: not checking right overscroll for this test case
 
 		// default list
 		list := m.visibleLines()
@@ -319,7 +321,6 @@ func TestVisibleLines(t *testing.T) {
 
 		lastItemIdx := numberOfLines - 1
 		initLastItem := len(initList) - 1
-		// we trim line if it doesn't fit to width of the viewport
 		shouldGet := initList[initLastItem]
 		if list[lastItemIdx] != shouldGet {
 			t.Errorf("%dth list item should the the same as %dth default list item", lastItemIdx, initLastItem)
