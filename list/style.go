@@ -76,7 +76,8 @@ func DefaultStyles() (s Styles) {
 	s.StatusBarFilterCount = lipgloss.NewStyle().Foreground(verySubduedColor)
 
 	s.NoItems = lipgloss.NewStyle().
-		Foreground(lipgloss.AdaptiveColor{Light: "#909090", Dark: "#626262"})
+		Foreground(lipgloss.AdaptiveColor{Light: "#909090", Dark: "#626262"}).
+		SetString("No items.")
 
 	s.ArabicPagination = lipgloss.NewStyle().Foreground(subduedColor)
 
