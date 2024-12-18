@@ -331,7 +331,21 @@ func (m *Model) MoveLeft() {
 
 // MoveRight moves all lines to set runes right.
 func (m *Model) MoveRight() {
+	// prevents over scrolling to the right
+	if m.indent >= m.longestLineWidth()-m.Width {
+		return
+	}
 	m.indent += m.horizontalStep
+}
+
+func (m Model) longestLineWidth() int {
+	w := 0
+	for _, l := range m.lines {
+		if ww := ansi.StringWidth(l); ww > w {
+			w = ww
+		}
+	}
+	return w
 }
 
 // Resets lines indent to zero.
