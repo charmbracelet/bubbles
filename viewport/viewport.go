@@ -62,9 +62,10 @@ type Model struct {
 	// horizontal step represents the step of indent we add with one move left or right.
 	horizontalStep int
 
-	indent      int
-	initialized bool
-	lines       []string
+	indent           int
+	initialized      bool
+	lines            []string
+	longestLineWidth int
 }
 
 func (m *Model) setInitialValues() {
@@ -113,6 +114,7 @@ func (m Model) ScrollPercent() float64 {
 func (m *Model) SetContent(s string) {
 	s = strings.ReplaceAll(s, "\r\n", "\n") // normalize line endings
 	m.lines = strings.Split(s, "\n")
+	m.longestLineWidth = findLongestLineWidth(m.lines)
 
 	if m.YOffset > len(m.lines)-1 {
 		m.GotoBottom()
@@ -332,20 +334,10 @@ func (m *Model) MoveLeft() {
 // MoveRight moves all lines to set runes right.
 func (m *Model) MoveRight() {
 	// prevents over scrolling to the right
-	if m.indent >= m.longestLineWidth()-m.Width {
+	if m.indent >= m.longestLineWidth-m.Width {
 		return
 	}
 	m.indent += m.horizontalStep
-}
-
-func (m Model) longestLineWidth() int {
-	w := 0
-	for _, l := range m.lines {
-		if ww := ansi.StringWidth(l); ww > w {
-			w = ww
-		}
-	}
-	return w
 }
 
 // Resets lines indent to zero.
@@ -486,4 +478,14 @@ func max(a, b int) int {
 		return a
 	}
 	return b
+}
+
+func findLongestLineWidth(lines []string) int {
+	w := 0
+	for _, l := range lines {
+		if ww := ansi.StringWidth(l); ww > w {
+			w = ww
+		}
+	}
+	return w
 }
