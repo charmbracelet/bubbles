@@ -214,9 +214,11 @@ func TestVisibleLines(t *testing.T) {
 			t.Errorf("list should have %d lines, got %d", numberOfLines, len(list))
 		}
 
-		lastItem := numberOfLines - 1
-		if list[lastItem] != defaultList[lastItem] {
-			t.Errorf("%dth list item should the the same as %dth default list item", lastItem, lastItem)
+		lastItemIdx := numberOfLines - 1
+		// we trim line if it doesn't fit to width of the viewport
+		shouldGet := defaultList[lastItemIdx][:m.Width]
+		if list[lastItemIdx] != shouldGet {
+			t.Errorf(`%dth list item should be '%s', got '%s'`, lastItemIdx, shouldGet, list[lastItemIdx])
 		}
 	})
 
@@ -237,9 +239,11 @@ func TestVisibleLines(t *testing.T) {
 			t.Error("first item of list should not be the first item of initial list because of Y offset")
 		}
 
-		lastItem := numberOfLines - 1
-		if list[lastItem] != defaultList[m.YOffset+lastItem] {
-			t.Errorf("%dth list item should the the same as %dth default list item", lastItem, lastItem)
+		lastItemIdx := numberOfLines - 1
+		// we trim line if it doesn't fit to width of the viewport
+		shouldGet := defaultList[m.YOffset+lastItemIdx][:m.Width]
+		if list[lastItemIdx] != shouldGet {
+			t.Errorf(`%dth list item should be '%s', got '%s'`, lastItemIdx, shouldGet, list[lastItemIdx])
 		}
 	})
 
@@ -304,7 +308,7 @@ func TestVisibleLines(t *testing.T) {
 		}
 		numberOfLines := len(initList)
 
-		m := New(10, numberOfLines)
+		m := New(20, numberOfLines)
 		m.lines = initList
 
 		// default list
@@ -313,10 +317,12 @@ func TestVisibleLines(t *testing.T) {
 			t.Errorf("list should have %d lines, got %d", numberOfLines, len(list))
 		}
 
-		lastItem := numberOfLines - 1
+		lastItemIdx := numberOfLines - 1
 		initLastItem := len(initList) - 1
-		if list[lastItem] != initList[initLastItem] {
-			t.Errorf("%dth list item should the the same as %dth default list item", lastItem, initLastItem)
+		// we trim line if it doesn't fit to width of the viewport
+		shouldGet := initList[initLastItem]
+		if list[lastItemIdx] != shouldGet {
+			t.Errorf("%dth list item should the the same as %dth default list item", lastItemIdx, initLastItem)
 		}
 
 		// move right
@@ -324,14 +330,6 @@ func TestVisibleLines(t *testing.T) {
 		list = m.visibleLines()
 
 		for i := range list {
-			if i == 0 || i == 2 {
-				cutLine := "うえお"
-				if list[i] != cutLine {
-					t.Errorf("line must be `%s`, get `%s`", cutLine, list[i])
-				}
-
-				continue
-			}
 			cutLine := "うえお"
 			if list[i] != cutLine {
 				t.Errorf("line must be `%s`, get `%s`", cutLine, list[i])
