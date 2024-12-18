@@ -7,6 +7,11 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
+)
+
+const (
+	defaultHorizontalStep = 5
 )
 
 // New returns a new model with the given width and height as well as default
@@ -54,8 +59,13 @@ type Model struct {
 	// Deprecated: high performance rendering is now deprecated in Bubble Tea.
 	HighPerformanceRendering bool
 
-	initialized bool
-	lines       []string
+	// horizontal step represents the step of indent we add with one move left or right.
+	horizontalStep int
+
+	indent           int
+	initialized      bool
+	lines            []string
+	longestLineWidth int
 }
 
 func (m *Model) setInitialValues() {
@@ -63,6 +73,7 @@ func (m *Model) setInitialValues() {
 	m.MouseWheelEnabled = true
 	m.MouseWheelDelta = 3
 	m.initialized = true
+	m.horizontalStep = defaultHorizontalStep
 }
 
 // Init exists to satisfy the tea.Model interface for composability purposes.
@@ -103,6 +114,7 @@ func (m Model) ScrollPercent() float64 {
 func (m *Model) SetContent(s string) {
 	s = strings.ReplaceAll(s, "\r\n", "\n") // normalize line endings
 	m.lines = strings.Split(s, "\n")
+	m.longestLineWidth = findLongestLineWidth(m.lines)
 
 	if m.YOffset > len(m.lines)-1 {
 		m.GotoBottom()
@@ -123,7 +135,16 @@ func (m Model) visibleLines() (lines []string) {
 		bottom := clamp(m.YOffset+m.Height, top, len(m.lines))
 		lines = m.lines[top:bottom]
 	}
-	return lines
+
+	cutLines := make([]string, len(lines))
+	for i, line := range lines {
+		if m.indent > 0 {
+			line = ansi.TruncateLeft(line, m.indent, "")
+		}
+		line = ansi.Truncate(line, m.Width, "")
+		cutLines[i] = line
+	}
+	return cutLines
 }
 
 // scrollArea returns the scrollable boundaries for high performance rendering.
@@ -290,6 +311,40 @@ func ViewUp(m Model, lines []string) tea.Cmd {
 	return tea.ScrollUp(lines, top, bottom)
 }
 
+// SetHorizontalStep is a setter for `horizontalStep`.
+// Must be set before `MoveLeft` or `MoveRight` is used.
+// If 0 or negative, left/right movement doesn't work.
+func (m *Model) SetHorizontalStep(n int) {
+	if n < 0 {
+		n = 0
+	}
+
+	m.horizontalStep = n
+}
+
+// MoveLeft moves all lines to set runes left.
+// If current indent is 0, it doesn't work.
+func (m *Model) MoveLeft() {
+	m.indent -= m.horizontalStep
+	if m.indent < 0 {
+		m.indent = 0
+	}
+}
+
+// MoveRight moves all lines to set runes right.
+func (m *Model) MoveRight() {
+	// prevents over scrolling to the right
+	if m.indent >= m.longestLineWidth-m.Width {
+		return
+	}
+	m.indent += m.horizontalStep
+}
+
+// Resets lines indent to zero.
+func (m *Model) ResetIndent() {
+	m.indent = 0
+}
+
 // Update handles standard message-based viewport updates.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	var cmd tea.Cmd
@@ -344,6 +399,12 @@ func (m Model) updateAsModel(msg tea.Msg) (Model, tea.Cmd) {
 			if m.HighPerformanceRendering {
 				cmd = ViewUp(m, lines)
 			}
+
+		case key.Matches(msg, m.KeyMap.Left):
+			m.MoveLeft()
+
+		case key.Matches(msg, m.KeyMap.Right):
+			m.MoveRight()
 		}
 
 	case tea.MouseMsg:
@@ -417,4 +478,14 @@ func max(a, b int) int {
 		return a
 	}
 	return b
+}
+
+func findLongestLineWidth(lines []string) int {
+	w := 0
+	for _, l := range lines {
+		if ww := ansi.StringWidth(l); ww > w {
+			w = ww
+		}
+	}
+	return w
 }
