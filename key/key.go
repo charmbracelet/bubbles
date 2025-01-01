@@ -36,7 +36,17 @@
 // to render help text for keystrokes in your views.
 package key
 
-import "fmt"
+import (
+	"fmt"
+	"sync/atomic"
+)
+
+// Internal ID management. Used to uniqely identify keybindings.
+var lastID int64
+
+func nextID() int {
+	return int(atomic.AddInt64(&lastID, 1))
+}
 
 // Binding describes a set of keybindings and, optionally, their associated
 // help text.
@@ -44,6 +54,7 @@ type Binding struct {
 	keys     []string
 	help     Help
 	disabled bool
+	id       int
 }
 
 // BindingOpt is an initialization option for a keybinding. It's used as an
@@ -56,6 +67,7 @@ func NewBinding(opts ...BindingOpt) Binding {
 	for _, opt := range opts {
 		opt(b)
 	}
+	b.id = nextID()
 	return *b
 }
 
@@ -78,6 +90,35 @@ func WithDisabled() BindingOpt {
 	return func(b *Binding) {
 		b.disabled = true
 	}
+}
+
+// ID returns the unique ID for the keybinding.
+//
+// An ID can be used to uniquely identify a keybinding, which becomes
+// particularly important when multiple keys are bound to one keybinding.
+//
+// Consider the following:
+//
+//	b := key.NewBinding(key.WithKeys("k", "up"))
+//
+//	func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+//	    switch msg := msg.(type) {
+//	    case tea.KeyPressMsg:
+//	        switch {
+//	        case key.Matches(msg, b):
+//	            m.keysDown[b.ID()] = struct{}{}
+//	        }
+//	    case tea.KeyReleaseMsg:
+//	        switch {
+//	        case key.Matches(msg, b):
+//	            delete(m.keysDown, b.ID())
+//	        }
+//	    }
+//
+//	    // ...
+//	}
+func (b Binding) ID() int {
+	return b.id
 }
 
 // SetKeys sets the keys for the keybinding.
