@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	defaultHorizontalStep = 5
+	defaultHorizontalStep = 6
 )
 
 // New returns a new model with the given width and height as well as default
