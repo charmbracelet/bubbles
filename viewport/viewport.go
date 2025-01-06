@@ -39,6 +39,13 @@ type Model struct {
 	// YOffset is the vertical scroll position.
 	YOffset int
 
+	// xOffset is the horizontal scroll position.
+	xOffset int
+
+	// horizontalStep is the number of columns we move left or right during a
+	// default horizontal scroll.
+	horizontalStep int
+
 	// YPosition is the position of the viewport in relation to the terminal
 	// window. It's used in high performance rendering only.
 	YPosition int
@@ -59,10 +66,6 @@ type Model struct {
 	// Deprecated: high performance rendering is now deprecated in Bubble Tea.
 	HighPerformanceRendering bool
 
-	// horizontal step represents the step of indent we add with one move left or right.
-	horizontalStep int
-
-	indent           int
 	initialized      bool
 	lines            []string
 	longestLineWidth int
@@ -138,8 +141,8 @@ func (m Model) visibleLines() (lines []string) {
 
 	cutLines := make([]string, len(lines))
 	for i, line := range lines {
-		if m.indent > 0 {
-			line = ansi.TruncateLeft(line, m.indent, "")
+		if m.xOffset > 0 {
+			line = ansi.TruncateLeft(line, m.xOffset, "")
 		}
 		line = ansi.Truncate(line, m.Width, "")
 		cutLines[i] = line
@@ -311,9 +314,9 @@ func ViewUp(m Model, lines []string) tea.Cmd {
 	return tea.ScrollUp(lines, top, bottom)
 }
 
-// SetHorizontalStep is a setter for `horizontalStep`.
-// Must be set before `MoveLeft` or `MoveRight` is used.
-// If 0 or negative, left/right movement doesn't work.
+// SetHorizontalStep sets the amount of cells that the viewport moves in the
+// default viewport keymapping. If set to 0 or less, horizontal scrolling is
+// disabled.
 func (m *Model) SetHorizontalStep(n int) {
 	if n < 0 {
 		n = 0
@@ -322,27 +325,26 @@ func (m *Model) SetHorizontalStep(n int) {
 	m.horizontalStep = n
 }
 
-// MoveLeft moves all lines to set runes left.
-// If current indent is 0, it doesn't work.
-func (m *Model) MoveLeft() {
-	m.indent -= m.horizontalStep
-	if m.indent < 0 {
-		m.indent = 0
+// MoveLeft moves the viewport to the left by the given number of columns.
+func (m *Model) MoveLeft(cols int) {
+	m.xOffset -= cols
+	if m.xOffset < 0 {
+		m.xOffset = 0
 	}
 }
 
-// MoveRight moves all lines to set runes right.
-func (m *Model) MoveRight() {
+// MoveRight moves viewport to the right by the given number of columns.
+func (m *Model) MoveRight(cols int) {
 	// prevents over scrolling to the right
-	if m.indent >= m.longestLineWidth-m.Width {
+	if m.xOffset >= m.longestLineWidth-m.Width {
 		return
 	}
-	m.indent += m.horizontalStep
+	m.xOffset += cols
 }
 
 // Resets lines indent to zero.
 func (m *Model) ResetIndent() {
-	m.indent = 0
+	m.xOffset = 0
 }
 
 // Update handles standard message-based viewport updates.
@@ -401,10 +403,10 @@ func (m Model) updateAsModel(msg tea.Msg) (Model, tea.Cmd) {
 			}
 
 		case key.Matches(msg, m.KeyMap.Left):
-			m.MoveLeft()
+			m.MoveLeft(m.horizontalStep)
 
 		case key.Matches(msg, m.KeyMap.Right):
-			m.MoveRight()
+			m.MoveRight(m.horizontalStep)
 		}
 
 	case tea.MouseMsg:

@@ -91,28 +91,28 @@ func TestMoveLeft(t *testing.T) {
 		t.Parallel()
 
 		m := New(10, 10)
-		if m.indent != zeroPosition {
-			t.Errorf("default indent should be %d, got %d", zeroPosition, m.indent)
+		if m.xOffset != zeroPosition {
+			t.Errorf("default indent should be %d, got %d", zeroPosition, m.xOffset)
 		}
 
-		m.MoveLeft()
-		if m.indent != zeroPosition {
-			t.Errorf("indent should be %d, got %d", zeroPosition, m.indent)
+		m.MoveLeft(m.horizontalStep)
+		if m.xOffset != zeroPosition {
+			t.Errorf("indent should be %d, got %d", zeroPosition, m.xOffset)
 		}
 	})
 
 	t.Run("move", func(t *testing.T) {
 		t.Parallel()
 		m := New(10, 10)
-		if m.indent != zeroPosition {
-			t.Errorf("default indent should be %d, got %d", zeroPosition, m.indent)
+		if m.xOffset != zeroPosition {
+			t.Errorf("default indent should be %d, got %d", zeroPosition, m.xOffset)
 		}
 
-		m.indent = defaultHorizontalStep * 2
-		m.MoveLeft()
+		m.xOffset = defaultHorizontalStep * 2
+		m.MoveLeft(m.horizontalStep)
 		newIndent := defaultHorizontalStep
-		if m.indent != newIndent {
-			t.Errorf("indent should be %d, got %d", newIndent, m.indent)
+		if m.xOffset != newIndent {
+			t.Errorf("indent should be %d, got %d", newIndent, m.xOffset)
 		}
 	})
 }
@@ -127,14 +127,14 @@ func TestMoveRight(t *testing.T) {
 
 		m := New(10, 10)
 		m.SetContent("Some line that is longer than width")
-		if m.indent != zeroPosition {
-			t.Errorf("default indent should be %d, got %d", zeroPosition, m.indent)
+		if m.xOffset != zeroPosition {
+			t.Errorf("default indent should be %d, got %d", zeroPosition, m.xOffset)
 		}
 
-		m.MoveRight()
+		m.MoveRight(m.horizontalStep)
 		newIndent := defaultHorizontalStep
-		if m.indent != newIndent {
-			t.Errorf("indent should be %d, got %d", newIndent, m.indent)
+		if m.xOffset != newIndent {
+			t.Errorf("indent should be %d, got %d", newIndent, m.xOffset)
 		}
 	})
 }
@@ -148,11 +148,11 @@ func TestResetIndent(t *testing.T) {
 		zeroPosition := 0
 
 		m := New(10, 10)
-		m.indent = 500
+		m.xOffset = 500
 
 		m.ResetIndent()
-		if m.indent != zeroPosition {
-			t.Errorf("indent should be %d, got %d", zeroPosition, m.indent)
+		if m.xOffset != zeroPosition {
+			t.Errorf("indent should be %d, got %d", zeroPosition, m.xOffset)
 		}
 	})
 }
@@ -196,7 +196,7 @@ func TestVisibleLines(t *testing.T) {
 
 		m := New(10, 10)
 		list := m.visibleLines()
-		m.indent = 5
+		m.xOffset = 5
 
 		if len(list) != 0 {
 			t.Errorf("list should be empty, got %d", len(list))
@@ -274,10 +274,10 @@ func TestVisibleLines(t *testing.T) {
 		}
 
 		// move right
-		m.MoveRight()
+		m.MoveRight(m.horizontalStep)
 		list = m.visibleLines()
 
-		newPrefix := perceptPrefix[m.indent:]
+		newPrefix := perceptPrefix[m.xOffset:]
 		if !strings.HasPrefix(list[0], newPrefix) {
 			t.Errorf("first list item has to have prefix %s, get %s", newPrefix, list[0])
 		}
@@ -287,7 +287,7 @@ func TestVisibleLines(t *testing.T) {
 		}
 
 		// move left
-		m.MoveLeft()
+		m.MoveLeft(m.horizontalStep)
 		list = m.visibleLines()
 		if !strings.HasPrefix(list[0], perceptPrefix) {
 			t.Errorf("first list item has to have prefix %s", perceptPrefix)
@@ -300,6 +300,8 @@ func TestVisibleLines(t *testing.T) {
 
 	t.Run("list: with 2 cells symbols: horizontal scroll", func(t *testing.T) {
 		t.Parallel()
+
+		const horizontalStep = 5
 
 		initList := []string{
 			"あいうえお",
@@ -327,7 +329,7 @@ func TestVisibleLines(t *testing.T) {
 		}
 
 		// move right
-		m.MoveRight()
+		m.MoveRight(horizontalStep)
 		list = m.visibleLines()
 
 		for i := range list {
@@ -338,7 +340,7 @@ func TestVisibleLines(t *testing.T) {
 		}
 
 		// move left
-		m.MoveLeft()
+		m.MoveLeft(horizontalStep)
 		list = m.visibleLines()
 		for i := range list {
 			if list[i] != initList[i] {
@@ -347,8 +349,8 @@ func TestVisibleLines(t *testing.T) {
 		}
 
 		// move left second times do not change lites if indent == 0
-		m.indent = 0
-		m.MoveLeft()
+		m.xOffset = 0
+		m.MoveLeft(horizontalStep)
 		list = m.visibleLines()
 		for i := range list {
 			if list[i] != initList[i] {
@@ -368,7 +370,7 @@ func TestRightOverscroll(t *testing.T) {
 		m.SetContent(content)
 
 		for i := 0; i < 10; i++ {
-			m.MoveRight()
+			m.MoveRight(m.horizontalStep)
 		}
 
 		visibleLines := m.visibleLines()
