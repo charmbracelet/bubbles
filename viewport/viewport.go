@@ -140,12 +140,8 @@ func (m Model) visibleLines() (lines []string) {
 	}
 
 	cutLines := make([]string, len(lines))
-	for i, line := range lines {
-		if m.xOffset > 0 {
-			line = ansi.TruncateLeft(line, m.xOffset, "")
-		}
-		line = ansi.Truncate(line, m.Width, "")
-		cutLines[i] = line
+	for i := range lines {
+		cutLines[i] = ansi.Cut(lines[i], m.xOffset, m.xOffset+m.Width)
 	}
 	return cutLines
 }
