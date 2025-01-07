@@ -66,6 +66,12 @@ type Model struct {
 	// Deprecated: high performance rendering is now deprecated in Bubble Tea.
 	HighPerformanceRendering bool
 
+	// ColumnSignFn allows to define a function that adds a column into the
+	// left of the viewpart, which is kept when horizontal scrolling.
+	// Thing line numbers, selection indicators, and etc.
+	// Argument [i] is the 0-indexed line, [total] is the total amount of lines.
+	ColumnSignFn func(i, total int) string
+
 	initialized      bool
 	lines            []string
 	longestLineWidth int
@@ -77,6 +83,7 @@ func (m *Model) setInitialValues() {
 	m.MouseWheelDelta = 3
 	m.initialized = true
 	m.horizontalStep = defaultHorizontalStep
+	m.ColumnSignFn = func(int, int) string { return "" }
 }
 
 // Init exists to satisfy the tea.Model interface for composability purposes.
@@ -147,7 +154,9 @@ func (m Model) maxYOffset() int {
 // viewport.
 func (m Model) visibleLines() (lines []string) {
 	h := m.Height - m.Style.GetVerticalFrameSize()
-	w := m.Width - m.Style.GetHorizontalFrameSize()
+	w := m.Width -
+		m.Style.GetHorizontalFrameSize() -
+		lipgloss.Width(m.ColumnSignFn(0, 0))
 
 	if len(m.lines) > 0 {
 		top := max(0, m.YOffset)
@@ -155,15 +164,27 @@ func (m Model) visibleLines() (lines []string) {
 		lines = m.lines[top:bottom]
 	}
 
+	for len(lines) < h {
+		lines = append(lines, "")
+	}
+
 	if (m.xOffset == 0 && m.longestLineWidth <= w) || w == 0 {
-		return lines
+		return m.prependColumn(lines)
 	}
 
 	cutLines := make([]string, len(lines))
 	for i := range lines {
 		cutLines[i] = ansi.Cut(lines[i], m.xOffset, m.xOffset+w)
 	}
-	return cutLines
+	return m.prependColumn(cutLines)
+}
+
+func (m Model) prependColumn(lines []string) []string {
+	result := make([]string, len(lines))
+	for i, line := range lines {
+		result[i] = m.ColumnSignFn(i+m.YOffset, m.TotalLineCount()) + line
+	}
+	return result
 }
 
 // scrollArea returns the scrollable boundaries for high performance rendering.
@@ -352,7 +373,10 @@ func (m *Model) MoveLeft(cols int) {
 // MoveRight moves viewport to the right by the given number of columns.
 func (m *Model) MoveRight(cols int) {
 	// prevents over scrolling to the right
-	if m.xOffset >= m.longestLineWidth-m.Width {
+	w := m.Width -
+		m.Style.GetHorizontalFrameSize() -
+		lipgloss.Width(m.ColumnSignFn(0, 0))
+	if m.xOffset > m.longestLineWidth-w {
 		return
 	}
 	m.xOffset += cols
