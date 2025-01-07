@@ -53,6 +53,7 @@ type ItemDelegate interface {
 }
 
 type filteredItem struct {
+	index   int   // index in the unfiltered list
 	item    Item  // item matched
 	matches []int // rune indices of matched items
 }
@@ -272,7 +273,7 @@ func (m *Model) SetShowTitle(v bool) {
 
 // SetFilterText explicitly sets the filter text without relying on user input.
 // It also sets the filterState to a sane default of FilterApplied, but this
-// can be changed with SetFilterState
+// can be changed with SetFilterState.
 func (m *Model) SetFilterText(filter string) {
 	m.filterState = Filtering
 	m.FilterInput.SetValue(filter)
@@ -288,7 +289,7 @@ func (m *Model) SetFilterText(filter string) {
 	m.updateKeybindings()
 }
 
-// Helper method for setting the filtering state manually
+// Helper method for setting the filtering state manually.
 func (m *Model) SetFilterState(state FilterState) {
 	m.Paginator.Page = 0
 	m.cursor = 0
@@ -484,10 +485,24 @@ func (m Model) MatchesForItem(index int) []int {
 	return m.filteredItems[index].matches
 }
 
-// Index returns the index of the currently selected item as it appears in the
-// entire slice of items.
+// Index returns the index of the currently selected item as it is stored in the
+// filtered list of items.
+// Using this value with SetItem() might be incorrect, consider using
+// GlobalIndex() instead.
 func (m Model) Index() int {
 	return m.Paginator.Page*m.Paginator.PerPage + m.cursor
+}
+
+// GlobalIndex returns the index of the currently selected item as it is stored
+// in the unfiltered list of items. This value can be used with SetItem().
+func (m Model) GlobalIndex() int {
+	index := m.Index()
+
+	if m.filteredItems == nil || index >= len(m.filteredItems) {
+		return index
+	}
+
+	return m.filteredItems[index].index
 }
 
 // Cursor returns the index of the cursor on the current page.
@@ -707,7 +722,7 @@ func (m Model) itemsAsFilterItems() filteredItems {
 
 // Set keybindings according to the filter state.
 func (m *Model) updateKeybindings() {
-	switch m.filterState {
+	switch m.filterState { //nolint:exhaustive
 	case Filtering:
 		m.KeyMap.CursorUp.SetEnabled(false)
 		m.KeyMap.CursorDown.SetEnabled(false)
@@ -1138,7 +1153,7 @@ func (m Model) statusView() string {
 
 	itemsDisplay := fmt.Sprintf("%d %s", visibleItems, itemName)
 
-	if m.filterState == Filtering {
+	if m.filterState == Filtering { //nolint:nestif
 		// Filter results
 		if visibleItems == 0 {
 			status = m.Styles.StatusEmpty.Render("Nothing matched")
@@ -1154,7 +1169,7 @@ func (m Model) statusView() string {
 
 		if filtered {
 			f := strings.TrimSpace(m.FilterInput.Value())
-			f = ansi.Truncate(f, 10, "…")
+			f = ansi.Truncate(f, 10, "…") //nolint:mnd
 			status += fmt.Sprintf("“%s” ", f)
 		}
 
@@ -1171,7 +1186,7 @@ func (m Model) statusView() string {
 }
 
 func (m Model) paginationView() string {
-	if m.Paginator.TotalPages < 2 { //nolint:gomnd
+	if m.Paginator.TotalPages < 2 { //nolint:mnd
 		return ""
 	}
 
@@ -1256,6 +1271,7 @@ func filterItems(m Model) tea.Cmd {
 		filterMatches := []filteredItem{}
 		for _, r := range m.Filter(m.FilterInput.Value(), targets) {
 			filterMatches = append(filterMatches, filteredItem{
+				index:   r.Index,
 				item:    items[r.Index],
 				matches: r.MatchedIndexes,
 			})

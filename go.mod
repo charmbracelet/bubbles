@@ -5,11 +5,11 @@ go 1.18
 require (
 	github.com/MakeNowJust/heredoc v1.0.0
 	github.com/atotto/clipboard v0.1.4
-	github.com/charmbracelet/bubbletea v1.1.0
+	github.com/charmbracelet/bubbletea v1.1.2
 	github.com/charmbracelet/harmonica v0.2.0
-	github.com/charmbracelet/lipgloss v0.13.1-0.20240924011622-17b470d8991e
-	github.com/charmbracelet/x/ansi v0.3.2
-	github.com/charmbracelet/x/exp/golden v0.0.0-20240815200342-61de596daa2b
+	github.com/charmbracelet/lipgloss v1.0.0
+	github.com/charmbracelet/x/ansi v0.4.2
+	github.com/charmbracelet/x/exp/golden v0.0.0-20241011142426-46044092ad91
 	github.com/dustin/go-humanize v1.0.1
 	github.com/lucasb-eyer/go-colorful v1.2.0
 	github.com/mattn/go-runewidth v0.0.16
@@ -29,6 +29,6 @@ require (
 	github.com/muesli/ansi v0.0.0-20230316100256-276c6243b2f6 // indirect
 	github.com/muesli/cancelreader v0.2.2 // indirect
 	golang.org/x/sync v0.8.0 // indirect
-	golang.org/x/sys v0.24.0 // indirect
+	golang.org/x/sys v0.26.0 // indirect
 	golang.org/x/text v0.3.8 // indirect
 )

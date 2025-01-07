@@ -1,5 +1,6 @@
 run:
   tests: false
+  issues-exit-code: 0
 
 issues:
   include:
@@ -14,16 +15,13 @@ issues:
 
 linters:
   enable:
-    # - dupl
     - exhaustive
-    # - exhaustivestruct
     - goconst
     - godot
     - godox
     - mnd
     - gomoddirectives
     - goprintffuncname
-    # - lll
     - misspell
     - nakedret
     - nestif
@@ -39,6 +37,4 @@ linters:
     - govet
     - ineffassign
     - staticcheck
-    - typecheck
     - unused
-    - predeclared
