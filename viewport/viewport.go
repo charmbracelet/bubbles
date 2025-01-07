@@ -146,19 +146,22 @@ func (m Model) maxYOffset() int {
 // visibleLines returns the lines that should currently be visible in the
 // viewport.
 func (m Model) visibleLines() (lines []string) {
+	h := m.Height - m.Style.GetVerticalFrameSize()
+	w := m.Width - m.Style.GetHorizontalFrameSize()
+
 	if len(m.lines) > 0 {
 		top := max(0, m.YOffset)
-		bottom := clamp(m.YOffset+m.Height, top, len(m.lines))
+		bottom := clamp(m.YOffset+h, top, len(m.lines))
 		lines = m.lines[top:bottom]
 	}
 
-	if (m.xOffset == 0 && m.longestLineWidth <= m.Width) || m.Width == 0 {
+	if (m.xOffset == 0 && m.longestLineWidth <= w) || w == 0 {
 		return lines
 	}
 
 	cutLines := make([]string, len(lines))
 	for i := range lines {
-		cutLines[i] = ansi.Cut(lines[i], m.xOffset, m.xOffset+m.Width)
+		cutLines[i] = ansi.Cut(lines[i], m.xOffset, m.xOffset+w)
 	}
 	return cutLines
 }
