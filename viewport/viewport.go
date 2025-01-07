@@ -113,6 +113,19 @@ func (m Model) ScrollPercent() float64 {
 	return math.Max(0.0, math.Min(1.0, v))
 }
 
+// HorizontalScrollPercent returns the amount horizontally scrolled as a float
+// between 0 and 1.
+func (m Model) HorizontalScrollPercent() float64 {
+	if m.xOffset >= m.longestLineWidth-m.Width {
+		return 1.0
+	}
+	y := float64(m.xOffset)
+	h := float64(m.Width)
+	t := float64(m.longestLineWidth)
+	v := y / (t - h)
+	return math.Max(0.0, math.Min(1.0, v))
+}
+
 // SetContent set the pager's text content.
 func (m *Model) SetContent(s string) {
 	s = strings.ReplaceAll(s, "\r\n", "\n") // normalize line endings
