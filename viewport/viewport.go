@@ -139,6 +139,10 @@ func (m Model) visibleLines() (lines []string) {
 		lines = m.lines[top:bottom]
 	}
 
+	if m.xOffset == 0 && m.longestLineWidth <= m.Width {
+		return lines
+	}
+
 	cutLines := make([]string, len(lines))
 	for i := range lines {
 		cutLines[i] = ansi.Cut(lines[i], m.xOffset, m.xOffset+m.Width)
