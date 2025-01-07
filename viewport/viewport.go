@@ -297,7 +297,7 @@ func ViewDown(m Model, lines []string) tea.Cmd {
 
 	// XXX: high performance rendering is deprecated in Bubble Tea. In a v2 we
 	// won't need to return a command here.
-	return tea.ScrollDown(lines, top, bottom)
+	return tea.ScrollDown(lines, top, bottom) //nolint:staticcheck
 }
 
 // ViewUp is a high performance command the moves the viewport down by a given
@@ -311,7 +311,7 @@ func ViewUp(m Model, lines []string) tea.Cmd {
 
 	// XXX: high performance rendering is deprecated in Bubble Tea. In a v2 we
 	// won't need to return a command here.
-	return tea.ScrollUp(lines, top, bottom)
+	return tea.ScrollUp(lines, top, bottom) //nolint:staticcheck
 }
 
 // SetHorizontalStep sets the amount of cells that the viewport moves in the
