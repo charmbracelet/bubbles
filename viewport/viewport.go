@@ -152,7 +152,7 @@ func (m Model) visibleLines() (lines []string) {
 		lines = m.lines[top:bottom]
 	}
 
-	if m.xOffset == 0 && m.longestLineWidth <= m.Width {
+	if (m.xOffset == 0 && m.longestLineWidth <= m.Width) || m.Width == 0 {
 		return lines
 	}
 

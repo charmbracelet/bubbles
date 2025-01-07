@@ -208,7 +208,7 @@ func TestVisibleLines(t *testing.T) {
 		numberOfLines := 10
 
 		m := New(10, numberOfLines)
-		m.lines = defaultList
+		m.SetContent(strings.Join(defaultList, "\n"))
 
 		list := m.visibleLines()
 		if len(list) != numberOfLines {
@@ -228,7 +228,7 @@ func TestVisibleLines(t *testing.T) {
 		numberOfLines := 10
 
 		m := New(10, numberOfLines)
-		m.lines = defaultList
+		m.SetContent(strings.Join(defaultList, "\n"))
 		m.YOffset = 5
 
 		list := m.visibleLines()
