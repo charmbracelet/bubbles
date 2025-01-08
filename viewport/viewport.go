@@ -205,18 +205,27 @@ func (m Model) maxXOffset() int {
 	return max(0, m.longestLineWidth-m.Width)
 }
 
+func (m Model) maxWidth() int {
+	return m.Width -
+		m.Style.GetHorizontalFrameSize() -
+		lipgloss.Width(m.LeftGutterFunc(GutterContext{}))
+}
+
+func (m Model) maxHeight() int {
+	return m.Height - m.Style.GetVerticalFrameSize()
+}
+
 // visibleLines returns the lines that should currently be visible in the
 // viewport.
 func (m Model) visibleLines() (lines []string) {
-	maxHeight := m.Height - m.Style.GetVerticalFrameSize()
-	maxWidth := m.Width -
-		m.Style.GetHorizontalFrameSize() -
-		lipgloss.Width(m.LeftGutterFunc(GutterContext{}))
+	maxHeight := m.maxHeight()
+	maxWidth := m.maxWidth()
 
 	if len(m.lines) > 0 {
 		top := max(0, m.YOffset)
 		bottom := clamp(m.YOffset+maxHeight, top, len(m.lines))
-		lines = m.lines[top:bottom]
+		lines = make([]string, bottom-top)
+		copy(lines, m.lines[top:bottom])
 		if len(m.matches) > 0 {
 			for i, lmatches := range m.matches[top:bottom] {
 				if memoized := m.memoizedMatchedLines[i+top]; memoized != "" {
@@ -264,11 +273,10 @@ func (m Model) visibleLines() (lines []string) {
 		return wrappedLines
 	}
 
-	cutLines := make([]string, len(lines))
 	for i := range lines {
-		cutLines[i] = ansi.Cut(lines[i], m.xOffset, m.xOffset+maxWidth)
+		lines[i] = ansi.Cut(lines[i], m.xOffset, m.xOffset+maxWidth)
 	}
-	return m.prependColumn(cutLines)
+	return m.prependColumn(lines)
 }
 
 func (m Model) prependColumn(lines []string) []string {
@@ -300,25 +308,32 @@ func (m *Model) SetYOffset(n int) {
 }
 
 // SetXOffset sets the X offset.
+// No-op when soft wrap is enabled.
 func (m *Model) SetXOffset(n int) {
+	if m.SoftWrap {
+		return
+	}
 	m.xOffset = clamp(n, 0, m.maxXOffset())
 }
 
 func (m *Model) EnsureVisible(line, col int) {
-	maxHeight := m.Height - m.Style.GetVerticalFrameSize()
-	maxWidth := m.Width -
-		m.Style.GetHorizontalFrameSize() -
-		lipgloss.Width(m.LeftGutterFunc(GutterContext{}))
-	if line > maxHeight {
+	maxHeight := m.maxHeight()
+	maxWidth := m.maxWidth()
+
+	if line >= m.YOffset && line < m.YOffset+maxHeight {
+		// Line is visible, no nothing
+	} else if line >= m.YOffset+maxHeight || line < m.YOffset {
 		m.SetYOffset(line)
-	} else {
-		m.SetYOffset(0)
 	}
-	if col > maxWidth {
+
+	if col >= m.xOffset && col < m.xOffset+maxWidth {
+		// Column is visible, do nothing
+	} else if col >= m.xOffset+maxWidth || col < m.xOffset {
+		// Column is to the left of visible area
 		m.SetXOffset(col)
-	} else {
-		m.SetXOffset(0)
 	}
+
+	m.visibleLines()
 }
 
 // ViewDown moves the view down by the number of lines in the viewport.
@@ -368,6 +383,7 @@ func (m *Model) LineDown(n int) (lines []string) {
 	// greater than the number of lines we actually have left before we reach
 	// the bottom.
 	m.SetYOffset(m.YOffset + n)
+	m.nearestMatchFromYOffset()
 
 	// Gather lines to send off for performance scrolling.
 	//
@@ -387,6 +403,7 @@ func (m *Model) LineUp(n int) (lines []string) {
 	// Make sure the number of lines by which we're going to scroll isn't
 	// greater than the number of lines we are from the top.
 	m.SetYOffset(m.YOffset - n)
+	m.nearestMatchFromYOffset()
 
 	// Gather lines to send off for performance scrolling.
 	//
@@ -413,12 +430,14 @@ func (m *Model) GotoTop() (lines []string) {
 	}
 
 	m.SetYOffset(0)
+	m.nearestMatchFromYOffset()
 	return m.visibleLines()
 }
 
 // GotoBottom sets the viewport to the bottom position.
 func (m *Model) GotoBottom() (lines []string) {
 	m.SetYOffset(m.maxYOffset())
+	m.nearestMatchFromYOffset()
 	return m.visibleLines()
 }
 
@@ -490,9 +509,7 @@ func (m *Model) MoveLeft(cols int) {
 // MoveRight moves viewport to the right by the given number of columns.
 func (m *Model) MoveRight(cols int) {
 	// prevents over scrolling to the right
-	w := m.Width -
-		m.Style.GetHorizontalFrameSize() -
-		lipgloss.Width(m.LeftGutterFunc(GutterContext{}))
+	w := m.maxWidth()
 	if m.xOffset > m.longestLineWidth-w {
 		return
 	}
@@ -504,27 +521,29 @@ func (m *Model) ResetIndent() {
 	m.xOffset = 0
 }
 
+func (m *Model) ClearSearch() {
+	m.searchRE = nil
+	m.matches = nil
+	m.memoizedMatchedLines = nil
+	m.currentMatch = matched{}
+	m.matchIndex = -1
+}
+
 func (m *Model) Search(r *regexp.Regexp) {
+	m.ClearSearch()
 	m.searchRE = r
 	m.matches = make([][][]int, len(m.lines))
 	m.memoizedMatchedLines = make([]string, len(m.lines))
-	m.currentMatch = matched{}
-	m.matchIndex = -1
 	for i, line := range m.lines {
 		found := r.FindAllStringIndex(ansi.Strip(line), -1)
 		m.matches[i] = found
 	}
-	for i, match := range m.matches {
-		if len(match) > 0 && len(match[0]) > 0 {
-			m.currentMatch = matched{line: i, start: match[0][0], end: match[0][1]}
-			m.matchIndex = 0
-			break
-		}
-	}
+	m.nearestMatchFromYOffset()
+	m.EnsureVisible(m.currentMatch.line, m.currentMatch.start)
 }
 
 func (m *Model) NextMatch() {
-	if m.matches == nil || m.matchIndex == -1 {
+	if m.matches == nil {
 		return
 	}
 
@@ -548,6 +567,29 @@ func (m *Model) PreviousMatch() {
 		m.EnsureVisible(got.line, got.start)
 		m.matchIndex--
 		return
+	}
+}
+
+func (m *Model) nearestMatchFromYOffset() {
+	if m.matches == nil {
+		return
+	}
+
+	totalMatches := 0
+	for i, match := range m.matches {
+		if len(match) == 0 {
+			continue
+		}
+		if i >= m.YOffset {
+			m.currentMatch = matched{
+				line:  i,
+				start: match[0][0],
+				end:   match[0][1],
+			}
+			m.matchIndex = totalMatches
+			return
+		}
+		totalMatches += len(match)
 	}
 }
 
