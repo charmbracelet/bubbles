@@ -114,16 +114,29 @@ func DefaultKeyMap() KeyMap {
 type Styles struct {
 	Border       lipgloss.Border
 	BorderStyle  lipgloss.Style
+	BorderTop    bool
+	BorderBottom bool
+	BorderLeft   bool
+	BorderRight  bool
+	BorderColumn bool
 	BorderHeader bool
-	Header       lipgloss.Style
-	Cell         lipgloss.Style
-	Selected     lipgloss.Style
+	BorderRow    bool
+
+	Header   lipgloss.Style
+	Cell     lipgloss.Style
+	Selected lipgloss.Style
 }
 
 // DefaultStyles returns a set of default style definitions for this table.
 func DefaultStyles() Styles {
 	return Styles{
 		Border:       lipgloss.NormalBorder(),
+		BorderTop:    true,
+		BorderBottom: true,
+		BorderLeft:   true,
+		BorderRight:  true,
+		BorderColumn: true,
+		BorderRow:    true,
 		BorderHeader: true,
 		Selected:     lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("212")).Margin(0, 1),
 		Header:       lipgloss.NewStyle().Bold(true).Padding(0, 1),
@@ -135,6 +148,12 @@ func DefaultStyles() Styles {
 func (m *Model) SetStyles(s Styles) {
 	m.styles = s
 	m.table.Border(s.Border)
+	m.table.BorderTop(s.BorderTop)
+	m.table.BorderBottom(s.BorderBottom)
+	m.table.BorderLeft(s.BorderLeft)
+	m.table.BorderRight(s.BorderRight)
+	m.table.BorderColumn(s.BorderColumn)
+	m.table.BorderRow(s.BorderRow)
 	m.table.BorderStyle(s.BorderStyle)
 	m.table.BorderHeader(s.BorderHeader)
 }
@@ -169,7 +188,7 @@ func (m *Model) SetStyleFunc(s table.StyleFunc) {
 //
 // With more than four arguments nothing will be set.
 func (m *Model) SetBorder(s ...bool) {
-	top, right, bottom, left, rowSeparator, columnSeparator := whichSides(s...)
+	top, right, bottom, left, rowSeparator, columnSeparator := m.whichSides(s...)
 	m.table.
 		BorderTop(top).
 		BorderRight(right).
@@ -177,6 +196,60 @@ func (m *Model) SetBorder(s ...bool) {
 		BorderLeft(left).
 		BorderRow(rowSeparator).
 		BorderColumn(columnSeparator)
+}
+
+// Border sets the top border.
+func (m *Model) Border(border lipgloss.Border) *Model {
+	m.table.Border(border)
+	return m
+}
+
+// BorderBottom sets the bottom border.
+func (m *Model) BorderBottom(v bool) *Model {
+	m.table.BorderBottom(v)
+	return m
+}
+
+// BorderTop sets the top border.
+func (m *Model) BorderTop(v bool) *Model {
+	m.table.BorderTop(v)
+	return m
+}
+
+// BorderLeft sets the left border.
+func (m *Model) BorderLeft(v bool) *Model {
+	m.table.BorderLeft(v)
+	return m
+}
+
+// BorderRight sets the right border.
+func (m *Model) BorderRight(v bool) *Model {
+	m.table.BorderRight(v)
+	return m
+}
+
+// BorderColumn sets the column border.
+func (m *Model) BorderColumn(v bool) *Model {
+	m.table.BorderColumn(v)
+	return m
+}
+
+// BorderHeader sets the header's border.
+func (m *Model) BorderHeader(v bool) *Model {
+	m.table.BorderHeader(v)
+	return m
+}
+
+// BorderRow sets the row borders.
+func (m *Model) BorderRow(v bool) *Model {
+	m.table.BorderRow(v)
+	return m
+}
+
+// BorderStyle sets the style for the table border.
+func (m *Model) BorderStyle(style lipgloss.Style) *Model {
+	m.table.BorderStyle(style)
+	return m
 }
 
 // whichSides is a helper method for setting values on sides of a block based on
@@ -188,10 +261,10 @@ func (m *Model) SetBorder(s ...bool) {
 // 4: top -> right -> bottom -> left
 // 5: top -> right -> bottom -> left -> rowSeparator
 // 6: top -> right -> bottom -> left -> rowSeparator -> columnSeparator
-func whichSides(s ...bool) (top, right, bottom, left, rowSeparator, columnSeparator bool) {
+func (m Model) whichSides(s ...bool) (top, right, bottom, left, rowSeparator, columnSeparator bool) {
 	// set the separators to true unless otherwise set.
-	rowSeparator = true
-	columnSeparator = true
+	rowSeparator = m.styles.BorderRow
+	columnSeparator = m.styles.BorderColumn
 
 	switch len(s) {
 	case 1:
@@ -230,10 +303,10 @@ func whichSides(s ...bool) (top, right, bottom, left, rowSeparator, columnSepara
 		rowSeparator = s[4]
 		columnSeparator = s[5]
 	default:
-		top = true
-		right = true
-		bottom = true
-		left = true
+		top = m.styles.BorderTop
+		right = m.styles.BorderRight
+		bottom = m.styles.BorderBottom
+		left = m.styles.BorderLeft
 	}
 	return top, right, bottom, left, rowSeparator, columnSeparator
 }
