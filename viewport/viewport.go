@@ -3,7 +3,6 @@ package viewport
 import (
 	"fmt"
 	"math"
-	"regexp"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -80,23 +79,22 @@ type Model struct {
 
 	initialized      bool
 	lines            []string
+	lineWidths       []int
 	longestLineWidth int
 
 	SearchMatchStyle          lipgloss.Style
 	SearchHighlightMatchStyle lipgloss.Style
 
-	searchRE             *regexp.Regexp
-	matches              [][][]int
+	highlights           []highlightInfo
 	matchIndex           int
-	currentMatch         matched
 	memoizedMatchedLines []string
 }
 
-type matched struct {
+type highlightInfo struct {
 	line, start, end int
 }
 
-func (m matched) eq(line int, match []int) bool {
+func (m highlightInfo) eq(line int, match []int) bool {
 	return line == m.line && match[0] == m.start && match[1] == m.end
 }
 
@@ -186,11 +184,15 @@ func (m Model) HorizontalScrollPercent() float64 {
 func (m *Model) SetContent(s string) {
 	s = strings.ReplaceAll(s, "\r\n", "\n") // normalize line endings
 	m.lines = strings.Split(s, "\n")
-	m.longestLineWidth = findLongestLineWidth(m.lines)
+	m.lineWidths, m.longestLineWidth = calcLineWidths(m.lines)
 
 	if m.YOffset > len(m.lines)-1 {
 		m.GotoBottom()
 	}
+}
+
+func (m Model) GetContent() string {
+	return strings.Join(m.lines, "\n")
 }
 
 // maxYOffset returns the maximum possible value of the y-offset based on the
@@ -215,10 +217,16 @@ func (m Model) maxHeight() int {
 	return m.Height - m.Style.GetVerticalFrameSize()
 }
 
-func (m Model) makeRanges(lmatches [][]int) []lipgloss.Range {
-	result := make([]lipgloss.Range, len(lmatches))
-	for i, match := range lmatches {
-		result[i] = lipgloss.NewRange(match[0], match[1], m.SearchMatchStyle)
+func (m Model) makeRanges(line int) []lipgloss.Range {
+	result := []lipgloss.Range{}
+	for _, match := range m.highlights {
+		if line > match.line {
+			continue
+		}
+		if match.line > line {
+			break
+		}
+		result = append(result, lipgloss.NewRange(match.start, match.end, m.SearchMatchStyle))
 	}
 	return result
 }
@@ -234,19 +242,23 @@ func (m Model) visibleLines() (lines []string) {
 		bottom := clamp(m.YOffset+maxHeight, top, len(m.lines))
 		lines = make([]string, bottom-top)
 		copy(lines, m.lines[top:bottom])
-		if len(m.matches) > 0 {
-			for i, lmatches := range m.matches[top:bottom] {
+		if len(m.highlights) > 0 {
+			for i := range lines {
 				if memoized := m.memoizedMatchedLines[i+top]; memoized != "" {
 					lines[i] = memoized
 				} else {
-					lines[i] = lipgloss.StyleRanges(lines[i], m.makeRanges(lmatches))
+					lines[i] = lipgloss.StyleRanges(lines[i], m.makeRanges(i+top))
 					m.memoizedMatchedLines[i+top] = lines[i]
 				}
-				if m.currentMatch.line == i+top {
+				if m.matchIndex < 0 {
+					continue
+				}
+				sel := m.highlights[m.matchIndex]
+				if sel.line == i+top {
 					lines[i] = lipgloss.StyleRange(
 						lines[i],
-						m.currentMatch.start,
-						m.currentMatch.end,
+						sel.start,
+						sel.end,
 						m.SearchHighlightMatchStyle,
 					)
 				}
@@ -389,7 +401,7 @@ func (m *Model) LineDown(n int) (lines []string) {
 	// greater than the number of lines we actually have left before we reach
 	// the bottom.
 	m.SetYOffset(m.YOffset + n)
-	m.nearestMatchFromYOffset()
+	m.matchIndex = m.nearestMatchFromYOffset()
 
 	// Gather lines to send off for performance scrolling.
 	//
@@ -409,7 +421,7 @@ func (m *Model) LineUp(n int) (lines []string) {
 	// Make sure the number of lines by which we're going to scroll isn't
 	// greater than the number of lines we are from the top.
 	m.SetYOffset(m.YOffset - n)
-	m.nearestMatchFromYOffset()
+	m.matchIndex = m.nearestMatchFromYOffset()
 
 	// Gather lines to send off for performance scrolling.
 	//
@@ -436,14 +448,14 @@ func (m *Model) GotoTop() (lines []string) {
 	}
 
 	m.SetYOffset(0)
-	m.nearestMatchFromYOffset()
+	m.matchIndex = m.nearestMatchFromYOffset()
 	return m.visibleLines()
 }
 
 // GotoBottom sets the viewport to the bottom position.
 func (m *Model) GotoBottom() (lines []string) {
 	m.SetYOffset(m.maxYOffset())
-	m.nearestMatchFromYOffset()
+	m.matchIndex = m.nearestMatchFromYOffset()
 	return m.visibleLines()
 }
 
@@ -527,96 +539,96 @@ func (m *Model) ResetIndent() {
 	m.xOffset = 0
 }
 
-func (m *Model) ClearSearch() {
-	m.searchRE = nil
-	m.matches = nil
+// SetHighligths sets ranges of characters to highlight.
+// For instance, `[]int{[]int{2, 10}, []int{20, 30}}` will highlight characters
+// 2 to 10 and 20 to 30.
+// Note that highlights are not expected to transpose each other, and are also
+// expected to be in order.
+func (m *Model) SetHighligths(matches [][]int) {
+	if len(matches) == 0 || len(m.lines) == 0 {
+		return
+	}
+	m.highlights = []highlightInfo{}
+	m.memoizedMatchedLines = make([]string, len(m.lines))
+
+	line := 0
+	processed := 0
+	for _, match := range matches {
+		start, end := match[0], match[1]
+		if line == len(m.lineWidths)-1 {
+			break
+		}
+
+		for line < len(m.lineWidths) {
+			width := m.lineWidths[line]
+
+			// fmt.Printf("Inside Loop: start=%d end=%d processed=%d line=%d width=%d\n", start, end, processed, line, width)
+
+			if start > processed+width {
+				line++
+				processed += width
+				continue
+			}
+
+			hi := highlightInfo{
+				line,
+				max(0, start-processed),
+				clamp(end-processed, start-processed, width-1), // discount \n
+			}
+			m.highlights = append(m.highlights, hi)
+			if hi.end == end {
+				// done with this highligh!
+				break
+			}
+			processed += width
+			line++
+		}
+	}
+
+	// fmt.Println("AQUI", matches, m.highlights)
+
+	m.matchIndex = m.nearestMatchFromYOffset()
+	if m.matchIndex == 1 {
+		return
+	}
+	current := m.highlights[m.matchIndex]
+	m.EnsureVisible(current.line, current.start)
+}
+
+// ClearHighlights clears previously set highlights.
+func (m *Model) ClearHighlights() {
 	m.memoizedMatchedLines = nil
-	m.currentMatch = matched{}
+	m.highlights = nil
 	m.matchIndex = -1
 }
 
-func (m *Model) Search(r *regexp.Regexp) {
-	m.ClearSearch()
-	m.searchRE = r
-	m.matches = make([][][]int, len(m.lines))
-	m.memoizedMatchedLines = make([]string, len(m.lines))
-	for i, line := range m.lines {
-		found := r.FindAllStringIndex(ansi.Strip(line), -1)
-		m.matches[i] = found
+func (m *Model) HightlightNext() {
+	if m.highlights == nil {
+		return
 	}
-	m.nearestMatchFromYOffset()
-	m.EnsureVisible(m.currentMatch.line, m.currentMatch.start)
+
+	m.matchIndex = clamp(m.matchIndex+1, 0, len(m.highlights)-1)
+	current := m.highlights[m.matchIndex]
+	m.EnsureVisible(current.line, current.start)
 }
 
-func (m *Model) NextMatch() {
-	if m.matches == nil {
+func (m *Model) HighlightPrevious() {
+	if m.highlights == nil || m.matchIndex <= 0 {
 		return
 	}
 
-	got, ok := m.findMatch(m.matchIndex + 1)
-	if ok {
-		m.currentMatch = got
-		m.EnsureVisible(got.line, got.start)
-		m.matchIndex++
-		return
-	}
+	m.matchIndex = clamp(m.matchIndex-1, 0, len(m.highlights)-1)
+	current := m.highlights[m.matchIndex]
+	m.EnsureVisible(current.line, current.start)
 }
 
-func (m *Model) PreviousMatch() {
-	if m.matches == nil || m.matchIndex <= 0 {
-		return
-	}
-
-	got, ok := m.findMatch(m.matchIndex - 1)
-	if ok {
-		m.currentMatch = got
-		m.EnsureVisible(got.line, got.start)
-		m.matchIndex--
-		return
-	}
-}
-
-func (m *Model) nearestMatchFromYOffset() {
-	if m.matches == nil {
-		return
-	}
-
-	totalMatches := 0
-	for i, match := range m.matches {
-		if len(match) == 0 {
-			continue
+func (m Model) nearestMatchFromYOffset() int { // TODO: rename
+	for i, match := range m.highlights {
+		if match.line >= m.YOffset {
+			return i
 		}
-		if i >= m.YOffset {
-			m.currentMatch = matched{
-				line:  i,
-				start: match[0][0],
-				end:   match[0][1],
-			}
-			m.matchIndex = totalMatches
-			return
-		}
-		totalMatches += len(match)
 	}
-}
-
-func (m *Model) findMatch(idx int) (matched, bool) {
-	totalMatches := 0
-	for i, lineMatches := range m.matches {
-		if len(lineMatches) == 0 {
-			continue
-		}
-		if idx < totalMatches+len(lineMatches) {
-			matchInLine := idx - totalMatches
-			match := lineMatches[matchInLine]
-			return matched{
-				line:  i,
-				start: match[0],
-				end:   match[1],
-			}, true
-		}
-		totalMatches += len(lineMatches)
-	}
-	return matched{}, false
+	return -1
 }
 
 // Update handles standard message-based viewport updates.
@@ -754,12 +766,15 @@ func max(a, b int) int {
 	return b
 }
 
-func findLongestLineWidth(lines []string) int {
-	w := 0
-	for _, l := range lines {
-		if ww := ansi.StringWidth(l); ww > w {
-			w = ww
+func calcLineWidths(lines []string) ([]int, int) {
+	maxlen := 0
+	all := make([]int, 0, len(lines))
+	for _, line := range lines {
+		llen := ansi.StringWidth(line)
+		all = append(all, llen+1) // account for "\n"
+		if llen > maxlen {
+			maxlen = llen
 		}
 	}
-	return w
+	return all, maxlen
 }
