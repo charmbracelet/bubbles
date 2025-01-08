@@ -3,6 +3,7 @@ package viewport
 import (
 	"fmt"
 	"math"
+	"regexp"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -80,6 +81,22 @@ type Model struct {
 	initialized      bool
 	lines            []string
 	longestLineWidth int
+
+	SearchMatchStyle          lipgloss.Style
+	SearchHighlightMatchStyle lipgloss.Style
+
+	searchRE             *regexp.Regexp
+	currentMatch         matched
+	memoizedMatchedLines []string
+	matches              [][][]int
+}
+
+type matched struct {
+	line, colStart, colEnd int
+}
+
+func (m matched) eq(line int, match []int) bool {
+	return line == m.line && match[0] == m.colStart && match[1] == m.colEnd
 }
 
 // GutterFunc can be implemented and set into [Model.LeftGutterFunc].
@@ -193,6 +210,26 @@ func (m Model) visibleLines() (lines []string) {
 		top := max(0, m.YOffset)
 		bottom := clamp(m.YOffset+maxHeight, top, len(m.lines))
 		lines = m.lines[top:bottom]
+		if len(m.matches) > 0 {
+			for i, lmatches := range m.matches[top:bottom] {
+				if memoized := m.memoizedMatchedLines[i+top]; memoized != "" {
+					lines[i] = memoized
+				} else {
+					for _, match := range lmatches {
+						lines[i] = lipgloss.StyleRange(lines[i], match[0], match[1], m.SearchMatchStyle)
+						m.memoizedMatchedLines[i+top] = lines[i]
+					}
+				}
+				if m.currentMatch.line == i+top {
+					lines[i] = lipgloss.StyleRange(
+						lines[i],
+						m.currentMatch.colStart,
+						m.currentMatch.colEnd,
+						m.SearchHighlightMatchStyle,
+					)
+				}
+			}
+		}
 	}
 
 	for len(lines) < maxHeight {
@@ -436,6 +473,23 @@ func (m *Model) MoveRight(cols int) {
 // Resets lines indent to zero.
 func (m *Model) ResetIndent() {
 	m.xOffset = 0
+}
+
+func (m *Model) Search(r *regexp.Regexp) {
+	m.searchRE = r
+	m.matches = make([][][]int, len(m.lines))
+	m.memoizedMatchedLines = make([]string, len(m.lines))
+	m.currentMatch = matched{}
+	for i, line := range m.lines {
+		found := r.FindAllStringIndex(ansi.Strip(line), -1)
+		m.matches[i] = found
+	}
+	for i, match := range m.matches {
+		if len(match) > 0 && len(match[0]) > 0 {
+			m.currentMatch = matched{line: i, colStart: match[0][0], colEnd: match[0][1]}
+			break
+		}
+	}
 }
 
 // Update handles standard message-based viewport updates.

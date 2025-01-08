@@ -32,3 +32,5 @@ require (
 	golang.org/x/sys v0.26.0 // indirect
 	golang.org/x/text v0.3.8 // indirect
 )
+
+replace github.com/charmbracelet/lipgloss => ../lipgloss
