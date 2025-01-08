@@ -103,8 +103,8 @@ func (m matched) eq(line int, match []int) bool {
 // GutterFunc can be implemented and set into [Model.LeftGutterFunc].
 type GutterFunc func(GutterContext) string
 
-// LineNumbersGutter return a [GutterFunc] that shows line numbers.
-func LineNumbersGutter(style lipgloss.Style) GutterFunc {
+// LineNumberGutter return a [GutterFunc] that shows line numbers.
+func LineNumberGutter(style lipgloss.Style) GutterFunc {
 	return func(info GutterContext) string {
 		if info.Soft {
 			return style.Render("     │ ")
