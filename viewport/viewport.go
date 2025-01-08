@@ -1,6 +1,7 @@
 package viewport
 
 import (
+	"fmt"
 	"math"
 	"strings"
 
@@ -28,6 +29,10 @@ type Model struct {
 	Width  int
 	Height int
 	KeyMap KeyMap
+
+	// Whether or not to wrap text. If false, it'll allow horizontal scrolling
+	// instead.
+	SoftWrap bool
 
 	// Whether or not to respond to the mouse. The mouse must be enabled in
 	// Bubble Tea for this to work. For details, see the Bubble Tea docs.
@@ -66,15 +71,41 @@ type Model struct {
 	// Deprecated: high performance rendering is now deprecated in Bubble Tea.
 	HighPerformanceRendering bool
 
-	// ColumnSignFn allows to define a function that adds a column into the
+	// LeftGutterFunc allows to define a function that adds a column into the
 	// left of the viewpart, which is kept when horizontal scrolling.
-	// Thing line numbers, selection indicators, and etc.
-	// Argument [i] is the 0-indexed line, [total] is the total amount of lines.
-	ColumnSignFn func(i, total int) string
+	// This should help support things like line numbers, selection indicators,
+	// and etc.
+	LeftGutterFunc GutterFunc
 
 	initialized      bool
 	lines            []string
 	longestLineWidth int
+}
+
+// GutterFunc can be implemented and set into [Model.LeftGutterFunc].
+type GutterFunc func(GutterContext) string
+
+// LineNumbersGutter return a [GutterFunc] that shows line numbers.
+func LineNumbersGutter(style lipgloss.Style) GutterFunc {
+	return func(info GutterContext) string {
+		if info.Soft {
+			return style.Render("     │ ")
+		}
+		if info.Index >= info.TotalLines {
+			return style.Render("   ~ │ ")
+		}
+		return style.Render(fmt.Sprintf("%4d │ ", info.Index+1))
+	}
+}
+
+// NoGutter is the default gutter used.
+var NoGutter = func(GutterContext) string { return "" }
+
+// GutterContext provides context to a [GutterFunc].
+type GutterContext struct {
+	Index      int
+	TotalLines int
+	Soft       bool
 }
 
 func (m *Model) setInitialValues() {
@@ -83,7 +114,7 @@ func (m *Model) setInitialValues() {
 	m.MouseWheelDelta = 3
 	m.initialized = true
 	m.horizontalStep = defaultHorizontalStep
-	m.ColumnSignFn = func(int, int) string { return "" }
+	m.LeftGutterFunc = NoGutter
 }
 
 // Init exists to satisfy the tea.Model interface for composability purposes.
@@ -153,28 +184,45 @@ func (m Model) maxYOffset() int {
 // visibleLines returns the lines that should currently be visible in the
 // viewport.
 func (m Model) visibleLines() (lines []string) {
-	h := m.Height - m.Style.GetVerticalFrameSize()
-	w := m.Width -
+	maxHeight := m.Height - m.Style.GetVerticalFrameSize()
+	maxWidth := m.Width -
 		m.Style.GetHorizontalFrameSize() -
-		lipgloss.Width(m.ColumnSignFn(0, 0))
+		lipgloss.Width(m.LeftGutterFunc(GutterContext{}))
 
 	if len(m.lines) > 0 {
 		top := max(0, m.YOffset)
-		bottom := clamp(m.YOffset+h, top, len(m.lines))
+		bottom := clamp(m.YOffset+maxHeight, top, len(m.lines))
 		lines = m.lines[top:bottom]
 	}
 
-	for len(lines) < h {
+	for len(lines) < maxHeight {
 		lines = append(lines, "")
 	}
 
-	if (m.xOffset == 0 && m.longestLineWidth <= w) || w == 0 {
+	if (m.xOffset == 0 && m.longestLineWidth <= maxWidth) || maxWidth == 0 {
 		return m.prependColumn(lines)
+	}
+
+	if m.SoftWrap {
+		var wrappedLines []string
+		for i, line := range lines {
+			idx := 0
+			for ansi.StringWidth(line) >= idx {
+				truncatedLine := ansi.Cut(line, idx, maxWidth+idx)
+				wrappedLines = append(wrappedLines, m.LeftGutterFunc(GutterContext{
+					Index:      i + m.YOffset,
+					TotalLines: m.TotalLineCount(),
+					Soft:       idx > 0,
+				})+truncatedLine)
+				idx += maxWidth
+			}
+		}
+		return wrappedLines
 	}
 
 	cutLines := make([]string, len(lines))
 	for i := range lines {
-		cutLines[i] = ansi.Cut(lines[i], m.xOffset, m.xOffset+w)
+		cutLines[i] = ansi.Cut(lines[i], m.xOffset, m.xOffset+maxWidth)
 	}
 	return m.prependColumn(cutLines)
 }
@@ -182,7 +230,10 @@ func (m Model) visibleLines() (lines []string) {
 func (m Model) prependColumn(lines []string) []string {
 	result := make([]string, len(lines))
 	for i, line := range lines {
-		result[i] = m.ColumnSignFn(i+m.YOffset, m.TotalLineCount()) + line
+		result[i] = m.LeftGutterFunc(GutterContext{
+			Index:      i + m.YOffset,
+			TotalLines: m.TotalLineCount(),
+		}) + line
 	}
 	return result
 }
@@ -375,7 +426,7 @@ func (m *Model) MoveRight(cols int) {
 	// prevents over scrolling to the right
 	w := m.Width -
 		m.Style.GetHorizontalFrameSize() -
-		lipgloss.Width(m.ColumnSignFn(0, 0))
+		lipgloss.Width(m.LeftGutterFunc(GutterContext{}))
 	if m.xOffset > m.longestLineWidth-w {
 		return
 	}
