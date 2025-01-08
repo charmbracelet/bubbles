@@ -86,17 +86,18 @@ type Model struct {
 	SearchHighlightMatchStyle lipgloss.Style
 
 	searchRE             *regexp.Regexp
+	matches              [][][]int
+	matchIndex           int
 	currentMatch         matched
 	memoizedMatchedLines []string
-	matches              [][][]int
 }
 
 type matched struct {
-	line, colStart, colEnd int
+	line, start, end int
 }
 
 func (m matched) eq(line int, match []int) bool {
-	return line == m.line && match[0] == m.colStart && match[1] == m.colEnd
+	return line == m.line && match[0] == m.start && match[1] == m.end
 }
 
 // GutterFunc can be implemented and set into [Model.LeftGutterFunc].
@@ -198,6 +199,12 @@ func (m Model) maxYOffset() int {
 	return max(0, len(m.lines)-m.Height)
 }
 
+// maxXOffset returns the maximum possible value of the x-offset based on the
+// viewport's content and set width.
+func (m Model) maxXOffset() int {
+	return max(0, m.longestLineWidth-m.Width)
+}
+
 // visibleLines returns the lines that should currently be visible in the
 // viewport.
 func (m Model) visibleLines() (lines []string) {
@@ -223,8 +230,8 @@ func (m Model) visibleLines() (lines []string) {
 				if m.currentMatch.line == i+top {
 					lines[i] = lipgloss.StyleRange(
 						lines[i],
-						m.currentMatch.colStart,
-						m.currentMatch.colEnd,
+						m.currentMatch.start,
+						m.currentMatch.end,
 						m.SearchHighlightMatchStyle,
 					)
 				}
@@ -290,6 +297,28 @@ func (m Model) scrollArea() (top, bottom int) {
 // SetYOffset sets the Y offset.
 func (m *Model) SetYOffset(n int) {
 	m.YOffset = clamp(n, 0, m.maxYOffset())
+}
+
+// SetXOffset sets the X offset.
+func (m *Model) SetXOffset(n int) {
+	m.xOffset = clamp(n, 0, m.maxXOffset())
+}
+
+func (m *Model) EnsureVisible(line, col int) {
+	maxHeight := m.Height - m.Style.GetVerticalFrameSize()
+	maxWidth := m.Width -
+		m.Style.GetHorizontalFrameSize() -
+		lipgloss.Width(m.LeftGutterFunc(GutterContext{}))
+	if line > maxHeight {
+		m.SetYOffset(line)
+	} else {
+		m.SetYOffset(0)
+	}
+	if col > maxWidth {
+		m.SetXOffset(col)
+	} else {
+		m.SetXOffset(0)
+	}
 }
 
 // ViewDown moves the view down by the number of lines in the viewport.
@@ -480,16 +509,66 @@ func (m *Model) Search(r *regexp.Regexp) {
 	m.matches = make([][][]int, len(m.lines))
 	m.memoizedMatchedLines = make([]string, len(m.lines))
 	m.currentMatch = matched{}
+	m.matchIndex = -1
 	for i, line := range m.lines {
 		found := r.FindAllStringIndex(ansi.Strip(line), -1)
 		m.matches[i] = found
 	}
 	for i, match := range m.matches {
 		if len(match) > 0 && len(match[0]) > 0 {
-			m.currentMatch = matched{line: i, colStart: match[0][0], colEnd: match[0][1]}
+			m.currentMatch = matched{line: i, start: match[0][0], end: match[0][1]}
+			m.matchIndex = 0
 			break
 		}
 	}
+}
+
+func (m *Model) NextMatch() {
+	if m.matches == nil || m.matchIndex == -1 {
+		return
+	}
+
+	got, ok := m.findMatch(m.matchIndex + 1)
+	if ok {
+		m.currentMatch = got
+		m.EnsureVisible(got.line, got.start)
+		m.matchIndex++
+		return
+	}
+}
+
+func (m *Model) PreviousMatch() {
+	if m.matches == nil || m.matchIndex <= 0 {
+		return
+	}
+
+	got, ok := m.findMatch(m.matchIndex - 1)
+	if ok {
+		m.currentMatch = got
+		m.EnsureVisible(got.line, got.start)
+		m.matchIndex--
+		return
+	}
+}
+
+func (m *Model) findMatch(idx int) (matched, bool) {
+	totalMatches := 0
+	for i, lineMatches := range m.matches {
+		if len(lineMatches) == 0 {
+			continue
+		}
+		if idx < totalMatches+len(lineMatches) {
+			matchInLine := idx - totalMatches
+			match := lineMatches[matchInLine]
+			return matched{
+				line:  i,
+				start: match[0],
+				end:   match[1],
+			}, true
+		}
+		totalMatches += len(lineMatches)
+	}
+	return matched{}, false
 }
 
 // Update handles standard message-based viewport updates.
