@@ -215,6 +215,14 @@ func (m Model) maxHeight() int {
 	return m.Height - m.Style.GetVerticalFrameSize()
 }
 
+func (m Model) makeRanges(lmatches [][]int) []lipgloss.Range {
+	result := make([]lipgloss.Range, len(lmatches))
+	for i, match := range lmatches {
+		result[i] = lipgloss.NewRange(match[0], match[1], m.SearchMatchStyle)
+	}
+	return result
+}
+
 // visibleLines returns the lines that should currently be visible in the
 // viewport.
 func (m Model) visibleLines() (lines []string) {
@@ -231,10 +239,8 @@ func (m Model) visibleLines() (lines []string) {
 				if memoized := m.memoizedMatchedLines[i+top]; memoized != "" {
 					lines[i] = memoized
 				} else {
-					for _, match := range lmatches {
-						lines[i] = lipgloss.StyleRange(lines[i], match[0], match[1], m.SearchMatchStyle)
-						m.memoizedMatchedLines[i+top] = lines[i]
-					}
+					lines[i] = lipgloss.StyleRanges(lines[i], m.makeRanges(lmatches))
+					m.memoizedMatchedLines[i+top] = lines[i]
 				}
 				if m.currentMatch.line == i+top {
 					lines[i] = lipgloss.StyleRange(
