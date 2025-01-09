@@ -71,10 +71,10 @@ type Model struct {
 	// Deprecated: high performance rendering is now deprecated in Bubble Tea.
 	HighPerformanceRendering bool
 
-	// LeftGutterFunc allows to define a function that adds a column into the
-	// left of the viewpart, which is kept when horizontal scrolling.
-	// This should help support things like line numbers, selection indicators,
-	// and etc.
+	// LeftGutterFunc allows to define a [GutterFunc] that adds a column into
+	// the left of the viewport, which is kept when horizontal scrolling.
+	// This can be used for things like line numbers, selection indicators,
+	// show statuses, etc.
 	LeftGutterFunc GutterFunc
 
 	initialized      bool
