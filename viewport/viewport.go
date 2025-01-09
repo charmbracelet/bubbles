@@ -82,20 +82,41 @@ type Model struct {
 	lineWidths       []int
 	longestLineWidth int
 
-	SearchMatchStyle          lipgloss.Style
-	SearchHighlightMatchStyle lipgloss.Style
+	// HighlightStyle highlights the ranges set with [SetHighligths].
+	HighlightStyle lipgloss.Style
+
+	// SelectedHighlightStyle highlights the highlight range focused during
+	// navigation.
+	// Use [SetHighligths] to set the highlight ranges, and [HightlightNext]
+	// and [HihglightPrevious] to navigate.
+	SelectedHighlightStyle lipgloss.Style
 
 	highlights           []highlightInfo
-	matchIndex           int
+	hiIdx                int
 	memoizedMatchedLines []string
 }
 
 type highlightInfo struct {
-	line, start, end int
+	lineStart, lineEnd int
+	lines              [][][2]int
 }
 
-func (m highlightInfo) eq(line int, match []int) bool {
-	return line == m.line && match[0] == m.start && match[1] == m.end
+func (hi highlightInfo) inLineRange(line int) bool {
+	return line >= hi.lineStart && line <= hi.lineEnd
+}
+
+func (hi highlightInfo) forLine(line int) [][2]int {
+	if !hi.inLineRange(line) {
+		return nil
+	}
+	return hi.lines[line-hi.lineStart]
+}
+
+func (hi highlightInfo) coords() (line int, col int) {
+	if len(hi.lines) == 0 {
+		return hi.lineStart, 0
+	}
+	return hi.lineStart, hi.lines[0][0][0]
 }
 
 // GutterFunc can be implemented and set into [Model.LeftGutterFunc].
@@ -219,14 +240,18 @@ func (m Model) maxHeight() int {
 
 func (m Model) makeRanges(line int) []lipgloss.Range {
 	result := []lipgloss.Range{}
-	for _, match := range m.highlights {
-		if line > match.line {
+	for _, hi := range m.highlights {
+		if !hi.inLineRange(line) {
+			// out of range
 			continue
 		}
-		if match.line > line {
-			break
+
+		for _, lihi := range hi.forLine(line) {
+			result = append(result, lipgloss.NewRange(
+				lihi[0], lihi[1],
+				m.HighlightStyle,
+			))
 		}
-		result = append(result, lipgloss.NewRange(match.start, match.end, m.SearchMatchStyle))
 	}
 	return result
 }
@@ -250,22 +275,26 @@ func (m Model) visibleLines() (lines []string) {
 					lines[i] = lipgloss.StyleRanges(lines[i], m.makeRanges(i+top))
 					m.memoizedMatchedLines[i+top] = lines[i]
 				}
-				if m.matchIndex < 0 {
+				if m.hiIdx < 0 {
 					continue
 				}
-				sel := m.highlights[m.matchIndex]
-				if sel.line == i+top {
+				sel := m.highlights[m.hiIdx]
+				if hi := sel.forLine(i + top); hi != nil {
+					if len(hi) == 0 {
+						continue
+					}
 					lines[i] = lipgloss.StyleRange(
 						lines[i],
-						sel.start,
-						sel.end,
-						m.SearchHighlightMatchStyle,
+						hi[0][0],
+						hi[0][1],
+						m.SelectedHighlightStyle,
 					)
 				}
 			}
 		}
 	}
 
+	// FIXME: make optional
 	for len(lines) < maxHeight {
 		lines = append(lines, "")
 	}
@@ -334,6 +363,7 @@ func (m *Model) SetXOffset(n int) {
 	m.xOffset = clamp(n, 0, m.maxXOffset())
 }
 
+// EnsureVisible ensures that the given line and column are in the viewport.
 func (m *Model) EnsureVisible(line, col int) {
 	maxHeight := m.maxHeight()
 	maxWidth := m.maxWidth()
@@ -401,7 +431,7 @@ func (m *Model) LineDown(n int) (lines []string) {
 	// greater than the number of lines we actually have left before we reach
 	// the bottom.
 	m.SetYOffset(m.YOffset + n)
-	m.matchIndex = m.nearestMatchFromYOffset()
+	m.hiIdx = m.findNearedtMatch()
 
 	// Gather lines to send off for performance scrolling.
 	//
@@ -421,7 +451,7 @@ func (m *Model) LineUp(n int) (lines []string) {
 	// Make sure the number of lines by which we're going to scroll isn't
 	// greater than the number of lines we are from the top.
 	m.SetYOffset(m.YOffset - n)
-	m.matchIndex = m.nearestMatchFromYOffset()
+	m.hiIdx = m.findNearedtMatch()
 
 	// Gather lines to send off for performance scrolling.
 	//
@@ -448,14 +478,14 @@ func (m *Model) GotoTop() (lines []string) {
 	}
 
 	m.SetYOffset(0)
-	m.matchIndex = m.nearestMatchFromYOffset()
+	m.hiIdx = m.findNearedtMatch()
 	return m.visibleLines()
 }
 
 // GotoBottom sets the viewport to the bottom position.
 func (m *Model) GotoBottom() (lines []string) {
 	m.SetYOffset(m.maxYOffset())
-	m.matchIndex = m.nearestMatchFromYOffset()
+	m.hiIdx = m.findNearedtMatch()
 	return m.visibleLines()
 }
 
@@ -544,6 +574,9 @@ func (m *Model) ResetIndent() {
 // 2 to 10 and 20 to 30.
 // Note that highlights are not expected to transpose each other, and are also
 // expected to be in order.
+// Use [SetHighligths] to set the highlight ranges, and [HightlightNext]
+// and [HihglightPrevious] to navigate.
+// Use [ClearHighlights] to remove all highlights.
 func (m *Model) SetHighligths(matches [][]int) {
 	if len(matches) == 0 || len(m.lines) == 0 {
 		return
@@ -553,53 +586,78 @@ func (m *Model) SetHighligths(matches [][]int) {
 
 	line := 0
 	processed := 0
+
 	for _, match := range matches {
 		start, end := match[0], match[1]
-		if line == len(m.lineWidths)-1 {
-			break
+
+		// safety check
+		// XXX: return an error instead
+		if start > end {
+			panic(fmt.Sprintf("invalid match: %d, %d", start, end))
 		}
 
+		hi := highlightInfo{}
+		hiline := [][2]int{}
 		for line < len(m.lineWidths) {
 			width := m.lineWidths[line]
 
-			// fmt.Printf("Inside Loop: start=%d end=%d processed=%d line=%d width=%d\n", start, end, processed, line, width)
-
+			// out of bounds
 			if start > processed+width {
 				line++
 				processed += width
 				continue
 			}
 
-			hi := highlightInfo{
-				line,
-				max(0, start-processed),
-				clamp(end-processed, start-processed, width-1), // discount \n
+			colstart := max(0, start-processed)
+			colend := clamp(end-processed, colstart, width)
+
+			if start >= processed && start <= processed+width {
+				hi.lineStart = line
 			}
-			m.highlights = append(m.highlights, hi)
-			if hi.end == end {
-				// done with this highligh!
+			if end <= processed+width {
+				hi.lineEnd = line
+			}
+
+			// fmt.Printf(
+			// 	"line=%d linestart=%d lineend=%d colstart=%d colend=%d start=%d end=%d processed=%d width=%d hi=%+v\n",
+			// 	line, hi.lineStart, hi.lineEnd, colstart, colend, start, end, processed, width, hi,
+			// )
+
+			hiline = append(hiline, [2]int{colstart, colend})
+			if end > processed+width {
+				if colend > 0 {
+					hi.lines = append(hi.lines, hiline)
+				}
+				hiline = [][2]int{}
+				line++
+				processed += width
+				continue
+			}
+			if end <= processed+width {
+				if colend > 0 {
+					hi.lines = append(hi.lines, hiline)
+				}
+				hiline = [][2]int{}
 				break
 			}
-			processed += width
-			line++
 		}
+		m.highlights = append(m.highlights, hi)
+
 	}
 
-	// fmt.Println("AQUI", matches, m.highlights)
-
-	m.matchIndex = m.nearestMatchFromYOffset()
-	if m.matchIndex == 1 {
+	m.hiIdx = m.findNearedtMatch()
+	if m.hiIdx == -1 {
 		return
 	}
-	current := m.highlights[m.matchIndex]
-	m.EnsureVisible(current.line, current.start)
+	line, col := m.highlights[m.hiIdx].coords()
+	m.EnsureVisible(line, col)
 }
 
 // ClearHighlights clears previously set highlights.
 func (m *Model) ClearHighlights() {
 	m.memoizedMatchedLines = nil
 	m.highlights = nil
-	m.matchIndex = -1
+	m.hiIdx = -1
 }
 
 func (m *Model) HightlightNext() {
@@ -607,24 +665,24 @@ func (m *Model) HightlightNext() {
 		return
 	}
 
-	m.matchIndex = clamp(m.matchIndex+1, 0, len(m.highlights)-1)
-	current := m.highlights[m.matchIndex]
-	m.EnsureVisible(current.line, current.start)
+	m.hiIdx = (m.hiIdx + 1) % len(m.highlights)
+	line, col := m.highlights[m.hiIdx].coords()
+	m.EnsureVisible(line, col)
 }
 
 func (m *Model) HighlightPrevious() {
-	if m.highlights == nil || m.matchIndex <= 0 {
+	if m.highlights == nil {
 		return
 	}
 
-	m.matchIndex = clamp(m.matchIndex-1, 0, len(m.highlights)-1)
-	current := m.highlights[m.matchIndex]
-	m.EnsureVisible(current.line, current.start)
+	m.hiIdx = (m.hiIdx - 1 + len(m.highlights)) % len(m.highlights)
+	line, col := m.highlights[m.hiIdx].coords()
+	m.EnsureVisible(line, col)
 }
 
-func (m Model) nearestMatchFromYOffset() int { // TODO: rename
+func (m Model) findNearedtMatch() int {
 	for i, match := range m.highlights {
-		if match.line >= m.YOffset {
+		if match.lineStart >= m.YOffset {
 			return i
 		}
 	}

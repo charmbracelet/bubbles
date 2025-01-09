@@ -1,6 +1,8 @@
 package viewport
 
 import (
+	"reflect"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -378,6 +380,95 @@ func TestRightOverscroll(t *testing.T) {
 
 		if visibleLine != content {
 			t.Error("visible line should stay the same as content")
+		}
+	})
+}
+
+func TestMatchesToHighlights(t *testing.T) {
+	text := `hello
+world`
+	vt := New(100, 100)
+	vt.SetContent(text)
+
+	t.Run("first", func(t *testing.T) {
+		vt.SetHighligths(regexp.MustCompile("hello").FindAllStringIndex(vt.GetContent(), -1))
+		expect := []highlightInfo{
+			{
+				lineStart: 0,
+				lineEnd:   0,
+				lines: [][][2]int{
+					{{0, 5}},
+				},
+			},
+		}
+		if !reflect.DeepEqual(expect, vt.highlights) {
+			t.Errorf("expect %+v, got %+v", expect, vt.highlights)
+		}
+	})
+
+	t.Run("multiple", func(t *testing.T) {
+		matches := regexp.MustCompile("l").FindAllStringIndex(vt.GetContent(), -1)
+		vt.SetHighligths(matches)
+		expect := []highlightInfo{
+			{
+				lineStart: 0,
+				lineEnd:   0,
+				lines: [][][2]int{
+					{{2, 3}},
+				},
+			},
+			{
+				lineStart: 0,
+				lineEnd:   0,
+				lines: [][][2]int{
+					{{3, 4}},
+				},
+			},
+			{
+				lineStart: 1,
+				lineEnd:   1,
+				lines: [][][2]int{
+					{{3, 4}},
+				},
+			},
+		}
+		if !reflect.DeepEqual(expect, vt.highlights) {
+			t.Errorf("expect %+v, got %+v", expect, vt.highlights)
+		}
+	})
+
+	t.Run("span lines", func(t *testing.T) {
+		matches := regexp.MustCompile("lo\nwo").FindAllStringIndex(vt.GetContent(), -1)
+		vt.SetHighligths(matches)
+		expect := []highlightInfo{
+			{
+				lineStart: 0,
+				lineEnd:   1,
+				lines: [][][2]int{
+					{{3, 6}},
+					{{0, 2}},
+				},
+			},
+		}
+		if !reflect.DeepEqual(expect, vt.highlights) {
+			t.Errorf("expect %+v, got %+v", expect, vt.highlights)
+		}
+	})
+
+	t.Run("ends with newline", func(t *testing.T) {
+		matches := regexp.MustCompile("lo\n").FindAllStringIndex(vt.GetContent(), -1)
+		vt.SetHighligths(matches)
+		expect := []highlightInfo{
+			{
+				lineStart: 0,
+				lineEnd:   0,
+				lines: [][][2]int{
+					{{3, 6}},
+				},
+			},
+		}
+		if !reflect.DeepEqual(expect, vt.highlights) {
+			t.Errorf("expect %+v, got %+v", expect, vt.highlights)
 		}
 	})
 }
