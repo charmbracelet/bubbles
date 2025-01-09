@@ -34,6 +34,9 @@ type Model struct {
 	// instead.
 	SoftWrap bool
 
+	// Whether or not to fill to the height of the viewport with empty lines.
+	FillHeight bool
+
 	// Whether or not to respond to the mouse. The mouse must be enabled in
 	// Bubble Tea for this to work. For details, see the Bubble Tea docs.
 	MouseWheelEnabled bool
@@ -258,8 +261,7 @@ func (m Model) visibleLines() (lines []string) {
 		}
 	}
 
-	// FIXME: make optional
-	for len(lines) < maxHeight {
+	for m.FillHeight && len(lines) < maxHeight {
 		lines = append(lines, "")
 	}
 
