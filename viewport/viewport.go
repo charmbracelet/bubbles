@@ -237,7 +237,7 @@ func (m Model) visibleLines() (lines []string) {
 						i+top,
 						m.HighlightStyle,
 					)
-					lines[i] = lipgloss.StyleRanges(lines[i], ranges)
+					lines[i] = lipgloss.StyleRanges(lines[i], ranges...)
 					m.memoizedMatchedLines[i+top] = lines[i]
 				}
 				if m.hiIdx < 0 {
@@ -248,12 +248,11 @@ func (m Model) visibleLines() (lines []string) {
 					if len(hi) == 0 {
 						continue
 					}
-					lines[i] = lipgloss.StyleRange(
-						lines[i],
+					lines[i] = lipgloss.StyleRanges(lines[i], lipgloss.NewRange(
 						hi[0][0],
 						hi[0][1],
 						m.SelectedHighlightStyle,
-					)
+					))
 				}
 			}
 		}
