@@ -28,7 +28,7 @@ func parseMatches(
 			width := lineWidths[line]
 
 			// out of bounds
-			if start > processed+width {
+			if start >= processed+width {
 				line++
 				processed += width
 				continue
@@ -58,8 +58,8 @@ func parseMatches(
 				line++
 				processed += width
 				continue
-			}
-			if end <= processed+width {
+			} else {
+				// if end <= processed+width {
 				if colend > 0 {
 					hi.lines = append(hi.lines, hiline)
 				}
@@ -76,15 +76,11 @@ type highlightInfo struct {
 	lines              [][][2]int
 }
 
-func (hi highlightInfo) inLineRange(line int) bool {
-	return line >= hi.lineStart && line <= hi.lineEnd
-}
-
-func (hi highlightInfo) forLine(line int) [][2]int {
-	if !hi.inLineRange(line) {
-		return nil
+func (hi highlightInfo) forLine(line int) ([][2]int, bool) {
+	if line >= hi.lineStart && line <= hi.lineEnd {
+		return hi.lines[line-hi.lineStart], true
 	}
-	return hi.lines[line-hi.lineStart]
+	return nil, false
 }
 
 func (hi highlightInfo) coords() (line int, col int) {
@@ -101,16 +97,15 @@ func makeHilightRanges(
 ) []lipgloss.Range {
 	result := []lipgloss.Range{}
 	for _, hi := range highlights {
-		if !hi.inLineRange(line) {
-			// out of range
+		lihis, ok := hi.forLine(line)
+		if !ok {
 			continue
 		}
-
-		for _, lihi := range hi.forLine(line) {
-			result = append(result, lipgloss.NewRange(
-				lihi[0], lihi[1],
-				style,
-			))
+		for _, lihi := range lihis {
+			if lihi == [2]int{} {
+				continue
+			}
+			result = append(result, lipgloss.NewRange(lihi[0], lihi[1], style))
 		}
 	}
 	return result

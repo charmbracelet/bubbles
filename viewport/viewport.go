@@ -252,10 +252,7 @@ func (m Model) visibleLines() (lines []string) {
 					continue
 				}
 				sel := m.highlights[m.hiIdx]
-				if hi := sel.forLine(i + top); hi != nil {
-					if len(hi) == 0 {
-						continue
-					}
+				if hi, ok := sel.forLine(i + top); ok {
 					lines[i] = lipgloss.StyleRanges(lines[i], lipgloss.NewRange(
 						hi[0][0],
 						hi[0][1],

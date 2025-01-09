@@ -1,6 +1,7 @@
 package viewport
 
 import (
+	"fmt"
 	"reflect"
 	"regexp"
 	"strings"
@@ -386,7 +387,9 @@ func TestRightOverscroll(t *testing.T) {
 
 func TestMatchesToHighlights(t *testing.T) {
 	text := `hello
-world`
+world
+
+with empty rows`
 	vt := New(100, 100)
 	vt.SetContent(text)
 
@@ -464,6 +467,41 @@ world`
 				lineEnd:   0,
 				lines: [][][2]int{
 					{{3, 6}},
+				},
+			},
+		}
+		if !reflect.DeepEqual(expect, vt.highlights) {
+			t.Errorf("expect %+v, got %+v", expect, vt.highlights)
+		}
+	})
+
+	t.Run("empty lines in the text", func(t *testing.T) {
+		matches := regexp.MustCompile("ith").FindAllStringIndex(vt.GetContent(), -1)
+		vt.SetHighligths(matches)
+		expect := []highlightInfo{
+			{
+				lineStart: 3,
+				lineEnd:   3,
+				lines: [][][2]int{
+					{{1, 4}},
+				},
+			},
+		}
+		if !reflect.DeepEqual(expect, vt.highlights) {
+			t.Errorf("expect %+v, got %+v", expect, vt.highlights)
+		}
+	})
+
+	t.Run("empty lines in the text match start of new line", func(t *testing.T) {
+		matches := regexp.MustCompile("with").FindAllStringIndex(vt.GetContent(), -1)
+		t.Log("AQUIIII", matches, vt.GetContent()[matches[0][0]:matches[0][1]], fmt.Sprintf("%q", vt.GetContent()))
+		vt.SetHighligths(matches)
+		expect := []highlightInfo{
+			{
+				lineStart: 3,
+				lineEnd:   3,
+				lines: [][][2]int{
+					{{0, 4}},
 				},
 			},
 		}
