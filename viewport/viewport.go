@@ -185,6 +185,11 @@ func (m Model) HorizontalScrollPercent() float64 {
 func (m *Model) SetContent(s string) {
 	s = strings.ReplaceAll(s, "\r\n", "\n") // normalize line endings
 	m.lines = strings.Split(s, "\n")
+	// if there's no content, set content to actual nil instead of one empty
+	// line.
+	if len(m.lines) == 1 && ansi.StringWidth(m.lines[0]) == 0 {
+		m.lines = nil
+	}
 	m.lineWidths, m.longestLineWidth = calcLineWidths(m.lines)
 	m.ClearHighlights()
 
