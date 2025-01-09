@@ -96,29 +96,6 @@ type Model struct {
 	memoizedMatchedLines []string
 }
 
-type highlightInfo struct {
-	lineStart, lineEnd int
-	lines              [][][2]int
-}
-
-func (hi highlightInfo) inLineRange(line int) bool {
-	return line >= hi.lineStart && line <= hi.lineEnd
-}
-
-func (hi highlightInfo) forLine(line int) [][2]int {
-	if !hi.inLineRange(line) {
-		return nil
-	}
-	return hi.lines[line-hi.lineStart]
-}
-
-func (hi highlightInfo) coords() (line int, col int) {
-	if len(hi.lines) == 0 {
-		return hi.lineStart, 0
-	}
-	return hi.lineStart, hi.lines[0][0][0]
-}
-
 // GutterFunc can be implemented and set into [Model.LeftGutterFunc].
 type GutterFunc func(GutterContext) string
 
@@ -206,6 +183,7 @@ func (m *Model) SetContent(s string) {
 	s = strings.ReplaceAll(s, "\r\n", "\n") // normalize line endings
 	m.lines = strings.Split(s, "\n")
 	m.lineWidths, m.longestLineWidth = calcLineWidths(m.lines)
+	m.ClearHighlights()
 
 	if m.YOffset > len(m.lines)-1 {
 		m.GotoBottom()
@@ -238,24 +216,6 @@ func (m Model) maxHeight() int {
 	return m.Height - m.Style.GetVerticalFrameSize()
 }
 
-func (m Model) makeRanges(line int) []lipgloss.Range {
-	result := []lipgloss.Range{}
-	for _, hi := range m.highlights {
-		if !hi.inLineRange(line) {
-			// out of range
-			continue
-		}
-
-		for _, lihi := range hi.forLine(line) {
-			result = append(result, lipgloss.NewRange(
-				lihi[0], lihi[1],
-				m.HighlightStyle,
-			))
-		}
-	}
-	return result
-}
-
 // visibleLines returns the lines that should currently be visible in the
 // viewport.
 func (m Model) visibleLines() (lines []string) {
@@ -272,7 +232,12 @@ func (m Model) visibleLines() (lines []string) {
 				if memoized := m.memoizedMatchedLines[i+top]; memoized != "" {
 					lines[i] = memoized
 				} else {
-					lines[i] = lipgloss.StyleRanges(lines[i], m.makeRanges(i+top))
+					ranges := makeHilightRanges(
+						m.highlights,
+						i+top,
+						m.HighlightStyle,
+					)
+					lines[i] = lipgloss.StyleRanges(lines[i], ranges)
 					m.memoizedMatchedLines[i+top] = lines[i]
 				}
 				if m.hiIdx < 0 {
@@ -581,70 +546,8 @@ func (m *Model) SetHighligths(matches [][]int) {
 	if len(matches) == 0 || len(m.lines) == 0 {
 		return
 	}
-	m.highlights = []highlightInfo{}
 	m.memoizedMatchedLines = make([]string, len(m.lines))
-
-	line := 0
-	processed := 0
-
-	for _, match := range matches {
-		start, end := match[0], match[1]
-
-		// safety check
-		// XXX: return an error instead
-		if start > end {
-			panic(fmt.Sprintf("invalid match: %d, %d", start, end))
-		}
-
-		hi := highlightInfo{}
-		hiline := [][2]int{}
-		for line < len(m.lineWidths) {
-			width := m.lineWidths[line]
-
-			// out of bounds
-			if start > processed+width {
-				line++
-				processed += width
-				continue
-			}
-
-			colstart := max(0, start-processed)
-			colend := clamp(end-processed, colstart, width)
-
-			if start >= processed && start <= processed+width {
-				hi.lineStart = line
-			}
-			if end <= processed+width {
-				hi.lineEnd = line
-			}
-
-			// fmt.Printf(
-			// 	"line=%d linestart=%d lineend=%d colstart=%d colend=%d start=%d end=%d processed=%d width=%d hi=%+v\n",
-			// 	line, hi.lineStart, hi.lineEnd, colstart, colend, start, end, processed, width, hi,
-			// )
-
-			hiline = append(hiline, [2]int{colstart, colend})
-			if end > processed+width {
-				if colend > 0 {
-					hi.lines = append(hi.lines, hiline)
-				}
-				hiline = [][2]int{}
-				line++
-				processed += width
-				continue
-			}
-			if end <= processed+width {
-				if colend > 0 {
-					hi.lines = append(hi.lines, hiline)
-				}
-				hiline = [][2]int{}
-				break
-			}
-		}
-		m.highlights = append(m.highlights, hi)
-
-	}
-
+	m.highlights = parseMatches(matches, m.lineWidths)
 	m.hiIdx = m.findNearedtMatch()
 	if m.hiIdx == -1 {
 		return
