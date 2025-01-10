@@ -252,7 +252,7 @@ func (m Model) visibleLines() (lines []string) {
 					continue
 				}
 				sel := m.highlights[m.hiIdx]
-				if hi, ok := sel.forLine(i + top); ok {
+				if hi, ok := sel.lines[i+top]; ok {
 					lines[i] = lipgloss.StyleRanges(lines[i], lipgloss.NewRange(
 						hi[0][0],
 						hi[0][1],
@@ -550,7 +550,7 @@ func (m *Model) SetHighligths(matches [][]int) {
 		return
 	}
 	m.memoizedMatchedLines = make([]string, len(m.lines))
-	m.highlights = parseMatches(matches, m.GetContent(), m.lineWidths)
+	m.highlights = parseMatches(matches, m.GetContent())
 	m.hiIdx = m.findNearedtMatch()
 	if m.hiIdx == -1 {
 		return
