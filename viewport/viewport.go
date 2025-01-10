@@ -7,6 +7,11 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
+)
+
+const (
+	defaultHorizontalStep = 6
 )
 
 // New returns a new model with the given width and height as well as default
@@ -34,6 +39,13 @@ type Model struct {
 	// YOffset is the vertical scroll position.
 	YOffset int
 
+	// xOffset is the horizontal scroll position.
+	xOffset int
+
+	// horizontalStep is the number of columns we move left or right during a
+	// default horizontal scroll.
+	horizontalStep int
+
 	// YPosition is the position of the viewport in relation to the terminal
 	// window. It's used in high performance rendering only.
 	YPosition int
@@ -54,8 +66,9 @@ type Model struct {
 	// Deprecated: high performance rendering is now deprecated in Bubble Tea.
 	HighPerformanceRendering bool
 
-	initialized bool
-	lines       []string
+	initialized      bool
+	lines            []string
+	longestLineWidth int
 }
 
 func (m *Model) setInitialValues() {
@@ -63,6 +76,7 @@ func (m *Model) setInitialValues() {
 	m.MouseWheelEnabled = true
 	m.MouseWheelDelta = 3
 	m.initialized = true
+	m.horizontalStep = defaultHorizontalStep
 }
 
 // Init exists to satisfy the tea.Model interface for composability purposes.
@@ -99,10 +113,24 @@ func (m Model) ScrollPercent() float64 {
 	return math.Max(0.0, math.Min(1.0, v))
 }
 
+// HorizontalScrollPercent returns the amount horizontally scrolled as a float
+// between 0 and 1.
+func (m Model) HorizontalScrollPercent() float64 {
+	if m.xOffset >= m.longestLineWidth-m.Width {
+		return 1.0
+	}
+	y := float64(m.xOffset)
+	h := float64(m.Width)
+	t := float64(m.longestLineWidth)
+	v := y / (t - h)
+	return math.Max(0.0, math.Min(1.0, v))
+}
+
 // SetContent set the pager's text content.
 func (m *Model) SetContent(s string) {
 	s = strings.ReplaceAll(s, "\r\n", "\n") // normalize line endings
 	m.lines = strings.Split(s, "\n")
+	m.longestLineWidth = findLongestLineWidth(m.lines)
 
 	if m.YOffset > len(m.lines)-1 {
 		m.GotoBottom()
@@ -118,12 +146,24 @@ func (m Model) maxYOffset() int {
 // visibleLines returns the lines that should currently be visible in the
 // viewport.
 func (m Model) visibleLines() (lines []string) {
+	h := m.Height - m.Style.GetVerticalFrameSize()
+	w := m.Width - m.Style.GetHorizontalFrameSize()
+
 	if len(m.lines) > 0 {
 		top := max(0, m.YOffset)
-		bottom := clamp(m.YOffset+m.Height, top, len(m.lines))
+		bottom := clamp(m.YOffset+h, top, len(m.lines))
 		lines = m.lines[top:bottom]
 	}
-	return lines
+
+	if (m.xOffset == 0 && m.longestLineWidth <= w) || w == 0 {
+		return lines
+	}
+
+	cutLines := make([]string, len(lines))
+	for i := range lines {
+		cutLines[i] = ansi.Cut(lines[i], m.xOffset, m.xOffset+w)
+	}
+	return cutLines
 }
 
 // scrollArea returns the scrollable boundaries for high performance rendering.
@@ -273,7 +313,7 @@ func ViewDown(m Model, lines []string) tea.Cmd {
 
 	// XXX: high performance rendering is deprecated in Bubble Tea. In a v2 we
 	// won't need to return a command here.
-	return tea.ScrollDown(lines, top, bottom)
+	return tea.ScrollDown(lines, top, bottom) //nolint:staticcheck
 }
 
 // ViewUp is a high performance command the moves the viewport down by a given
@@ -287,7 +327,40 @@ func ViewUp(m Model, lines []string) tea.Cmd {
 
 	// XXX: high performance rendering is deprecated in Bubble Tea. In a v2 we
 	// won't need to return a command here.
-	return tea.ScrollUp(lines, top, bottom)
+	return tea.ScrollUp(lines, top, bottom) //nolint:staticcheck
+}
+
+// SetHorizontalStep sets the amount of cells that the viewport moves in the
+// default viewport keymapping. If set to 0 or less, horizontal scrolling is
+// disabled.
+func (m *Model) SetHorizontalStep(n int) {
+	if n < 0 {
+		n = 0
+	}
+
+	m.horizontalStep = n
+}
+
+// MoveLeft moves the viewport to the left by the given number of columns.
+func (m *Model) MoveLeft(cols int) {
+	m.xOffset -= cols
+	if m.xOffset < 0 {
+		m.xOffset = 0
+	}
+}
+
+// MoveRight moves viewport to the right by the given number of columns.
+func (m *Model) MoveRight(cols int) {
+	// prevents over scrolling to the right
+	if m.xOffset >= m.longestLineWidth-m.Width {
+		return
+	}
+	m.xOffset += cols
+}
+
+// Resets lines indent to zero.
+func (m *Model) ResetIndent() {
+	m.xOffset = 0
 }
 
 // Update handles standard message-based viewport updates.
@@ -344,6 +417,12 @@ func (m Model) updateAsModel(msg tea.Msg) (Model, tea.Cmd) {
 			if m.HighPerformanceRendering {
 				cmd = ViewUp(m, lines)
 			}
+
+		case key.Matches(msg, m.KeyMap.Left):
+			m.MoveLeft(m.horizontalStep)
+
+		case key.Matches(msg, m.KeyMap.Right):
+			m.MoveRight(m.horizontalStep)
 		}
 
 	case tea.MouseMsg:
@@ -417,4 +496,14 @@ func max(a, b int) int {
 		return a
 	}
 	return b
+}
+
+func findLongestLineWidth(lines []string) int {
+	w := 0
+	for _, l := range lines {
+		if ww := ansi.StringWidth(l); ww > w {
+			w = ww
+		}
+	}
+	return w
 }
