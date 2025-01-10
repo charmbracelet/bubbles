@@ -51,7 +51,7 @@ func parseMatches(
 				previousLinesOffset = graphemePos + 1
 				line++
 			}
-			graphemePos++
+			graphemePos += max(1, gr.Width())
 			bytePos += len(gr.Str())
 		}
 
@@ -87,7 +87,7 @@ func parseMatches(
 				line++
 			}
 
-			graphemePos++
+			graphemePos += max(1, gr.Width())
 			bytePos += len(gr.Str())
 		}
 

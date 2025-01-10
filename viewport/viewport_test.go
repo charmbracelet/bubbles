@@ -544,6 +544,15 @@ func testHighlights(tb testing.TB, content string, re *regexp.Regexp, expect []h
 	matches := re.FindAllStringIndex(vt.GetContent(), -1)
 	vt.SetHighligths(matches)
 
+	if !reflect.DeepEqual(expect, vt.highlights) {
+		tb.Errorf("\nexpect: %+v\n   got: %+v\n", expect, vt.highlights)
+	}
+
+	if strings.Contains(re.String(), "\n") {
+		tb.Log("cannot check text when regex has span lines")
+		return
+	}
+
 	for _, hi := range expect {
 		for line, hl := range hi.lines {
 			cut := ansi.Cut(vt.lines[line], hl[0], hl[1])
@@ -551,9 +560,5 @@ func testHighlights(tb testing.TB, content string, re *regexp.Regexp, expect []h
 				tb.Errorf("exptect to match '%s', got '%s': line: %d, cut: %+v", re.String(), cut, line, hl)
 			}
 		}
-	}
-
-	if !reflect.DeepEqual(expect, vt.highlights) {
-		tb.Errorf("\nexpect: %+v\n   got: %+v\n", expect, vt.highlights)
 	}
 }
