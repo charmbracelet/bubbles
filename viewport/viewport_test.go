@@ -5,6 +5,8 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/charmbracelet/x/ansi"
 )
 
 func TestNew(t *testing.T) {
@@ -385,147 +387,173 @@ func TestRightOverscroll(t *testing.T) {
 }
 
 func TestMatchesToHighlights(t *testing.T) {
-	text := `hello
+	content := `hello
 world
 
 with empty rows
 
 wide chars: あいうえおafter
+
+爱开源 • Charm does open source
+
+Charm热爱开源 • Charm loves open source
 `
 
 	vt := New(100, 100)
-	vt.SetContent(text)
+	vt.SetContent(content)
 
 	t.Run("first", func(t *testing.T) {
-		vt.SetHighligths(regexp.MustCompile("hello").FindAllStringIndex(vt.GetContent(), -1))
-		expect := []highlightInfo{
+		testHighlights(t, content, regexp.MustCompile("hello"), []highlightInfo{
 			{
 				lineStart: 0,
 				lineEnd:   0,
-				lines: map[int][][2]int{
-					0: {{0, 5}},
+				lines: map[int][2]int{
+					0: {0, 5},
 				},
 			},
-		}
-		if !reflect.DeepEqual(expect, vt.highlights) {
-			t.Errorf("expect %+v, got %+v", expect, vt.highlights)
-		}
+		})
 	})
 
 	t.Run("multiple", func(t *testing.T) {
-		matches := regexp.MustCompile("l").FindAllStringIndex(vt.GetContent(), -1)
-		vt.SetHighligths(matches)
-		expect := []highlightInfo{
+		testHighlights(t, content, regexp.MustCompile("l"), []highlightInfo{
 			{
 				lineStart: 0,
 				lineEnd:   0,
-				lines: map[int][][2]int{
-					0: {{2, 3}},
+				lines: map[int][2]int{
+					0: {2, 3},
 				},
 			},
 			{
 				lineStart: 0,
 				lineEnd:   0,
-				lines: map[int][][2]int{
-					0: {{3, 4}},
+				lines: map[int][2]int{
+					0: {3, 4},
 				},
 			},
 			{
 				lineStart: 1,
 				lineEnd:   1,
-				lines: map[int][][2]int{
-					1: {{3, 4}},
+				lines: map[int][2]int{
+					1: {3, 4},
 				},
 			},
-		}
-		if !reflect.DeepEqual(expect, vt.highlights) {
-			t.Errorf("\nexpect: %+v\n   got: %+v\n", expect, vt.highlights)
-		}
+			{
+				lineStart: 9,
+				lineEnd:   9,
+				lines: map[int][2]int{
+					9: {22, 23},
+				},
+			},
+		})
 	})
 
 	t.Run("span lines", func(t *testing.T) {
-		matches := regexp.MustCompile("lo\nwo").FindAllStringIndex(vt.GetContent(), -1)
-		vt.SetHighligths(matches)
-		expect := []highlightInfo{
+		testHighlights(t, content, regexp.MustCompile("lo\nwo"), []highlightInfo{
 			{
 				lineStart: 0,
 				lineEnd:   1,
-				lines: map[int][][2]int{
-					0: {{3, 6}},
-					1: {{0, 2}},
+				lines: map[int][2]int{
+					0: {3, 6},
+					1: {0, 2},
 				},
 			},
-		}
-		if !reflect.DeepEqual(expect, vt.highlights) {
-			t.Errorf("\nexpect: %+v\n   got: %+v\n", expect, vt.highlights)
-		}
+		})
 	})
 
 	t.Run("ends with newline", func(t *testing.T) {
-		matches := regexp.MustCompile("lo\n").FindAllStringIndex(vt.GetContent(), -1)
-		vt.SetHighligths(matches)
-		expect := []highlightInfo{
+		testHighlights(t, content, regexp.MustCompile("lo\n"), []highlightInfo{
 			{
 				lineStart: 0,
 				lineEnd:   0,
-				lines: map[int][][2]int{
-					0: {{3, 6}},
+				lines: map[int][2]int{
+					0: {3, 6},
 				},
 			},
-		}
-		if !reflect.DeepEqual(expect, vt.highlights) {
-			t.Errorf("\nexpect: %+v\n   got: %+v\n", expect, vt.highlights)
-		}
+		})
 	})
 
 	t.Run("empty lines in the text", func(t *testing.T) {
-		matches := regexp.MustCompile("ith").FindAllStringIndex(vt.GetContent(), -1)
-		vt.SetHighligths(matches)
-		expect := []highlightInfo{
+		testHighlights(t, content, regexp.MustCompile("ith"), []highlightInfo{
 			{
 				lineStart: 3,
 				lineEnd:   3,
-				lines: map[int][][2]int{
-					3: {{1, 4}},
+				lines: map[int][2]int{
+					3: {1, 4},
 				},
 			},
-		}
-		if !reflect.DeepEqual(expect, vt.highlights) {
-			t.Errorf("\nexpect: %+v\n   got: %+v\n", expect, vt.highlights)
-		}
+		})
 	})
 
 	t.Run("empty lines in the text match start of new line", func(t *testing.T) {
-		matches := regexp.MustCompile("with").FindAllStringIndex(vt.GetContent(), -1)
-		vt.SetHighligths(matches)
-		expect := []highlightInfo{
+		testHighlights(t, content, regexp.MustCompile("with"), []highlightInfo{
 			{
 				lineStart: 3,
 				lineEnd:   3,
-				lines: map[int][][2]int{
-					3: {{0, 4}},
+				lines: map[int][2]int{
+					3: {0, 4},
 				},
 			},
-		}
-		if !reflect.DeepEqual(expect, vt.highlights) {
-			t.Errorf("\nexpect: %+v\n   got: %+v\n", expect, vt.highlights)
-		}
+		})
 	})
 
 	t.Run("wide characteres", func(t *testing.T) {
-		matches := regexp.MustCompile("after").FindAllStringIndex(vt.GetContent(), -1)
-		vt.SetHighligths(matches)
-		expect := []highlightInfo{
+		testHighlights(t, content, regexp.MustCompile("after"), []highlightInfo{
 			{
 				lineStart: 5,
 				lineEnd:   5,
-				lines: map[int][][2]int{
-					5: {{17, 22}},
+				lines: map[int][2]int{
+					5: {22, 27},
 				},
 			},
-		}
-		if !reflect.DeepEqual(expect, vt.highlights) {
-			t.Errorf("\nexpect: %+v\n   got: %+v\n", expect, vt.highlights)
-		}
+		})
 	})
+
+	t.Run("wide 2", func(t *testing.T) {
+		testHighlights(t, content, regexp.MustCompile("Charm"), []highlightInfo{
+			{
+				lineStart: 7,
+				lineEnd:   7,
+				lines: map[int][2]int{
+					7: {9, 14},
+				},
+			},
+			{
+				lineStart: 9,
+				lineEnd:   9,
+				lines: map[int][2]int{
+					9: {0, 5},
+				},
+			},
+			{
+				lineStart: 9,
+				lineEnd:   9,
+				lines: map[int][2]int{
+					9: {16, 21},
+				},
+			},
+		})
+	})
+}
+
+func testHighlights(tb testing.TB, content string, re *regexp.Regexp, expect []highlightInfo) {
+	tb.Helper()
+
+	vt := New(100, 100)
+	vt.SetContent(content)
+
+	matches := re.FindAllStringIndex(vt.GetContent(), -1)
+	vt.SetHighligths(matches)
+
+	for _, hi := range expect {
+		for line, hl := range hi.lines {
+			cut := ansi.Cut(vt.lines[line], hl[0], hl[1])
+			if !re.MatchString(cut) {
+				tb.Errorf("exptect to match '%s', got '%s': line: %d, cut: %+v", re.String(), cut, line, hl)
+			}
+		}
+	}
+
+	if !reflect.DeepEqual(expect, vt.highlights) {
+		tb.Errorf("\nexpect: %+v\n   got: %+v\n", expect, vt.highlights)
+	}
 }

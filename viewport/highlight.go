@@ -38,7 +38,7 @@ func parseMatches(
 
 		// hilight for this match:
 		hi := highlightInfo{
-			lines: map[int][][2]int{},
+			lines: map[int][2]int{},
 		}
 
 		// find the beginning of this byte range, setup current line and
@@ -71,7 +71,7 @@ func parseMatches(
 			if content[bytePos] == '\n' {
 				graphemeEnd = graphemePos
 				colstart := max(0, graphemeStart-previousLinesOffset)
-				colend := max(graphemeEnd-previousLinesOffset+1, colstart)
+				colend := max(graphemeEnd-previousLinesOffset+1, colstart) // +1 its \n itself
 
 				// fmt.Printf(
 				// 	"nl line=%d linestart=%d lineend=%d colstart=%d colend=%d start=%d end=%d processed=%d width=%d\n",
@@ -79,7 +79,7 @@ func parseMatches(
 				// )
 
 				if colend > colstart {
-					hi.lines[line] = append(hi.lines[line], [2]int{colstart, colend})
+					hi.lines[line] = [2]int{colstart, colend}
 					hi.lineEnd = line
 				}
 
@@ -103,13 +103,13 @@ func parseMatches(
 			// )
 
 			if colend > colstart {
-				hi.lines[line] = append(hi.lines[line], [2]int{colstart, colend})
+				hi.lines[line] = [2]int{colstart, colend}
 				hi.lineEnd = line
 			}
 
-			highlights = append(highlights, hi)
 		}
 
+		highlights = append(highlights, hi)
 	}
 
 	return highlights
@@ -120,15 +120,17 @@ type highlightInfo struct {
 	lineStart, lineEnd int
 
 	// the grapheme highlight ranges for each of these lines
-	lines map[int][][2]int
+	lines map[int][2]int
 }
 
 // coords returns the line x column of this highlight.
 func (hi highlightInfo) coords() (line int, col int) {
-	for line, hl := range hi.lines {
-		for _, colRange := range hl {
-			return line, colRange[0]
+	for i := hi.lineStart; i <= hi.lineEnd; i++ {
+		hl, ok := hi.lines[i]
+		if !ok {
+			continue
 		}
+		return line, hl[0]
 	}
 	return hi.lineStart, 0
 }
@@ -140,16 +142,14 @@ func makeHilightRanges(
 ) []lipgloss.Range {
 	result := []lipgloss.Range{}
 	for _, hi := range highlights {
-		lihis, ok := hi.lines[line]
+		lihi, ok := hi.lines[line]
 		if !ok {
 			continue
 		}
-		for _, lihi := range lihis {
-			if lihi == [2]int{} {
-				continue
-			}
-			result = append(result, lipgloss.NewRange(lihi[0], lihi[1], style))
+		if lihi == [2]int{} {
+			continue
 		}
+		result = append(result, lipgloss.NewRange(lihi[0], lihi[1], style))
 	}
 	return result
 }
