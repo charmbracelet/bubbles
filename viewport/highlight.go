@@ -59,7 +59,6 @@ func parseMatches(
 		hi.lineEnd = line
 
 		graphemeStart := graphemePos
-		graphemeEnd := graphemePos
 
 		// loop until we find the end
 		for byteEnd > bytePos {
@@ -69,9 +68,8 @@ func parseMatches(
 
 			// if it ends with a new line, add the range, increase line, and continue
 			if content[bytePos] == '\n' {
-				graphemeEnd = graphemePos
 				colstart := max(0, graphemeStart-previousLinesOffset)
-				colend := max(graphemeEnd-previousLinesOffset+1, colstart) // +1 its \n itself
+				colend := max(graphemePos-previousLinesOffset+1, colstart) // +1 its \n itself
 
 				// fmt.Printf(
 				// 	"nl line=%d linestart=%d lineend=%d colstart=%d colend=%d start=%d end=%d processed=%d width=%d\n",
@@ -93,9 +91,8 @@ func parseMatches(
 
 		// we found it!, add highlight and continue
 		if bytePos == byteEnd {
-			graphemeEnd = graphemePos
 			colstart := max(0, graphemeStart-previousLinesOffset)
-			colend := max(graphemeEnd-previousLinesOffset, colstart)
+			colend := max(graphemePos-previousLinesOffset, colstart)
 
 			// fmt.Printf(
 			// 	"no line=%d linestart=%d lineend=%d colstart=%d colend=%d start=%d end=%d processed=%d width=%d\n",
@@ -106,7 +103,6 @@ func parseMatches(
 				hi.lines[line] = [2]int{colstart, colend}
 				hi.lineEnd = line
 			}
-
 		}
 
 		highlights = append(highlights, hi)
@@ -125,7 +121,7 @@ type highlightInfo struct {
 
 // coords returns the line x column of this highlight.
 func (hi highlightInfo) coords() (line int, col int) {
-	for i := hi.lineStart; i <= hi.lineEnd; i++ {
+	for i := hi.lineStart; i < hi.lineEnd; i++ {
 		hl, ok := hi.lines[i]
 		if !ok {
 			continue

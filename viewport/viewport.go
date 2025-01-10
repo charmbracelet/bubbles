@@ -82,7 +82,6 @@ type Model struct {
 
 	initialized      bool
 	lines            []string
-	lineWidths       []int
 	longestLineWidth int
 
 	// HighlightStyle highlights the ranges set with [SetHighligths].
@@ -190,7 +189,7 @@ func (m *Model) SetContent(s string) {
 	if len(m.lines) == 1 && ansi.StringWidth(m.lines[0]) == 0 {
 		m.lines = nil
 	}
-	m.lineWidths, m.longestLineWidth = calcLineWidths(m.lines)
+	m.longestLineWidth = maxLineWidth(m.lines)
 	m.ClearHighlights()
 
 	if m.YOffset > len(m.lines)-1 {
@@ -730,15 +729,13 @@ func max(a, b int) int {
 	return b
 }
 
-func calcLineWidths(lines []string) ([]int, int) {
+func maxLineWidth(lines []string) int {
 	maxlen := 0
-	all := make([]int, 0, len(lines))
 	for _, line := range lines {
 		llen := ansi.StringWidth(line)
-		all = append(all, llen+1) // account for "\n"
 		if llen > maxlen {
 			maxlen = llen
 		}
 	}
-	return all, maxlen
+	return maxlen
 }
