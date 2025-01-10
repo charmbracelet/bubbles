@@ -388,7 +388,11 @@ func TestMatchesToHighlights(t *testing.T) {
 	text := `hello
 world
 
-with empty rows`
+with empty rows
+
+wide chars: あいうえおafter
+`
+
 	vt := New(100, 100)
 	vt.SetContent(text)
 
@@ -500,6 +504,23 @@ with empty rows`
 				lineEnd:   3,
 				lines: map[int][][2]int{
 					3: {{0, 4}},
+				},
+			},
+		}
+		if !reflect.DeepEqual(expect, vt.highlights) {
+			t.Errorf("\nexpect: %+v\n   got: %+v\n", expect, vt.highlights)
+		}
+	})
+
+	t.Run("wide characteres", func(t *testing.T) {
+		matches := regexp.MustCompile("after").FindAllStringIndex(vt.GetContent(), -1)
+		vt.SetHighligths(matches)
+		expect := []highlightInfo{
+			{
+				lineStart: 5,
+				lineEnd:   5,
+				lines: map[int][][2]int{
+					5: {{17, 22}},
 				},
 			},
 		}

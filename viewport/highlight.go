@@ -123,11 +123,14 @@ type highlightInfo struct {
 	lines map[int][][2]int
 }
 
+// coords returns the line x column of this highlight.
 func (hi highlightInfo) coords() (line int, col int) {
-	// if len(hi.lines) == 0 {
+	for line, hl := range hi.lines {
+		for _, colRange := range hl {
+			return line, colRange[0]
+		}
+	}
 	return hi.lineStart, 0
-	// }
-	// return hi.lineStart, hi.lines[line][0][0]
 }
 
 func makeHilightRanges(
