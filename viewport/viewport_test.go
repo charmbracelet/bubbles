@@ -436,7 +436,7 @@ with empty rows`
 			},
 		}
 		if !reflect.DeepEqual(expect, vt.highlights) {
-			t.Errorf("expect %+v, got %+v", expect, vt.highlights)
+			t.Errorf("\nexpect: %+v\n   got: %+v\n", expect, vt.highlights)
 		}
 	})
 

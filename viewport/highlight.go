@@ -4,14 +4,20 @@ import (
 	"fmt"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/rivo/uniseg"
 )
 
 func parseMatches(
 	matches [][]int,
+	content string,
 	lineWidths []int,
 ) (highlights []highlightInfo) {
 	line := 0
 	processed := 0
+
+	gr := uniseg.NewGraphemes(content)
+	graphemeStart := 0
+	bytePos := 0
 
 	for _, match := range matches {
 		start, end := match[0], match[1]
@@ -21,6 +27,29 @@ func parseMatches(
 		if start > end {
 			panic(fmt.Sprintf("invalid match: %d, %d", start, end))
 		}
+
+		for gr.Next() {
+			if bytePos >= start {
+				break
+			}
+			bytePos += len(gr.Bytes())
+			graphemeStart++
+		}
+
+		graphemeEnd := graphemeStart
+		for gr.Next() {
+			if bytePos >= end {
+				break
+			}
+			bytePos += len(gr.Bytes())
+			graphemeEnd++
+		}
+
+		if start != graphemeStart || end != graphemeEnd {
+			fmt.Printf("content=%q start=%d end=%d graphemeStart=%d graphemeEnd=%d\n", content[start:end], start, end, graphemeStart, graphemeEnd)
+		}
+
+		start, end = graphemeStart, graphemeEnd
 
 		hi := highlightInfo{}
 		hiline := [][2]int{}
