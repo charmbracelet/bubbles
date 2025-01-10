@@ -9,16 +9,17 @@ import (
 // parseMatches converts the given matches into highlight ranges.
 //
 // Assumptions:
-// - matches are measured in bytes, e.g. what [regex.FindAllStringIndex] would return;
-// - matches were made against the given content;
+// - matches are measured in bytes, e.g. what [regex.FindAllStringIndex] would return
+// - matches were made against the given content
 // - matches are in order
 // - matches do not overlap
+// - content is line terminated with \n only
 //
 // We'll then convert the ranges into [highlightInfo]s, which hold the starting
 // line and the grapheme positions.
 func parseMatches(
-	matches [][]int,
 	content string,
+	matches [][]int,
 ) []highlightInfo {
 	if len(matches) == 0 {
 		return nil
@@ -32,23 +33,26 @@ func parseMatches(
 	highlights := make([]highlightInfo, 0, len(matches))
 	gr := uniseg.NewGraphemes(ansi.Strip(content))
 
-matchLoop:
 	for _, match := range matches {
+		byteStart, byteEnd := match[0], match[1]
+
+		// hilight for this match:
 		hi := highlightInfo{
 			lines: map[int][][2]int{},
 		}
-		byteStart, byteEnd := match[0], match[1]
 
+		// find the beginning of this byte range, setup current line and
+		// grapheme position.
 		for byteStart > bytePos {
 			if !gr.Next() {
 				break
 			}
-			graphemePos += len(gr.Str())
 			if content[bytePos] == '\n' {
-				previousLinesOffset = graphemePos
+				previousLinesOffset = graphemePos + 1
 				line++
 			}
-			bytePos++
+			graphemePos++
+			bytePos += len(gr.Str())
 		}
 
 		hi.lineStart = line
@@ -57,25 +61,13 @@ matchLoop:
 		graphemeStart := graphemePos
 		graphemeEnd := graphemePos
 
-		for byteEnd >= bytePos {
-			if bytePos == byteEnd {
-				graphemeEnd = graphemePos
-				colstart := max(0, graphemeStart-previousLinesOffset)
-				colend := max(graphemeEnd-previousLinesOffset, colstart)
-
-				// fmt.Printf(
-				// 	"no line=%d linestart=%d lineend=%d colstart=%d colend=%d start=%d end=%d processed=%d width=%d\n",
-				// 	line, hi.lineStart, hi.lineEnd, colstart, colend, graphemeStart, graphemeEnd, previousLinesOffset, graphemePos-previousLinesOffset,
-				// )
-				//
-				if colend > colstart {
-					hi.lines[line] = append(hi.lines[line], [2]int{colstart, colend})
-					hi.lineEnd = line
-				}
-				highlights = append(highlights, hi)
-				continue matchLoop
+		// loop until we find the end
+		for byteEnd > bytePos {
+			if !gr.Next() {
+				break
 			}
 
+			// if it ends with a new line, add the range, increase line, and continue
 			if content[bytePos] == '\n' {
 				graphemeEnd = graphemePos
 				colstart := max(0, graphemeStart-previousLinesOffset)
@@ -91,19 +83,33 @@ matchLoop:
 					hi.lineEnd = line
 				}
 
-				previousLinesOffset = graphemePos + len(gr.Str())
+				previousLinesOffset = graphemePos + 1
 				line++
 			}
 
-			if !gr.Next() {
-				break
-			}
-
-			bytePos++
-			graphemePos += len(gr.Str())
+			graphemePos++
+			bytePos += len(gr.Str())
 		}
 
-		highlights = append(highlights, hi)
+		// we found it!, add highlight and continue
+		if bytePos == byteEnd {
+			graphemeEnd = graphemePos
+			colstart := max(0, graphemeStart-previousLinesOffset)
+			colend := max(graphemeEnd-previousLinesOffset, colstart)
+
+			// fmt.Printf(
+			// 	"no line=%d linestart=%d lineend=%d colstart=%d colend=%d start=%d end=%d processed=%d width=%d\n",
+			// 	line, hi.lineStart, hi.lineEnd, colstart, colend, graphemeStart, graphemeEnd, previousLinesOffset, graphemePos-previousLinesOffset,
+			// )
+
+			if colend > colstart {
+				hi.lines[line] = append(hi.lines[line], [2]int{colstart, colend})
+				hi.lineEnd = line
+			}
+
+			highlights = append(highlights, hi)
+		}
+
 	}
 
 	return highlights
@@ -116,15 +122,6 @@ type highlightInfo struct {
 	// the grapheme highlight ranges for each of these lines
 	lines map[int][][2]int
 }
-
-// func (hi *highlightInfo) addToLine(line int, rng [2]int) {
-// 	hi.lines[line] = append(hi.lines[line], rng)
-// }
-//
-// func (hi highlightInfo) forLine(line int) ([][2]int, bool) {
-// 	got, ok := hi.lines[line]
-// 	return got, ok
-// }
 
 func (hi highlightInfo) coords() (line int, col int) {
 	// if len(hi.lines) == 0 {

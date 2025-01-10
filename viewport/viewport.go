@@ -550,7 +550,7 @@ func (m *Model) SetHighligths(matches [][]int) {
 		return
 	}
 	m.memoizedMatchedLines = make([]string, len(m.lines))
-	m.highlights = parseMatches(matches, m.GetContent())
+	m.highlights = parseMatches(m.GetContent(), matches)
 	m.hiIdx = m.findNearedtMatch()
 	if m.hiIdx == -1 {
 		return
