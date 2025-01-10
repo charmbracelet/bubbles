@@ -1,136 +1,122 @@
 package viewport
 
 import (
+	"fmt"
+
 	"github.com/charmbracelet/lipgloss"
-	"github.com/charmbracelet/x/ansi"
 	"github.com/rivo/uniseg"
 )
 
-// parseMatches converts the given matches into highlight ranges.
-//
-// Assumptions:
-// - matches are measured in bytes, e.g. what [regex.FindAllStringIndex] would return;
-// - matches were made against the given content;
-// - matches are in order
-// - matches do not overlap
-//
-// We'll then convert the ranges into [highlightInfo]s, which hold the starting
-// line and the grapheme positions.
 func parseMatches(
 	matches [][]int,
 	content string,
-) []highlightInfo {
-	if len(matches) == 0 {
-		return nil
-	}
-
+	lineWidths []int,
+) (highlights []highlightInfo) {
 	line := 0
-	graphemePos := 0
-	previousLinesOffset := 0
+	processed := 0
+
+	gr := uniseg.NewGraphemes(content)
+	graphemeStart := 0
 	bytePos := 0
 
-	highlights := make([]highlightInfo, 0, len(matches))
-	gr := uniseg.NewGraphemes(ansi.Strip(content))
-
-matchLoop:
 	for _, match := range matches {
-		hi := highlightInfo{
-			lines: map[int][][2]int{},
-		}
-		byteStart, byteEnd := match[0], match[1]
+		start, end := match[0], match[1]
 
-		for byteStart > bytePos {
-			if !gr.Next() {
+		// safety check
+		// XXX: return an error instead
+		if start > end {
+			panic(fmt.Sprintf("invalid match: %d, %d", start, end))
+		}
+
+		for gr.Next() {
+			if bytePos >= start {
 				break
 			}
-			graphemePos += len(gr.Str())
-			if content[bytePos] == '\n' {
-				previousLinesOffset = graphemePos
-				line++
-			}
-			bytePos++
+			bytePos += len(gr.Bytes())
+			graphemeStart++
 		}
 
-		hi.lineStart = line
-		hi.lineEnd = line
-
-		graphemeStart := graphemePos
-		graphemeEnd := graphemePos
-
-		for byteEnd >= bytePos {
-			if bytePos == byteEnd {
-				graphemeEnd = graphemePos
-				colstart := max(0, graphemeStart-previousLinesOffset)
-				colend := max(graphemeEnd-previousLinesOffset, colstart)
-
-				// fmt.Printf(
-				// 	"no line=%d linestart=%d lineend=%d colstart=%d colend=%d start=%d end=%d processed=%d width=%d\n",
-				// 	line, hi.lineStart, hi.lineEnd, colstart, colend, graphemeStart, graphemeEnd, previousLinesOffset, graphemePos-previousLinesOffset,
-				// )
-				//
-				if colend > colstart {
-					hi.lines[line] = append(hi.lines[line], [2]int{colstart, colend})
-					hi.lineEnd = line
-				}
-				highlights = append(highlights, hi)
-				continue matchLoop
-			}
-
-			if content[bytePos] == '\n' {
-				graphemeEnd = graphemePos
-				colstart := max(0, graphemeStart-previousLinesOffset)
-				colend := max(graphemeEnd-previousLinesOffset+1, colstart)
-
-				// fmt.Printf(
-				// 	"nl line=%d linestart=%d lineend=%d colstart=%d colend=%d start=%d end=%d processed=%d width=%d\n",
-				// 	line, hi.lineStart, hi.lineEnd, colstart, colend, graphemeStart, graphemeEnd, previousLinesOffset, graphemePos-previousLinesOffset,
-				// )
-
-				if colend > colstart {
-					hi.lines[line] = append(hi.lines[line], [2]int{colstart, colend})
-					hi.lineEnd = line
-				}
-
-				previousLinesOffset = graphemePos + len(gr.Str())
-				line++
-			}
-
-			if !gr.Next() {
+		graphemeEnd := graphemeStart
+		for gr.Next() {
+			if bytePos >= end {
 				break
 			}
-
-			bytePos++
-			graphemePos += len(gr.Str())
+			bytePos += len(gr.Bytes())
+			graphemeEnd++
 		}
 
+		if start != graphemeStart || end != graphemeEnd {
+			fmt.Printf("content=%q start=%d end=%d graphemeStart=%d graphemeEnd=%d\n", content[start:end], start, end, graphemeStart, graphemeEnd)
+		}
+
+		start, end = graphemeStart, graphemeEnd
+
+		hi := highlightInfo{}
+		hiline := [][2]int{}
+		for line < len(lineWidths) {
+			width := lineWidths[line]
+
+			// out of bounds
+			if start >= processed+width {
+				line++
+				processed += width
+				continue
+			}
+
+			colstart := max(0, start-processed)
+			colend := clamp(end-processed, colstart, width)
+
+			if start >= processed && start <= processed+width {
+				hi.lineStart = line
+			}
+			if end <= processed+width {
+				hi.lineEnd = line
+			}
+
+			// fmt.Printf(
+			// 	"line=%d linestart=%d lineend=%d colstart=%d colend=%d start=%d end=%d processed=%d width=%d hi=%+v\n",
+			// 	line, hi.lineStart, hi.lineEnd, colstart, colend, start, end, processed, width, hi,
+			// )
+
+			hiline = append(hiline, [2]int{colstart, colend})
+			if end > processed+width {
+				if colend > 0 {
+					hi.lines = append(hi.lines, hiline)
+				}
+				hiline = [][2]int{}
+				line++
+				processed += width
+				continue
+			} else {
+				// if end <= processed+width {
+				if colend > 0 {
+					hi.lines = append(hi.lines, hiline)
+				}
+				break
+			}
+		}
 		highlights = append(highlights, hi)
 	}
-
-	return highlights
+	return
 }
 
 type highlightInfo struct {
-	// in which line this highlight starts and ends
 	lineStart, lineEnd int
-
-	// the grapheme highlight ranges for each of these lines
-	lines map[int][][2]int
+	lines              [][][2]int
 }
 
-// func (hi *highlightInfo) addToLine(line int, rng [2]int) {
-// 	hi.lines[line] = append(hi.lines[line], rng)
-// }
-//
-// func (hi highlightInfo) forLine(line int) ([][2]int, bool) {
-// 	got, ok := hi.lines[line]
-// 	return got, ok
-// }
+func (hi highlightInfo) forLine(line int) ([][2]int, bool) {
+	if line >= hi.lineStart && line <= hi.lineEnd {
+		return hi.lines[line-hi.lineStart], true
+	}
+	return nil, false
+}
 
 func (hi highlightInfo) coords() (line int, col int) {
-	// if len(hi.lines) == 0 {
-	return hi.lineStart, 0
-	// }
-	// return hi.lineStart, hi.lines[line][0][0]
+	if len(hi.lines) == 0 {
+		return hi.lineStart, 0
+	}
+	return hi.lineStart, hi.lines[0][0][0]
 }
 
 func makeHilightRanges(
@@ -140,7 +126,7 @@ func makeHilightRanges(
 ) []lipgloss.Range {
 	result := []lipgloss.Range{}
 	for _, hi := range highlights {
-		lihis, ok := hi.lines[line]
+		lihis, ok := hi.forLine(line)
 		if !ok {
 			continue
 		}

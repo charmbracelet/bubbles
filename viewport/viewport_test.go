@@ -1,6 +1,7 @@
 package viewport
 
 import (
+	"fmt"
 	"reflect"
 	"regexp"
 	"strings"
@@ -398,8 +399,8 @@ with empty rows`
 			{
 				lineStart: 0,
 				lineEnd:   0,
-				lines: map[int][][2]int{
-					0: {{0, 5}},
+				lines: [][][2]int{
+					{{0, 5}},
 				},
 			},
 		}
@@ -415,22 +416,22 @@ with empty rows`
 			{
 				lineStart: 0,
 				lineEnd:   0,
-				lines: map[int][][2]int{
-					0: {{2, 3}},
+				lines: [][][2]int{
+					{{2, 3}},
 				},
 			},
 			{
 				lineStart: 0,
 				lineEnd:   0,
-				lines: map[int][][2]int{
-					0: {{3, 4}},
+				lines: [][][2]int{
+					{{3, 4}},
 				},
 			},
 			{
 				lineStart: 1,
 				lineEnd:   1,
-				lines: map[int][][2]int{
-					1: {{3, 4}},
+				lines: [][][2]int{
+					{{3, 4}},
 				},
 			},
 		}
@@ -446,14 +447,14 @@ with empty rows`
 			{
 				lineStart: 0,
 				lineEnd:   1,
-				lines: map[int][][2]int{
-					0: {{3, 6}},
-					1: {{0, 2}},
+				lines: [][][2]int{
+					{{3, 6}},
+					{{0, 2}},
 				},
 			},
 		}
 		if !reflect.DeepEqual(expect, vt.highlights) {
-			t.Errorf("\nexpect: %+v\n   got: %+v\n", expect, vt.highlights)
+			t.Errorf("expect %+v, got %+v", expect, vt.highlights)
 		}
 	})
 
@@ -464,13 +465,13 @@ with empty rows`
 			{
 				lineStart: 0,
 				lineEnd:   0,
-				lines: map[int][][2]int{
-					0: {{3, 6}},
+				lines: [][][2]int{
+					{{3, 6}},
 				},
 			},
 		}
 		if !reflect.DeepEqual(expect, vt.highlights) {
-			t.Errorf("\nexpect: %+v\n   got: %+v\n", expect, vt.highlights)
+			t.Errorf("expect %+v, got %+v", expect, vt.highlights)
 		}
 	})
 
@@ -481,30 +482,31 @@ with empty rows`
 			{
 				lineStart: 3,
 				lineEnd:   3,
-				lines: map[int][][2]int{
-					3: {{1, 4}},
+				lines: [][][2]int{
+					{{1, 4}},
 				},
 			},
 		}
 		if !reflect.DeepEqual(expect, vt.highlights) {
-			t.Errorf("\nexpect: %+v\n   got: %+v\n", expect, vt.highlights)
+			t.Errorf("expect %+v, got %+v", expect, vt.highlights)
 		}
 	})
 
 	t.Run("empty lines in the text match start of new line", func(t *testing.T) {
 		matches := regexp.MustCompile("with").FindAllStringIndex(vt.GetContent(), -1)
+		t.Log("AQUIIII", matches, vt.GetContent()[matches[0][0]:matches[0][1]], fmt.Sprintf("%q", vt.GetContent()))
 		vt.SetHighligths(matches)
 		expect := []highlightInfo{
 			{
 				lineStart: 3,
 				lineEnd:   3,
-				lines: map[int][][2]int{
-					3: {{0, 4}},
+				lines: [][][2]int{
+					{{0, 4}},
 				},
 			},
 		}
 		if !reflect.DeepEqual(expect, vt.highlights) {
-			t.Errorf("\nexpect: %+v\n   got: %+v\n", expect, vt.highlights)
+			t.Errorf("expect %+v, got %+v", expect, vt.highlights)
 		}
 	})
 }
