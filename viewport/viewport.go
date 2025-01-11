@@ -181,6 +181,7 @@ func (m Model) HorizontalScrollPercent() float64 {
 }
 
 // SetContent set the pager's text content.
+// Line endings will be normalized to '\n'.
 func (m *Model) SetContent(s string) {
 	s = strings.ReplaceAll(s, "\r\n", "\n") // normalize line endings
 	m.lines = strings.Split(s, "\n")
@@ -197,6 +198,8 @@ func (m *Model) SetContent(s string) {
 	}
 }
 
+// GetContent returns the entire content as a single string.
+// Line endings are normalized to '\n'.
 func (m Model) GetContent() string {
 	return strings.Join(m.lines, "\n")
 }
