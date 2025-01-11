@@ -234,63 +234,74 @@ func (m Model) visibleLines() (lines []string) {
 		bottom := clamp(m.YOffset+maxHeight, top, len(m.lines))
 		lines = make([]string, bottom-top)
 		copy(lines, m.lines[top:bottom])
-		if len(m.highlights) > 0 {
-			for i := range lines {
-				if memoized := m.memoizedMatchedLines[i+top]; memoized != "" {
-					lines[i] = memoized
-				} else {
-					ranges := makeHilightRanges(
-						m.highlights,
-						i+top,
-						m.HighlightStyle,
-					)
-					lines[i] = lipgloss.StyleRanges(lines[i], ranges...)
-					m.memoizedMatchedLines[i+top] = lines[i]
-				}
-				if m.hiIdx < 0 {
-					continue
-				}
-				sel := m.highlights[m.hiIdx]
-				if hi, ok := sel.lines[i+top]; ok {
-					lines[i] = lipgloss.StyleRanges(lines[i], lipgloss.NewRange(
-						hi[0],
-						hi[1],
-						m.SelectedHighlightStyle,
-					))
-				}
-			}
-		}
+		lines = m.highlighLines(lines, top)
 	}
 
 	for m.FillHeight && len(lines) < maxHeight {
 		lines = append(lines, "")
 	}
 
+	// if longest line fit within width, no need to do anything else.
 	if (m.xOffset == 0 && m.longestLineWidth <= maxWidth) || maxWidth == 0 {
 		return m.prependColumn(lines)
 	}
 
 	if m.SoftWrap {
-		var wrappedLines []string
-		for i, line := range lines {
-			idx := 0
-			for ansi.StringWidth(line) >= idx {
-				truncatedLine := ansi.Cut(line, idx, maxWidth+idx)
-				wrappedLines = append(wrappedLines, m.LeftGutterFunc(GutterContext{
-					Index:      i + m.YOffset,
-					TotalLines: m.TotalLineCount(),
-					Soft:       idx > 0,
-				})+truncatedLine)
-				idx += maxWidth
-			}
-		}
-		return wrappedLines
+		return m.softWrap(lines, maxWidth)
 	}
 
 	for i := range lines {
 		lines[i] = ansi.Cut(lines[i], m.xOffset, m.xOffset+maxWidth)
 	}
 	return m.prependColumn(lines)
+}
+
+func (m Model) highlighLines(lines []string, offset int) []string {
+	if len(m.highlights) == 0 {
+		return lines
+	}
+	for i := range lines {
+		if memoized := m.memoizedMatchedLines[i+offset]; memoized != "" {
+			lines[i] = memoized
+		} else {
+			ranges := makeHilightRanges(
+				m.highlights,
+				i+offset,
+				m.HighlightStyle,
+			)
+			lines[i] = lipgloss.StyleRanges(lines[i], ranges...)
+			m.memoizedMatchedLines[i+offset] = lines[i]
+		}
+		if m.hiIdx < 0 {
+			continue
+		}
+		sel := m.highlights[m.hiIdx]
+		if hi, ok := sel.lines[i+offset]; ok {
+			lines[i] = lipgloss.StyleRanges(lines[i], lipgloss.NewRange(
+				hi[0],
+				hi[1],
+				m.SelectedHighlightStyle,
+			))
+		}
+	}
+	return lines
+}
+
+func (m Model) softWrap(lines []string, maxWidth int) []string {
+	var wrappedLines []string
+	for i, line := range lines {
+		idx := 0
+		for ansi.StringWidth(line) >= idx {
+			truncatedLine := ansi.Cut(line, idx, maxWidth+idx)
+			wrappedLines = append(wrappedLines, m.LeftGutterFunc(GutterContext{
+				Index:      i + m.YOffset,
+				TotalLines: m.TotalLineCount(),
+				Soft:       idx > 0,
+			})+truncatedLine)
+			idx += maxWidth
+		}
+	}
+	return wrappedLines
 }
 
 func (m Model) prependColumn(lines []string) []string {
@@ -331,21 +342,16 @@ func (m *Model) SetXOffset(n int) {
 }
 
 // EnsureVisible ensures that the given line and column are in the viewport.
-func (m *Model) EnsureVisible(line, col int) {
-	maxHeight := m.maxHeight()
+func (m *Model) EnsureVisible(line, colstart, colend int) {
 	maxWidth := m.maxWidth()
-
-	if line >= m.YOffset && line < m.YOffset+maxHeight {
-		// Line is visible, no nothing
-	} else if line >= m.YOffset+maxHeight || line < m.YOffset {
-		m.SetYOffset(line)
+	if colend <= maxWidth {
+		m.SetXOffset(0)
+	} else {
+		m.SetXOffset(colstart - m.horizontalStep) // put one step to the left, feels more natural
 	}
 
-	if col >= m.xOffset && col < m.xOffset+maxWidth {
-		// Column is visible, do nothing
-	} else if col >= m.xOffset+maxWidth || col < m.xOffset {
-		// Column is to the left of visible area
-		m.SetXOffset(col)
+	if line < m.YOffset || line >= m.YOffset+m.maxHeight() {
+		m.SetYOffset(line)
 	}
 
 	m.visibleLines()
@@ -551,11 +557,7 @@ func (m *Model) SetHighligths(matches [][]int) {
 	m.memoizedMatchedLines = make([]string, len(m.lines))
 	m.highlights = parseMatches(m.GetContent(), matches)
 	m.hiIdx = m.findNearedtMatch()
-	if m.hiIdx == -1 {
-		return
-	}
-	line, col := m.highlights[m.hiIdx].coords()
-	m.EnsureVisible(line, col)
+	m.showHighlight()
 }
 
 // ClearHighlights clears previously set highlights.
@@ -565,24 +567,32 @@ func (m *Model) ClearHighlights() {
 	m.hiIdx = -1
 }
 
+func (m *Model) showHighlight() {
+	if m.hiIdx == -1 {
+		return
+	}
+	line, colstart, colend := m.highlights[m.hiIdx].coords()
+	m.EnsureVisible(line, colstart, colend)
+}
+
+// HightlightNext highlights the next match.
 func (m *Model) HightlightNext() {
 	if m.highlights == nil {
 		return
 	}
 
 	m.hiIdx = (m.hiIdx + 1) % len(m.highlights)
-	line, col := m.highlights[m.hiIdx].coords()
-	m.EnsureVisible(line, col)
+	m.showHighlight()
 }
 
+// HighlightPrevious highlights the previous match.
 func (m *Model) HighlightPrevious() {
 	if m.highlights == nil {
 		return
 	}
 
 	m.hiIdx = (m.hiIdx - 1 + len(m.highlights)) % len(m.highlights)
-	line, col := m.highlights[m.hiIdx].coords()
-	m.EnsureVisible(line, col)
+	m.showHighlight()
 }
 
 func (m Model) findNearedtMatch() int {

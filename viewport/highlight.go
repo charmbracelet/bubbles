@@ -120,15 +120,15 @@ type highlightInfo struct {
 }
 
 // coords returns the line x column of this highlight.
-func (hi highlightInfo) coords() (line int, col int) {
-	for i := hi.lineStart; i < hi.lineEnd; i++ {
+func (hi highlightInfo) coords() (int, int, int) {
+	for i := hi.lineStart; i <= hi.lineEnd; i++ {
 		hl, ok := hi.lines[i]
 		if !ok {
 			continue
 		}
-		return line, hl[0]
+		return i, hl[0], hl[1]
 	}
-	return hi.lineStart, 0
+	return hi.lineStart, 0, 0
 }
 
 func makeHilightRanges(
