@@ -703,9 +703,11 @@ func (m Model) View() string {
 func (m Model) placeholderView() string {
 	var (
 		v     string
-		p     = []rune(m.Placeholder)
 		style = m.PlaceholderStyle.Inline(true).Render
 	)
+
+	p := make([]rune, m.Width+1)
+	copy(p, []rune(m.Placeholder))
 
 	m.Cursor.TextStyle = m.PlaceholderStyle
 	m.Cursor.SetChar(string(p[:1]))
