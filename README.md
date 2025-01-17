@@ -192,8 +192,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 To check out community-maintained Bubbles see [Charm &
 Friends](https://github.com/charm-and-friends/additional-bubbles). Made a cool Bubble
-that you want to share with the class? PRs are welcome! Follow the instructions
-linked above to get your Bubble added to the list.
+that you want to share?
+[PRs](https://github.com/charm-and-friends/additional-bubbles?tab=readme-ov-file#what-is-a-complete-project)
+are welcome!
 
 ## Contributing
 
