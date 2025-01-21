@@ -72,5 +72,4 @@ func ExampleValidateFunc() {
 
 		return err
 	}
-	fmt.Println(creditCardNumber.View())
 }
