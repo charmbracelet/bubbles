@@ -1514,7 +1514,6 @@ func (m *Model) splitLine(row, col int) {
 	m.value[row+1] = tail
 
 	m.col = 0
-	m.SetHeight(m.row + 2)
 	m.row++
 }
 
