@@ -7,8 +7,10 @@ import (
 	"image/color"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync/atomic"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
@@ -54,9 +56,6 @@ type Model struct {
 	// The image number
 	num int
 
-	// Whether the image was transmitted
-	didTransmit bool
-
 	// The terminal width and height
 	w, h int
 }
@@ -83,14 +82,15 @@ func NewLocal(file string, area image.Rectangle) (m Model, err error) {
 	m = newModel(area)
 	m.file = file
 	m.area = area
-	// TODO: Fix me! This currently doesn't work with PNG
-	// ext := filepath.Ext(file)
-	// if strings.Contains(ext, "png") {
-	// 	// We're done here, there's no need to decode the image.
-	// 	m.opts.Format = kitty.PNG
-	// 	m.opts.File = file
-	// 	return
-	// }
+
+	// Quick check for PNG files
+	ext := filepath.Ext(file)
+	if strings.Contains(ext, "png") {
+		// We're done here, there's no need to decode the image.
+		m.opts.Format = kitty.PNG
+		m.opts.File = file
+		return
+	}
 
 	f, err := os.Open(file)
 	if err != nil {
@@ -106,12 +106,6 @@ func NewLocal(file string, area image.Rectangle) (m Model, err error) {
 
 	m.m = im
 
-	// Use a temporary file to store the image data
-	m.opts.Transmission = kitty.TempFile
-
-	// TODO: Enable compression
-	// m.opts.Compression = kitty.Zlib
-
 	// Set the image size
 	bounds := im.Bounds()
 	m.opts.ImageWidth = bounds.Dx()
@@ -119,10 +113,22 @@ func NewLocal(file string, area image.Rectangle) (m Model, err error) {
 
 	// Optimize for JPEG images and alpha transparency
 	switch mtyp {
+	case "png":
+		m.opts.Format = kitty.PNG
 	case "jpeg":
 		m.opts.Format = kitty.RGB
 	default:
 		m.opts.Format = kitty.RGBA
+	}
+
+	switch m.opts.Format {
+	case kitty.PNG:
+		m.opts.File = file
+		m.opts.Transmission = kitty.File
+	default:
+		// Use a temporary file to store the image data
+		m.opts.Transmission = kitty.TempFile
+		m.opts.Compression = kitty.Zlib
 	}
 
 	return
@@ -158,7 +164,6 @@ func (m *Model) SetArea(area image.Rectangle) {
 	m.area = area
 	m.opts.Columns = m.area.Dx()
 	m.opts.Rows = m.area.Dy()
-	m.didTransmit = false
 }
 
 // Area returns the image area in cells.
@@ -168,20 +173,28 @@ func (m Model) Area() image.Rectangle {
 
 // transmit is a command that transmits the image to the terminal.
 func (m *Model) transmit() tea.Msg {
+	// IDK why, but we need to wait a bit before transmitting the image
+	// to the terminal. Otherwise, the image is not displayed.
+	time.Sleep(100 * time.Millisecond)
+
 	var seq bytes.Buffer
 	if err := ansi.WriteKittyGraphics(&seq, m.m, &m.opts); err != nil {
+		log.Printf("could not transmit image: %v", err)
 		// TODO: Error handling
 		return nil
 	}
 
-	m.didTransmit = true
 	return tea.RawMsg{Msg: seq.String()}
 }
 
 // Init initializes the image model.
 func (m Model) Init() (tea.Model, tea.Cmd) {
 	return m, tea.Batch(
-	// TODO: Query support
+		// TODO: Query support
+		func() tea.Msg {
+			time.Sleep(1 * time.Second)
+			return m.transmit()
+		},
 	)
 }
 
@@ -189,8 +202,6 @@ func (m Model) Init() (tea.Model, tea.Cmd) {
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		m.didTransmit = false
 	case tea.WindowSizeMsg:
 		m.w, m.h = msg.Width, msg.Height
 	case input.KittyGraphicsEvent:
@@ -202,11 +213,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
-	if !m.didTransmit {
-		cmds = append(cmds, m.transmit)
-		m.didTransmit = true
-	}
-
 	return m, tea.Batch(cmds...)
 }
 
@@ -216,8 +222,6 @@ func (m Model) View() string {
 		// TODO: Maybe use a spinner?
 		return "Loading image..."
 	}
-
-	log.Printf("area: %v", m.area)
 
 	// Build Kitty graphics unicode place holders
 	var fgSeq string

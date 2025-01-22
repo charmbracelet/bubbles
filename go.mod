@@ -2,6 +2,8 @@ module github.com/charmbracelet/bubbles/v2
 
 go 1.22
 
+replace github.com/charmbracelet/x/cellbuf => ../x/cellbuf
+
 require (
 	github.com/MakeNowJust/heredoc v1.0.0
 	github.com/atotto/clipboard v0.1.4
