@@ -1182,7 +1182,7 @@ func (m Model) suggestionView(offset int) string {
 
 	var lines []string
 	for _, line := range strings.Split(suggestion[len(m.Value())+offset:], "\n") {
-		lines = append(lines, m.style.Placeholder.Inline(true).Render(line))
+		lines = append(lines, m.activeStyle.Placeholder.Inline(true).Render(line))
 	}
 	if len(lines) > m.Height() {
 		m.SetHeight(len(lines) + 1)
@@ -1281,7 +1281,7 @@ func (m Model) View() string {
 						if len(suggestion) >= m.row {
 							suggestion = suggestion[m.row:]
 						}
-						m.Cursor.TextStyle = m.style.Placeholder
+						m.Cursor.TextStyle = m.activeStyle.Placeholder
 						if len(suggestion) > m.row && len(suggestion[m.row]) > m.col {
 							m.Cursor.SetChar(string(suggestion[m.row][m.col]))
 						}
