@@ -293,9 +293,6 @@ type Model struct {
 	// Cursor row.
 	row int
 
-	// The bubble offset in the parent model.
-	offsetX, offsetY int
-
 	// Last character offset, used to maintain state when the cursor is moved
 	// vertically such that we can maintain the same navigating position.
 	lastCharOffset int
@@ -418,8 +415,9 @@ func (m *Model) insertRunesFromUserInput(runes []rune) {
 	// whatnot.
 	runes = m.san().Sanitize(runes)
 
+	var availSpace int
 	if m.CharLimit > 0 {
-		availSpace := m.CharLimit - m.Length()
+		availSpace = m.CharLimit - m.Length()
 		// If the char limit's been reached, cancel.
 		if availSpace <= 0 {
 			return
@@ -450,9 +448,9 @@ func (m *Model) insertRunesFromUserInput(runes []rune) {
 		lines = append(lines, runes[lstart:])
 	}
 
-	// Obey the maximum line limit.
-	if maxLines > 0 && len(m.value)+len(lines)-1 > maxLines {
-		allowedHeight := max(0, maxLines-len(m.value)+1)
+	// Obey the maximum height limit.
+	if m.MaxHeight > 0 && len(m.value)+len(lines)-1 > m.MaxHeight {
+		allowedHeight := max(0, m.MaxHeight-len(m.value)+1)
 		lines = lines[:allowedHeight]
 	}
 
@@ -534,11 +532,6 @@ func (m *Model) LineCount() int {
 // Line returns the line position.
 func (m Model) Line() int {
 	return m.row
-}
-
-// SetOffset sets the bubble offset in the parent model.
-func (m *Model) SetOffset(x, y int) {
-	m.offsetX, m.offsetY = x, y
 }
 
 // CursorDown moves the cursor down by one line.
@@ -658,7 +651,11 @@ func (m *Model) Blur() {
 
 // Reset sets the input to its default state with no input.
 func (m *Model) Reset() {
-	m.value = make([][]rune, minHeight, maxLines)
+	startCap := m.MaxHeight
+	if startCap <= 0 {
+		startCap = defaultMaxHeight
+	}
+	m.value = make([][]rune, minHeight, startCap)
 	m.col = 0
 	m.row = 0
 	m.viewport.GotoTop()
@@ -1170,8 +1167,6 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	cmds = append(cmds, cmd)
 
 	newRow, newCol := m.cursorLineNumber(), m.col
-	cmds = append(cmds, tea.SetCursorPosition(m.offsetX+newCol, m.offsetY+newRow))
-
 	m.Cursor, cmd = m.Cursor.Update(msg)
 	if (newRow != oldRow || newCol != oldCol) && m.Cursor.Mode() == cursor.CursorBlink {
 		m.Cursor.Blink = false
@@ -1197,7 +1192,7 @@ func (m Model) suggestionView(offset int) string {
 
 	var lines []string
 	for _, line := range strings.Split(suggestion[len(m.Value())+offset:], "\n") {
-		lines = append(lines, m.style.Placeholder.Inline(true).Render(line))
+		lines = append(lines, m.activeStyle.Placeholder.Inline(true).Render(line))
 	}
 	if len(lines) > m.Height() {
 		m.SetHeight(len(lines) + 1)
@@ -1296,7 +1291,7 @@ func (m Model) View() string {
 						if len(suggestion) >= m.row {
 							suggestion = suggestion[m.row:]
 						}
-						m.Cursor.TextStyle = m.style.Placeholder
+						m.Cursor.TextStyle = m.activeStyle.Placeholder
 						if len(suggestion) > m.row && len(suggestion[m.row]) > m.col {
 							m.Cursor.SetChar(string(suggestion[m.row][m.col]))
 						}
@@ -1529,7 +1524,6 @@ func (m *Model) splitLine(row, col int) {
 	m.value[row+1] = tail
 
 	m.col = 0
-	m.SetHeight(m.row + 2)
 	m.row++
 }
 
