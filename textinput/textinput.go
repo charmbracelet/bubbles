@@ -147,6 +147,9 @@ type Model struct {
 	// Should the input suggest to complete
 	ShowSuggestions bool
 
+	// Whether we should allow suggestions when input is empty
+	AllowSuggestionsForEmptyInput bool
+
 	// suggestions is a list of suggestions that may be used to complete the
 	// input.
 	suggestions            [][]rune
@@ -157,14 +160,15 @@ type Model struct {
 // New creates a new model with default settings.
 func New() Model {
 	return Model{
-		Prompt:           "> ",
-		EchoCharacter:    '*',
-		CharLimit:        0,
-		PlaceholderStyle: lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
-		ShowSuggestions:  false,
-		CompletionStyle:  lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
-		Cursor:           cursor.New(),
-		KeyMap:           DefaultKeyMap,
+		Prompt:                        "> ",
+		EchoCharacter:                 '*',
+		CharLimit:                     0,
+		PlaceholderStyle:              lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
+		ShowSuggestions:               false,
+		AllowSuggestionsForEmptyInput: false,
+		CompletionStyle:               lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
+		Cursor:                        cursor.New(),
+		KeyMap:                        DefaultKeyMap,
 
 		suggestions: [][]rune{},
 		value:       nil,
@@ -859,7 +863,7 @@ func (m *Model) updateSuggestions() {
 		return
 	}
 
-	if len(m.value) <= 0 || len(m.suggestions) <= 0 {
+	if (len(m.value) <= 0 && !m.AllowSuggestionsForEmptyInput) || len(m.suggestions) <= 0 {
 		m.matchedSuggestions = [][]rune{}
 		return
 	}
