@@ -293,9 +293,6 @@ type Model struct {
 	// Cursor row.
 	row int
 
-	// The bubble offset in the parent model.
-	offsetX, offsetY int
-
 	// Last character offset, used to maintain state when the cursor is moved
 	// vertically such that we can maintain the same navigating position.
 	lastCharOffset int
@@ -536,11 +533,6 @@ func (m Model) Line() int {
 	return m.row
 }
 
-// SetOffset sets the bubble offset in the parent model.
-func (m *Model) SetOffset(x, y int) {
-	m.offsetX, m.offsetY = x, y
-}
-
 // CursorDown moves the cursor down by one line.
 // Returns whether or not the cursor blink should be reset.
 func (m *Model) CursorDown() {
@@ -609,11 +601,6 @@ func (m *Model) CursorUp() {
 		offset += rw.RuneWidth(m.value[m.row][m.col])
 		m.col++
 	}
-}
-
-// CursorPosition returns the current cursor position.
-func (m Model) CursorPosition() (int, int) {
-	return m.col, m.row
 }
 
 // SetCursor moves the cursor to the given position. If the position is
@@ -1170,8 +1157,6 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	cmds = append(cmds, cmd)
 
 	newRow, newCol := m.cursorLineNumber(), m.col
-	cmds = append(cmds, tea.SetCursorPosition(m.offsetX+newCol, m.offsetY+newRow))
-
 	m.Cursor, cmd = m.Cursor.Update(msg)
 	if (newRow != oldRow || newCol != oldCol) && m.Cursor.Mode() == cursor.CursorBlink {
 		m.Cursor.Blink = false
