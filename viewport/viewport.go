@@ -157,12 +157,13 @@ func (m Model) PastBottom() bool {
 
 // ScrollPercent returns the amount scrolled as a float between 0 and 1.
 func (m Model) ScrollPercent() float64 {
-	if m.Height >= len(m.lines) {
+	count := m.lineCount()
+	if m.Height >= count {
 		return 1.0
 	}
 	y := float64(m.YOffset)
 	h := float64(m.Height)
-	t := float64(len(m.lines))
+	t := float64(count)
 	v := y / (t - h)
 	return math.Max(0.0, math.Min(1.0, v))
 }
@@ -193,7 +194,7 @@ func (m *Model) SetContent(s string) {
 	m.longestLineWidth = maxLineWidth(m.lines)
 	m.ClearHighlights()
 
-	if m.YOffset > len(m.lines)-1 {
+	if m.YOffset > m.lineCount()-1 {
 		m.GotoBottom()
 	}
 }
@@ -204,10 +205,44 @@ func (m Model) GetContent() string {
 	return strings.Join(m.lines, "\n")
 }
 
+// lineToIndex taking soft wrappign into account, return the real line index
+// for the given line.
+func (m Model) lineToIndex(y int) int {
+	if !m.SoftWrap {
+		return y
+	}
+	var count int
+	maxWidth := m.maxWidth()
+	gutterSize := lipgloss.Width(m.LeftGutterFunc(GutterContext{}))
+	for i, line := range m.lines {
+		adjust := max(1, ansi.StringWidth(line)/(maxWidth-gutterSize))
+		if y >= count && y < count+adjust {
+			return i
+		}
+		count += adjust
+	}
+	return y
+}
+
+// lineCount taking soft wrapping into account, return the total line count
+// (real lines + soft wrapped lined).
+func (m Model) lineCount() int {
+	if !m.SoftWrap {
+		return len(m.lines)
+	}
+	var count int
+	maxWidth := m.maxWidth()
+	gutterSize := lipgloss.Width(m.LeftGutterFunc(GutterContext{}))
+	for _, line := range m.lines {
+		count += max(1, ansi.StringWidth(line)/(maxWidth-gutterSize))
+	}
+	return count
+}
+
 // maxYOffset returns the maximum possible value of the y-offset based on the
 // viewport's content and set height.
 func (m Model) maxYOffset() int {
-	return max(0, len(m.lines)-m.Height+m.Style.GetVerticalFrameSize())
+	return max(0, m.lineCount()-m.Height+m.Style.GetVerticalFrameSize())
 }
 
 // maxXOffset returns the maximum possible value of the x-offset based on the
@@ -232,9 +267,10 @@ func (m Model) visibleLines() (lines []string) {
 	maxHeight := m.maxHeight()
 	maxWidth := m.maxWidth()
 
-	if len(m.lines) > 0 {
-		top := max(0, m.YOffset)
-		bottom := clamp(m.YOffset+maxHeight, top, len(m.lines))
+	if m.lineCount() > 0 {
+		pos := m.lineToIndex(m.YOffset)
+		top := max(0, pos)
+		bottom := clamp(pos+maxHeight, top, len(m.lines))
 		lines = make([]string, bottom-top)
 		copy(lines, m.lines[top:bottom])
 		lines = m.highlightLines(lines, top)
@@ -412,8 +448,9 @@ func (m *Model) LineDown(n int) (lines []string) {
 	// Gather lines to send off for performance scrolling.
 	//
 	// XXX: high performance rendering is deprecated in Bubble Tea.
-	bottom := clamp(m.YOffset+m.Height, 0, len(m.lines))
-	top := clamp(m.YOffset+m.Height-n, 0, bottom)
+	pos := m.lineToIndex(m.YOffset)
+	bottom := clamp(pos+m.Height, 0, len(m.lines))
+	top := clamp(pos+m.Height-n, 0, bottom)
 	return m.lines[top:bottom]
 }
 
@@ -432,14 +469,15 @@ func (m *Model) LineUp(n int) (lines []string) {
 	// Gather lines to send off for performance scrolling.
 	//
 	// XXX: high performance rendering is deprecated in Bubble Tea.
-	top := max(0, m.YOffset)
-	bottom := clamp(m.YOffset+n, 0, m.maxYOffset())
+	pos := m.lineToIndex(m.YOffset)
+	top := max(0, pos)
+	bottom := clamp(pos+n, 0, len(m.lines))
 	return m.lines[top:bottom]
 }
 
 // TotalLineCount returns the total number of lines (both hidden and visible) within the viewport.
 func (m Model) TotalLineCount() int {
-	return len(m.lines)
+	return m.lineCount()
 }
 
 // VisibleLineCount returns the number of the visible lines within the viewport.
