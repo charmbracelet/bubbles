@@ -194,7 +194,7 @@ func (m *Model) SetContent(s string) {
 	m.longestLineWidth = maxLineWidth(m.lines)
 	m.ClearHighlights()
 
-	if m.YOffset > m.lineCount()-1 {
+	if m.YOffset > m.maxYOffset() {
 		m.GotoBottom()
 	}
 }
@@ -205,38 +205,36 @@ func (m Model) GetContent() string {
 	return strings.Join(m.lines, "\n")
 }
 
-// lineToIndex taking soft wrappign into account, return the real line index
-// for the given line.
-func (m Model) lineToIndex(y int) int {
+// calculateLine taking soft wrapiing into account, returns the total viewable
+// lines and the real-line index for the given yoffset.
+func (m Model) calculateLine(yoffset int) (total, idx int) {
 	if !m.SoftWrap {
-		return y
+		return len(m.lines), yoffset
 	}
-	var count int
 	maxWidth := m.maxWidth()
 	gutterSize := lipgloss.Width(m.LeftGutterFunc(GutterContext{}))
 	for i, line := range m.lines {
 		adjust := max(1, ansi.StringWidth(line)/(maxWidth-gutterSize))
-		if y >= count && y < count+adjust {
-			return i
+		if yoffset >= total && yoffset < total+adjust {
+			idx = i
 		}
-		count += adjust
+		total += adjust
 	}
-	return y
+	return total, idx
 }
 
-// lineCount taking soft wrapping into account, return the total line count
-// (real lines + soft wrapped lined).
+// lineToIndex taking soft wrappign into account, return the real line index
+// for the given line.
+func (m Model) lineToIndex(y int) int {
+	_, idx := m.calculateLine(y)
+	return idx
+}
+
+// lineCount taking soft wrapping into account, return the total viewable line
+// count (real lines + soft wrapped line).
 func (m Model) lineCount() int {
-	if !m.SoftWrap {
-		return len(m.lines)
-	}
-	var count int
-	maxWidth := m.maxWidth()
-	gutterSize := lipgloss.Width(m.LeftGutterFunc(GutterContext{}))
-	for _, line := range m.lines {
-		count += max(1, ansi.StringWidth(line)/(maxWidth-gutterSize))
-	}
-	return count
+	total, _ := m.calculateLine(0)
+	return total
 }
 
 // maxYOffset returns the maximum possible value of the y-offset based on the
