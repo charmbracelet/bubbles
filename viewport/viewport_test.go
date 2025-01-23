@@ -542,7 +542,7 @@ func testHighlights(tb testing.TB, content string, re *regexp.Regexp, expect []h
 	vt.SetContent(content)
 
 	matches := re.FindAllStringIndex(vt.GetContent(), -1)
-	vt.SetHighligths(matches)
+	vt.SetHighlights(matches)
 
 	if !reflect.DeepEqual(expect, vt.highlights) {
 		tb.Errorf("\nexpect: %+v\n   got: %+v\n", expect, vt.highlights)

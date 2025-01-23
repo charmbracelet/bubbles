@@ -267,7 +267,7 @@ func (m Model) highlighLines(lines []string, offset int) []string {
 		if memoized := m.memoizedMatchedLines[i+offset]; memoized != "" {
 			lines[i] = memoized
 		} else {
-			ranges := makeHilightRanges(
+			ranges := makeHighlightRanges(
 				m.highlights,
 				i+offset,
 				m.HighlightStyle,
