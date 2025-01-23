@@ -71,11 +71,6 @@ func parseMatches(
 				colstart := max(0, graphemeStart-previousLinesOffset)
 				colend := max(graphemePos-previousLinesOffset+1, colstart) // +1 its \n itself
 
-				// fmt.Printf(
-				// 	"nl line=%d linestart=%d lineend=%d colstart=%d colend=%d start=%d end=%d processed=%d width=%d\n",
-				// 	line, hi.lineStart, hi.lineEnd, colstart, colend, graphemeStart, graphemeEnd, previousLinesOffset, graphemePos-previousLinesOffset,
-				// )
-
 				if colend > colstart {
 					hi.lines[line] = [2]int{colstart, colend}
 					hi.lineEnd = line
@@ -93,11 +88,6 @@ func parseMatches(
 		if bytePos == byteEnd {
 			colstart := max(0, graphemeStart-previousLinesOffset)
 			colend := max(graphemePos-previousLinesOffset, colstart)
-
-			// fmt.Printf(
-			// 	"no line=%d linestart=%d lineend=%d colstart=%d colend=%d start=%d end=%d processed=%d width=%d\n",
-			// 	line, hi.lineStart, hi.lineEnd, colstart, colend, graphemeStart, graphemeEnd, previousLinesOffset, graphemePos-previousLinesOffset,
-			// )
 
 			if colend > colstart {
 				hi.lines[line] = [2]int{colstart, colend}
@@ -131,7 +121,7 @@ func (hi highlightInfo) coords() (int, int, int) {
 	return hi.lineStart, 0, 0
 }
 
-func makeHilightRanges(
+func makeHighlightRanges(
 	highlights []highlightInfo,
 	line int,
 	style lipgloss.Style,

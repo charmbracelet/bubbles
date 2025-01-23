@@ -545,15 +545,15 @@ func (m *Model) ResetIndent() {
 	m.xOffset = 0
 }
 
-// SetHighligths sets ranges of characters to highlight.
+// SetHighlights sets ranges of characters to highlight.
 // For instance, `[]int{[]int{2, 10}, []int{20, 30}}` will highlight characters
 // 2 to 10 and 20 to 30.
 // Note that highlights are not expected to transpose each other, and are also
 // expected to be in order.
-// Use [SetHighligths] to set the highlight ranges, and [HightlightNext]
-// and [HihglightPrevious] to navigate.
-// Use [ClearHighlights] to remove all highlights.
-func (m *Model) SetHighligths(matches [][]int) {
+// Use [Model.SetHighlights] to set the highlight ranges, and
+// [Model.HighlightNext] and [Model.HighlightPrevious] to navigate.
+// Use [Model.ClearHighlights] to remove all highlights.
+func (m *Model) SetHighlights(matches [][]int) {
 	if len(matches) == 0 || len(m.lines) == 0 {
 		return
 	}
@@ -578,8 +578,8 @@ func (m *Model) showHighlight() {
 	m.EnsureVisible(line, colstart, colend)
 }
 
-// HightlightNext highlights the next match.
-func (m *Model) HightlightNext() {
+// HighlightNext highlights the next match.
+func (m *Model) HighlightNext() {
 	if m.highlights == nil {
 		return
 	}
