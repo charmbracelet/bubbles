@@ -237,7 +237,7 @@ func (m Model) visibleLines() (lines []string) {
 		bottom := clamp(m.YOffset+maxHeight, top, len(m.lines))
 		lines = make([]string, bottom-top)
 		copy(lines, m.lines[top:bottom])
-		lines = m.highlighLines(lines, top)
+		lines = m.highlightLines(lines, top)
 	}
 
 	for m.FillHeight && len(lines) < maxHeight {
@@ -259,7 +259,7 @@ func (m Model) visibleLines() (lines []string) {
 	return m.prependColumn(lines)
 }
 
-func (m Model) highlighLines(lines []string, offset int) []string {
+func (m Model) highlightLines(lines []string, offset int) []string {
 	if len(m.highlights) == 0 {
 		return lines
 	}
