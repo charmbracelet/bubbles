@@ -12,8 +12,8 @@ github.com/charmbracelet/harmonica v0.2.0 h1:8NxJWRWg/bzKqqEaaeFNipOu77YR5t8aSwG
 github.com/charmbracelet/harmonica v0.2.0/go.mod h1:KSri/1RMQOZLbw7AHqgcBycp8pgJnQMYYT8QZRqZ1Ao=
 github.com/charmbracelet/lipgloss v1.0.1-0.20250121132900-022e96717265 h1:pezCx+0ILRh9K7dj+D/DJ2rToW9ZHa7owZdgPn264gQ=
 github.com/charmbracelet/lipgloss v1.0.1-0.20250121132900-022e96717265/go.mod h1:QRGthpgH59/perglqXZC8xPHqDGZ9BB45ChJCFEWEMI=
-github.com/charmbracelet/x/ansi v0.6.1-0.20250107110353-48b574af22a5 h1:TSjbA80sXnABV/Vxhnb67Ho7p8bEYqz6NIdhLAx+1yg=
-github.com/charmbracelet/x/ansi v0.6.1-0.20250107110353-48b574af22a5/go.mod h1:KBUFw1la39nl0dLl10l5ORDAqGXaeurTQmwyyVKse/Q=
+github.com/charmbracelet/x/ansi v0.7.1-0.20250122132629-a969ddeb820d h1:BXeRCLyo/PS8EQXLOd7Q7uVBJ0GyqULGtY0d0yWmiCk=
+github.com/charmbracelet/x/ansi v0.7.1-0.20250122132629-a969ddeb820d/go.mod h1:KBUFw1la39nl0dLl10l5ORDAqGXaeurTQmwyyVKse/Q=
 github.com/charmbracelet/x/exp/golden v0.0.0-20241011142426-46044092ad91 h1:payRxjMjKgx2PaCWLZ4p3ro9y97+TVLZNaRZgJwSVDQ=
 github.com/charmbracelet/x/exp/golden v0.0.0-20241011142426-46044092ad91/go.mod h1:wDlXFlCrmJ8J+swcL/MnGUuYnqgQdW9rhSD61oNMb6U=
 github.com/charmbracelet/x/term v0.2.0 h1:cNB9Ot9q8I711MyZ7myUR5HFWL/lc3OpU8jZ4hwm0x0=
