@@ -1322,6 +1322,13 @@ func Blink() tea.Msg {
 	return cursor.Blink()
 }
 
+// CursorPosition returns the current cursor position accounting any
+// soft-wrapped lines.
+func (m Model) CursorPosition() (col, row int) {
+	lineInfo := m.LineInfo()
+	return lineInfo.CharOffset, m.cursorLineNumber() - m.viewport.YOffset
+}
+
 func (m Model) memoizedWrap(runes []rune, width int) [][]rune {
 	input := line{runes: runes, width: width}
 	if v, ok := m.cache.Get(input); ok {
