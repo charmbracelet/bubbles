@@ -48,7 +48,7 @@ func ExampleValidateFunc() {
 	creditCardNumber.CharLimit = 20
 	creditCardNumber.Width = 30
 	creditCardNumber.Prompt = ""
-	// The anonymous function is a valid function for ValidateFunc.
+	// This anonymous function is a valid function for ValidateFunc.
 	creditCardNumber.Validate = func(s string) error {
 		// Credit Card Number should a string less than 20 digits
 		// It should include 16 integers and 3 spaces
