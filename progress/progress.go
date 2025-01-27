@@ -182,7 +182,7 @@ func New(opts ...Option) Model {
 }
 
 // Init exists to satisfy the tea.Model interface.
-func (m Model) Init() (tea.Model, tea.Cmd) {
+func (m Model) Init() (Model, tea.Cmd) {
 	return m, nil
 }
 
@@ -190,7 +190,7 @@ func (m Model) Init() (tea.Model, tea.Cmd) {
 // SetPercent to create the command you'll need to trigger the animation.
 //
 // If you're rendering with ViewAs you won't need this.
-func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case FrameMsg:
 		if msg.id != m.id || msg.tag != m.tag {
