@@ -324,13 +324,6 @@ func (m *Model) ResetIndent() {
 
 // Update handles standard message-based viewport updates.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
-	m = m.updateAsModel(msg)
-	return m, nil
-}
-
-// Author's note: this method has been broken out to make it easier to
-// potentially transition Update to satisfy tea.Model.
-func (m Model) updateAsModel(msg tea.Msg) Model {
 	if !m.initialized {
 		m.setInitialValues()
 	}
@@ -377,7 +370,7 @@ func (m Model) updateAsModel(msg tea.Msg) Model {
 		}
 	}
 
-	return m
+	return m, nil
 }
 
 // View renders the viewport into a string.
