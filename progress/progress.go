@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"math"
 	"strings"
-	"sync"
+	"sync/atomic"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -17,17 +17,10 @@ import (
 
 // Internal ID management. Used during animating to assure that frame messages
 // can only be received by progress components that sent them.
-var (
-	lastID int
-	idMtx  sync.Mutex
-)
+var lastID int64
 
-// Return the next ID we should use on the model.
 func nextID() int {
-	idMtx.Lock()
-	defer idMtx.Unlock()
-	lastID++
-	return lastID
+	return int(atomic.AddInt64(&lastID, 1))
 }
 
 const (
@@ -342,7 +335,7 @@ func (m Model) percentageView(percent float64) string {
 		return ""
 	}
 	percent = math.Max(0, math.Min(1, percent))
-	percentage := fmt.Sprintf(m.PercentFormat, percent*100) //nolint:gomnd
+	percentage := fmt.Sprintf(m.PercentFormat, percent*100) //nolint:mnd
 	percentage = m.PercentageStyle.Inline(true).Render(percentage)
 	return percentage
 }
