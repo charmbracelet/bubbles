@@ -154,9 +154,9 @@ type CursorStyle struct {
 	// CursorBlink determines whether or not the cursor should blink.
 	Blink bool
 
-	// BlinkSpeed is the speed at which the virtualcursor blinks. This has no
-	// effect on real cursors as well as no effect if the cursor is set not
-	// to [CursorBlink].
+	// BlinkSpeed is the speed at which the virtual cursor blinks. This has no
+	// effect on real cursors as well as no effect if the cursor is set not to
+	// [CursorBlink].
 	//
 	// By default, the blink speed is set to about 500ms.
 	BlinkSpeed time.Duration
@@ -168,6 +168,7 @@ type CursorStyle struct {
 type Styles struct {
 	Focused StyleState
 	Blurred StyleState
+	Cursor  CursorStyle
 }
 
 // StyleState that will be applied to the text area.
@@ -186,7 +187,6 @@ type StyleState struct {
 	Placeholder      lipgloss.Style
 	Prompt           lipgloss.Style
 	Text             lipgloss.Style
-	Cursor           CursorStyle
 }
 
 func (s StyleState) computedCursorLine() lipgloss.Style {
@@ -264,7 +264,7 @@ type Model struct {
 
 	// Styling. FocusedStyle and BlurredStyle are used to style the textarea in
 	// focused and blurred states.
-	styles Styles
+	Styles Styles
 
 	// activeStyle is the current styling to use.
 	// It is used to abstract the differences in focus state when styling the
@@ -345,7 +345,7 @@ func New() Model {
 		MaxHeight:            defaultMaxHeight,
 		MaxWidth:             defaultMaxWidth,
 		Prompt:               lipgloss.ThickBorder().Left + " ",
-		styles:               styles,
+		Styles:               styles,
 		activeStyle:          &styles.Blurred,
 		cache:                memoization.NewMemoCache[line, [][]rune](maxLines),
 		EndOfBufferCharacter: ' ',
@@ -383,9 +383,6 @@ func DefaultStyles(isDark bool) Styles {
 		Placeholder:      lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
 		Prompt:           lipgloss.NewStyle().Foreground(lipgloss.Color("7")),
 		Text:             lipgloss.NewStyle(),
-		Cursor: CursorStyle{
-			Style: lipgloss.NewStyle().Foreground(lipgloss.Color("7")),
-		},
 	}
 	s.Blurred = StyleState{
 		Base:             lipgloss.NewStyle(),
@@ -396,6 +393,10 @@ func DefaultStyles(isDark bool) Styles {
 		Placeholder:      lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
 		Prompt:           lipgloss.NewStyle().Foreground(lipgloss.Color("7")),
 		Text:             lipgloss.NewStyle().Foreground(lightDark(lipgloss.Color("245"), lipgloss.Color("7"))),
+	}
+	s.Cursor = CursorStyle{
+		Style: lipgloss.NewStyle().Foreground(lipgloss.Color("7")),
+		Blink: true,
 	}
 	return s
 }
@@ -410,38 +411,32 @@ func DefaultDarkStyles() Styles {
 	return DefaultStyles(true)
 }
 
-// SetStyles sets the styles for the textarea.
-func (m *Model) SetStyles(s Styles) {
-	m.styles = s
-	if m.focus {
-		m.activeStyle = &m.styles.Focused
-	} else {
-		m.activeStyle = &m.styles.Blurred
+// updateVirtualCursorStyle sets styling on the virtual cursor based on the
+// textarea's style settings.
+func (m *Model) updateVirtualCursorStyle() {
+	if !m.VirtualCursor {
+		m.virtualCursor.SetMode(cursor.CursorHide)
+		return
 	}
 
-	m.virtualCursor.Style = s.Focused.Cursor.Style
-	m.virtualCursor.BlinkedStyle = s.Focused.Cursor.BlinkedStyle
+	m.virtualCursor.Style = m.Styles.Cursor.Style
+	m.virtualCursor.BlinkedStyle = m.Styles.Cursor.BlinkedStyle
 
 	// By default, the blink speed of the cursor is set to a default
 	// internally.
-	if s.Focused.Cursor.BlinkSpeed > 0 {
-		m.virtualCursor.BlinkSpeed = m.activeStyle.Cursor.BlinkSpeed
+	if m.Styles.Cursor.BlinkSpeed > 0 {
+		m.virtualCursor.BlinkSpeed = m.Styles.Cursor.BlinkSpeed
 	}
 
 	if !m.VirtualCursor {
 		m.virtualCursor.SetMode(cursor.CursorHide)
 		return
 	}
-	if s.Focused.Cursor.Blink {
+	if m.Styles.Cursor.Blink {
 		m.virtualCursor.SetMode(cursor.CursorBlink)
 		return
 	}
 	m.virtualCursor.SetMode(cursor.CursorStatic)
-}
-
-// Styles returns the styles for the textarea.
-func (m Model) Styles() Styles {
-	return m.styles
 }
 
 // SetValue sets the value of the text input.
@@ -682,7 +677,7 @@ func (m Model) Focused() bool {
 // receive keyboard input and the cursor will be hidden.
 func (m *Model) Focus() tea.Cmd {
 	m.focus = true
-	m.activeStyle = &m.styles.Focused
+	m.activeStyle = &m.Styles.Focused
 	return m.virtualCursor.Focus()
 }
 
@@ -690,7 +685,7 @@ func (m *Model) Focus() tea.Cmd {
 // not receive keyboard input and the cursor will be hidden.
 func (m *Model) Blur() {
 	m.focus = false
-	m.activeStyle = &m.styles.Blurred
+	m.activeStyle = &m.Styles.Blurred
 	m.virtualCursor.Blur()
 }
 
@@ -1195,6 +1190,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 // View renders the text area in its current state.
 func (m Model) View() string {
+	m.updateVirtualCursorStyle()
 	if m.Value() == "" && m.row == 0 && m.col == 0 && m.Placeholder != "" {
 		return m.placeholderView()
 	}
@@ -1422,16 +1418,13 @@ func Blink() tea.Msg {
 // If you're using a real cursor, you should also set [Model.VirtualCursor] to
 // false.
 func (m Model) Cursor() *tea.Cursor {
-	if m.VirtualCursor || !m.Focused() {
-		return nil
-	}
-
 	lineInfo := m.LineInfo()
 	x, y := lineInfo.CharOffset, m.cursorLineNumber()-m.viewport.YOffset
 
 	c := tea.NewCursor(x, y)
-	c.Blink = m.styles.Focused.Cursor.Blink
-	c.Color = m.styles.Focused.Cursor.Style.GetForeground()
+	c.Blink = m.Styles.Cursor.Blink
+	c.Color = m.Styles.Cursor.Style.GetForeground()
+	c.Shape = m.Styles.Cursor.Shape
 	return c
 }
 
