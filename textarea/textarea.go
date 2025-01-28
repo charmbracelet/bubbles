@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 	"unicode"
 
 	"github.com/atotto/clipboard"
@@ -128,6 +129,39 @@ type LineInfo struct {
 	CharOffset int
 }
 
+// CursorStyle is the style for real and virtual cursors.
+type CursorStyle struct {
+	// Style styles the cursor block.
+	//
+	// For real cursors, the foreground color set here will be used as the
+	// cursor color.
+	Style lipgloss.Style
+
+	// BlinkedStyle is the style used for the cursor when it is blinking
+	// (hidden), i.e. displaying normal text. This is only used for virtual
+	// cursors.
+	BlinkedStyle lipgloss.Style
+
+	// Shape is the cursor shape. The following shapes are available:
+	//
+	// - tea.CursorBlock
+	// - tea.CursorUnderline
+	// - tea.CursorBar
+	//
+	// This is only used for real cursors.
+	Shape tea.CursorShape
+
+	// CursorBlink determines whether or not the cursor should blink.
+	Blink bool
+
+	// BlinkSpeed is the speed at which the virtualcursor blinks. This has no
+	// effect on real cursors as well as no effect if the cursor is set not
+	// to [CursorBlink].
+	//
+	// By default, the blink speed is set to about 500ms.
+	BlinkSpeed time.Duration
+}
+
 // Styles are the styles for the textarea, separated into focused and blurred
 // states. The appropriate styles will be chosen based on the focus state of
 // the textarea.
@@ -152,6 +186,7 @@ type StyleState struct {
 	Placeholder      lipgloss.Style
 	Prompt           lipgloss.Style
 	Text             lipgloss.Style
+	Cursor           CursorStyle
 }
 
 func (s StyleState) computedCursorLine() lipgloss.Style {
@@ -229,7 +264,7 @@ type Model struct {
 
 	// Styling. FocusedStyle and BlurredStyle are used to style the textarea in
 	// focused and blurred states.
-	Styles Styles
+	styles Styles
 
 	// activeStyle is the current styling to use.
 	// It is used to abstract the differences in focus state when styling the
@@ -237,27 +272,12 @@ type Model struct {
 	// when switching focus states.
 	activeStyle *StyleState
 
-	// Cursor manages the virtual cursor and contains styling settings for
-	// both a real and virtual cursor.
-	Cursor cursor.Model
+	// virtualCursor manages the virtual cursor.
+	virtualCursor cursor.Model
 
-	// UseRealCursor determines whether or not to use the real cursor. By
-	// default, a virtual cursor is used.
-	//
-	// When [UseRealCursor] is enabled, the virual cursor is hidden and you
-	// must use [Model.RealCursor] to produce a real cursor for a [tea.Frame].
-	//
-	// Note that you will almost certainly also need to adjust the offset
-	// postion of the textarea to properly set the cursor position.
-	//
-	// Example:
-	//
-	//  // In your top-level View function:
-	//  f := tea.NewFrame(m.textarea.View())
-	//  f.Cursor = m.textarea.RealCursor()
-	//  f.Cursor.Position.X += offsetX
-	//  f.Cursor.Position.Y += offsetY
-	UseRealCursor bool
+	// VirtualCursor determines whether or not to use the virtual cursor. If
+	// set to false, use [Model.Cursor] to return a real cursor for rendering.
+	VirtualCursor bool
 
 	// CharLimit is the maximum number of characters this input element will
 	// accept. If 0 or less, there's no limit.
@@ -325,12 +345,13 @@ func New() Model {
 		MaxHeight:            defaultMaxHeight,
 		MaxWidth:             defaultMaxWidth,
 		Prompt:               lipgloss.ThickBorder().Left + " ",
-		Styles:               styles,
+		styles:               styles,
 		activeStyle:          &styles.Blurred,
 		cache:                memoization.NewMemoCache[line, [][]rune](maxLines),
 		EndOfBufferCharacter: ' ',
 		ShowLineNumbers:      true,
-		Cursor:               cur,
+		VirtualCursor:        true,
+		virtualCursor:        cur,
 		KeyMap:               DefaultKeyMap(),
 
 		value: make([][]rune, minHeight, maxLines),
@@ -362,6 +383,9 @@ func DefaultStyles(isDark bool) Styles {
 		Placeholder:      lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
 		Prompt:           lipgloss.NewStyle().Foreground(lipgloss.Color("7")),
 		Text:             lipgloss.NewStyle(),
+		Cursor: CursorStyle{
+			Style: lipgloss.NewStyle().Foreground(lipgloss.Color("7")),
+		},
 	}
 	s.Blurred = StyleState{
 		Base:             lipgloss.NewStyle(),
@@ -384,6 +408,40 @@ func DefaultLightStyles() Styles {
 // DefaultDarkStyles returns the default styles for a dark background.
 func DefaultDarkStyles() Styles {
 	return DefaultStyles(true)
+}
+
+// SetStyles sets the styles for the textarea.
+func (m *Model) SetStyles(s Styles) {
+	m.styles = s
+	if m.focus {
+		m.activeStyle = &m.styles.Focused
+	} else {
+		m.activeStyle = &m.styles.Blurred
+	}
+
+	m.virtualCursor.Style = s.Focused.Cursor.Style
+	m.virtualCursor.BlinkedStyle = s.Focused.Cursor.BlinkedStyle
+
+	// By default, the blink speed of the cursor is set to a deafault
+	// internally.
+	if s.Focused.Cursor.BlinkSpeed > 0 {
+		m.virtualCursor.BlinkSpeed = m.activeStyle.Cursor.BlinkSpeed
+	}
+
+	if !m.VirtualCursor {
+		m.virtualCursor.SetMode(cursor.CursorHide)
+		return
+	}
+	if s.Focused.Cursor.Blink {
+		m.virtualCursor.SetMode(cursor.CursorBlink)
+		return
+	}
+	m.virtualCursor.SetMode(cursor.CursorStatic)
+}
+
+// Styles returns the styles for the textarea.
+func (m Model) Styles() Styles {
+	return m.styles
 }
 
 // SetValue sets the value of the text input.
@@ -624,16 +682,16 @@ func (m Model) Focused() bool {
 // receive keyboard input and the cursor will be hidden.
 func (m *Model) Focus() tea.Cmd {
 	m.focus = true
-	m.activeStyle = &m.Styles.Focused
-	return m.Cursor.Focus()
+	m.activeStyle = &m.styles.Focused
+	return m.virtualCursor.Focus()
 }
 
 // Blur removes the focus state on the model. When the model is blurred it can
 // not receive keyboard input and the cursor will be hidden.
 func (m *Model) Blur() {
 	m.focus = false
-	m.activeStyle = &m.Styles.Blurred
-	m.Cursor.Blur()
+	m.activeStyle = &m.styles.Blurred
+	m.virtualCursor.Blur()
 }
 
 // Reset sets the input to its default state with no input.
@@ -1001,7 +1059,7 @@ func (m *Model) SetHeight(h int) {
 // Update is the Bubble Tea update loop.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	if !m.focus {
-		m.Cursor.Blur()
+		m.virtualCursor.Blur()
 		return m, nil
 	}
 
@@ -1123,10 +1181,10 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	cmds = append(cmds, cmd)
 
 	newRow, newCol := m.cursorLineNumber(), m.col
-	m.Cursor, cmd = m.Cursor.Update(msg)
-	if (newRow != oldRow || newCol != oldCol) && m.Cursor.Mode() == cursor.CursorBlink {
-		m.Cursor.Blink = false
-		cmd = m.Cursor.BlinkCmd()
+	m.virtualCursor, cmd = m.virtualCursor.Update(msg)
+	if (newRow != oldRow || newCol != oldCol) && m.virtualCursor.Mode() == cursor.CursorBlink {
+		m.virtualCursor.Blink = false
+		cmd = m.virtualCursor.BlinkCmd()
 	}
 	cmds = append(cmds, cmd)
 
@@ -1140,7 +1198,7 @@ func (m Model) View() string {
 	if m.Value() == "" && m.row == 0 && m.col == 0 && m.Placeholder != "" {
 		return m.placeholderView()
 	}
-	m.Cursor.BlinkedStyle = m.activeStyle.computedCursorLine()
+	m.virtualCursor.BlinkedStyle = m.activeStyle.computedCursorLine()
 
 	var (
 		s                strings.Builder
@@ -1209,11 +1267,11 @@ func (m Model) View() string {
 			if m.row == l && lineInfo.RowOffset == wl {
 				s.WriteString(style.Render(string(wrappedLine[:lineInfo.ColumnOffset])))
 				if m.col >= len(line) && lineInfo.CharOffset >= m.width {
-					m.Cursor.SetChar(" ")
-					s.WriteString(m.Cursor.View())
+					m.virtualCursor.SetChar(" ")
+					s.WriteString(m.virtualCursor.View())
 				} else {
-					m.Cursor.SetChar(string(wrappedLine[lineInfo.ColumnOffset]))
-					s.WriteString(style.Render(m.Cursor.View()))
+					m.virtualCursor.SetChar(string(wrappedLine[lineInfo.ColumnOffset]))
+					s.WriteString(style.Render(m.virtualCursor.View()))
 					s.WriteString(style.Render(string(wrappedLine[lineInfo.ColumnOffset+1:])))
 				}
 			} else {
@@ -1316,9 +1374,9 @@ func (m Model) placeholderView() string {
 		// first line
 		case i == 0:
 			// first character of first line as cursor with character
-			m.Cursor.BlinkedStyle = m.activeStyle.computedPlaceholder()
-			m.Cursor.SetChar(string(plines[0][0]))
-			s.WriteString(lineStyle.Render(m.Cursor.View()))
+			m.virtualCursor.BlinkedStyle = m.activeStyle.computedPlaceholder()
+			m.virtualCursor.SetChar(string(plines[0][0]))
+			s.WriteString(lineStyle.Render(m.virtualCursor.View()))
 
 			// the rest of the first line
 			s.WriteString(lineStyle.Render(style.Render(plines[0][1:] + strings.Repeat(" ", max(0, m.width-uniseg.StringWidth(plines[0]))))))
@@ -1347,10 +1405,24 @@ func Blink() tea.Msg {
 	return cursor.Blink()
 }
 
-// RealCursor returns a [tea.Cursor] for rendering a real cursor in a Bubble
-// Tea program.
-func (m Model) RealCursor() *tea.Cursor {
-	if m.Cursor.Mode() == cursor.CursorHide {
+// Cursor returns a [tea.Cursor] for rendering a real cursor in a Bubble Tea
+// program.
+//
+// Example:
+//
+//	// In your top-level View function:
+//	f := tea.NewFrame(m.textarea.View())
+//	f.Cursor = m.textarea.RealCursor()
+//	f.Cursor.Position.X += offsetX
+//	f.Cursor.Position.Y += offsetY
+//
+// Note that you will almost certainly also need to adjust the offset
+// position of the textarea to properly set the cursor position.
+//
+// If you're using a real cursor, you should also set [Model.VirtualCursor] to
+// false.
+func (m Model) Cursor() *tea.Cursor {
+	if m.VirtualCursor || !m.Focused() {
 		return nil
 	}
 
@@ -1358,8 +1430,8 @@ func (m Model) RealCursor() *tea.Cursor {
 	x, y := lineInfo.CharOffset, m.cursorLineNumber()-m.viewport.YOffset
 
 	c := tea.NewCursor(x, y)
-	c.Blink = m.Cursor.Mode() == cursor.CursorBlink
-	c.Color = m.Cursor.Style.GetForeground()
+	c.Blink = m.styles.Focused.Cursor.Blink
+	c.Color = m.styles.Focused.Cursor.Style.GetForeground()
 	return c
 }
 
