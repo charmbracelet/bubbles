@@ -171,7 +171,7 @@ func (m *Model) SetContent(s string) {
 // maxYOffset returns the maximum possible value of the y-offset based on the
 // viewport's content and set height.
 func (m Model) maxYOffset() int {
-	return max(0, len(m.lines)-m.Height())
+	return max(0, len(m.lines)-m.Height()+m.Style.GetVerticalFrameSize())
 }
 
 // visibleLines returns the lines that should currently be visible in the

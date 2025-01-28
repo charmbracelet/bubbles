@@ -86,7 +86,7 @@ func (m Model) Init() (Model, tea.Cmd) {
 
 // Start starts the stopwatch.
 func (m Model) Start() tea.Cmd {
-	return tea.Batch(func() tea.Msg {
+	return tea.Sequence(func() tea.Msg {
 		return StartStopMsg{ID: m.id, running: true}
 	}, tick(m.id, m.tag, m.Interval))
 }
