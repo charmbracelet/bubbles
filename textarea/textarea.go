@@ -1412,7 +1412,7 @@ func Blink() tea.Msg {
 //
 //	// In your top-level View function:
 //	f := tea.NewFrame(m.textarea.View())
-//	f.Cursor = m.textarea.RealCursor()
+//	f.Cursor = m.textarea.Cursor()
 //	f.Cursor.Position.X += offsetX
 //	f.Cursor.Position.Y += offsetY
 //
