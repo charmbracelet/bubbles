@@ -1,8 +1,5 @@
 // Package cursor provides a virtual cursor to support the textinput and
 // textarea elements.
-//
-// Both the textinput and textarea elements also use this package to style an
-// optional real cursor.
 package cursor
 
 import (
@@ -57,28 +54,14 @@ func (c Mode) String() string {
 // Model is the Bubble Tea model for this cursor element.
 type Model struct {
 	// Style styles the cursor block.
-	//
-	// For real cursors, the foreground color set here will be used as the
-	// cursor color.
 	Style lipgloss.Style
 
-	// Shape is the cursor shape. The following shapes are available:
-	//
-	// - tea.CursorBlock
-	// - tea.CursorUnderline
-	// - tea.CursorBar
-	//
-	// This is only used for real cursors.
-	Shape tea.CursorShape
-
 	// BlinkedStyle is the style used for the cursor when it is blinking
-	// (hidden), i.e. displaying normal text. This has no effect on real
-	// cursors.
+	// (hidden), i.e. displaying normal text.
 	BlinkedStyle lipgloss.Style
 
 	// BlinkSpeed is the speed at which the cursor blinks. This has no effect
-	// on real cursors as well as no effect if the [CursorMode] is not set to
-	// [CursorBlink].
+	// unless [CursorMode] is not set to [CursorBlink].
 	BlinkSpeed time.Duration
 
 	// Blink is the cursor blink state.
