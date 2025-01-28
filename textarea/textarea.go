@@ -422,7 +422,7 @@ func (m *Model) SetStyles(s Styles) {
 	m.virtualCursor.Style = s.Focused.Cursor.Style
 	m.virtualCursor.BlinkedStyle = s.Focused.Cursor.BlinkedStyle
 
-	// By default, the blink speed of the cursor is set to a deafault
+	// By default, the blink speed of the cursor is set to a default
 	// internally.
 	if s.Focused.Cursor.BlinkSpeed > 0 {
 		m.virtualCursor.BlinkSpeed = m.activeStyle.Cursor.BlinkSpeed
