@@ -1,3 +1,8 @@
+// Package cursor provides a virtual cursor to support the textinput and
+// textarea elements.
+//
+// Both the textinput and textarea elements also use this package to style an
+// optional real cursor.
 package cursor
 
 import (
@@ -51,25 +56,49 @@ func (c Mode) String() string {
 
 // Model is the Bubble Tea model for this cursor element.
 type Model struct {
-	BlinkSpeed time.Duration
-	// Style for styling the cursor block.
+	// Style styles the cursor block.
+	//
+	// For real cursors, the foreground color set here will be used as the
+	// cursor color.
 	Style lipgloss.Style
-	// TextStyle is the style used for the cursor when it is hidden (when blinking).
-	// I.e. displaying normal text.
-	TextStyle lipgloss.Style
+
+	// Shape is the cursor shape. The following shapes are available:
+	//
+	// - tea.CursorBlock
+	// - tea.CursorUnderline
+	// - tea.CursorBar
+	//
+	// This is only used for real cursors.
+	Shape tea.CursorShape
+
+	// BlinkedStyle is the style used for the cursor when it is blinking
+	// (hidden), i.e. displaying normal text. This has no effect on real
+	// cursors.
+	BlinkedStyle lipgloss.Style
+
+	// BlinkSpeed is the speed at which the cursor blinks. This has no effect
+	// on real cursors as well as no effect if the [CursorMode] is not set to
+	// [CursorBlink].
+	BlinkSpeed time.Duration
+
+	// Blink is the cursor blink state.
+	Blink bool
 
 	// char is the character under the cursor
 	char string
+
 	// The ID of this Model as it relates to other cursors
 	id int
+
 	// focus indicates whether the containing input is focused
 	focus bool
-	// Cursor Blink state.
-	Blink bool
+
 	// Used to manage cursor blink
 	blinkCtx *blinkCtx
+
 	// The ID of the blink message we're expecting to receive.
 	blinkTag int
+
 	// mode determines the behavior of the cursor
 	mode Mode
 }
@@ -212,7 +241,7 @@ func (m *Model) SetChar(char string) {
 // View displays the cursor.
 func (m Model) View() string {
 	if m.Blink {
-		return m.TextStyle.Inline(true).Render(m.char)
+		return m.BlinkedStyle.Inline(true).Render(m.char)
 	}
 	return m.Style.Inline(true).Reverse(true).Render(m.char)
 }

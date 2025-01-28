@@ -102,19 +102,25 @@ func DefaultKeyMap() KeyMap {
 type LineInfo struct {
 	// Width is the number of columns in the line.
 	Width int
+
 	// CharWidth is the number of characters in the line to account for
 	// double-width runes.
 	CharWidth int
+
 	// Height is the number of rows in the line.
 	Height int
+
 	// StartColumn is the index of the first column of the line.
 	StartColumn int
+
 	// ColumnOffset is the number of columns that the cursor is offset from the
 	// start of the line.
 	ColumnOffset int
+
 	// RowOffset is the number of rows that the cursor is offset from the start
 	// of the line.
 	RowOffset int
+
 	// CharOffset is the number of characters that the cursor is offset
 	// from the start of the line. This will generally be equivalent to
 	// ColumnOffset, but will be different there are double-width runes before
@@ -231,8 +237,27 @@ type Model struct {
 	// when switching focus states.
 	activeStyle *StyleState
 
-	// VirtualCursor is the text area cursor.
-	VirtualCursor cursor.Model
+	// Cursor manages the virtual cursor and contains styling settings for
+	// both a real and virtual cursor.
+	Cursor cursor.Model
+
+	// UseRealCursor determines whether or not to use the real cursor. By
+	// default, a virtual cursor is used.
+	//
+	// When [UseRealCursor] is enabled, the virual cursor is hidden and you
+	// must use [Model.RealCursor] to produce a real cursor for a [tea.Frame].
+	//
+	// Note that you will almost certainly also need to adjust the offset
+	// postion of the textarea to properly set the cursor position.
+	//
+	// Example:
+	//
+	//  // In your top-level View function:
+	//  f := tea.NewFrame(m.textarea.View())
+	//  f.Cursor = m.textarea.RealCursor()
+	//  f.Cursor.Position.X += offsetX
+	//  f.Cursor.Position.Y += offsetY
+	UseRealCursor bool
 
 	// CharLimit is the maximum number of characters this input element will
 	// accept. If 0 or less, there's no limit.
@@ -305,7 +330,7 @@ func New() Model {
 		cache:                memoization.NewMemoCache[line, [][]rune](maxLines),
 		EndOfBufferCharacter: ' ',
 		ShowLineNumbers:      true,
-		VirtualCursor:        cur,
+		Cursor:               cur,
 		KeyMap:               DefaultKeyMap(),
 
 		value: make([][]rune, minHeight, maxLines),
@@ -600,7 +625,7 @@ func (m Model) Focused() bool {
 func (m *Model) Focus() tea.Cmd {
 	m.focus = true
 	m.activeStyle = &m.Styles.Focused
-	return m.VirtualCursor.Focus()
+	return m.Cursor.Focus()
 }
 
 // Blur removes the focus state on the model. When the model is blurred it can
@@ -608,7 +633,7 @@ func (m *Model) Focus() tea.Cmd {
 func (m *Model) Blur() {
 	m.focus = false
 	m.activeStyle = &m.Styles.Blurred
-	m.VirtualCursor.Blur()
+	m.Cursor.Blur()
 }
 
 // Reset sets the input to its default state with no input.
@@ -976,7 +1001,7 @@ func (m *Model) SetHeight(h int) {
 // Update is the Bubble Tea update loop.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	if !m.focus {
-		m.VirtualCursor.Blur()
+		m.Cursor.Blur()
 		return m, nil
 	}
 
@@ -1098,10 +1123,10 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	cmds = append(cmds, cmd)
 
 	newRow, newCol := m.cursorLineNumber(), m.col
-	m.VirtualCursor, cmd = m.VirtualCursor.Update(msg)
-	if (newRow != oldRow || newCol != oldCol) && m.VirtualCursor.Mode() == cursor.CursorBlink {
-		m.VirtualCursor.Blink = false
-		cmd = m.VirtualCursor.BlinkCmd()
+	m.Cursor, cmd = m.Cursor.Update(msg)
+	if (newRow != oldRow || newCol != oldCol) && m.Cursor.Mode() == cursor.CursorBlink {
+		m.Cursor.Blink = false
+		cmd = m.Cursor.BlinkCmd()
 	}
 	cmds = append(cmds, cmd)
 
@@ -1115,7 +1140,7 @@ func (m Model) View() string {
 	if m.Value() == "" && m.row == 0 && m.col == 0 && m.Placeholder != "" {
 		return m.placeholderView()
 	}
-	m.VirtualCursor.TextStyle = m.activeStyle.computedCursorLine()
+	m.Cursor.BlinkedStyle = m.activeStyle.computedCursorLine()
 
 	var (
 		s                strings.Builder
@@ -1184,11 +1209,11 @@ func (m Model) View() string {
 			if m.row == l && lineInfo.RowOffset == wl {
 				s.WriteString(style.Render(string(wrappedLine[:lineInfo.ColumnOffset])))
 				if m.col >= len(line) && lineInfo.CharOffset >= m.width {
-					m.VirtualCursor.SetChar(" ")
-					s.WriteString(m.VirtualCursor.View())
+					m.Cursor.SetChar(" ")
+					s.WriteString(m.Cursor.View())
 				} else {
-					m.VirtualCursor.SetChar(string(wrappedLine[lineInfo.ColumnOffset]))
-					s.WriteString(style.Render(m.VirtualCursor.View()))
+					m.Cursor.SetChar(string(wrappedLine[lineInfo.ColumnOffset]))
+					s.WriteString(style.Render(m.Cursor.View()))
 					s.WriteString(style.Render(string(wrappedLine[lineInfo.ColumnOffset+1:])))
 				}
 			} else {
@@ -1291,9 +1316,9 @@ func (m Model) placeholderView() string {
 		// first line
 		case i == 0:
 			// first character of first line as cursor with character
-			m.VirtualCursor.TextStyle = m.activeStyle.computedPlaceholder()
-			m.VirtualCursor.SetChar(string(plines[0][0]))
-			s.WriteString(lineStyle.Render(m.VirtualCursor.View()))
+			m.Cursor.BlinkedStyle = m.activeStyle.computedPlaceholder()
+			m.Cursor.SetChar(string(plines[0][0]))
+			s.WriteString(lineStyle.Render(m.Cursor.View()))
 
 			// the rest of the first line
 			s.WriteString(lineStyle.Render(style.Render(plines[0][1:] + strings.Repeat(" ", max(0, m.width-uniseg.StringWidth(plines[0]))))))
@@ -1317,21 +1342,24 @@ func (m Model) placeholderView() string {
 	return m.activeStyle.Base.Render(m.viewport.View())
 }
 
-// Blink returns the blink command for the cursor.
+// Blink returns the blink command for the virtual cursor.
 func Blink() tea.Msg {
 	return cursor.Blink()
 }
 
-// Cursor returns the current cursor position accounting any
-// soft-wrapped lines.
-func (m Model) Cursor() *tea.Cursor {
+// RealCursor returns a [tea.Cursor] for rendering a real cursor in a Bubble
+// Tea program.
+func (m Model) RealCursor() *tea.Cursor {
+	if m.Cursor.Mode() == cursor.CursorHide {
+		return nil
+	}
+
 	lineInfo := m.LineInfo()
 	x, y := lineInfo.CharOffset, m.cursorLineNumber()-m.viewport.YOffset
 
-	// TODO: sort out where these properties live.
 	c := tea.NewCursor(x, y)
-	c.Blink = true
-	c.Color = m.VirtualCursor.Style.GetForeground()
+	c.Blink = m.Cursor.Mode() == cursor.CursorBlink
+	c.Color = m.Cursor.Style.GetForeground()
 	return c
 }
 
