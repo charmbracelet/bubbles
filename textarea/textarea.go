@@ -241,7 +241,7 @@ type Model struct {
 	// When changing the value of Prompt after the model has been
 	// initialized, ensure that SetWidth() gets called afterwards.
 	//
-	// See also SetPromptFunc().
+	// See also [SetPromptFunc] for a dynamic prompt.
 	Prompt string
 
 	// Placeholder is the text displayed when the user
@@ -983,9 +983,11 @@ func (m *Model) moveToEnd() {
 // It is important that the width of the textarea be exactly the given width
 // and no more.
 func (m *Model) SetWidth(w int) {
-	// Update prompt width only if there is no prompt function as SetPromptFunc
-	// updates the prompt width when it is called.
+	// Update prompt width only if there is no prompt function as
+	// [SetPromptFunc] updates the prompt width when it is called.
 	if m.promptFunc == nil {
+		// XXX: This should account for a styled prompt and use lipglosss.Width
+		// instead of uniseg.StringWidth.
 		m.promptWidth = uniseg.StringWidth(m.Prompt)
 	}
 
@@ -997,6 +999,7 @@ func (m *Model) SetWidth(w int) {
 
 	// Add line number width to reserved inner width.
 	if m.ShowLineNumbers {
+		// XXX: this should almost certainly not be hardcoded.
 		const lnWidth = 4 // Up to 3 digits for line number plus 1 margin.
 		reservedInner += lnWidth
 	}
@@ -1019,14 +1022,13 @@ func (m *Model) SetWidth(w int) {
 	m.width = inputWidth - reservedOuter - reservedInner
 }
 
-// SetPromptFunc supersedes the Prompt field and sets a dynamic prompt
-// instead.
-// If the function returns a prompt that is shorter than the
-// specified promptWidth, it will be padded to the left.
-// If it returns a prompt that is longer, display artifacts
-// may occur; the caller is responsible for computing an adequate
-// promptWidth.
-func (m *Model) SetPromptFunc(promptWidth int, fn func(lineIdx int) string) {
+// SetPromptFunc supersedes the Prompt field and sets a dynamic prompt instead.
+//
+// If the function returns a prompt that is shorter than the specified
+// promptWidth, it will be padded to the left. If it returns a prompt that is
+// longer, display artifacts may occur; the caller is responsible for computing
+// an adequate promptWidth.
+func (m *Model) SetPromptFunc(promptWidth int, fn func(lineIndex int) string) {
 	m.promptFunc = fn
 	m.promptWidth = promptWidth
 }
