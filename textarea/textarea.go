@@ -3,6 +3,7 @@ package textarea
 import (
 	"crypto/sha256"
 	"fmt"
+	"image/color"
 	"strconv"
 	"strings"
 	"time"
@@ -135,12 +136,7 @@ type CursorStyle struct {
 	//
 	// For real cursors, the foreground color set here will be used as the
 	// cursor color.
-	Style lipgloss.Style
-
-	// BlinkedStyle is the style used for the cursor when it is blinking
-	// (hidden), i.e. displaying normal text. This is only used for virtual
-	// cursors.
-	BlinkedStyle lipgloss.Style
+	Color color.Color
 
 	// Shape is the cursor shape. The following shapes are available:
 	//
@@ -395,7 +391,8 @@ func DefaultStyles(isDark bool) Styles {
 		Text:             lipgloss.NewStyle().Foreground(lightDark(lipgloss.Color("245"), lipgloss.Color("7"))),
 	}
 	s.Cursor = CursorStyle{
-		Style: lipgloss.NewStyle().Foreground(lipgloss.Color("7")),
+		Color: lipgloss.Color("7"),
+		Shape: tea.CursorBlock,
 		Blink: true,
 	}
 	return s
@@ -419,8 +416,7 @@ func (m *Model) updateVirtualCursorStyle() {
 		return
 	}
 
-	m.virtualCursor.Style = m.Styles.Cursor.Style
-	m.virtualCursor.BlinkedStyle = m.Styles.Cursor.BlinkedStyle
+	m.virtualCursor.Style = lipgloss.NewStyle().Foreground(m.Styles.Cursor.Color)
 
 	// By default, the blink speed of the cursor is set to a default
 	// internally.
@@ -1194,7 +1190,7 @@ func (m Model) View() string {
 	if m.Value() == "" && m.row == 0 && m.col == 0 && m.Placeholder != "" {
 		return m.placeholderView()
 	}
-	m.virtualCursor.BlinkedStyle = m.activeStyle.computedCursorLine()
+	m.virtualCursor.TextStyle = m.activeStyle.computedCursorLine()
 
 	var (
 		s                strings.Builder
@@ -1370,7 +1366,7 @@ func (m Model) placeholderView() string {
 		// first line
 		case i == 0:
 			// first character of first line as cursor with character
-			m.virtualCursor.BlinkedStyle = m.activeStyle.computedPlaceholder()
+			m.virtualCursor.TextStyle = m.activeStyle.computedPlaceholder()
 			m.virtualCursor.SetChar(string(plines[0][0]))
 			s.WriteString(lineStyle.Render(m.virtualCursor.View()))
 
@@ -1423,7 +1419,7 @@ func (m Model) Cursor() *tea.Cursor {
 
 	c := tea.NewCursor(x, y)
 	c.Blink = m.Styles.Cursor.Blink
-	c.Color = m.Styles.Cursor.Style.GetForeground()
+	c.Color = m.Styles.Cursor.Color
 	c.Shape = m.Styles.Cursor.Shape
 	return c
 }

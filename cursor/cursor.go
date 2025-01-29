@@ -56,15 +56,15 @@ type Model struct {
 	// Style styles the cursor block.
 	Style lipgloss.Style
 
-	// BlinkedStyle is the style used for the cursor when it is blinking
+	// TextStyle is the style used for the cursor when it is blinking
 	// (hidden), i.e. displaying normal text.
-	BlinkedStyle lipgloss.Style
+	TextStyle lipgloss.Style
 
 	// BlinkSpeed is the speed at which the cursor blinks. This has no effect
 	// unless [CursorMode] is not set to [CursorBlink].
 	BlinkSpeed time.Duration
 
-	// Blink is the cursor blink state.
+	// Blink is the state of the cursor blink. When true, the cursor is hidden.
 	Blink bool
 
 	// char is the character under the cursor
@@ -224,7 +224,7 @@ func (m *Model) SetChar(char string) {
 // View displays the cursor.
 func (m Model) View() string {
 	if m.Blink {
-		return m.BlinkedStyle.Inline(true).Render(m.char)
+		return m.TextStyle.Inline(true).Render(m.char)
 	}
 	return m.Style.Inline(true).Reverse(true).Render(m.char)
 }

@@ -671,7 +671,7 @@ func (m Model) View() string {
 		if m.canAcceptSuggestion() {
 			suggestion := m.matchedSuggestions[m.currentSuggestionIndex]
 			if len(value) < len(suggestion) {
-				m.Cursor.BlinkedStyle = m.CompletionStyle
+				m.Cursor.TextStyle = m.CompletionStyle
 				m.Cursor.SetChar(m.echoTransform(string(suggestion[pos])))
 				v += m.Cursor.View()
 				v += m.completionView(1)
@@ -709,7 +709,7 @@ func (m Model) placeholderView() string {
 	p := make([]rune, m.Width()+1)
 	copy(p, []rune(m.Placeholder))
 
-	m.Cursor.BlinkedStyle = m.PlaceholderStyle
+	m.Cursor.TextStyle = m.PlaceholderStyle
 	m.Cursor.SetChar(string(p[:1]))
 	v += m.Cursor.View()
 
