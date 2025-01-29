@@ -1,6 +1,8 @@
 package table
 
 import (
+	"github.com/charmbracelet/bubbles/key"
+	"strings"
 	"testing"
 
 	"github.com/charmbracelet/lipgloss"
@@ -156,4 +158,47 @@ func TestTableAlignment(t *testing.T) {
 		got := ansi.Strip(baseStyle.Render(biscuits.View()))
 		golden.RequireEqual(t, []byte(got))
 	})
+}
+
+func TestAdditionalKeys(t *testing.T) {
+	biscuits := New(
+		WithHeight(5),
+		WithColumns([]Column{
+			{Title: "Name", Width: 25},
+			{Title: "Country of Origin", Width: 16},
+			{Title: "Dunk-able", Width: 12},
+		}),
+		WithRows([]Row{
+			{"Chocolate Digestives", "UK", "Yes"},
+			{"Tim Tams", "Australia", "No"},
+			{"Hobnobs", "UK", "Yes"},
+		}),
+		WithAdditionalShortHelpKeys([]key.Binding{
+			key.NewBinding(key.WithKeys("s"), key.WithHelp("s", "shortkey")),
+		}),
+		WithAdditionalFullHelpKeys([][]key.Binding{
+			{
+				key.NewBinding(key.WithKeys("f"), key.WithHelp("s", "fullkey")),
+			},
+		}),
+	)
+
+	// short help
+	if !strings.Contains(biscuits.HelpView(), "shortkey") {
+		t.Fatalf("Error: short help view to contain '%s'", "shortkey")
+	}
+	if strings.Contains(biscuits.HelpView(), "fullkey") {
+		t.Fatalf("Error: short help should not contain '%s'", "fullkey")
+	}
+
+	// full help
+	biscuits.Help.ShowAll = true
+	if strings.Contains(biscuits.HelpView(), "shortkey") {
+		t.Fatalf("Error: full help should not contain '%s'", "shortkey")
+	}
+
+	if !strings.Contains(biscuits.HelpView(), "fullkey") {
+		t.Fatalf("Error: short help view to contain '%s'", "fullkey")
+	}
+
 }
