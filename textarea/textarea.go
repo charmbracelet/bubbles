@@ -1443,7 +1443,9 @@ func Blink() tea.Msg {
 // false.
 func (m Model) Cursor() *tea.Cursor {
 	lineInfo := m.LineInfo()
-	x, y := lineInfo.CharOffset, m.cursorLineNumber()-m.viewport.YOffset
+	w := lipgloss.Width
+	x := lineInfo.CharOffset + w(m.promptView(0)) + w(m.lineNumberView(0, false))
+	y := m.cursorLineNumber() - m.viewport.YOffset
 
 	c := tea.NewCursor(x, y)
 	c.Blink = m.Styles.Cursor.Blink
