@@ -988,6 +988,9 @@ func (m *Model) SetWidth(w int) {
 	if m.promptFunc == nil {
 		// XXX: This should account for a styled prompt and use lipglosss.Width
 		// instead of uniseg.StringWidth.
+		//
+		// XXX: Do we even need this or can we calculate the prompt width
+		// at render time?
 		m.promptWidth = uniseg.StringWidth(m.Prompt)
 	}
 
@@ -999,9 +1002,13 @@ func (m *Model) SetWidth(w int) {
 
 	// Add line number width to reserved inner width.
 	if m.ShowLineNumbers {
-		// XXX: this should almost certainly not be hardcoded.
-		const lnWidth = 4 // Up to 3 digits for line number plus 1 margin.
-		reservedInner += lnWidth
+		// XXX: this was originally documented as needing "1 cell" but was,
+		// in practice, hardcoded to effectively 2 cells. We can, and should,
+		// reduce this to one gap and update the tests accordingly.
+		const gap = 2
+
+		// Number of digits plus 1 cell for the margin.
+		reservedInner += numDigits(m.MaxHeight) + gap
 	}
 
 	// Input width must be at least one more than the reserved inner and outer
@@ -1610,6 +1617,20 @@ func repeatSpaces(n int) []rune {
 	return []rune(strings.Repeat(string(' '), n))
 }
 
+// numDigits returns the number of digits in an integer.
+func numDigits(n int) int {
+	if n == 0 {
+		return 1
+	}
+	count := 0
+	num := abs(n)
+	for num > 0 {
+		count++
+		num /= 10
+	}
+	return count
+}
+
 func clamp(v, low, high int) int {
 	if high < low {
 		low, high = high, low
@@ -1629,4 +1650,11 @@ func max(a, b int) int {
 		return a
 	}
 	return b
+}
+
+func abs(n int) int {
+	if n < 0 {
+		return -n
+	}
+	return n
 }
