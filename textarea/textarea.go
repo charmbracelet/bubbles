@@ -1341,18 +1341,16 @@ func (m Model) lineNumberView(n int, isCursorLine bool) (str string) {
 	return textStyle.Render(lineNumberStyle.Render(str))
 }
 
-// placeholderView returns the prompt and placeholder view, if any.
+// placeholderView returns the prompt and placeholder, if any.
 func (m Model) placeholderView() string {
 	var (
 		s      strings.Builder
 		p      = m.Placeholder
 		styles = m.activeStyle()
-		// placeholderStyle = m.activeStyle().computedPlaceholder()
 	)
-
 	// word wrap lines
 	pwordwrap := ansi.Wordwrap(p, m.width, "")
-	// wrap lines (handles lines that could not be word wrapped)
+	// hard wrap lines (handles lines that could not be word wrapped)
 	pwrap := ansi.Hardwrap(pwordwrap, m.width, true)
 	// split string by new lines
 	plines := strings.Split(strings.TrimSpace(pwrap), "\n")
@@ -1360,10 +1358,9 @@ func (m Model) placeholderView() string {
 	for i := 0; i < m.height; i++ {
 		isLineNumber := len(plines) > i
 
-		// XXX: This will go.
-		lineStyle := m.activeStyle().computedPlaceholder()
+		lineStyle := styles.computedPlaceholder()
 		if len(plines) > i {
-			lineStyle = m.activeStyle().computedCursorLine()
+			lineStyle = styles.computedCursorLine()
 		}
 
 		// render prompt
@@ -1397,12 +1394,17 @@ func (m Model) placeholderView() string {
 			s.WriteString(lineStyle.Render(m.virtualCursor.View()))
 
 			// the rest of the first line
-			s.WriteString(lineStyle.Render(plines[0][1:] + strings.Repeat(" ", max(0, m.width-uniseg.StringWidth(plines[0])))))
+			placeholderTail := plines[0][1:]
+			gap := strings.Repeat(" ", max(0, m.width-uniseg.StringWidth(plines[0])))
+			renderedPlaceholder := styles.computedPlaceholder().Render(placeholderTail + gap)
+			s.WriteString(lineStyle.Render(renderedPlaceholder))
 		// remaining lines
 		case len(plines) > i:
 			// current line placeholder text
 			if len(plines) > i {
-				s.WriteString(lineStyle.Render(plines[i] + strings.Repeat(" ", max(0, m.width-uniseg.StringWidth(plines[i])))))
+				placeholderLine := plines[i]
+				gap := strings.Repeat(" ", max(0, m.width-uniseg.StringWidth(plines[i])))
+				s.WriteString(lineStyle.Render(placeholderLine + gap))
 			}
 		default:
 			// end of line buffer character
