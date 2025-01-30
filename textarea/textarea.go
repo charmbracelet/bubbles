@@ -1221,7 +1221,7 @@ func (m Model) View() string {
 		}
 
 		for wl, wrappedLine := range wrappedLines {
-			prompt := m.getPromptString(displayLine)
+			prompt := m.promptView(displayLine)
 			prompt = styles.computedPrompt().Render(prompt)
 			s.WriteString(style.Render(prompt))
 			displayLine++
@@ -1278,9 +1278,7 @@ func (m Model) View() string {
 	// Always show at least `m.Height` lines at all times.
 	// To do this we can simply pad out a few extra new lines in the view.
 	for i := 0; i < m.height; i++ {
-		prompt := m.getPromptString(displayLine)
-		prompt = styles.computedPrompt().Render(prompt)
-		s.WriteString(prompt)
+		s.WriteString(m.promptView(displayLine))
 		displayLine++
 
 		// Write end of buffer content
@@ -1295,13 +1293,22 @@ func (m Model) View() string {
 	return styles.Base.Render(m.viewport.View())
 }
 
-// promptView returns the prompt for a single line (as prompts are applited to
-// each line).
-func (m Model) promptView() string {
-	return ""
+// promptView renders a single line of the prompt.
+func (m Model) promptView(displayLine int) (prompt string) {
+	prompt = m.Prompt
+	if m.promptFunc == nil {
+		return prompt
+	}
+	prompt = m.promptFunc(displayLine)
+	width := lipgloss.Width(prompt)
+	if width < m.promptWidth {
+		prompt = fmt.Sprintf("%*s%s", m.promptWidth-width, "", prompt)
+	}
+
+	return m.activeStyle().computedPrompt().Render(prompt)
 }
 
-// lineNumberView returns the line number.
+// lineNumberView renders the line number.
 //
 // If the argument is less than 0, a space styled as a line number is returned
 // instead. Such cases are used for soft-wrapped lines.
@@ -1334,19 +1341,6 @@ func (m Model) lineNumberView(n int, isCursorLine bool) (str string) {
 	return textStyle.Render(lineNumberStyle.Render(str))
 }
 
-func (m Model) getPromptString(displayLine int) (prompt string) {
-	prompt = m.Prompt
-	if m.promptFunc == nil {
-		return prompt
-	}
-	prompt = m.promptFunc(displayLine)
-	pl := uniseg.StringWidth(prompt)
-	if pl < m.promptWidth {
-		prompt = fmt.Sprintf("%*s%s", m.promptWidth-pl, "", prompt)
-	}
-	return prompt
-}
-
 // placeholderView returns the prompt and placeholder view, if any.
 func (m Model) placeholderView() string {
 	var (
@@ -1373,7 +1367,7 @@ func (m Model) placeholderView() string {
 		}
 
 		// render prompt
-		prompt := m.getPromptString(i)
+		prompt := m.promptView(i)
 		prompt = styles.computedPrompt().Render(prompt)
 		s.WriteString(lineStyle.Render(prompt))
 
