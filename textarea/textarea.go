@@ -262,12 +262,6 @@ type Model struct {
 	// focused and blurred states.
 	Styles Styles
 
-	// activeStyle is the current styling to use.
-	// It is used to abstract the differences in focus state when styling the
-	// model, since we can simply assign the set of activeStyle to this variable
-	// when switching focus states.
-	activeStyle *StyleState
-
 	// virtualCursor manages the virtual cursor.
 	virtualCursor cursor.Model
 
@@ -342,7 +336,6 @@ func New() Model {
 		MaxWidth:             defaultMaxWidth,
 		Prompt:               lipgloss.ThickBorder().Left + " ",
 		Styles:               styles,
-		activeStyle:          &styles.Blurred,
 		cache:                memoization.NewMemoCache[line, [][]rune](maxLines),
 		EndOfBufferCharacter: ' ',
 		ShowLineNumbers:      true,
@@ -669,11 +662,19 @@ func (m Model) Focused() bool {
 	return m.focus
 }
 
+// activeStyle returns the appropriate set of styles to use depending on
+// whether the textarea is focused or blurred.
+func (m Model) activeStyle() *StyleState {
+	if m.focus {
+		return &m.Styles.Focused
+	}
+	return &m.Styles.Blurred
+}
+
 // Focus sets the focus state on the model. When the model is in focus it can
 // receive keyboard input and the cursor will be hidden.
 func (m *Model) Focus() tea.Cmd {
 	m.focus = true
-	m.activeStyle = &m.Styles.Focused
 	return m.virtualCursor.Focus()
 }
 
@@ -681,7 +682,6 @@ func (m *Model) Focus() tea.Cmd {
 // not receive keyboard input and the cursor will be hidden.
 func (m *Model) Blur() {
 	m.focus = false
-	m.activeStyle = &m.Styles.Blurred
 	m.virtualCursor.Blur()
 }
 
@@ -992,7 +992,7 @@ func (m *Model) SetWidth(w int) {
 	}
 
 	// Add base style borders and padding to reserved outer width.
-	reservedOuter := m.activeStyle.Base.GetHorizontalFrameSize()
+	reservedOuter := m.activeStyle().Base.GetHorizontalFrameSize()
 
 	// Add prompt width to reserved inner width.
 	reservedInner := m.promptWidth
@@ -1192,7 +1192,7 @@ func (m Model) View() string {
 	if m.Value() == "" && m.row == 0 && m.col == 0 && m.Placeholder != "" {
 		return m.placeholderView()
 	}
-	m.virtualCursor.TextStyle = m.activeStyle.computedCursorLine()
+	m.virtualCursor.TextStyle = m.activeStyle().computedCursorLine()
 
 	var (
 		s                strings.Builder
@@ -1200,6 +1200,7 @@ func (m Model) View() string {
 		newLines         int
 		widestLineNumber int
 		lineInfo         = m.LineInfo()
+		styles           = m.activeStyle()
 	)
 
 	displayLine := 0
@@ -1207,14 +1208,14 @@ func (m Model) View() string {
 		wrappedLines := m.memoizedWrap(line, m.width)
 
 		if m.row == l {
-			style = m.activeStyle.computedCursorLine()
+			style = styles.computedCursorLine()
 		} else {
-			style = m.activeStyle.computedText()
+			style = styles.computedText()
 		}
 
 		for wl, wrappedLine := range wrappedLines {
 			prompt := m.getPromptString(displayLine)
-			prompt = m.activeStyle.computedPrompt().Render(prompt)
+			prompt = styles.computedPrompt().Render(prompt)
 			s.WriteString(style.Render(prompt))
 			displayLine++
 
@@ -1271,7 +1272,7 @@ func (m Model) View() string {
 	// To do this we can simply pad out a few extra new lines in the view.
 	for i := 0; i < m.height; i++ {
 		prompt := m.getPromptString(displayLine)
-		prompt = m.activeStyle.computedPrompt().Render(prompt)
+		prompt = styles.computedPrompt().Render(prompt)
 		s.WriteString(prompt)
 		displayLine++
 
@@ -1279,12 +1280,12 @@ func (m Model) View() string {
 		leftGutter := string(m.EndOfBufferCharacter)
 		rightGapWidth := m.Width() - lipgloss.Width(leftGutter) + widestLineNumber
 		rightGap := strings.Repeat(" ", max(0, rightGapWidth))
-		s.WriteString(m.activeStyle.computedEndOfBuffer().Render(leftGutter + rightGap))
+		s.WriteString(styles.computedEndOfBuffer().Render(leftGutter + rightGap))
 		s.WriteRune('\n')
 	}
 
 	m.viewport.SetContent(s.String())
-	return m.activeStyle.Base.Render(m.viewport.View())
+	return styles.Base.Render(m.viewport.View())
 }
 
 // promptView returns the prompt for a single line (as prompts are applited to
@@ -1305,17 +1306,18 @@ func (m Model) lineNumberView(n int, isCursorLine bool) (str string) {
 		return ""
 	}
 
-	if n < 0 {
+	if n <= 0 {
 		str = " "
 	} else {
 		str = strconv.Itoa(n)
 	}
 
-	textStyle := m.activeStyle.computedText()
-	lineNumberStyle := m.activeStyle.computedLineNumber()
+	// XXX: is textStyle really necessary here?
+	textStyle := m.activeStyle().computedText()
+	lineNumberStyle := m.activeStyle().computedLineNumber()
 	if isCursorLine {
-		textStyle = m.activeStyle.computedCursorLine()
-		lineNumberStyle = m.activeStyle.computedCursorLineNumber()
+		textStyle = m.activeStyle().computedCursorLine()
+		lineNumberStyle = m.activeStyle().computedCursorLineNumber()
 	}
 
 	// Format line number dynamically based on the maximum number of lines.
@@ -1341,9 +1343,10 @@ func (m Model) getPromptString(displayLine int) (prompt string) {
 // placeholderView returns the prompt and placeholder view, if any.
 func (m Model) placeholderView() string {
 	var (
-		s     strings.Builder
-		p     = m.Placeholder
-		style = m.activeStyle.computedPlaceholder()
+		s      strings.Builder
+		p      = m.Placeholder
+		styles = m.activeStyle()
+		// placeholderStyle = m.activeStyle().computedPlaceholder()
 	)
 
 	// word wrap lines
@@ -1357,14 +1360,14 @@ func (m Model) placeholderView() string {
 		isLineNumber := len(plines) > i
 
 		// XXX: This will go.
-		lineStyle := m.activeStyle.computedPlaceholder()
+		lineStyle := m.activeStyle().computedPlaceholder()
 		if len(plines) > i {
-			lineStyle = m.activeStyle.computedCursorLine()
+			lineStyle = m.activeStyle().computedCursorLine()
 		}
 
 		// render prompt
 		prompt := m.getPromptString(i)
-		prompt = m.activeStyle.computedPrompt().Render(prompt)
+		prompt = styles.computedPrompt().Render(prompt)
 		s.WriteString(lineStyle.Render(prompt))
 
 		// when show line numbers enabled:
@@ -1388,21 +1391,21 @@ func (m Model) placeholderView() string {
 		// first line
 		case i == 0:
 			// first character of first line as cursor with character
-			m.virtualCursor.TextStyle = m.activeStyle.computedPlaceholder()
+			m.virtualCursor.TextStyle = styles.computedPlaceholder()
 			m.virtualCursor.SetChar(string(plines[0][0]))
 			s.WriteString(lineStyle.Render(m.virtualCursor.View()))
 
 			// the rest of the first line
-			s.WriteString(lineStyle.Render(style.Render(plines[0][1:] + strings.Repeat(" ", max(0, m.width-uniseg.StringWidth(plines[0]))))))
+			s.WriteString(lineStyle.Render(plines[0][1:] + strings.Repeat(" ", max(0, m.width-uniseg.StringWidth(plines[0])))))
 		// remaining lines
 		case len(plines) > i:
 			// current line placeholder text
 			if len(plines) > i {
-				s.WriteString(lineStyle.Render(style.Render(plines[i] + strings.Repeat(" ", max(0, m.width-uniseg.StringWidth(plines[i]))))))
+				s.WriteString(lineStyle.Render(plines[i] + strings.Repeat(" ", max(0, m.width-uniseg.StringWidth(plines[i])))))
 			}
 		default:
 			// end of line buffer character
-			eob := m.activeStyle.computedEndOfBuffer().Render(string(m.EndOfBufferCharacter))
+			eob := styles.computedEndOfBuffer().Render(string(m.EndOfBufferCharacter))
 			s.WriteString(eob)
 		}
 
@@ -1411,7 +1414,7 @@ func (m Model) placeholderView() string {
 	}
 
 	m.viewport.SetContent(s.String())
-	return m.activeStyle.Base.Render(m.viewport.View())
+	return styles.Base.Render(m.viewport.View())
 }
 
 // Blink returns the blink command for the virtual cursor.
