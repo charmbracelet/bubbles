@@ -986,9 +986,6 @@ func (m *Model) SetWidth(w int) {
 	// Update prompt width only if there is no prompt function as
 	// [SetPromptFunc] updates the prompt width when it is called.
 	if m.promptFunc == nil {
-		// XXX: This should account for a styled prompt and use lipglosss.Width
-		// instead of uniseg.StringWidth.
-		//
 		// XXX: Do we even need this or can we calculate the prompt width
 		// at render time?
 		m.promptWidth = uniseg.StringWidth(m.Prompt)
@@ -1003,7 +1000,7 @@ func (m *Model) SetWidth(w int) {
 	// Add line number width to reserved inner width.
 	if m.ShowLineNumbers {
 		// XXX: this was originally documented as needing "1 cell" but was,
-		// in practice, hardcoded to effectively 2 cells. We can, and should,
+		// in practice, effectively hardcoded to 2 cells. We can, and should,
 		// reduce this to one gap and update the tests accordingly.
 		const gap = 2
 
@@ -1238,7 +1235,7 @@ func (m Model) View() string {
 			}
 
 			// Note the widest line number for padding purposes later.
-			lnw := lipgloss.Width(ln)
+			lnw := uniseg.StringWidth(ln)
 			if lnw > widestLineNumber {
 				widestLineNumber = lnw
 			}
@@ -1283,7 +1280,7 @@ func (m Model) View() string {
 
 		// Write end of buffer content
 		leftGutter := string(m.EndOfBufferCharacter)
-		rightGapWidth := m.Width() - lipgloss.Width(leftGutter) + widestLineNumber
+		rightGapWidth := m.Width() - uniseg.StringWidth(leftGutter) + widestLineNumber
 		rightGap := strings.Repeat(" ", max(0, rightGapWidth))
 		s.WriteString(styles.computedEndOfBuffer().Render(leftGutter + rightGap))
 		s.WriteRune('\n')
@@ -1444,10 +1441,10 @@ func Blink() tea.Msg {
 func (m Model) Cursor() *tea.Cursor {
 	lineInfo := m.LineInfo()
 	w := lipgloss.Width
-	x := lineInfo.CharOffset + w(m.promptView(0)) + w(m.lineNumberView(0, false))
-	y := m.cursorLineNumber() - m.viewport.YOffset
+	xOffset := lineInfo.CharOffset + w(m.promptView(0)) + w(m.lineNumberView(0, false))
+	yOffset := m.cursorLineNumber() - m.viewport.YOffset
 
-	c := tea.NewCursor(x, y)
+	c := tea.NewCursor(xOffset, yOffset)
 	c.Blink = m.Styles.Cursor.Blink
 	c.Color = m.Styles.Cursor.Color
 	c.Shape = m.Styles.Cursor.Shape
