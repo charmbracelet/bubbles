@@ -176,13 +176,13 @@ type Styles struct {
 // https://github.com/charmbracelet/lipgloss
 type StyleState struct {
 	Base             lipgloss.Style
-	CursorLine       lipgloss.Style
-	CursorLineNumber lipgloss.Style
-	EndOfBuffer      lipgloss.Style
+	Text             lipgloss.Style
 	LineNumber       lipgloss.Style
+	CursorLineNumber lipgloss.Style
+	CursorLine       lipgloss.Style
+	EndOfBuffer      lipgloss.Style
 	Placeholder      lipgloss.Style
 	Prompt           lipgloss.Style
-	Text             lipgloss.Style
 }
 
 func (s StyleState) computedCursorLine() lipgloss.Style {
@@ -1220,22 +1220,12 @@ func (m Model) View() string {
 
 			var ln string
 			if m.ShowLineNumbers { //nolint:nestif
-				if wl == 0 {
-					if m.row == l {
-						ln = style.Render(m.activeStyle.computedCursorLineNumber().Render(m.formatLineNumber(l + 1)))
-						s.WriteString(ln)
-					} else {
-						ln = style.Render(m.activeStyle.computedLineNumber().Render(m.formatLineNumber(l + 1)))
-						s.WriteString(ln)
-					}
-				} else {
-					if m.row == l {
-						ln = style.Render(m.activeStyle.computedCursorLineNumber().Render(m.formatLineNumber(" ")))
-						s.WriteString(ln)
-					} else {
-						ln = style.Render(m.activeStyle.computedLineNumber().Render(m.formatLineNumber(" ")))
-						s.WriteString(ln)
-					}
+				if wl == 0 { // normal line
+					isCursorLine := m.row == l
+					s.WriteString(m.lineNumberView(l+1, isCursorLine))
+				} else { // soft wrapped line
+					isCursorLine := m.row == l
+					s.WriteString(m.lineNumberView(-1, isCursorLine))
 				}
 			}
 
@@ -1297,13 +1287,42 @@ func (m Model) View() string {
 	return m.activeStyle.Base.Render(m.viewport.View())
 }
 
-// formatLineNumber formats the line number for display dynamically based on
-// the maximum number of lines.
-func (m Model) formatLineNumber(x any) string {
-	// XXX: ultimately we should use a max buffer height, which has yet to be
-	// implemented.
+// promptView returns the prompt for a single line (as prompts are applited to
+// each line).
+func (m Model) promptView() string {
+	return ""
+}
+
+// lineNumberView returns the line number.
+//
+// If the argument is less than 0, a space styled as a line number is returned
+// instead. Such cases are used for soft-wrapped lines.
+//
+// The second argument indicates whether this line number is for a 'cursorline'
+// line number.
+func (m Model) lineNumberView(n int, isCursorLine bool) (str string) {
+	if !m.ShowLineNumbers {
+		return ""
+	}
+
+	if n < 0 {
+		str = " "
+	} else {
+		str = strconv.Itoa(n)
+	}
+
+	textStyle := m.activeStyle.computedText()
+	lineNumberStyle := m.activeStyle.computedLineNumber()
+	if isCursorLine {
+		textStyle = m.activeStyle.computedCursorLine()
+		lineNumberStyle = m.activeStyle.computedCursorLineNumber()
+	}
+
+	// Format line number dynamically based on the maximum number of lines.
 	digits := len(strconv.Itoa(m.MaxHeight))
-	return fmt.Sprintf(" %*v ", digits, x)
+	str = fmt.Sprintf(" %*v ", digits, str)
+
+	return textStyle.Render(lineNumberStyle.Render(str))
 }
 
 func (m Model) getPromptString(displayLine int) (prompt string) {
@@ -1335,11 +1354,12 @@ func (m Model) placeholderView() string {
 	plines := strings.Split(strings.TrimSpace(pwrap), "\n")
 
 	for i := 0; i < m.height; i++ {
+		isLineNumber := len(plines) > i
+
+		// XXX: This will go.
 		lineStyle := m.activeStyle.computedPlaceholder()
-		lineNumberStyle := m.activeStyle.computedLineNumber()
 		if len(plines) > i {
 			lineStyle = m.activeStyle.computedCursorLine()
-			lineNumberStyle = m.activeStyle.computedCursorLineNumber()
 		}
 
 		// render prompt
@@ -1352,14 +1372,14 @@ func (m Model) placeholderView() string {
 		// - indent other placeholder lines
 		// this is consistent with vim with line numbers enabled
 		if m.ShowLineNumbers {
-			var ln string
+			var ln int
 
 			switch {
 			case i == 0:
-				ln = strconv.Itoa(i + 1)
+				ln = i + 1
 				fallthrough
 			case len(plines) > i:
-				s.WriteString(lineStyle.Render(lineNumberStyle.Render(m.formatLineNumber(ln))))
+				s.WriteString(m.lineNumberView(ln, isLineNumber))
 			default:
 			}
 		}
