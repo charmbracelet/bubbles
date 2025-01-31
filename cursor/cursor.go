@@ -1,3 +1,5 @@
+// Package cursor provides a virtual cursor to support the textinput and
+// textarea elements.
 package cursor
 
 import (
@@ -51,25 +53,35 @@ func (c Mode) String() string {
 
 // Model is the Bubble Tea model for this cursor element.
 type Model struct {
-	BlinkSpeed time.Duration
-	// Style for styling the cursor block.
+	// Style styles the cursor block.
 	Style lipgloss.Style
-	// TextStyle is the style used for the cursor when it is hidden (when blinking).
-	// I.e. displaying normal text.
+
+	// TextStyle is the style used for the cursor when it is blinking
+	// (hidden), i.e. displaying normal text.
 	TextStyle lipgloss.Style
+
+	// BlinkSpeed is the speed at which the cursor blinks. This has no effect
+	// unless [CursorMode] is not set to [CursorBlink].
+	BlinkSpeed time.Duration
+
+	// Blink is the state of the cursor blink. When true, the cursor is hidden.
+	Blink bool
 
 	// char is the character under the cursor
 	char string
+
 	// The ID of this Model as it relates to other cursors
 	id int
+
 	// focus indicates whether the containing input is focused
 	focus bool
-	// Cursor Blink state.
-	Blink bool
+
 	// Used to manage cursor blink
 	blinkCtx *blinkCtx
+
 	// The ID of the blink message we're expecting to receive.
 	blinkTag int
+
 	// mode determines the behavior of the cursor
 	mode Mode
 }
