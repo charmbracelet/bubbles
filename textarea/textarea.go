@@ -1092,17 +1092,6 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		return m, nil
 	}
 
-	// Need to check for completion before, because key is configurable and might be double assigned
-	keyMsg, ok := msg.(tea.KeyMsg)
-	if ok && key.Matches(keyMsg, m.KeyMap.AcceptSuggestion) {
-		if m.canAcceptSuggestion() {
-			m.value = m.matchedSuggestions[m.currentSuggestionIndex]
-			m.format()
-			m.row = len(m.value) - 1
-			m.CursorEnd()
-		}
-	}
-
 	// Used to determine if the cursor should blink.
 	oldRow, oldCol := m.cursorLineNumber(), m.col
 
@@ -1119,7 +1108,19 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.PasteMsg:
 		m.insertRunesFromUserInput([]rune(msg))
+
 	case tea.KeyPressMsg:
+		// We need to check for completion before checking other key matches,
+		// because the key is configurable and might be double assigned.
+		if key.Matches(msg, m.KeyMap.AcceptSuggestion) {
+			if m.canAcceptSuggestion() {
+				m.value = m.matchedSuggestions[m.currentSuggestionIndex]
+				m.format()
+				m.row = len(m.value) - 1
+				m.CursorEnd()
+			}
+		}
+
 		switch {
 		case key.Matches(msg, m.KeyMap.DeleteAfterCursor):
 			m.col = clamp(m.col, 0, len(m.value[m.row]))
