@@ -687,20 +687,6 @@ func clamp(v, low, high int) int {
 	return min(high, max(low, v))
 }
 
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}
-
 func maxLineWidth(lines []string) int {
 	maxlen := 0
 	for _, line := range lines {
