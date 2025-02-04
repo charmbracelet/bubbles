@@ -145,8 +145,8 @@ func (m *Model) setInitialValues() {
 }
 
 // Init exists to satisfy the tea.Model interface for composability purposes.
-func (m Model) Init() (Model, tea.Cmd) {
-	return m, nil
+func (m Model) Init() tea.Cmd {
+	return nil
 }
 
 // Height returns the height of the viewport.

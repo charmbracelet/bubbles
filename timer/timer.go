@@ -134,8 +134,8 @@ func (m Model) Timedout() bool {
 }
 
 // Init starts the timer.
-func (m Model) Init() (Model, tea.Cmd) {
-	return m, m.tick()
+func (m Model) Init() tea.Cmd {
+	return m.tick()
 }
 
 // Update handles the timer tick.
