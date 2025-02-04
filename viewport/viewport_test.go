@@ -399,7 +399,7 @@ wide chars: あいうえおafter
 Charm热爱开源 • Charm loves open source
 `
 
-	vt := New(100, 100)
+	vt := New(WithWidth(100), WithHeight(100))
 	vt.SetContent(content)
 
 	t.Run("first", func(t *testing.T) {
@@ -538,7 +538,7 @@ Charm热爱开源 • Charm loves open source
 func testHighlights(tb testing.TB, content string, re *regexp.Regexp, expect []highlightInfo) {
 	tb.Helper()
 
-	vt := New(100, 100)
+	vt := New(WithHeight(100), WithWidth(100))
 	vt.SetContent(content)
 
 	matches := re.FindAllStringIndex(vt.GetContent(), -1)
