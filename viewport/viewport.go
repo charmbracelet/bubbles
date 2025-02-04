@@ -688,12 +688,9 @@ func clamp(v, low, high int) int {
 }
 
 func maxLineWidth(lines []string) int {
-	maxlen := 0
+	result := 0
 	for _, line := range lines {
-		llen := ansi.StringWidth(line)
-		if llen > maxlen {
-			maxlen = llen
-		}
+		result = max(result, ansi.StringWidth(line))
 	}
-	return maxlen
+	return result
 }
