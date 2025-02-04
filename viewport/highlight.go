@@ -1,7 +1,7 @@
 package viewport
 
 import (
-	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/rivo/uniseg"
 )

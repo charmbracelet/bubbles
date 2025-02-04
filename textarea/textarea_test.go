@@ -6,8 +6,8 @@ import (
 	"unicode"
 
 	"github.com/MakeNowJust/heredoc"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	tea "github.com/charmbracelet/bubbletea/v2"
+	"github.com/charmbracelet/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 )
 
@@ -234,7 +234,7 @@ func TestVerticalNavigationKeepsCursorHorizontalPosition(t *testing.T) {
 		t.Fatal("Expected cursor to be on the fourth character because there are two double width runes on the first line.")
 	}
 
-	downMsg := tea.KeyMsg{Type: tea.KeyDown, Alt: false, Runes: []rune{}}
+	downMsg := tea.KeyPressMsg{Code: tea.KeyDown}
 	textarea, _ = textarea.Update(downMsg)
 
 	lineInfo = textarea.LineInfo()
@@ -273,7 +273,7 @@ func TestVerticalNavigationShouldRememberPositionWhileTraversing(t *testing.T) {
 	}
 
 	// Let's go up.
-	upMsg := tea.KeyMsg{Type: tea.KeyUp, Alt: false, Runes: []rune{}}
+	upMsg := tea.KeyPressMsg{Code: tea.KeyUp}
 	textarea, _ = textarea.Update(upMsg)
 
 	// We should be at the end of the second line.
@@ -292,7 +292,7 @@ func TestVerticalNavigationShouldRememberPositionWhileTraversing(t *testing.T) {
 	}
 
 	// Let's go down, twice.
-	downMsg := tea.KeyMsg{Type: tea.KeyDown, Alt: false, Runes: []rune{}}
+	downMsg := tea.KeyPressMsg{Code: tea.KeyDown}
 	textarea, _ = textarea.Update(downMsg)
 	textarea, _ = textarea.Update(downMsg)
 
@@ -308,7 +308,7 @@ func TestVerticalNavigationShouldRememberPositionWhileTraversing(t *testing.T) {
 	// work.
 
 	textarea, _ = textarea.Update(upMsg)
-	leftMsg := tea.KeyMsg{Type: tea.KeyLeft, Alt: false, Runes: []rune{}}
+	leftMsg := tea.KeyPressMsg{Code: tea.KeyLeft}
 	textarea, _ = textarea.Update(leftMsg)
 
 	if textarea.col != 4 || textarea.row != 1 {
@@ -1032,7 +1032,7 @@ func TestView(t *testing.T) {
 		{
 			name: "set width with style",
 			modelFunc: func(m Model) Model {
-				m.FocusedStyle.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
+				m.Styles.Focused.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
 				m.Focus()
 
 				m.SetWidth(12)
@@ -1060,7 +1060,7 @@ func TestView(t *testing.T) {
 		{
 			name: "set width with style max width minus one",
 			modelFunc: func(m Model) Model {
-				m.FocusedStyle.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
+				m.Styles.Focused.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
 				m.Focus()
 
 				m.SetWidth(12)
@@ -1088,7 +1088,7 @@ func TestView(t *testing.T) {
 		{
 			name: "set width with style max width",
 			modelFunc: func(m Model) Model {
-				m.FocusedStyle.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
+				m.Styles.Focused.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
 				m.Focus()
 
 				m.SetWidth(12)
@@ -1116,7 +1116,7 @@ func TestView(t *testing.T) {
 		{
 			name: "set width with style max width plus one",
 			modelFunc: func(m Model) Model {
-				m.FocusedStyle.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
+				m.Styles.Focused.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
 				m.Focus()
 
 				m.SetWidth(12)
@@ -1144,7 +1144,7 @@ func TestView(t *testing.T) {
 		{
 			name: "set width without line numbers with style",
 			modelFunc: func(m Model) Model {
-				m.FocusedStyle.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
+				m.Styles.Focused.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
 				m.Focus()
 
 				m.ShowLineNumbers = false
@@ -1173,7 +1173,7 @@ func TestView(t *testing.T) {
 		{
 			name: "set width without line numbers with style max width minus one",
 			modelFunc: func(m Model) Model {
-				m.FocusedStyle.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
+				m.Styles.Focused.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
 				m.Focus()
 
 				m.ShowLineNumbers = false
@@ -1202,7 +1202,7 @@ func TestView(t *testing.T) {
 		{
 			name: "set width without line numbers with style max width",
 			modelFunc: func(m Model) Model {
-				m.FocusedStyle.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
+				m.Styles.Focused.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
 				m.Focus()
 
 				m.ShowLineNumbers = false
@@ -1231,7 +1231,7 @@ func TestView(t *testing.T) {
 		{
 			name: "set width without line numbers with style max width plus one",
 			modelFunc: func(m Model) Model {
-				m.FocusedStyle.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
+				m.Styles.Focused.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
 				m.Focus()
 
 				m.ShowLineNumbers = false
@@ -1716,7 +1716,7 @@ func newTextArea() Model {
 }
 
 func keyPress(key rune) tea.Msg {
-	return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{key}, Alt: false}
+	return tea.KeyPressMsg{Code: key, Text: string(key)}
 }
 
 func sendString(m Model, str string) Model {

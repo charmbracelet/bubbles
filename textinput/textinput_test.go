@@ -34,6 +34,6 @@ func Test_CurrentSuggestion(t *testing.T) {
 func Test_SlicingOutsideCap(t *testing.T) {
 	textinput := New()
 	textinput.Placeholder = "作業ディレクトリを指定してください"
-	textinput.Width = 32
+	textinput.SetWidth(32)
 	textinput.View()
 }

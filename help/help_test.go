@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/charmbracelet/bubbles/v2/key"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/golden"
-
-	"github.com/charmbracelet/bubbles/key"
 )
 
 func TestFullHelp(t *testing.T) {
@@ -32,6 +32,7 @@ func TestFullHelp(t *testing.T) {
 		t.Run(fmt.Sprintf("full help %d width", w), func(t *testing.T) {
 			m.Width = w
 			s := m.FullHelpView(kb)
+			s = ansi.Strip(s)
 			golden.RequireEqual(t, []byte(s))
 		})
 	}

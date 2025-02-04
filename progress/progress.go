@@ -2,17 +2,17 @@ package progress
 
 import (
 	"fmt"
+	"image/color"
 	"math"
 	"strings"
 	"sync/atomic"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "github.com/charmbracelet/bubbletea/v2"
 	"github.com/charmbracelet/harmonica"
-	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/lucasb-eyer/go-colorful"
-	"github.com/muesli/termenv"
 )
 
 // Internal ID management. Used during animating to assure that frame messages
@@ -65,7 +65,7 @@ func WithScaledGradient(colorA, colorB string) Option {
 }
 
 // WithSolidFill sets the progress to use a solid fill with the given color.
-func WithSolidFill(color string) Option {
+func WithSolidFill(color color.Color) Option {
 	return func(m *Model) {
 		m.FullColor = color
 		m.useRamp = false
@@ -92,7 +92,7 @@ func WithoutPercentage() Option {
 // waiting for a tea.WindowSizeMsg.
 func WithWidth(w int) Option {
 	return func(m *Model) {
-		m.Width = w
+		m.width = w
 	}
 }
 
@@ -105,13 +105,6 @@ func WithSpringOptions(frequency, damping float64) Option {
 	return func(m *Model) {
 		m.SetSpringOptions(frequency, damping)
 		m.springCustomized = true
-	}
-}
-
-// WithColorProfile sets the color profile to use for the progress bar.
-func WithColorProfile(p termenv.Profile) Option {
-	return func(m *Model) {
-		m.colorProfile = p
 	}
 }
 
@@ -131,15 +124,15 @@ type Model struct {
 	tag int
 
 	// Total width of the progress bar, including percentage, if set.
-	Width int
+	width int
 
 	// "Filled" sections of the progress bar.
 	Full      rune
-	FullColor string
+	FullColor color.Color
 
 	// "Empty" sections of the progress bar.
 	Empty      rune
-	EmptyColor string
+	EmptyColor color.Color
 
 	// Settings for rendering the numeric percentage.
 	ShowPercentage  bool
@@ -162,23 +155,19 @@ type Model struct {
 	// of the progress bar. When false, the width of the gradient will be set
 	// to the full width of the progress bar.
 	scaleRamp bool
-
-	// Color profile for the progress bar.
-	colorProfile termenv.Profile
 }
 
 // New returns a model with default values.
 func New(opts ...Option) Model {
 	m := Model{
 		id:             nextID(),
-		Width:          defaultWidth,
+		width:          defaultWidth,
 		Full:           '█',
-		FullColor:      "#7571F9",
+		FullColor:      lipgloss.Color("#7571F9"),
 		Empty:          '░',
-		EmptyColor:     "#606060",
+		EmptyColor:     lipgloss.Color("#606060"),
 		ShowPercentage: true,
 		PercentFormat:  " %3.0f%%",
-		colorProfile:   termenv.ColorProfile(),
 	}
 
 	for _, opt := range opts {
@@ -192,21 +181,16 @@ func New(opts ...Option) Model {
 	return m
 }
 
-// NewModel returns a model with default values.
-//
-// Deprecated: use [New] instead.
-var NewModel = New
-
 // Init exists to satisfy the tea.Model interface.
-func (m Model) Init() tea.Cmd {
-	return nil
+func (m Model) Init() (Model, tea.Cmd) {
+	return m, nil
 }
 
 // Update is used to animate the progress bar during transitions. Use
 // SetPercent to create the command you'll need to trigger the animation.
 //
 // If you're rendering with ViewAs you won't need this.
-func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case FrameMsg:
 		if msg.id != m.id || msg.tag != m.tag {
@@ -283,6 +267,16 @@ func (m Model) ViewAs(percent float64) string {
 	return b.String()
 }
 
+// SetWidth sets the width of the progress bar.
+func (m *Model) SetWidth(w int) {
+	m.width = w
+}
+
+// Width returns the width of the progress bar.
+func (m Model) Width() int {
+	return m.width
+}
+
 func (m *Model) nextFrame() tea.Cmd {
 	return tea.Tick(time.Second/time.Duration(fps), func(time.Time) tea.Msg {
 		return FrameMsg{id: m.id, tag: m.tag}
@@ -291,7 +285,7 @@ func (m *Model) nextFrame() tea.Cmd {
 
 func (m Model) barView(b *strings.Builder, percent float64, textWidth int) {
 	var (
-		tw = max(0, m.Width-textWidth)                // total width
+		tw = max(0, m.width-textWidth)                // total width
 		fw = int(math.Round((float64(tw) * percent))) // filled width
 		p  float64
 	)
@@ -311,23 +305,21 @@ func (m Model) barView(b *strings.Builder, percent float64, textWidth int) {
 			} else {
 				p = float64(i) / float64(tw-1)
 			}
-			c := m.rampColorA.BlendLuv(m.rampColorB, p).Hex()
-			b.WriteString(termenv.
-				String(string(m.Full)).
-				Foreground(m.color(c)).
-				String(),
-			)
+			c := m.rampColorA.BlendLuv(m.rampColorB, p)
+			b.WriteString(lipgloss.NewStyle().Foreground(c).Render(string(m.Full)))
 		}
 	} else {
 		// Solid fill
-		s := termenv.String(string(m.Full)).Foreground(m.color(m.FullColor)).String()
-		b.WriteString(strings.Repeat(s, fw))
+		b.WriteString(lipgloss.NewStyle().
+			Foreground(m.FullColor).
+			Render(strings.Repeat(string(m.Full), fw)))
 	}
 
 	// Empty fill
-	e := termenv.String(string(m.Empty)).Foreground(m.color(m.EmptyColor)).String()
 	n := max(0, tw-fw)
-	b.WriteString(strings.Repeat(e, n))
+	b.WriteString(lipgloss.NewStyle().
+		Foreground(m.EmptyColor).
+		Render(strings.Repeat(string(m.Empty), n)))
 }
 
 func (m Model) percentageView(percent float64) string {
@@ -351,10 +343,6 @@ func (m *Model) setRamp(colorA, colorB string, scaled bool) {
 	m.scaleRamp = scaled
 	m.rampColorA = a
 	m.rampColorB = b
-}
-
-func (m Model) color(c string) termenv.Color {
-	return m.colorProfile.Color(c)
 }
 
 func max(a, b int) int {

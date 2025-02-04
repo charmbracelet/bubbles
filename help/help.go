@@ -3,9 +3,9 @@ package help
 import (
 	"strings"
 
-	"github.com/charmbracelet/bubbles/key"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/bubbles/v2/key"
+	tea "github.com/charmbracelet/bubbletea/v2"
+	"github.com/charmbracelet/lipgloss/v2"
 )
 
 // KeyMap is a map of keybindings used to generate help. Since it's an
@@ -41,6 +41,37 @@ type Styles struct {
 	FullSeparator lipgloss.Style
 }
 
+// DefaultStyles returns a set of default styles for the help bubble. Light or
+// dark styles can be selected by passing true or false to the isDark
+// parameter.
+func DefaultStyles(isDark bool) Styles {
+	lightDark := lipgloss.LightDark(isDark)
+
+	keyStyle := lipgloss.NewStyle().Foreground(lightDark(lipgloss.Color("#909090"), lipgloss.Color("#626262")))
+	descStyle := lipgloss.NewStyle().Foreground(lightDark(lipgloss.Color("#B2B2B2"), lipgloss.Color("#4A4A4A")))
+	sepStyle := lipgloss.NewStyle().Foreground(lightDark(lipgloss.Color("#DADADA"), lipgloss.Color("#3C3C3C")))
+
+	return Styles{
+		ShortKey:       keyStyle,
+		ShortDesc:      descStyle,
+		ShortSeparator: sepStyle,
+		Ellipsis:       sepStyle,
+		FullKey:        keyStyle,
+		FullDesc:       descStyle,
+		FullSeparator:  sepStyle,
+	}
+}
+
+// DefaultDarkStyles returns a set of default styles for dark backgrounds.
+func DefaultDarkStyles() Styles {
+	return DefaultStyles(true)
+}
+
+// DefaultLightStyles returns a set of default styles for light backgrounds.
+func DefaultLightStyles() Styles {
+	return DefaultStyles(false)
+}
+
 // Model contains the state of the help view.
 type Model struct {
 	Width   int
@@ -58,41 +89,13 @@ type Model struct {
 
 // New creates a new help view with some useful defaults.
 func New() Model {
-	keyStyle := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{
-		Light: "#909090",
-		Dark:  "#626262",
-	})
-
-	descStyle := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{
-		Light: "#B2B2B2",
-		Dark:  "#4A4A4A",
-	})
-
-	sepStyle := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{
-		Light: "#DDDADA",
-		Dark:  "#3C3C3C",
-	})
-
 	return Model{
 		ShortSeparator: " • ",
 		FullSeparator:  "    ",
 		Ellipsis:       "…",
-		Styles: Styles{
-			ShortKey:       keyStyle,
-			ShortDesc:      descStyle,
-			ShortSeparator: sepStyle,
-			Ellipsis:       sepStyle,
-			FullKey:        keyStyle,
-			FullDesc:       descStyle,
-			FullSeparator:  sepStyle,
-		},
+		Styles:         DefaultDarkStyles(),
 	}
 }
-
-// NewModel creates a new help view with some useful defaults.
-//
-// Deprecated: use [New] instead.
-var NewModel = New
 
 // Update helps satisfy the Bubble Tea Model interface. It's a no-op.
 func (m Model) Update(_ tea.Msg) (Model, tea.Cmd) {

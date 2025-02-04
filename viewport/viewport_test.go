@@ -15,7 +15,7 @@ func TestNew(t *testing.T) {
 	t.Run("default values on create by New", func(t *testing.T) {
 		t.Parallel()
 
-		m := New(10, 10)
+		m := New(WithHeight(10), WithWidth(10))
 
 		if !m.initialized {
 			t.Errorf("on create by New, Model should be initialized")
@@ -56,7 +56,7 @@ func TestSetHorizontalStep(t *testing.T) {
 	t.Run("change default", func(t *testing.T) {
 		t.Parallel()
 
-		m := New(10, 10)
+		m := New(WithHeight(10), WithWidth(10))
 
 		if m.horizontalStep != defaultHorizontalStep {
 			t.Errorf("default horizontalStep should be %d, got %d", defaultHorizontalStep, m.horizontalStep)
@@ -72,7 +72,7 @@ func TestSetHorizontalStep(t *testing.T) {
 	t.Run("no negative", func(t *testing.T) {
 		t.Parallel()
 
-		m := New(10, 10)
+		m := New(WithHeight(10), WithWidth(10))
 
 		if m.horizontalStep != defaultHorizontalStep {
 			t.Errorf("default horizontalStep should be %d, got %d", defaultHorizontalStep, m.horizontalStep)
@@ -94,7 +94,7 @@ func TestMoveLeft(t *testing.T) {
 	t.Run("zero position", func(t *testing.T) {
 		t.Parallel()
 
-		m := New(10, 10)
+		m := New(WithHeight(10), WithWidth(10))
 		if m.xOffset != zeroPosition {
 			t.Errorf("default indent should be %d, got %d", zeroPosition, m.xOffset)
 		}
@@ -107,7 +107,7 @@ func TestMoveLeft(t *testing.T) {
 
 	t.Run("move", func(t *testing.T) {
 		t.Parallel()
-		m := New(10, 10)
+		m := New(WithHeight(10), WithWidth(10))
 		if m.xOffset != zeroPosition {
 			t.Errorf("default indent should be %d, got %d", zeroPosition, m.xOffset)
 		}
@@ -129,7 +129,7 @@ func TestMoveRight(t *testing.T) {
 
 		zeroPosition := 0
 
-		m := New(10, 10)
+		m := New(WithHeight(10), WithWidth(10))
 		m.SetContent("Some line that is longer than width")
 		if m.xOffset != zeroPosition {
 			t.Errorf("default indent should be %d, got %d", zeroPosition, m.xOffset)
@@ -151,7 +151,7 @@ func TestResetIndent(t *testing.T) {
 
 		zeroPosition := 0
 
-		m := New(10, 10)
+		m := New(WithHeight(10), WithWidth(10))
 		m.xOffset = 500
 
 		m.ResetIndent()
@@ -187,7 +187,7 @@ func TestVisibleLines(t *testing.T) {
 	t.Run("empty list", func(t *testing.T) {
 		t.Parallel()
 
-		m := New(10, 10)
+		m := New(WithHeight(10), WithWidth(10))
 		list := m.visibleLines()
 
 		if len(list) != 0 {
@@ -198,7 +198,7 @@ func TestVisibleLines(t *testing.T) {
 	t.Run("empty list: with indent", func(t *testing.T) {
 		t.Parallel()
 
-		m := New(10, 10)
+		m := New(WithHeight(10), WithWidth(10))
 		list := m.visibleLines()
 		m.xOffset = 5
 
@@ -211,7 +211,7 @@ func TestVisibleLines(t *testing.T) {
 		t.Parallel()
 		numberOfLines := 10
 
-		m := New(10, numberOfLines)
+		m := New(WithHeight(numberOfLines), WithWidth(10))
 		m.SetContent(strings.Join(defaultList, "\n"))
 
 		list := m.visibleLines()
@@ -221,7 +221,7 @@ func TestVisibleLines(t *testing.T) {
 
 		lastItemIdx := numberOfLines - 1
 		// we trim line if it doesn't fit to width of the viewport
-		shouldGet := defaultList[lastItemIdx][:m.Width]
+		shouldGet := defaultList[lastItemIdx][:m.Width()]
 		if list[lastItemIdx] != shouldGet {
 			t.Errorf(`%dth list item should be '%s', got '%s'`, lastItemIdx, shouldGet, list[lastItemIdx])
 		}
@@ -231,7 +231,7 @@ func TestVisibleLines(t *testing.T) {
 		t.Parallel()
 		numberOfLines := 10
 
-		m := New(10, numberOfLines)
+		m := New(WithHeight(numberOfLines), WithWidth(10))
 		m.SetContent(strings.Join(defaultList, "\n"))
 		m.YOffset = 5
 
@@ -246,7 +246,7 @@ func TestVisibleLines(t *testing.T) {
 
 		lastItemIdx := numberOfLines - 1
 		// we trim line if it doesn't fit to width of the viewport
-		shouldGet := defaultList[m.YOffset+lastItemIdx][:m.Width]
+		shouldGet := defaultList[m.YOffset+lastItemIdx][:m.Width()]
 		if list[lastItemIdx] != shouldGet {
 			t.Errorf(`%dth list item should be '%s', got '%s'`, lastItemIdx, shouldGet, list[lastItemIdx])
 		}
@@ -256,7 +256,7 @@ func TestVisibleLines(t *testing.T) {
 		t.Parallel()
 		numberOfLines := 10
 
-		m := New(10, numberOfLines)
+		m := New(WithHeight(numberOfLines), WithWidth(10))
 		m.lines = defaultList
 		m.YOffset = 7
 
@@ -315,7 +315,7 @@ func TestVisibleLines(t *testing.T) {
 		}
 		numberOfLines := len(initList)
 
-		m := New(20, numberOfLines)
+		m := New(WithHeight(numberOfLines), WithWidth(20))
 		m.lines = initList
 		m.longestLineWidth = 30 // dirty hack: not checking right overscroll for this test case
 
@@ -370,7 +370,7 @@ func TestRightOverscroll(t *testing.T) {
 	t.Run("prevent right overscroll", func(t *testing.T) {
 		t.Parallel()
 		content := "Content is short"
-		m := New(len(content)+1, 5)
+		m := New(WithHeight(5), WithWidth(len(content)+1))
 		m.SetContent(content)
 
 		for i := 0; i < 10; i++ {

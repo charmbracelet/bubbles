@@ -3,11 +3,11 @@ package table
 import (
 	"strings"
 
-	"github.com/charmbracelet/bubbles/help"
-	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/viewport"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/bubbles/v2/help"
+	"github.com/charmbracelet/bubbles/v2/key"
+	"github.com/charmbracelet/bubbles/v2/viewport"
+	tea "github.com/charmbracelet/bubbletea/v2"
+	"github.com/charmbracelet/lipgloss/v2"
 	"github.com/mattn/go-runewidth"
 )
 
@@ -64,7 +64,6 @@ func (km KeyMap) FullHelp() [][]key.Binding {
 
 // DefaultKeyMap returns a default set of keybindings.
 func DefaultKeyMap() KeyMap {
-	const spacebar = " "
 	return KeyMap{
 		LineUp: key.NewBinding(
 			key.WithKeys("up", "k"),
@@ -79,7 +78,7 @@ func DefaultKeyMap() KeyMap {
 			key.WithHelp("b/pgup", "page up"),
 		),
 		PageDown: key.NewBinding(
-			key.WithKeys("f", "pgdown", spacebar),
+			key.WithKeys("f", "pgdown", "space"),
 			key.WithHelp("f/pgdn", "page down"),
 		),
 		HalfPageUp: key.NewBinding(
@@ -133,7 +132,7 @@ type Option func(*Model)
 func New(opts ...Option) Model {
 	m := Model{
 		cursor:   0,
-		viewport: viewport.New(0, 20), //nolint:mnd
+		viewport: viewport.New(viewport.WithHeight(20)), //nolint:mnd
 
 		KeyMap: DefaultKeyMap(),
 		Help:   help.New(),
@@ -166,14 +165,14 @@ func WithRows(rows []Row) Option {
 // WithHeight sets the height of the table.
 func WithHeight(h int) Option {
 	return func(m *Model) {
-		m.viewport.Height = h - lipgloss.Height(m.headersView())
+		m.viewport.SetHeight(h - lipgloss.Height(m.headersView()))
 	}
 }
 
 // WithWidth sets the width of the table.
 func WithWidth(w int) Option {
 	return func(m *Model) {
-		m.viewport.Width = w
+		m.viewport.SetWidth(w)
 	}
 }
 
@@ -205,20 +204,20 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	}
 
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		switch {
 		case key.Matches(msg, m.KeyMap.LineUp):
 			m.MoveUp(1)
 		case key.Matches(msg, m.KeyMap.LineDown):
 			m.MoveDown(1)
 		case key.Matches(msg, m.KeyMap.PageUp):
-			m.MoveUp(m.viewport.Height)
+			m.MoveUp(m.viewport.Height())
 		case key.Matches(msg, m.KeyMap.PageDown):
-			m.MoveDown(m.viewport.Height)
+			m.MoveDown(m.viewport.Height())
 		case key.Matches(msg, m.KeyMap.HalfPageUp):
-			m.MoveUp(m.viewport.Height / 2) //nolint:mnd
+			m.MoveUp(m.viewport.Height() / 2) //nolint:mnd
 		case key.Matches(msg, m.KeyMap.HalfPageDown):
-			m.MoveDown(m.viewport.Height / 2) //nolint:mnd
+			m.MoveDown(m.viewport.Height() / 2) //nolint:mnd
 		case key.Matches(msg, m.KeyMap.GotoTop):
 			m.GotoTop()
 		case key.Matches(msg, m.KeyMap.GotoBottom):
@@ -268,11 +267,11 @@ func (m *Model) UpdateViewport() {
 	// Constant runtime, independent of number of rows in a table.
 	// Limits the number of renderedRows to a maximum of 2*m.viewport.Height
 	if m.cursor >= 0 {
-		m.start = clamp(m.cursor-m.viewport.Height, 0, m.cursor)
+		m.start = clamp(m.cursor-m.viewport.Height(), 0, m.cursor)
 	} else {
 		m.start = 0
 	}
-	m.end = clamp(m.cursor+m.viewport.Height, m.cursor, len(m.rows))
+	m.end = clamp(m.cursor+m.viewport.Height(), m.cursor, len(m.rows))
 	for i := m.start; i < m.end; i++ {
 		renderedRows = append(renderedRows, m.renderRow(i))
 	}
@@ -316,24 +315,24 @@ func (m *Model) SetColumns(c []Column) {
 
 // SetWidth sets the width of the viewport of the table.
 func (m *Model) SetWidth(w int) {
-	m.viewport.Width = w
+	m.viewport.SetWidth(w)
 	m.UpdateViewport()
 }
 
 // SetHeight sets the height of the viewport of the table.
 func (m *Model) SetHeight(h int) {
-	m.viewport.Height = h - lipgloss.Height(m.headersView())
+	m.viewport.SetHeight(h - lipgloss.Height(m.headersView()))
 	m.UpdateViewport()
 }
 
 // Height returns the viewport height of the table.
 func (m Model) Height() int {
-	return m.viewport.Height
+	return m.viewport.Height()
 }
 
 // Width returns the viewport width of the table.
 func (m Model) Width() int {
-	return m.viewport.Width
+	return m.viewport.Width()
 }
 
 // Cursor returns the index of the selected row.
@@ -354,10 +353,10 @@ func (m *Model) MoveUp(n int) {
 	switch {
 	case m.start == 0:
 		m.viewport.SetYOffset(clamp(m.viewport.YOffset, 0, m.cursor))
-	case m.start < m.viewport.Height:
-		m.viewport.YOffset = (clamp(clamp(m.viewport.YOffset+n, 0, m.cursor), 0, m.viewport.Height))
+	case m.start < m.viewport.Height():
+		m.viewport.YOffset = (clamp(clamp(m.viewport.YOffset+n, 0, m.cursor), 0, m.viewport.Height()))
 	case m.viewport.YOffset >= 1:
-		m.viewport.YOffset = clamp(m.viewport.YOffset+n, 1, m.viewport.Height)
+		m.viewport.YOffset = clamp(m.viewport.YOffset+n, 1, m.viewport.Height())
 	}
 	m.UpdateViewport()
 }
@@ -370,11 +369,11 @@ func (m *Model) MoveDown(n int) {
 
 	switch {
 	case m.end == len(m.rows) && m.viewport.YOffset > 0:
-		m.viewport.SetYOffset(clamp(m.viewport.YOffset-n, 1, m.viewport.Height))
+		m.viewport.SetYOffset(clamp(m.viewport.YOffset-n, 1, m.viewport.Height()))
 	case m.cursor > (m.end-m.start)/2 && m.viewport.YOffset > 0:
 		m.viewport.SetYOffset(clamp(m.viewport.YOffset-n, 1, m.cursor))
 	case m.viewport.YOffset > 1:
-	case m.cursor > m.viewport.YOffset+m.viewport.Height-1:
+	case m.cursor > m.viewport.YOffset+m.viewport.Height()-1:
 		m.viewport.SetYOffset(clamp(m.viewport.YOffset+1, 0, 1))
 	}
 }

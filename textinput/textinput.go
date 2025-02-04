@@ -3,15 +3,14 @@ package textinput
 import (
 	"reflect"
 	"strings"
-	"time"
 	"unicode"
 
 	"github.com/atotto/clipboard"
-	"github.com/charmbracelet/bubbles/cursor"
-	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/runeutil"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/bubbles/v2/cursor"
+	"github.com/charmbracelet/bubbles/v2/internal/runeutil"
+	"github.com/charmbracelet/bubbles/v2/key"
+	tea "github.com/charmbracelet/bubbletea/v2"
+	"github.com/charmbracelet/lipgloss/v2"
 	rw "github.com/mattn/go-runewidth"
 	"github.com/rivo/uniseg"
 )
@@ -63,23 +62,25 @@ type KeyMap struct {
 
 // DefaultKeyMap is the default set of key bindings for navigating and acting
 // upon the textinput.
-var DefaultKeyMap = KeyMap{
-	CharacterForward:        key.NewBinding(key.WithKeys("right", "ctrl+f")),
-	CharacterBackward:       key.NewBinding(key.WithKeys("left", "ctrl+b")),
-	WordForward:             key.NewBinding(key.WithKeys("alt+right", "ctrl+right", "alt+f")),
-	WordBackward:            key.NewBinding(key.WithKeys("alt+left", "ctrl+left", "alt+b")),
-	DeleteWordBackward:      key.NewBinding(key.WithKeys("alt+backspace", "ctrl+w")),
-	DeleteWordForward:       key.NewBinding(key.WithKeys("alt+delete", "alt+d")),
-	DeleteAfterCursor:       key.NewBinding(key.WithKeys("ctrl+k")),
-	DeleteBeforeCursor:      key.NewBinding(key.WithKeys("ctrl+u")),
-	DeleteCharacterBackward: key.NewBinding(key.WithKeys("backspace", "ctrl+h")),
-	DeleteCharacterForward:  key.NewBinding(key.WithKeys("delete", "ctrl+d")),
-	LineStart:               key.NewBinding(key.WithKeys("home", "ctrl+a")),
-	LineEnd:                 key.NewBinding(key.WithKeys("end", "ctrl+e")),
-	Paste:                   key.NewBinding(key.WithKeys("ctrl+v")),
-	AcceptSuggestion:        key.NewBinding(key.WithKeys("tab")),
-	NextSuggestion:          key.NewBinding(key.WithKeys("down", "ctrl+n")),
-	PrevSuggestion:          key.NewBinding(key.WithKeys("up", "ctrl+p")),
+func DefaultKeyMap() KeyMap {
+	return KeyMap{
+		CharacterForward:        key.NewBinding(key.WithKeys("right", "ctrl+f")),
+		CharacterBackward:       key.NewBinding(key.WithKeys("left", "ctrl+b")),
+		WordForward:             key.NewBinding(key.WithKeys("alt+right", "ctrl+right", "alt+f")),
+		WordBackward:            key.NewBinding(key.WithKeys("alt+left", "ctrl+left", "alt+b")),
+		DeleteWordBackward:      key.NewBinding(key.WithKeys("alt+backspace", "ctrl+w")),
+		DeleteWordForward:       key.NewBinding(key.WithKeys("alt+delete", "alt+d")),
+		DeleteAfterCursor:       key.NewBinding(key.WithKeys("ctrl+k")),
+		DeleteBeforeCursor:      key.NewBinding(key.WithKeys("ctrl+u")),
+		DeleteCharacterBackward: key.NewBinding(key.WithKeys("backspace", "ctrl+h")),
+		DeleteCharacterForward:  key.NewBinding(key.WithKeys("delete", "ctrl+d")),
+		LineStart:               key.NewBinding(key.WithKeys("home", "ctrl+a")),
+		LineEnd:                 key.NewBinding(key.WithKeys("end", "ctrl+e")),
+		Paste:                   key.NewBinding(key.WithKeys("ctrl+v")),
+		AcceptSuggestion:        key.NewBinding(key.WithKeys("tab")),
+		NextSuggestion:          key.NewBinding(key.WithKeys("down", "ctrl+n")),
+		PrevSuggestion:          key.NewBinding(key.WithKeys("up", "ctrl+p")),
+	}
 }
 
 // Model is the Bubble Tea model for this text input element.
@@ -93,9 +94,6 @@ type Model struct {
 	EchoCharacter rune
 	Cursor        cursor.Model
 
-	// Deprecated: use [cursor.BlinkSpeed] instead.
-	BlinkSpeed time.Duration
-
 	// Styles. These will be applied as inline styles.
 	//
 	// For an introduction to styling with Lip Gloss see:
@@ -105,9 +103,6 @@ type Model struct {
 	PlaceholderStyle lipgloss.Style
 	CompletionStyle  lipgloss.Style
 
-	// Deprecated: use Cursor.Style instead.
-	CursorStyle lipgloss.Style
-
 	// CharLimit is the maximum amount of characters this input element will
 	// accept. If 0 or less, there's no limit.
 	CharLimit int
@@ -115,7 +110,7 @@ type Model struct {
 	// Width is the maximum number of characters that can be displayed at once.
 	// It essentially treats the text field like a horizontally scrolling
 	// viewport. If 0 or less this setting is ignored.
-	Width int
+	width int
 
 	// KeyMap encodes the keybindings recognized by the widget.
 	KeyMap KeyMap
@@ -164,7 +159,7 @@ func New() Model {
 		ShowSuggestions:  false,
 		CompletionStyle:  lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
 		Cursor:           cursor.New(),
-		KeyMap:           DefaultKeyMap,
+		KeyMap:           DefaultKeyMap(),
 
 		suggestions: [][]rune{},
 		value:       nil,
@@ -173,10 +168,15 @@ func New() Model {
 	}
 }
 
-// NewModel creates a new model with default settings.
-//
-// Deprecated: Use [New] instead.
-var NewModel = New
+// SetWidth sets the width of the text input.
+func (m Model) Width() int {
+	return m.width
+}
+
+// SetWidth sets the width of the text input.
+func (m *Model) SetWidth(w int) {
+	m.width = w
+}
 
 // SetValue sets the value of the text input.
 func (m *Model) SetValue(s string) {
@@ -325,7 +325,7 @@ func (m *Model) insertRunesFromUserInput(v []rune) {
 // If a max width is defined, perform some logic to treat the visible area
 // as a horizontally scrolling viewport.
 func (m *Model) handleOverflow() {
-	if m.Width <= 0 || uniseg.StringWidth(string(m.value)) <= m.Width {
+	if m.Width() <= 0 || uniseg.StringWidth(string(m.value)) <= m.Width() {
 		m.offset = 0
 		m.offsetRight = len(m.value)
 		return
@@ -341,9 +341,9 @@ func (m *Model) handleOverflow() {
 		i := 0
 		runes := m.value[m.offset:]
 
-		for i < len(runes) && w <= m.Width {
+		for i < len(runes) && w <= m.Width() {
 			w += rw.RuneWidth(runes[i])
-			if w <= m.Width+1 {
+			if w <= m.Width()+1 {
 				i++
 			}
 		}
@@ -356,9 +356,9 @@ func (m *Model) handleOverflow() {
 		runes := m.value[:m.offsetRight]
 		i := len(runes) - 1
 
-		for i > 0 && w < m.Width {
+		for i > 0 && w < m.Width() {
 			w += rw.RuneWidth(runes[i])
-			if w <= m.Width {
+			if w <= m.Width() {
 				i--
 			}
 		}
@@ -555,7 +555,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	}
 
 	// Need to check for completion before, because key is configurable and might be double assigned
-	keyMsg, ok := msg.(tea.KeyMsg)
+	keyMsg, ok := msg.(tea.KeyPressMsg)
 	if ok && key.Matches(keyMsg, m.KeyMap.AcceptSuggestion) {
 		if m.canAcceptSuggestion() {
 			m.value = append(m.value, m.matchedSuggestions[m.currentSuggestionIndex][len(m.value):]...)
@@ -568,7 +568,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	oldPos := m.pos
 
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		switch {
 		case key.Matches(msg, m.KeyMap.DeleteWordBackward):
 			m.deleteWordBackward()
@@ -616,12 +616,15 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.previousSuggestion()
 		default:
 			// Input one or more regular characters.
-			m.insertRunesFromUserInput(msg.Runes)
+			m.insertRunesFromUserInput([]rune(msg.Text))
 		}
 
 		// Check again if can be completed
 		// because value might be something that does not match the completion prefix
 		m.updateSuggestions()
+
+	case tea.PasteMsg:
+		m.insertRunesFromUserInput([]rune(msg))
 
 	case pasteMsg:
 		m.insertRunesFromUserInput([]rune(msg))
@@ -685,9 +688,9 @@ func (m Model) View() string {
 	// If a max width and background color were set fill the empty spaces with
 	// the background color.
 	valWidth := uniseg.StringWidth(string(value))
-	if m.Width > 0 && valWidth <= m.Width {
-		padding := max(0, m.Width-valWidth)
-		if valWidth+padding <= m.Width && pos < len(value) {
+	if m.Width() > 0 && valWidth <= m.Width() {
+		padding := max(0, m.Width()-valWidth)
+		if valWidth+padding <= m.Width() && pos < len(value) {
 			padding++
 		}
 		v += styleText(strings.Repeat(" ", padding))
@@ -703,7 +706,7 @@ func (m Model) placeholderView() string {
 		style = m.PlaceholderStyle.Inline(true).Render
 	)
 
-	p := make([]rune, m.Width+1)
+	p := make([]rune, m.Width()+1)
 	copy(p, []rune(m.Placeholder))
 
 	m.Cursor.TextStyle = m.PlaceholderStyle
@@ -711,15 +714,15 @@ func (m Model) placeholderView() string {
 	v += m.Cursor.View()
 
 	// If the entire placeholder is already set and no padding is needed, finish
-	if m.Width < 1 && len(p) <= 1 {
+	if m.Width() < 1 && len(p) <= 1 {
 		return m.PromptStyle.Render(m.Prompt) + v
 	}
 
 	// If Width is set then size placeholder accordingly
-	if m.Width > 0 {
+	if m.Width() > 0 {
 		// available width is width - len + cursor offset of 1
 		minWidth := lipgloss.Width(m.Placeholder)
-		availWidth := m.Width - minWidth + 1
+		availWidth := m.Width() - minWidth + 1
 
 		// if width < len, 'subtract'(add) number to len and dont add padding
 		if availWidth < 0 {
@@ -770,34 +773,6 @@ func max(a, b int) int {
 		return a
 	}
 	return b
-}
-
-// Deprecated.
-
-// Deprecated: use cursor.Mode.
-type CursorMode int
-
-const (
-	// Deprecated: use cursor.CursorBlink.
-	CursorBlink = CursorMode(cursor.CursorBlink)
-	// Deprecated: use cursor.CursorStatic.
-	CursorStatic = CursorMode(cursor.CursorStatic)
-	// Deprecated: use cursor.CursorHide.
-	CursorHide = CursorMode(cursor.CursorHide)
-)
-
-func (c CursorMode) String() string {
-	return cursor.Mode(c).String()
-}
-
-// Deprecated: use cursor.Mode().
-func (m Model) CursorMode() CursorMode {
-	return CursorMode(m.Cursor.Mode())
-}
-
-// Deprecated: use cursor.SetMode().
-func (m *Model) SetCursorMode(mode CursorMode) tea.Cmd {
-	return m.Cursor.SetMode(cursor.Mode(mode))
 }
 
 func (m Model) completionView(offset int) string {
