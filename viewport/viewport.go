@@ -1,6 +1,7 @@
 package viewport
 
 import (
+	"fmt"
 	"math"
 	"strings"
 
@@ -52,6 +53,13 @@ type Model struct {
 	height int
 	KeyMap KeyMap
 
+	// Whether or not to wrap text. If false, it'll allow horizontal scrolling
+	// instead.
+	SoftWrap bool
+
+	// Whether or not to fill to the height of the viewport with empty lines.
+	FillHeight bool
+
 	// Whether or not to respond to the mouse. The mouse must be enabled in
 	// Bubble Tea for this to work. For details, see the Bubble Tea docs.
 	MouseWheelEnabled bool
@@ -77,9 +85,54 @@ type Model struct {
 	// useful for setting borders, margins and padding.
 	Style lipgloss.Style
 
+	// LeftGutterFunc allows to define a [GutterFunc] that adds a column into
+	// the left of the viewport, which is kept when horizontal scrolling.
+	// This can be used for things like line numbers, selection indicators,
+	// show statuses, etc.
+	LeftGutterFunc GutterFunc
+
 	initialized      bool
 	lines            []string
 	longestLineWidth int
+
+	// HighlightStyle highlights the ranges set with [SetHighligths].
+	HighlightStyle lipgloss.Style
+
+	// SelectedHighlightStyle highlights the highlight range focused during
+	// navigation.
+	// Use [SetHighligths] to set the highlight ranges, and [HightlightNext]
+	// and [HihglightPrevious] to navigate.
+	SelectedHighlightStyle lipgloss.Style
+
+	highlights           []highlightInfo
+	hiIdx                int
+	memoizedMatchedLines []string
+}
+
+// GutterFunc can be implemented and set into [Model.LeftGutterFunc].
+type GutterFunc func(GutterContext) string
+
+// LineNumberGutter return a [GutterFunc] that shows line numbers.
+func LineNumberGutter(style lipgloss.Style) GutterFunc {
+	return func(info GutterContext) string {
+		if info.Soft {
+			return style.Render("     │ ")
+		}
+		if info.Index >= info.TotalLines {
+			return style.Render("   ~ │ ")
+		}
+		return style.Render(fmt.Sprintf("%4d │ ", info.Index+1))
+	}
+}
+
+// NoGutter is the default gutter used.
+var NoGutter = func(GutterContext) string { return "" }
+
+// GutterContext provides context to a [GutterFunc].
+type GutterContext struct {
+	Index      int
+	TotalLines int
+	Soft       bool
 }
 
 func (m *Model) setInitialValues() {
@@ -88,6 +141,7 @@ func (m *Model) setInitialValues() {
 	m.MouseWheelDelta = 3
 	m.initialized = true
 	m.horizontalStep = defaultHorizontalStep
+	m.LeftGutterFunc = NoGutter
 }
 
 // Init exists to satisfy the tea.Model interface for composability purposes.
@@ -134,12 +188,13 @@ func (m Model) PastBottom() bool {
 
 // ScrollPercent returns the amount scrolled as a float between 0 and 1.
 func (m Model) ScrollPercent() float64 {
-	if m.Height() >= len(m.lines) {
+	count := m.lineCount()
+	if m.Height() >= count {
 		return 1.0
 	}
 	y := float64(m.YOffset)
 	h := float64(m.Height())
-	t := float64(len(m.lines))
+	t := float64(count)
 	v := y / (t - h)
 	return math.Max(0.0, math.Min(1.0, v))
 }
@@ -158,48 +213,204 @@ func (m Model) HorizontalScrollPercent() float64 {
 }
 
 // SetContent set the pager's text content.
+// Line endings will be normalized to '\n'.
 func (m *Model) SetContent(s string) {
 	s = strings.ReplaceAll(s, "\r\n", "\n") // normalize line endings
 	m.lines = strings.Split(s, "\n")
-	m.longestLineWidth = findLongestLineWidth(m.lines)
+	// if there's no content, set content to actual nil instead of one empty
+	// line.
+	if len(m.lines) == 1 && ansi.StringWidth(m.lines[0]) == 0 {
+		m.lines = nil
+	}
+	m.longestLineWidth = maxLineWidth(m.lines)
+	m.ClearHighlights()
 
-	if m.YOffset > len(m.lines)-1 {
+	if m.YOffset > m.maxYOffset() {
 		m.GotoBottom()
 	}
+}
+
+// GetContent returns the entire content as a single string.
+// Line endings are normalized to '\n'.
+func (m Model) GetContent() string {
+	return strings.Join(m.lines, "\n")
+}
+
+// calculateLine taking soft wrapiing into account, returns the total viewable
+// lines and the real-line index for the given yoffset.
+func (m Model) calculateLine(yoffset int) (total, idx int) {
+	if !m.SoftWrap {
+		return len(m.lines), yoffset
+	}
+	maxWidth := m.maxWidth()
+	gutterSize := lipgloss.Width(m.LeftGutterFunc(GutterContext{}))
+	for i, line := range m.lines {
+		adjust := max(1, ansi.StringWidth(line)/(maxWidth-gutterSize))
+		if yoffset >= total && yoffset < total+adjust {
+			idx = i
+		}
+		total += adjust
+	}
+	return total, idx
+}
+
+// lineToIndex taking soft wrappign into account, return the real line index
+// for the given line.
+func (m Model) lineToIndex(y int) int {
+	_, idx := m.calculateLine(y)
+	return idx
+}
+
+// lineCount taking soft wrapping into account, return the total viewable line
+// count (real lines + soft wrapped line).
+func (m Model) lineCount() int {
+	total, _ := m.calculateLine(0)
+	return total
 }
 
 // maxYOffset returns the maximum possible value of the y-offset based on the
 // viewport's content and set height.
 func (m Model) maxYOffset() int {
-	return max(0, len(m.lines)-m.Height()+m.Style.GetVerticalFrameSize())
+	return max(0, m.lineCount()-m.Height()+m.Style.GetVerticalFrameSize())
+}
+
+// maxXOffset returns the maximum possible value of the x-offset based on the
+// viewport's content and set width.
+func (m Model) maxXOffset() int {
+	return max(0, m.longestLineWidth-m.Width())
+}
+
+func (m Model) maxWidth() int {
+	return m.Width() -
+		m.Style.GetHorizontalFrameSize() -
+		lipgloss.Width(m.LeftGutterFunc(GutterContext{}))
+}
+
+func (m Model) maxHeight() int {
+	return m.Height() - m.Style.GetVerticalFrameSize()
 }
 
 // visibleLines returns the lines that should currently be visible in the
 // viewport.
 func (m Model) visibleLines() (lines []string) {
-	h := m.Height() - m.Style.GetVerticalFrameSize()
-	w := m.Width() - m.Style.GetHorizontalFrameSize()
+	maxHeight := m.maxHeight()
+	maxWidth := m.maxWidth()
 
-	if len(m.lines) > 0 {
-		top := max(0, m.YOffset)
-		bottom := clamp(m.YOffset+h, top, len(m.lines))
-		lines = m.lines[top:bottom]
+	if m.lineCount() > 0 {
+		pos := m.lineToIndex(m.YOffset)
+		top := max(0, pos)
+		bottom := clamp(pos+maxHeight, top, len(m.lines))
+		lines = make([]string, bottom-top)
+		copy(lines, m.lines[top:bottom])
+		lines = m.highlightLines(lines, top)
 	}
 
-	if (m.xOffset == 0 && m.longestLineWidth <= w) || w == 0 {
+	for m.FillHeight && len(lines) < maxHeight {
+		lines = append(lines, "")
+	}
+
+	// if longest line fit within width, no need to do anything else.
+	if (m.xOffset == 0 && m.longestLineWidth <= maxWidth) || maxWidth == 0 {
+		return m.prependColumn(lines)
+	}
+
+	if m.SoftWrap {
+		return m.softWrap(lines, maxWidth)
+	}
+
+	for i := range lines {
+		lines[i] = ansi.Cut(lines[i], m.xOffset, m.xOffset+maxWidth)
+	}
+	return m.prependColumn(lines)
+}
+
+func (m Model) highlightLines(lines []string, offset int) []string {
+	if len(m.highlights) == 0 {
 		return lines
 	}
-
-	cutLines := make([]string, len(lines))
 	for i := range lines {
-		cutLines[i] = ansi.Cut(lines[i], m.xOffset, m.xOffset+w)
+		if memoized := m.memoizedMatchedLines[i+offset]; memoized != "" {
+			lines[i] = memoized
+		} else {
+			ranges := makeHighlightRanges(
+				m.highlights,
+				i+offset,
+				m.HighlightStyle,
+			)
+			lines[i] = lipgloss.StyleRanges(lines[i], ranges...)
+			m.memoizedMatchedLines[i+offset] = lines[i]
+		}
+		if m.hiIdx < 0 {
+			continue
+		}
+		sel := m.highlights[m.hiIdx]
+		if hi, ok := sel.lines[i+offset]; ok {
+			lines[i] = lipgloss.StyleRanges(lines[i], lipgloss.NewRange(
+				hi[0],
+				hi[1],
+				m.SelectedHighlightStyle,
+			))
+		}
 	}
-	return cutLines
+	return lines
+}
+
+func (m Model) softWrap(lines []string, maxWidth int) []string {
+	var wrappedLines []string
+	for i, line := range lines {
+		idx := 0
+		for ansi.StringWidth(line) >= idx {
+			truncatedLine := ansi.Cut(line, idx, maxWidth+idx)
+			wrappedLines = append(wrappedLines, m.LeftGutterFunc(GutterContext{
+				Index:      i + m.YOffset,
+				TotalLines: m.TotalLineCount(),
+				Soft:       idx > 0,
+			})+truncatedLine)
+			idx += maxWidth
+		}
+	}
+	return wrappedLines
+}
+
+func (m Model) prependColumn(lines []string) []string {
+	result := make([]string, len(lines))
+	for i, line := range lines {
+		result[i] = m.LeftGutterFunc(GutterContext{
+			Index:      i + m.YOffset,
+			TotalLines: m.TotalLineCount(),
+		}) + line
+	}
+	return result
 }
 
 // SetYOffset sets the Y offset.
 func (m *Model) SetYOffset(n int) {
 	m.YOffset = clamp(n, 0, m.maxYOffset())
+}
+
+// SetXOffset sets the X offset.
+// No-op when soft wrap is enabled.
+func (m *Model) SetXOffset(n int) {
+	if m.SoftWrap {
+		return
+	}
+	m.xOffset = clamp(n, 0, m.maxXOffset())
+}
+
+// EnsureVisible ensures that the given line and column are in the viewport.
+func (m *Model) EnsureVisible(line, colstart, colend int) {
+	maxWidth := m.maxWidth()
+	if colend <= maxWidth {
+		m.SetXOffset(0)
+	} else {
+		m.SetXOffset(colstart - m.horizontalStep) // put one step to the left, feels more natural
+	}
+
+	if line < m.YOffset || line >= m.YOffset+m.maxHeight() {
+		m.SetYOffset(line)
+	}
+
+	m.visibleLines()
 }
 
 // ViewDown moves the view down by the number of lines in the viewport.
@@ -249,6 +460,7 @@ func (m *Model) LineDown(n int) {
 	// greater than the number of lines we actually have left before we reach
 	// the bottom.
 	m.SetYOffset(m.YOffset + n)
+	m.hiIdx = m.findNearedtMatch()
 }
 
 // LineUp moves the view down by the given number of lines. Returns the new
@@ -261,11 +473,12 @@ func (m *Model) LineUp(n int) {
 	// Make sure the number of lines by which we're going to scroll isn't
 	// greater than the number of lines we are from the top.
 	m.SetYOffset(m.YOffset - n)
+	m.hiIdx = m.findNearedtMatch()
 }
 
 // TotalLineCount returns the total number of lines (both hidden and visible) within the viewport.
 func (m Model) TotalLineCount() int {
-	return len(m.lines)
+	return m.lineCount()
 }
 
 // VisibleLineCount returns the number of the visible lines within the viewport.
@@ -280,12 +493,14 @@ func (m *Model) GotoTop() (lines []string) {
 	}
 
 	m.SetYOffset(0)
+	m.hiIdx = m.findNearedtMatch()
 	return m.visibleLines()
 }
 
 // GotoBottom sets the viewport to the bottom position.
 func (m *Model) GotoBottom() (lines []string) {
 	m.SetYOffset(m.maxYOffset())
+	m.hiIdx = m.findNearedtMatch()
 	return m.visibleLines()
 }
 
@@ -311,7 +526,8 @@ func (m *Model) MoveLeft(cols int) {
 // MoveRight moves viewport to the right by the given number of columns.
 func (m *Model) MoveRight(cols int) {
 	// prevents over scrolling to the right
-	if m.xOffset >= m.longestLineWidth-m.Width() {
+	w := m.maxWidth()
+	if m.xOffset > m.longestLineWidth-w {
 		return
 	}
 	m.xOffset += cols
@@ -320,6 +536,68 @@ func (m *Model) MoveRight(cols int) {
 // Resets lines indent to zero.
 func (m *Model) ResetIndent() {
 	m.xOffset = 0
+}
+
+// SetHighlights sets ranges of characters to highlight.
+// For instance, `[]int{[]int{2, 10}, []int{20, 30}}` will highlight characters
+// 2 to 10 and 20 to 30.
+// Note that highlights are not expected to transpose each other, and are also
+// expected to be in order.
+// Use [Model.SetHighlights] to set the highlight ranges, and
+// [Model.HighlightNext] and [Model.HighlightPrevious] to navigate.
+// Use [Model.ClearHighlights] to remove all highlights.
+func (m *Model) SetHighlights(matches [][]int) {
+	if len(matches) == 0 || len(m.lines) == 0 {
+		return
+	}
+	m.memoizedMatchedLines = make([]string, len(m.lines))
+	m.highlights = parseMatches(m.GetContent(), matches)
+	m.hiIdx = m.findNearedtMatch()
+	m.showHighlight()
+}
+
+// ClearHighlights clears previously set highlights.
+func (m *Model) ClearHighlights() {
+	m.memoizedMatchedLines = nil
+	m.highlights = nil
+	m.hiIdx = -1
+}
+
+func (m *Model) showHighlight() {
+	if m.hiIdx == -1 {
+		return
+	}
+	line, colstart, colend := m.highlights[m.hiIdx].coords()
+	m.EnsureVisible(line, colstart, colend)
+}
+
+// HighlightNext highlights the next match.
+func (m *Model) HighlightNext() {
+	if m.highlights == nil {
+		return
+	}
+
+	m.hiIdx = (m.hiIdx + 1) % len(m.highlights)
+	m.showHighlight()
+}
+
+// HighlightPrevious highlights the previous match.
+func (m *Model) HighlightPrevious() {
+	if m.highlights == nil {
+		return
+	}
+
+	m.hiIdx = (m.hiIdx - 1 + len(m.highlights)) % len(m.highlights)
+	m.showHighlight()
+}
+
+func (m Model) findNearedtMatch() int {
+	for i, match := range m.highlights {
+		if match.lineStart >= m.YOffset {
+			return i
+		}
+	}
+	return -1
 }
 
 // Update handles standard message-based viewport updates.
@@ -423,12 +701,13 @@ func max(a, b int) int {
 	return b
 }
 
-func findLongestLineWidth(lines []string) int {
-	w := 0
-	for _, l := range lines {
-		if ww := ansi.StringWidth(l); ww > w {
-			w = ww
+func maxLineWidth(lines []string) int {
+	maxlen := 0
+	for _, line := range lines {
+		llen := ansi.StringWidth(line)
+		if llen > maxlen {
+			maxlen = llen
 		}
 	}
-	return w
+	return maxlen
 }
