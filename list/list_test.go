@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -82,8 +83,7 @@ func TestSetFilterText(t *testing.T) {
 
 	list.SetFilterState(Unfiltered)
 	expected := tc
-	// TODO: replace with slices.Equal() when project move to go1.18 or later
-	if !reflect.DeepEqual(list.VisibleItems(), expected) {
+	if !slices.Equal(list.VisibleItems(), expected) {
 		t.Fatalf("Error: expected view to contain only %s", expected)
 	}
 

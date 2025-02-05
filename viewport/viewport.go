@@ -243,7 +243,11 @@ func (m Model) calculateLine(yoffset int) (total, idx int) {
 		return len(m.lines), yoffset
 	}
 	maxWidth := m.maxWidth()
-	gutterSize := lipgloss.Width(m.LeftGutterFunc(GutterContext{}))
+
+	var gutterSize int
+	if m.LeftGutterFunc != nil {
+		gutterSize = lipgloss.Width(m.LeftGutterFunc(GutterContext{}))
+	}
 	for i, line := range m.lines {
 		adjust := max(1, ansi.StringWidth(line)/(maxWidth-gutterSize))
 		if yoffset >= total && yoffset < total+adjust {
@@ -281,9 +285,13 @@ func (m Model) maxXOffset() int {
 }
 
 func (m Model) maxWidth() int {
+	var gutterSize int
+	if m.LeftGutterFunc != nil {
+		gutterSize = lipgloss.Width(m.LeftGutterFunc(GutterContext{}))
+	}
 	return m.Width() -
 		m.Style.GetHorizontalFrameSize() -
-		lipgloss.Width(m.LeftGutterFunc(GutterContext{}))
+		gutterSize
 }
 
 func (m Model) maxHeight() int {
@@ -361,11 +369,14 @@ func (m Model) softWrap(lines []string, maxWidth int) []string {
 		idx := 0
 		for ansi.StringWidth(line) >= idx {
 			truncatedLine := ansi.Cut(line, idx, maxWidth+idx)
-			wrappedLines = append(wrappedLines, m.LeftGutterFunc(GutterContext{
-				Index:      i + m.YOffset,
-				TotalLines: m.TotalLineCount(),
-				Soft:       idx > 0,
-			})+truncatedLine)
+			if m.LeftGutterFunc != nil {
+				truncatedLine = m.LeftGutterFunc(GutterContext{
+					Index:      i + m.YOffset,
+					TotalLines: m.TotalLineCount(),
+					Soft:       idx > 0,
+				}) + truncatedLine
+			}
+			wrappedLines = append(wrappedLines, truncatedLine)
 			idx += maxWidth
 		}
 	}
@@ -375,10 +386,13 @@ func (m Model) softWrap(lines []string, maxWidth int) []string {
 func (m Model) prependColumn(lines []string) []string {
 	result := make([]string, len(lines))
 	for i, line := range lines {
-		result[i] = m.LeftGutterFunc(GutterContext{
-			Index:      i + m.YOffset,
-			TotalLines: m.TotalLineCount(),
-		}) + line
+		if m.LeftGutterFunc != nil {
+			line = m.LeftGutterFunc(GutterContext{
+				Index:      i + m.YOffset,
+				TotalLines: m.TotalLineCount(),
+			}) + line
+		}
+		result[i] = line
 	}
 	return result
 }
@@ -687,27 +701,10 @@ func clamp(v, low, high int) int {
 	return min(high, max(low, v))
 }
 
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}
-
 func maxLineWidth(lines []string) int {
-	maxlen := 0
+	result := 0
 	for _, line := range lines {
-		llen := ansi.StringWidth(line)
-		if llen > maxlen {
-			maxlen = llen
-		}
+		result = max(result, ansi.StringWidth(line))
 	}
-	return maxlen
+	return result
 }
