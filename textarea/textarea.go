@@ -81,8 +81,8 @@ func DefaultKeyMap() KeyMap {
 		CharacterBackward:          key.NewBinding(key.WithKeys("left", "ctrl+b"), key.WithHelp("left", "character backward")),
 		WordForward:                key.NewBinding(key.WithKeys("alt+right", "alt+f"), key.WithHelp("alt+right", "word forward")),
 		WordBackward:               key.NewBinding(key.WithKeys("alt+left", "alt+b"), key.WithHelp("alt+left", "word backward")),
-		LineNext:                   key.NewBinding(key.WithKeys("down", "ctrl+n"), key.WithHelp("down", "next line")),
-		LinePrevious:               key.NewBinding(key.WithKeys("up", "ctrl+p"), key.WithHelp("up", "previous line")),
+		LineNext:                   key.NewBinding(key.WithKeys("down"), key.WithHelp("down", "next line")),
+		LinePrevious:               key.NewBinding(key.WithKeys("up"), key.WithHelp("up", "previous line")),
 		DeleteWordBackward:         key.NewBinding(key.WithKeys("alt+backspace", "ctrl+w"), key.WithHelp("alt+backspace", "delete word backward")),
 		DeleteWordForward:          key.NewBinding(key.WithKeys("alt+delete", "alt+d"), key.WithHelp("alt+delete", "delete word forward")),
 		DeleteAfterCursor:          key.NewBinding(key.WithKeys("ctrl+k"), key.WithHelp("ctrl+k", "delete after cursor")),
@@ -1182,7 +1182,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		case key.Matches(msg, m.KeyMap.CharacterForward):
 			m.characterRight()
 		case key.Matches(msg, m.KeyMap.LineNext):
-			if m.row == 0 {
+			if m.row == 0 && len(m.value) == 1 {
 				m.nextSuggestion()
 			} else {
 				m.CursorDown()
@@ -1194,7 +1194,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		case key.Matches(msg, m.KeyMap.CharacterBackward):
 			m.characterLeft(false /* insideLine */)
 		case key.Matches(msg, m.KeyMap.LinePrevious):
-			if m.row == 0 {
+			if m.row == 0 && len(m.value) == 1 {
 				m.previousSuggestion()
 			} else {
 				m.CursorUp()
