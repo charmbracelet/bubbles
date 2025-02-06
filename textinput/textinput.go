@@ -1,8 +1,10 @@
 package textinput
 
 import (
+	"image/color"
 	"reflect"
 	"strings"
+	"time"
 	"unicode"
 
 	"github.com/atotto/clipboard"
@@ -92,7 +94,19 @@ type Model struct {
 	Placeholder   string
 	EchoMode      EchoMode
 	EchoCharacter rune
-	Cursor        cursor.Model
+
+	// VirtualCursor determines whether or not to use the virtual cursor. If
+	// set to false, use [Model.Cursor] to return a real cursor for rendering.
+	VirtualCursor bool
+	cursor        cursor.Model
+
+	// ColumnOffset is the number of columns that the cursor is offset from the
+	// start of the line.
+	ColumnOffset int
+
+	// RowOffset is the number of rows that the cursor is offset from the start
+	// of the line.
+	RowOffset int
 
 	// Styles. These will be applied as inline styles.
 	//
@@ -102,6 +116,7 @@ type Model struct {
 	TextStyle        lipgloss.Style
 	PlaceholderStyle lipgloss.Style
 	CompletionStyle  lipgloss.Style
+	CursorStyle      CursorStyle
 
 	// CharLimit is the maximum amount of characters this input element will
 	// accept. If 0 or less, there's no limit.
@@ -158,7 +173,7 @@ func New() Model {
 		PlaceholderStyle: lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
 		ShowSuggestions:  false,
 		CompletionStyle:  lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
-		Cursor:           cursor.New(),
+		cursor:           cursor.New(),
 		KeyMap:           DefaultKeyMap(),
 
 		suggestions: [][]rune{},
@@ -239,14 +254,14 @@ func (m Model) Focused() bool {
 // receive keyboard input and the cursor will be shown.
 func (m *Model) Focus() tea.Cmd {
 	m.focus = true
-	return m.Cursor.Focus()
+	return m.cursor.Focus()
 }
 
 // Blur removes the focus state on the model.  When the model is blurred it can
 // not receive keyboard input and the cursor will be hidden.
 func (m *Model) Blur() {
 	m.focus = false
-	m.Cursor.Blur()
+	m.cursor.Blur()
 }
 
 // Reset sets the input to its default state with no input.
@@ -636,12 +651,14 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	var cmds []tea.Cmd
 	var cmd tea.Cmd
 
-	m.Cursor, cmd = m.Cursor.Update(msg)
-	cmds = append(cmds, cmd)
+	if m.VirtualCursor {
+		m.cursor, cmd = m.cursor.Update(msg)
+		cmds = append(cmds, cmd)
 
-	if oldPos != m.pos && m.Cursor.Mode() == cursor.CursorBlink {
-		m.Cursor.Blink = false
-		cmds = append(cmds, m.Cursor.BlinkCmd())
+		if oldPos != m.pos && m.cursor.Mode() == cursor.CursorBlink {
+			m.cursor.Blink = false
+			cmds = append(cmds, m.cursor.BlinkCmd())
+		}
 	}
 
 	m.handleOverflow()
@@ -663,25 +680,29 @@ func (m Model) View() string {
 
 	if pos < len(value) { //nolint:nestif
 		char := m.echoTransform(string(value[pos]))
-		m.Cursor.SetChar(char)
-		v += m.Cursor.View()                                   // cursor and text under it
+		if m.VirtualCursor {
+			m.cursor.SetChar(char)
+			v += m.cursor.View() // cursor and text under it
+		}
 		v += styleText(m.echoTransform(string(value[pos+1:]))) // text after cursor
 		v += m.completionView(0)                               // suggested completion
 	} else {
 		if m.canAcceptSuggestion() {
 			suggestion := m.matchedSuggestions[m.currentSuggestionIndex]
 			if len(value) < len(suggestion) {
-				m.Cursor.TextStyle = m.CompletionStyle
-				m.Cursor.SetChar(m.echoTransform(string(suggestion[pos])))
-				v += m.Cursor.View()
+				if m.VirtualCursor {
+					m.cursor.TextStyle = m.CompletionStyle
+					m.cursor.SetChar(m.echoTransform(string(suggestion[pos])))
+					v += m.cursor.View()
+				}
 				v += m.completionView(1)
-			} else {
-				m.Cursor.SetChar(" ")
-				v += m.Cursor.View()
+			} else if m.VirtualCursor {
+				m.cursor.SetChar(" ")
+				v += m.cursor.View()
 			}
-		} else {
-			m.Cursor.SetChar(" ")
-			v += m.Cursor.View()
+		} else if m.VirtualCursor {
+			m.cursor.SetChar(" ")
+			v += m.cursor.View()
 		}
 	}
 
@@ -696,7 +717,11 @@ func (m Model) View() string {
 		v += styleText(strings.Repeat(" ", padding))
 	}
 
-	return m.PromptStyle.Render(m.Prompt) + v
+	return m.promptView() + v
+}
+
+func (m Model) promptView() string {
+	return m.PromptStyle.Render(m.Prompt)
 }
 
 // placeholderView returns the prompt and placeholder view, if any.
@@ -709,9 +734,11 @@ func (m Model) placeholderView() string {
 	p := make([]rune, m.Width()+1)
 	copy(p, []rune(m.Placeholder))
 
-	m.Cursor.TextStyle = m.PlaceholderStyle
-	m.Cursor.SetChar(string(p[:1]))
-	v += m.Cursor.View()
+	if m.VirtualCursor {
+		m.cursor.TextStyle = m.PlaceholderStyle
+		m.cursor.SetChar(string(p[:1]))
+		v += m.cursor.View()
+	}
 
 	// If the entire placeholder is already set and no padding is needed, finish
 	if m.Width() < 1 && len(p) <= 1 {
@@ -861,4 +888,64 @@ func (m Model) validate(v []rune) error {
 		return m.Validate(string(v))
 	}
 	return nil
+}
+
+// Cursor returns a [tea.Cursor] for rendering a real cursor in a Bubble Tea
+// program.
+//
+// Example:
+//
+//	// In your top-level View function:
+//	f := tea.NewFrame(m.textarea.View())
+//	f.Cursor = m.textarea.Cursor()
+//	f.Cursor.Position.X += offsetX
+//	f.Cursor.Position.Y += offsetY
+//
+// Note that you will almost certainly also need to adjust the offset
+// position of the textarea to properly set the cursor position.
+//
+// If you're using a real cursor, you should also set [Model.VirtualCursor] to
+// false.
+func (m Model) Cursor() *tea.Cursor {
+	w := lipgloss.Width
+
+	xOffset := m.Position() +
+		w(m.promptView()) +
+		m.ColumnOffset
+
+	yOffset := m.RowOffset
+
+	c := tea.NewCursor(xOffset, yOffset)
+	c.Blink = m.CursorStyle.Blink
+	c.Color = m.CursorStyle.Color
+	c.Shape = m.CursorStyle.Shape
+	return c
+}
+
+// CursorStyle is the style for real and virtual cursors.
+type CursorStyle struct {
+	// Style styles the cursor block.
+	//
+	// For real cursors, the foreground color set here will be used as the
+	// cursor color.
+	Color color.Color
+
+	// Shape is the cursor shape. The following shapes are available:
+	//
+	// - tea.CursorBlock
+	// - tea.CursorUnderline
+	// - tea.CursorBar
+	//
+	// This is only used for real cursors.
+	Shape tea.CursorShape
+
+	// CursorBlink determines whether or not the cursor should blink.
+	Blink bool
+
+	// BlinkSpeed is the speed at which the virtual cursor blinks. This has no
+	// effect on real cursors as well as no effect if the cursor is set not to
+	// [CursorBlink].
+	//
+	// By default, the blink speed is set to about 500ms.
+	BlinkSpeed time.Duration
 }
