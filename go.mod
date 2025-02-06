@@ -4,6 +4,8 @@ go 1.22
 
 replace github.com/charmbracelet/x/cellbuf => ../x/cellbuf
 
+replace github.com/charmbracelet/bubbletea/v2 => ../bubbletea
+
 require (
 	github.com/MakeNowJust/heredoc v1.0.0
 	github.com/atotto/clipboard v0.1.4

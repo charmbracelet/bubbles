@@ -2,18 +2,18 @@ package image
 
 import (
 	"bytes"
+	"encoding/base64"
 	"fmt"
 	"image"
 	"image/color"
-	"log"
+	"image/png"
 	"os"
-	"path/filepath"
 	"strings"
 	"sync/atomic"
-	"time"
 
 	tea "github.com/charmbracelet/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/charmbracelet/x/ansi/iterm2"
 	"github.com/charmbracelet/x/ansi/kitty"
 	"github.com/charmbracelet/x/input"
 )
@@ -51,6 +51,9 @@ type Model struct {
 	// The image options
 	opts kitty.Options
 
+	// seq contains the encoded image sequence buffer to render the image.
+	seq string
+
 	// The image unique id. A non-zero indicates the image was transmitted successfully.
 	id int
 	// The image number
@@ -58,9 +61,14 @@ type Model struct {
 
 	// The terminal width and height
 	w, h int
+
+	// laterDraw indicates if the image is being drawn for the first time.
+	laterDraw bool
 }
 
 func newModel(area image.Rectangle) (m Model) {
+	m.Protocol = ITerm2
+
 	// We always use virtual placement for images
 	m.opts.VirtualPlacement = true
 	// Always chunk the image
@@ -82,15 +90,6 @@ func NewLocal(file string, area image.Rectangle) (m Model, err error) {
 	m = newModel(area)
 	m.file = file
 	m.area = area
-
-	// Quick check for PNG files
-	ext := filepath.Ext(file)
-	if strings.Contains(ext, "png") {
-		// We're done here, there's no need to decode the image.
-		m.opts.Format = kitty.PNG
-		m.opts.File = file
-		return
-	}
 
 	f, err := os.Open(file)
 	if err != nil {
@@ -171,30 +170,48 @@ func (m Model) Area() image.Rectangle {
 	return m.area
 }
 
-// transmit is a command that transmits the image to the terminal.
-func (m *Model) transmit() tea.Msg {
-	// IDK why, but we need to wait a bit before transmitting the image
-	// to the terminal. Otherwise, the image is not displayed.
-	time.Sleep(100 * time.Millisecond)
+// imageMsg is a message that transmits the image to the terminal.
+type imageMsg string
 
+// renderKitty returns the Kitty graphics sequence to render the image.
+func (m *Model) renderKittyCmd() tea.Msg {
 	var seq bytes.Buffer
 	if err := ansi.WriteKittyGraphics(&seq, m.m, &m.opts); err != nil {
-		log.Printf("could not transmit image: %v", err)
 		// TODO: Error handling
-		return nil
+		return imageMsg("")
 	}
 
-	return tea.RawMsg{Msg: seq.String()}
+	return imageMsg(seq.String())
+}
+
+// renderIterm2 returns the iTerm2 graphics sequence to render the image.
+func (m *Model) renderIterm2Cmd() tea.Msg {
+	var buf bytes.Buffer
+	enc := base64.NewEncoder(base64.StdEncoding, &buf)
+	if err := png.Encode(enc, m.m); err != nil {
+		return imageMsg("")
+	}
+
+	if err := enc.Close(); err != nil {
+		return imageMsg("")
+	}
+
+	return imageMsg(ansi.ITerm2(iterm2.File{
+		Width:  iterm2.Cells(m.area.Dx()),
+		Height: iterm2.Cells(m.area.Dy()),
+		Inline: true,
+		// DoNotMoveCursor:   true,
+		IgnoreAspectRatio: true,
+		Content:           buf.Bytes(),
+	}))
 }
 
 // Init initializes the image model.
-func (m Model) Init() (tea.Model, tea.Cmd) {
-	return m, tea.Batch(
-		// TODO: Query support
-		func() tea.Msg {
-			time.Sleep(1 * time.Second)
-			return m.transmit()
-		},
+func (m Model) Init() tea.Cmd {
+	return tea.Batch(
+		// m.renderKittyCmd,
+		m.renderIterm2Cmd,
+	// TODO: Query support
 	)
 }
 
@@ -204,6 +221,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.w, m.h = msg.Width, msg.Height
+		cmds = append(cmds, tea.ClearScreen)
 	case input.KittyGraphicsEvent:
 		if msg.Options.Number == m.num &&
 			msg.Options.ID > 0 &&
@@ -211,18 +229,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// Store the actual image id
 			m.id = msg.Options.ID
 		}
+	case imageMsg:
+		m.seq = string(msg)
 	}
+
+	m.laterDraw = true
 
 	return m, tea.Batch(cmds...)
 }
 
 // View returns a string representation to render the image.
 func (m Model) View() string {
-	if m.id == 0 {
-		// TODO: Maybe use a spinner?
-		return "Loading image..."
-	}
-
 	// Build Kitty graphics unicode place holders
 	var fgSeq string
 	var extra int
@@ -266,6 +283,15 @@ func (m Model) View() string {
 			s.WriteByte('\n')
 		}
 	}
+
+	if m.laterDraw && m.Protocol == ITerm2 {
+		// Move the cursor to the top left corner of the image
+		s.WriteString(ansi.CursorBackward(m.area.Dx()))
+		s.WriteString(ansi.CursorUp(m.area.Dy()))
+	}
+
+	// Write the image sequence
+	s.WriteString(m.seq)
 
 	return s.String()
 }
