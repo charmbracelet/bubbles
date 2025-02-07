@@ -216,9 +216,15 @@ func (m Model) HorizontalScrollPercent() float64 {
 // Line endings will be normalized to '\n'.
 func (m *Model) SetContent(s string) {
 	s = strings.ReplaceAll(s, "\r\n", "\n") // normalize line endings
-	m.lines = strings.Split(s, "\n")
+	m.SetContentLines(strings.Split(s, "\n"))
+}
+
+// SetContentLines allows to set the lines to be shown instead of the content.
+// If a given line has a \n in it, it'll be considered a [SoftWrap].
+func (m *Model) SetContentLines(lines []string) {
 	// if there's no content, set content to actual nil instead of one empty
 	// line.
+	m.lines = lines
 	if len(m.lines) == 1 && ansi.StringWidth(m.lines[0]) == 0 {
 		m.lines = nil
 	}
@@ -240,7 +246,14 @@ func (m Model) GetContent() string {
 // lines and the real-line index for the given yoffset.
 func (m Model) calculateLine(yoffset int) (total, idx int) {
 	if !m.SoftWrap {
-		return len(m.lines), yoffset
+		for i, line := range m.lines {
+			adjust := max(1, lipgloss.Height(line))
+			if yoffset >= total && yoffset < total+adjust {
+				idx = i
+			}
+			total += adjust
+		}
+		return
 	}
 	maxWidth := m.maxWidth()
 
@@ -249,7 +262,7 @@ func (m Model) calculateLine(yoffset int) (total, idx int) {
 		gutterSize = lipgloss.Width(m.LeftGutterFunc(GutterContext{}))
 	}
 	for i, line := range m.lines {
-		adjust := max(1, ansi.StringWidth(line)/(maxWidth-gutterSize))
+		adjust := max(1, lipgloss.Width(line)/(maxWidth-gutterSize))
 		if yoffset >= total && yoffset < total+adjust {
 			idx = i
 		}
@@ -326,8 +339,12 @@ func (m Model) visibleLines() (lines []string) {
 		return m.softWrap(lines, maxWidth)
 	}
 
-	for i := range lines {
-		lines[i] = ansi.Cut(lines[i], m.xOffset, m.xOffset+maxWidth)
+	for i, line := range lines {
+		sublines := strings.Split(line, "\n")
+		for j := range sublines {
+			sublines[j] = ansi.Cut(sublines[j], m.xOffset, m.xOffset+maxWidth)
+		}
+		lines[i] = strings.Join(sublines, "\n")
 	}
 	return m.prependColumn(lines)
 }
@@ -385,14 +402,23 @@ func (m Model) softWrap(lines []string, maxWidth int) []string {
 
 func (m Model) prependColumn(lines []string) []string {
 	result := make([]string, len(lines))
-	for i, line := range lines {
-		if m.LeftGutterFunc != nil {
-			line = m.LeftGutterFunc(GutterContext{
-				Index:      i + m.YOffset,
-				TotalLines: m.TotalLineCount(),
-			}) + line
+	for i := range lines {
+		if m.LeftGutterFunc == nil {
+			result[i] = lines[i]
+			continue
 		}
-		result[i] = line
+		var sublines []string
+		for j, s := range strings.Split(lines[i], "\n") {
+			sublines = append(
+				sublines,
+				m.LeftGutterFunc(GutterContext{
+					Index:      i + m.YOffset,
+					TotalLines: m.TotalLineCount(),
+					Soft:       j > 0,
+				})+s,
+			)
+		}
+		result[i] = strings.Join(sublines, "\n")
 	}
 	return result
 }
@@ -704,7 +730,7 @@ func clamp(v, low, high int) int {
 func maxLineWidth(lines []string) int {
 	result := 0
 	for _, line := range lines {
-		result = max(result, ansi.StringWidth(line))
+		result = max(result, lipgloss.Width(line))
 	}
 	return result
 }
