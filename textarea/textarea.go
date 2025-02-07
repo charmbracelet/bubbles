@@ -413,15 +413,10 @@ func (m *Model) updateVirtualCursorStyle() {
 
 	// By default, the blink speed of the cursor is set to a default
 	// internally.
-	if m.Styles.Cursor.BlinkSpeed > 0 {
-		m.virtualCursor.BlinkSpeed = m.Styles.Cursor.BlinkSpeed
-	}
-
-	if !m.VirtualCursor {
-		m.virtualCursor.SetMode(cursor.CursorHide)
-		return
-	}
 	if m.Styles.Cursor.Blink {
+		if m.Styles.Cursor.BlinkSpeed > 0 {
+			m.virtualCursor.BlinkSpeed = m.Styles.Cursor.BlinkSpeed
+		}
 		m.virtualCursor.SetMode(cursor.CursorBlink)
 		return
 	}
