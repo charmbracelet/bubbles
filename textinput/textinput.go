@@ -98,14 +98,6 @@ type Model struct {
 	VirtualCursor bool
 	virtualCursor cursor.Model
 
-	// ColumnOffset is the number of columns that the cursor is offset from the
-	// start of the line.
-	ColumnOffset int
-
-	// RowOffset is the number of rows that the cursor is offset from the start
-	// of the screen.
-	RowOffset int
-
 	// Styling. FocusedStyle and BlurredStyle are used to style the textarea in
 	// focused and blurred states.
 	Styles Styles
@@ -894,13 +886,10 @@ func (m Model) Cursor() *tea.Cursor {
 	w := lipgloss.Width
 
 	xOffset := m.Position() +
-		w(m.promptView()) +
-		m.ColumnOffset
-
-	yOffset := m.RowOffset
+		w(m.promptView())
 
 	style := m.Styles.Cursor
-	c := tea.NewCursor(xOffset, yOffset)
+	c := tea.NewCursor(xOffset, 0)
 	c.Blink = style.Blink
 	c.Color = style.Color
 	c.Shape = style.Shape
