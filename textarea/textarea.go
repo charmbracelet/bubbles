@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"image/color"
 	"reflect"
-	"strconv"
 	"strings"
 	"time"
 	"unicode"
@@ -1301,13 +1300,14 @@ func (m Model) View() string {
 
 			var ln string
 			if m.ShowLineNumbers { //nolint:nestif
-				if wl == 0 { // normal line
-					isCursorLine := m.row == l
-					s.WriteString(m.lineNumberView(l+1, isCursorLine))
-				} else { // soft wrapped line
-					isCursorLine := m.row == l
-					s.WriteString(m.lineNumberView(-1, isCursorLine))
-				}
+				m.lineNumberView()
+				// if wl == 0 { // normal line
+				// 	isCursorLine := m.row == l
+				// 	// s.WriteString(m.lineNumberView(l+1, isCursorLine))
+				// } else { // soft wrapped line
+				// 	isCursorLine := m.row == l
+				// 	// s.WriteString(m.lineNumberView(-1, isCursorLine))
+				// }
 			}
 
 			// Note the widest line number for padding purposes later.
@@ -1420,30 +1420,25 @@ func (m Model) promptView(displayLine int) (prompt string) {
 //
 // The second argument indicates whether this line number is for a 'cursorline'
 // line number.
-func (m Model) lineNumberView(n int, isCursorLine bool) (str string) {
+func (m Model) lineNumberView() {
 	if !m.ShowLineNumbers {
-		return ""
+		return
 	}
 
-	if n <= 0 {
-		str = " "
-	} else {
-		str = strconv.Itoa(n)
+	m.viewport.LeftGutterFunc = func(info viewport.GutterContext) string {
+		style := m.activeStyle().LineNumber
+		if info.Soft {
+			return style.Render("     │ ")
+		}
+		if info.Index >= info.TotalLines {
+			return style.Render("   ~ │ ")
+		}
+		if m.row == info.Index {
+			return m.activeStyle().CursorLineNumber.Render(fmt.Sprintf("%4d", info.Index+1)) +
+				style.Render(" │ ")
+		}
+		return style.Render(fmt.Sprintf("%4d │ ", info.Index+1))
 	}
-
-	// XXX: is textStyle really necessary here?
-	textStyle := m.activeStyle().computedText()
-	lineNumberStyle := m.activeStyle().computedLineNumber()
-	if isCursorLine {
-		textStyle = m.activeStyle().computedCursorLine()
-		lineNumberStyle = m.activeStyle().computedCursorLineNumber()
-	}
-
-	// Format line number dynamically based on the maximum number of lines.
-	digits := len(strconv.Itoa(m.MaxHeight))
-	str = fmt.Sprintf(" %*v ", digits, str)
-
-	return textStyle.Render(lineNumberStyle.Render(str))
 }
 
 // placeholderView returns the prompt and placeholder, if any.
@@ -1461,7 +1456,7 @@ func (m Model) placeholderView() string {
 	plines := strings.Split(strings.TrimSpace(pwrap), "\n")
 
 	for i := 0; i < m.height; i++ {
-		isLineNumber := len(plines) > i
+		// isLineNumber := len(plines) > i
 
 		lineStyle := styles.computedPlaceholder()
 		if len(plines) > i {
@@ -1477,18 +1472,18 @@ func (m Model) placeholderView() string {
 		// - render line number for only the cursor line
 		// - indent other placeholder lines
 		// this is consistent with vim with line numbers enabled
-		if m.ShowLineNumbers {
-			var ln int
-
-			switch {
-			case i == 0:
-				ln = i + 1
-				fallthrough
-			case len(plines) > i:
-				s.WriteString(m.lineNumberView(ln, isLineNumber))
-			default:
-			}
-		}
+		// if m.ShowLineNumbers {
+		// 	var ln int
+		//
+		// 	switch {
+		// 	case i == 0:
+		// 		ln = i + 1
+		// 		fallthrough
+		// 	case len(plines) > i:
+		// 		s.WriteString(m.lineNumberView(ln, isLineNumber))
+		// 	default:
+		// 	}
+		// }
 
 		switch {
 		// first line
@@ -1553,10 +1548,13 @@ func (m Model) Cursor() *tea.Cursor {
 
 	xOffset := lineInfo.CharOffset +
 		w(m.promptView(0)) +
-		w(m.lineNumberView(0, false)) +
 		baseStyle.GetMarginLeft() +
 		baseStyle.GetPaddingLeft() +
 		baseStyle.GetBorderLeftSize()
+
+	if m.ShowLineNumbers {
+		xOffset += lipgloss.Width(m.viewport.LeftGutterFunc(viewport.GutterContext{}))
+	}
 
 	yOffset := m.cursorLineNumber() +
 		m.viewport.YOffset +
