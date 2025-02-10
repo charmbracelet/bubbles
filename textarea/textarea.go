@@ -943,13 +943,13 @@ func (m Model) LineInfo() LineInfo {
 // repositionView repositions the view of the viewport based on the defined
 // scrolling behavior.
 func (m *Model) repositionView() {
-	min := m.viewport.YOffset
-	max := min + m.viewport.Height() - 1
+	minOffset := m.viewport.YOffset
+	maxOffset := minOffset + m.viewport.Height() - 1
 
-	if row := m.cursorLineNumber(); row < min {
-		m.viewport.LineUp(min - row)
-	} else if row > max {
-		m.viewport.LineDown(row - max)
+	if row := m.cursorLineNumber(); row < minOffset {
+		m.viewport.LineUp(minOffset - row)
+	} else if row > maxOffset {
+		m.viewport.LineDown(row - maxOffset)
 	}
 }
 
