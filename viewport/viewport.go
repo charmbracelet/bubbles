@@ -104,6 +104,8 @@ type Model struct {
 	// and [HihglightPrevious] to navigate.
 	SelectedHighlightStyle lipgloss.Style
 
+	// StyleLineFunc allows to return a [lipgloss.Style] for each line.
+	// The argument is the line index.
 	StyleLineFunc func(int) lipgloss.Style
 
 	highlights []highlightInfo
@@ -221,7 +223,8 @@ func (m *Model) SetContent(s string) {
 }
 
 // SetContentLines allows to set the lines to be shown instead of the content.
-// If a given line has a \n in it, it'll be considered a [SoftWrap].
+// If a given line has a \n in it, it'll be considered a [Model.SoftWrap].
+// See also [Model.SetContent].
 func (m *Model) SetContentLines(lines []string) {
 	// if there's no content, set content to actual nil instead of one empty
 	// line.
@@ -340,7 +343,7 @@ func (m Model) visibleLines() (lines []string) {
 
 	// if longest line fit within width, no need to do anything else.
 	if (m.xOffset == 0 && m.longestLineWidth <= maxWidth) || maxWidth == 0 {
-		return m.prependColumn(lines)
+		return m.setupGutter(lines)
 	}
 
 	if m.SoftWrap {
@@ -348,15 +351,16 @@ func (m Model) visibleLines() (lines []string) {
 	}
 
 	for i, line := range lines {
-		sublines := strings.Split(line, "\n")
+		sublines := strings.Split(line, "\n") // will only have more than 1 if caller used [Model.SetContentLines].
 		for j := range sublines {
 			sublines[j] = ansi.Cut(sublines[j], m.xOffset, m.xOffset+maxWidth)
 		}
 		lines[i] = strings.Join(sublines, "\n")
 	}
-	return m.prependColumn(lines)
+	return m.setupGutter(lines)
 }
 
+// styleLines styles the lines using [Model.StyleLineFunc].
 func (m Model) styleLines(lines []string, offset int) []string {
 	if m.StyleLineFunc == nil {
 		return lines
@@ -367,6 +371,8 @@ func (m Model) styleLines(lines []string, offset int) []string {
 	return lines
 }
 
+// highlightLines highlights the lines with [Model.HighlightStyle] and
+// [Model.SelectedHighlightStyle].
 func (m Model) highlightLines(lines []string, offset int) []string {
 	if len(m.highlights) == 0 {
 		return lines
@@ -414,7 +420,8 @@ func (m Model) softWrap(lines []string, maxWidth int) []string {
 	return wrappedLines
 }
 
-func (m Model) prependColumn(lines []string) []string {
+// setupGutter sets up the left gutter using [Moddel.LeftGutterFunc].
+func (m Model) setupGutter(lines []string) []string {
 	if m.LeftGutterFunc == nil {
 		return lines
 	}
