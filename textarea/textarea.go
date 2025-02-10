@@ -1219,7 +1219,7 @@ func (m Model) View() string {
 			displayLine++
 
 			var ln string
-			if m.ShowLineNumbers { //nolint:nestif
+			if m.ShowLineNumbers {
 				if wl == 0 { // normal line
 					isCursorLine := m.row == l
 					s.WriteString(m.lineNumberView(l+1, isCursorLine))
