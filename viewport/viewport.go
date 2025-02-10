@@ -395,6 +395,7 @@ func (m Model) highlightLines(lines []string, offset int) []string {
 
 func (m Model) softWrap(lines []string, maxWidth int) []string {
 	var wrappedLines []string
+	total := m.TotalLineCount()
 	for i, line := range lines {
 		idx := 0
 		for ansi.StringWidth(line) >= idx {
@@ -402,7 +403,7 @@ func (m Model) softWrap(lines []string, maxWidth int) []string {
 			if m.LeftGutterFunc != nil {
 				truncatedLine = m.LeftGutterFunc(GutterContext{
 					Index:      i + m.YOffset,
-					TotalLines: m.TotalLineCount(),
+					TotalLines: total,
 					Soft:       idx > 0,
 				}) + truncatedLine
 			}
@@ -414,24 +415,21 @@ func (m Model) softWrap(lines []string, maxWidth int) []string {
 }
 
 func (m Model) prependColumn(lines []string) []string {
+	if m.LeftGutterFunc == nil {
+		return lines
+	}
+	total := m.TotalLineCount()
 	result := make([]string, len(lines))
 	for i := range lines {
-		if m.LeftGutterFunc == nil {
-			result[i] = lines[i]
-			continue
+		var line []string
+		for j, realLine := range strings.Split(lines[i], "\n") {
+			line = append(line, m.LeftGutterFunc(GutterContext{
+				Index:      i + m.YOffset,
+				TotalLines: total,
+				Soft:       j > 0,
+			})+realLine)
 		}
-		var sublines []string
-		for j, s := range strings.Split(lines[i], "\n") {
-			sublines = append(
-				sublines,
-				m.LeftGutterFunc(GutterContext{
-					Index:      i + m.YOffset,
-					TotalLines: m.TotalLineCount(),
-					Soft:       j > 0,
-				})+s,
-			)
-		}
-		result[i] = strings.Join(sublines, "\n")
+		result[i] = strings.Join(line, "\n")
 	}
 	return result
 }
