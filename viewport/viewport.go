@@ -418,13 +418,15 @@ func (m Model) prependColumn(lines []string) []string {
 	if m.LeftGutterFunc == nil {
 		return lines
 	}
+
+	offset := max(0, m.lineToIndex(m.YOffset))
 	total := m.TotalLineCount()
 	result := make([]string, len(lines))
 	for i := range lines {
 		var line []string
 		for j, realLine := range strings.Split(lines[i], "\n") {
 			line = append(line, m.LeftGutterFunc(GutterContext{
-				Index:      i + m.YOffset,
+				Index:      i + offset,
 				TotalLines: total,
 				Soft:       j > 0,
 			})+realLine)
