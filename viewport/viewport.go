@@ -104,9 +104,10 @@ type Model struct {
 	// and [HihglightPrevious] to navigate.
 	SelectedHighlightStyle lipgloss.Style
 
-	highlights           []highlightInfo
-	hiIdx                int
-	memoizedMatchedLines []string
+	StyleLineFunc func(int) lipgloss.Style
+
+	highlights []highlightInfo
+	hiIdx      int
 }
 
 // GutterFunc can be implemented and set into [Model.LeftGutterFunc].
@@ -242,7 +243,7 @@ func (m Model) GetContent() string {
 	return strings.Join(m.lines, "\n")
 }
 
-// calculateLine taking soft wrapiing into account, returns the total viewable
+// calculateLine taking soft wraping into account, returns the total viewable
 // lines and the real-line index for the given yoffset.
 func (m Model) calculateLine(yoffset int) (total, idx int) {
 	if !m.SoftWrap {
@@ -253,10 +254,13 @@ func (m Model) calculateLine(yoffset int) (total, idx int) {
 			}
 			total += adjust
 		}
-		return
+		if yoffset >= total {
+			idx = len(m.lines)
+		}
+		return total, idx
 	}
-	maxWidth := m.maxWidth()
 
+	maxWidth := m.maxWidth()
 	var gutterSize int
 	if m.LeftGutterFunc != nil {
 		gutterSize = lipgloss.Width(m.LeftGutterFunc(GutterContext{}))
@@ -267,6 +271,9 @@ func (m Model) calculateLine(yoffset int) (total, idx int) {
 			idx = i
 		}
 		total += adjust
+	}
+	if yoffset >= total {
+		idx = len(m.lines)
 	}
 	return total, idx
 }
@@ -323,6 +330,7 @@ func (m Model) visibleLines() (lines []string) {
 		bottom := clamp(pos+maxHeight, top, len(m.lines))
 		lines = make([]string, bottom-top)
 		copy(lines, m.lines[top:bottom])
+		lines = m.styleLines(lines, top)
 		lines = m.highlightLines(lines, top)
 	}
 
@@ -349,22 +357,27 @@ func (m Model) visibleLines() (lines []string) {
 	return m.prependColumn(lines)
 }
 
+func (m Model) styleLines(lines []string, offset int) []string {
+	if m.StyleLineFunc == nil {
+		return lines
+	}
+	for i := range lines {
+		lines[i] = m.StyleLineFunc(i + offset).Render(lines[i])
+	}
+	return lines
+}
+
 func (m Model) highlightLines(lines []string, offset int) []string {
 	if len(m.highlights) == 0 {
 		return lines
 	}
 	for i := range lines {
-		if memoized := m.memoizedMatchedLines[i+offset]; memoized != "" {
-			lines[i] = memoized
-		} else {
-			ranges := makeHighlightRanges(
-				m.highlights,
-				i+offset,
-				m.HighlightStyle,
-			)
-			lines[i] = lipgloss.StyleRanges(lines[i], ranges...)
-			m.memoizedMatchedLines[i+offset] = lines[i]
-		}
+		ranges := makeHighlightRanges(
+			m.highlights,
+			i+offset,
+			m.HighlightStyle,
+		)
+		lines[i] = lipgloss.StyleRanges(lines[i], ranges...)
 		if m.hiIdx < 0 {
 			continue
 		}
@@ -590,7 +603,6 @@ func (m *Model) SetHighlights(matches [][]int) {
 	if len(matches) == 0 || len(m.lines) == 0 {
 		return
 	}
-	m.memoizedMatchedLines = make([]string, len(m.lines))
 	m.highlights = parseMatches(m.GetContent(), matches)
 	m.hiIdx = m.findNearedtMatch()
 	m.showHighlight()
@@ -598,7 +610,6 @@ func (m *Model) SetHighlights(matches [][]int) {
 
 // ClearHighlights clears previously set highlights.
 func (m *Model) ClearHighlights() {
-	m.memoizedMatchedLines = nil
 	m.highlights = nil
 	m.hiIdx = -1
 }
