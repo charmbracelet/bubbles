@@ -562,3 +562,33 @@ func testHighlights(tb testing.TB, content string, re *regexp.Regexp, expect []h
 		}
 	}
 }
+
+func TestCalculateLine(t *testing.T) {
+	t.Run("simple", func(t *testing.T) {
+		vp := New(WithWidth(40), WithHeight(20))
+		vp.SetContent("foo\nbar")
+		total, idx := vp.calculateLine(0)
+		if total != 2 || idx != 0 {
+			t.Errorf("total: %d, idx: %d", total, idx)
+		}
+	})
+
+	t.Run("line breaks", func(t *testing.T) {
+		vp := New(WithWidth(40), WithHeight(20))
+		vp.SetContentLines([]string{"new\nbar", "foo", "another line", "multiple\nlines"})
+		total, idx := vp.calculateLine(6)
+		if total != 6 || idx != 4 {
+			t.Errorf("total: %d, idx: %d", total, idx)
+		}
+	})
+
+	t.Run("soft breaks", func(t *testing.T) {
+		vp := New(WithWidth(40), WithHeight(20))
+		vp.SoftWrap = true
+		vp.SetContent("super long line super long line super long line super long line super long line super long line super long line super long line super long line super long line super long line super long line super long line super\nlong line super long line super long line super long line")
+		total, idx := vp.calculateLine(10)
+		if total != 6 || idx != 2 {
+			t.Errorf("total: %d, idx: %d", total, idx)
+		}
+	})
+}

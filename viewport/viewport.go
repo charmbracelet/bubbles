@@ -104,9 +104,12 @@ type Model struct {
 	// and [HihglightPrevious] to navigate.
 	SelectedHighlightStyle lipgloss.Style
 
-	highlights           []highlightInfo
-	hiIdx                int
-	memoizedMatchedLines []string
+	// StyleLineFunc allows to return a [lipgloss.Style] for each line.
+	// The argument is the line index.
+	StyleLineFunc func(int) lipgloss.Style
+
+	highlights []highlightInfo
+	hiIdx      int
 }
 
 // GutterFunc can be implemented and set into [Model.LeftGutterFunc].
@@ -216,9 +219,16 @@ func (m Model) HorizontalScrollPercent() float64 {
 // Line endings will be normalized to '\n'.
 func (m *Model) SetContent(s string) {
 	s = strings.ReplaceAll(s, "\r\n", "\n") // normalize line endings
-	m.lines = strings.Split(s, "\n")
+	m.SetContentLines(strings.Split(s, "\n"))
+}
+
+// SetContentLines allows to set the lines to be shown instead of the content.
+// If a given line has a \n in it, it'll be considered a [Model.SoftWrap].
+// See also [Model.SetContent].
+func (m *Model) SetContentLines(lines []string) {
 	// if there's no content, set content to actual nil instead of one empty
 	// line.
+	m.lines = lines
 	if len(m.lines) == 1 && ansi.StringWidth(m.lines[0]) == 0 {
 		m.lines = nil
 	}
@@ -236,24 +246,37 @@ func (m Model) GetContent() string {
 	return strings.Join(m.lines, "\n")
 }
 
-// calculateLine taking soft wrapiing into account, returns the total viewable
+// calculateLine taking soft wraping into account, returns the total viewable
 // lines and the real-line index for the given yoffset.
 func (m Model) calculateLine(yoffset int) (total, idx int) {
 	if !m.SoftWrap {
-		return len(m.lines), yoffset
+		for i, line := range m.lines {
+			adjust := max(1, lipgloss.Height(line))
+			if yoffset >= total && yoffset < total+adjust {
+				idx = i
+			}
+			total += adjust
+		}
+		if yoffset >= total {
+			idx = len(m.lines)
+		}
+		return total, idx
 	}
-	maxWidth := m.maxWidth()
 
+	maxWidth := m.maxWidth()
 	var gutterSize int
 	if m.LeftGutterFunc != nil {
 		gutterSize = lipgloss.Width(m.LeftGutterFunc(GutterContext{}))
 	}
 	for i, line := range m.lines {
-		adjust := max(1, ansi.StringWidth(line)/(maxWidth-gutterSize))
+		adjust := max(1, lipgloss.Width(line)/(maxWidth-gutterSize))
 		if yoffset >= total && yoffset < total+adjust {
 			idx = i
 		}
 		total += adjust
+	}
+	if yoffset >= total {
+		idx = len(m.lines)
 	}
 	return total, idx
 }
@@ -310,6 +333,7 @@ func (m Model) visibleLines() (lines []string) {
 		bottom := clamp(pos+maxHeight, top, len(m.lines))
 		lines = make([]string, bottom-top)
 		copy(lines, m.lines[top:bottom])
+		lines = m.styleLines(lines, top)
 		lines = m.highlightLines(lines, top)
 	}
 
@@ -319,35 +343,47 @@ func (m Model) visibleLines() (lines []string) {
 
 	// if longest line fit within width, no need to do anything else.
 	if (m.xOffset == 0 && m.longestLineWidth <= maxWidth) || maxWidth == 0 {
-		return m.prependColumn(lines)
+		return m.setupGutter(lines)
 	}
 
 	if m.SoftWrap {
 		return m.softWrap(lines, maxWidth)
 	}
 
-	for i := range lines {
-		lines[i] = ansi.Cut(lines[i], m.xOffset, m.xOffset+maxWidth)
+	for i, line := range lines {
+		sublines := strings.Split(line, "\n") // will only have more than 1 if caller used [Model.SetContentLines].
+		for j := range sublines {
+			sublines[j] = ansi.Cut(sublines[j], m.xOffset, m.xOffset+maxWidth)
+		}
+		lines[i] = strings.Join(sublines, "\n")
 	}
-	return m.prependColumn(lines)
+	return m.setupGutter(lines)
 }
 
+// styleLines styles the lines using [Model.StyleLineFunc].
+func (m Model) styleLines(lines []string, offset int) []string {
+	if m.StyleLineFunc == nil {
+		return lines
+	}
+	for i := range lines {
+		lines[i] = m.StyleLineFunc(i + offset).Render(lines[i])
+	}
+	return lines
+}
+
+// highlightLines highlights the lines with [Model.HighlightStyle] and
+// [Model.SelectedHighlightStyle].
 func (m Model) highlightLines(lines []string, offset int) []string {
 	if len(m.highlights) == 0 {
 		return lines
 	}
 	for i := range lines {
-		if memoized := m.memoizedMatchedLines[i+offset]; memoized != "" {
-			lines[i] = memoized
-		} else {
-			ranges := makeHighlightRanges(
-				m.highlights,
-				i+offset,
-				m.HighlightStyle,
-			)
-			lines[i] = lipgloss.StyleRanges(lines[i], ranges...)
-			m.memoizedMatchedLines[i+offset] = lines[i]
-		}
+		ranges := makeHighlightRanges(
+			m.highlights,
+			i+offset,
+			m.HighlightStyle,
+		)
+		lines[i] = lipgloss.StyleRanges(lines[i], ranges...)
 		if m.hiIdx < 0 {
 			continue
 		}
@@ -365,6 +401,7 @@ func (m Model) highlightLines(lines []string, offset int) []string {
 
 func (m Model) softWrap(lines []string, maxWidth int) []string {
 	var wrappedLines []string
+	total := m.TotalLineCount()
 	for i, line := range lines {
 		idx := 0
 		for ansi.StringWidth(line) >= idx {
@@ -372,7 +409,7 @@ func (m Model) softWrap(lines []string, maxWidth int) []string {
 			if m.LeftGutterFunc != nil {
 				truncatedLine = m.LeftGutterFunc(GutterContext{
 					Index:      i + m.YOffset,
-					TotalLines: m.TotalLineCount(),
+					TotalLines: total,
 					Soft:       idx > 0,
 				}) + truncatedLine
 			}
@@ -383,16 +420,25 @@ func (m Model) softWrap(lines []string, maxWidth int) []string {
 	return wrappedLines
 }
 
-func (m Model) prependColumn(lines []string) []string {
+// setupGutter sets up the left gutter using [Moddel.LeftGutterFunc].
+func (m Model) setupGutter(lines []string) []string {
+	if m.LeftGutterFunc == nil {
+		return lines
+	}
+
+	offset := max(0, m.lineToIndex(m.YOffset))
+	total := m.TotalLineCount()
 	result := make([]string, len(lines))
-	for i, line := range lines {
-		if m.LeftGutterFunc != nil {
-			line = m.LeftGutterFunc(GutterContext{
-				Index:      i + m.YOffset,
-				TotalLines: m.TotalLineCount(),
-			}) + line
+	for i := range lines {
+		var line []string
+		for j, realLine := range strings.Split(lines[i], "\n") {
+			line = append(line, m.LeftGutterFunc(GutterContext{
+				Index:      i + offset,
+				TotalLines: total,
+				Soft:       j > 0,
+			})+realLine)
 		}
-		result[i] = line
+		result[i] = strings.Join(line, "\n")
 	}
 	return result
 }
@@ -564,7 +610,6 @@ func (m *Model) SetHighlights(matches [][]int) {
 	if len(matches) == 0 || len(m.lines) == 0 {
 		return
 	}
-	m.memoizedMatchedLines = make([]string, len(m.lines))
 	m.highlights = parseMatches(m.GetContent(), matches)
 	m.hiIdx = m.findNearedtMatch()
 	m.showHighlight()
@@ -572,7 +617,6 @@ func (m *Model) SetHighlights(matches [][]int) {
 
 // ClearHighlights clears previously set highlights.
 func (m *Model) ClearHighlights() {
-	m.memoizedMatchedLines = nil
 	m.highlights = nil
 	m.hiIdx = -1
 }
@@ -704,7 +748,7 @@ func clamp(v, low, high int) int {
 func maxLineWidth(lines []string) int {
 	result := 0
 	for _, line := range lines {
-		result = max(result, ansi.StringWidth(line))
+		result = max(result, lipgloss.Width(line))
 	}
 	return result
 }
