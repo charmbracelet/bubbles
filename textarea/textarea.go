@@ -943,13 +943,13 @@ func (m Model) LineInfo() LineInfo {
 // repositionView repositions the view of the viewport based on the defined
 // scrolling behavior.
 func (m *Model) repositionView() {
-	min := m.viewport.YOffset
-	max := min + m.viewport.Height() - 1
+	minOffset := m.viewport.YOffset
+	maxOffset := minOffset + m.viewport.Height() - 1
 
-	if row := m.cursorLineNumber(); row < min {
-		m.viewport.LineUp(min - row)
-	} else if row > max {
-		m.viewport.LineDown(row - max)
+	if row := m.cursorLineNumber(); row < minOffset {
+		m.viewport.LineUp(minOffset - row)
+	} else if row > maxOffset {
+		m.viewport.LineDown(row - maxOffset)
 	}
 }
 
@@ -1219,7 +1219,7 @@ func (m Model) View() string {
 			displayLine++
 
 			var ln string
-			if m.ShowLineNumbers { //nolint:nestif
+			if m.ShowLineNumbers {
 				if wl == 0 { // normal line
 					isCursorLine := m.row == l
 					s.WriteString(m.lineNumberView(l+1, isCursorLine))

@@ -36,8 +36,8 @@ func New() Model {
 		FileAllowed:      true,
 		AutoHeight:       true,
 		height:           0,
-		max:              0,
-		min:              0,
+		maxIdx:           0,
+		minIdx:           0,
 		selectedStack:    newStack(),
 		minStack:         newStack(),
 		maxStack:         newStack(),
@@ -147,8 +147,8 @@ type Model struct {
 	selected      int
 	selectedStack stack
 
-	min      int
-	max      int
+	minIdx   int
+	maxIdx   int
 	maxStack stack
 	minStack stack
 
@@ -182,10 +182,10 @@ func newStack() stack {
 	}
 }
 
-func (m *Model) pushView(selected, min, max int) {
+func (m *Model) pushView(selected, minIdx, maxIdx int) {
 	m.selectedStack.Push(selected)
-	m.minStack.Push(min)
-	m.maxStack.Push(max)
+	m.minStack.Push(minIdx)
+	m.maxStack.Push(maxIdx)
 }
 
 func (m *Model) popView() (int, int, int) {
@@ -245,72 +245,72 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			break
 		}
 		m.files = msg.entries
-		m.max = max(m.max, m.Height()-1)
+		m.maxIdx = max(m.maxIdx, m.Height()-1)
 	case tea.WindowSizeMsg:
 		if m.AutoHeight {
 			m.SetHeight(msg.Height - marginBottom)
 		}
-		m.max = m.Height() - 1
+		m.maxIdx = m.Height() - 1
 	case tea.KeyPressMsg:
 		switch {
 		case key.Matches(msg, m.KeyMap.GoToTop):
 			m.selected = 0
-			m.min = 0
-			m.max = m.Height() - 1
+			m.minIdx = 0
+			m.maxIdx = m.Height() - 1
 		case key.Matches(msg, m.KeyMap.GoToLast):
 			m.selected = len(m.files) - 1
-			m.min = len(m.files) - m.Height()
-			m.max = len(m.files) - 1
+			m.minIdx = len(m.files) - m.Height()
+			m.maxIdx = len(m.files) - 1
 		case key.Matches(msg, m.KeyMap.Down):
 			m.selected++
 			if m.selected >= len(m.files) {
 				m.selected = len(m.files) - 1
 			}
-			if m.selected > m.max {
-				m.min++
-				m.max++
+			if m.selected > m.maxIdx {
+				m.minIdx++
+				m.maxIdx++
 			}
 		case key.Matches(msg, m.KeyMap.Up):
 			m.selected--
 			if m.selected < 0 {
 				m.selected = 0
 			}
-			if m.selected < m.min {
-				m.min--
-				m.max--
+			if m.selected < m.minIdx {
+				m.minIdx--
+				m.maxIdx--
 			}
 		case key.Matches(msg, m.KeyMap.PageDown):
 			m.selected += m.Height()
 			if m.selected >= len(m.files) {
 				m.selected = len(m.files) - 1
 			}
-			m.min += m.Height()
-			m.max += m.Height()
+			m.minIdx += m.Height()
+			m.maxIdx += m.Height()
 
-			if m.max >= len(m.files) {
-				m.max = len(m.files) - 1
-				m.min = m.max - m.Height()
+			if m.maxIdx >= len(m.files) {
+				m.maxIdx = len(m.files) - 1
+				m.minIdx = m.maxIdx - m.Height()
 			}
 		case key.Matches(msg, m.KeyMap.PageUp):
 			m.selected -= m.Height()
 			if m.selected < 0 {
 				m.selected = 0
 			}
-			m.min -= m.Height()
-			m.max -= m.Height()
+			m.minIdx -= m.Height()
+			m.maxIdx -= m.Height()
 
-			if m.min < 0 {
-				m.min = 0
-				m.max = m.min + m.Height()
+			if m.minIdx < 0 {
+				m.minIdx = 0
+				m.maxIdx = m.minIdx + m.Height()
 			}
 		case key.Matches(msg, m.KeyMap.Back):
 			m.CurrentDirectory = filepath.Dir(m.CurrentDirectory)
 			if m.selectedStack.Length() > 0 {
-				m.selected, m.min, m.max = m.popView()
+				m.selected, m.minIdx, m.maxIdx = m.popView()
 			} else {
 				m.selected = 0
-				m.min = 0
-				m.max = m.Height() - 1
+				m.minIdx = 0
+				m.maxIdx = m.Height() - 1
 			}
 			return m, m.readDir(m.CurrentDirectory, m.ShowHidden)
 		case key.Matches(msg, m.KeyMap.Open):
@@ -349,10 +349,10 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			}
 
 			m.CurrentDirectory = filepath.Join(m.CurrentDirectory, f.Name())
-			m.pushView(m.selected, m.min, m.max)
+			m.pushView(m.selected, m.minIdx, m.maxIdx)
 			m.selected = 0
-			m.min = 0
-			m.max = m.Height() - 1
+			m.minIdx = 0
+			m.maxIdx = m.Height() - 1
 			return m, m.readDir(m.CurrentDirectory, m.ShowHidden)
 		}
 	}
@@ -367,7 +367,7 @@ func (m Model) View() string {
 	var s strings.Builder
 
 	for i, f := range m.files {
-		if i < m.min || i > m.max {
+		if i < m.minIdx || i > m.maxIdx {
 			continue
 		}
 
