@@ -1,0 +1,16 @@
+#+title: v2 Proposal
+
+* Table
+** API Changes
+The API will change to streamline the experience of working with tables across
+the Bubbles and Lip Gloss libraries.
+*** Change
+- ~type Column, Row~ -> ~[]string~ for better reusability
+- ~func (m Model) Columns() []Column~ -> ~func (m Model) Headers(headers []string)~
+- Columns -> Headers
+- Header calculations are delegated to Lip Gloss
+**** Modifiers
+- ~func (m *Model) SetRows(r []Row)~ -> ~func (m *Model) Rows(rows ...[]string)~
+- ~func (m *Model) SetStyles(s Styles)~ -> ~func (m *Model) Styles(s Styles)~
+- ~func (m *Model) Width(w int)~ -> ~func (m *Model) Width(w int)~
+- ~func (m Model) Height() int~ -> ~func (m *Model) Height(h int) *Model~
