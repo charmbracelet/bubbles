@@ -23,7 +23,7 @@ func Test_CurrentSuggestion(t *testing.T) {
 	}
 
 	textinput.SetValue("test")
-	textinput.updateSuggestions()
+	textinput.UpdateSuggestions()
 	textinput.nextSuggestion()
 	suggestion = textinput.CurrentSuggestion()
 	expected = "test2"
