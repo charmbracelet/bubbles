@@ -867,7 +867,10 @@ func (m Model) validate(v []rune) error {
 }
 
 // Cursor returns a [tea.Cursor] for rendering a real cursor in a Bubble Tea
-// program.
+// program. This requires that [Model.VirtualCursor] is set to false.
+//
+// Note that you will almost certainly also need to adjust the offset cursor
+// position per the textarea's per the textarea's position in the terminal.
 //
 // Example:
 //
@@ -876,13 +879,11 @@ func (m Model) validate(v []rune) error {
 //	f.Cursor = m.textarea.Cursor()
 //	f.Cursor.Position.X += offsetX
 //	f.Cursor.Position.Y += offsetY
-//
-// Note that you will almost certainly also need to adjust the offset
-// position of the textarea to properly set the cursor position.
-//
-// If you're using a real cursor, you should also set [Model.VirtualCursor] to
-// false.
 func (m Model) Cursor() *tea.Cursor {
+	if m.VirtualCursor {
+		return nil
+	}
+
 	w := lipgloss.Width
 
 	xOffset := m.Position() +
