@@ -886,8 +886,12 @@ func (m Model) Cursor() *tea.Cursor {
 
 	w := lipgloss.Width
 
+	promptWidth := w(m.promptView())
 	xOffset := m.Position() +
-		w(m.promptView())
+		promptWidth
+	if m.width > 0 {
+		xOffset = min(xOffset, m.width+promptWidth)
+	}
 
 	style := m.Styles.Cursor
 	c := tea.NewCursor(xOffset, 0)
