@@ -1446,7 +1446,7 @@ func (m Model) Cursor() *tea.Cursor {
 		baseStyle.GetPaddingLeft() +
 		baseStyle.GetBorderLeftSize()
 
-	yOffset := m.cursorLineNumber() +
+	yOffset := m.cursorLineNumber() -
 		m.viewport.YOffset +
 		baseStyle.GetMarginTop() +
 		baseStyle.GetPaddingTop() +
