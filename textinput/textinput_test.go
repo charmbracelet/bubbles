@@ -1,6 +1,7 @@
 package textinput
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -28,6 +29,11 @@ func Test_CurrentSuggestion(t *testing.T) {
 	expected = "test2"
 	if suggestion != expected {
 		t.Fatalf("Error: expected first suggestion but was %s", suggestion)
+	}
+
+	textinput.Blur()
+	if strings.HasSuffix(textinput.View(), "test2") {
+		t.Fatalf("Error: suggestions should not be rendered when input isn't focused. expected \"> test\" but got \"%s\"", textinput.View())
 	}
 }
 
