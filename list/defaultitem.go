@@ -157,15 +157,16 @@ func (d DefaultDelegate) Render(w io.Writer, m Model, index int, item Item) {
 	}
 
 	// Prevent text from exceeding list width
-	textwidth := m.width - s.NormalTitle.GetPaddingLeft() - s.NormalTitle.GetPaddingRight()
-	title = ansi.Truncate(title, textwidth, ellipsis)
+	textWidth := m.width - s.NormalTitle.GetHorizontalFrameSize()
+	title = fitToWidth(title, textWidth)
 	if d.ShowDescription {
+		textWidth = m.width - s.NormalDesc.GetHorizontalFrameSize()
 		var lines []string
 		for i, line := range strings.Split(desc, "\n") {
 			if i >= d.height-1 {
 				break
 			}
-			lines = append(lines, ansi.Truncate(line, textwidth, ellipsis))
+			lines = append(lines, fitToWidth(line, textWidth))
 		}
 		desc = strings.Join(lines, "\n")
 	}
@@ -226,4 +227,18 @@ func (d DefaultDelegate) FullHelp() [][]key.Binding {
 		return d.FullHelpFunc()
 	}
 	return nil
+}
+
+// fitToWidth returns a modified version of s whose length is equal to width.
+// If len(s) == width, this function does nothing.
+// If len(s) > width, it truncates s to (width-1) and appends ellipsis.
+// If len(s) < width, it pads the end of s with spaces until it reaches width.
+func fitToWidth(s string, width int) string {
+	if len(s) > width {
+		return ansi.Truncate(s, width, ellipsis)
+	}
+	if len(s) < width {
+		return s + strings.Repeat(" ", width-len(s))
+	}
+	return s
 }
