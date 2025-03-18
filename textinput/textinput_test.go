@@ -32,6 +32,11 @@ func Test_CurrentSuggestion(t *testing.T) {
 	if suggestion != expected {
 		t.Fatalf("Error: expected first suggestion but was %s", suggestion)
 	}
+
+	textinput.Blur()
+	if strings.HasSuffix(textinput.View(), "test2") {
+		t.Fatalf("Error: suggestions should not be rendered when input isn't focused. expected \"> test\" but got \"%s\"", textinput.View())
+	}
 }
 
 func Test_SlicingOutsideCap(t *testing.T) {
