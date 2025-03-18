@@ -1,7 +1,6 @@
 package viewport
 
 import (
-	"fmt"
 	"math"
 	"strings"
 
@@ -113,20 +112,19 @@ type Model struct {
 }
 
 // GutterFunc can be implemented and set into [Model.LeftGutterFunc].
+//
+// Example implementation showing line numbers:
+//
+//	func(info GutterContext) string {
+//		if info.Soft {
+//			return "     │ "
+//		}
+//		if info.Index >= info.TotalLines {
+//			return "   ~ │ "
+//		}
+//		return fmt.Sprintf("%4d │ ", info.Index+1)
+//	}
 type GutterFunc func(GutterContext) string
-
-// LineNumberGutter return a [GutterFunc] that shows line numbers.
-func LineNumberGutter(style lipgloss.Style) GutterFunc {
-	return func(info GutterContext) string {
-		if info.Soft {
-			return style.Render("     │ ")
-		}
-		if info.Index >= info.TotalLines {
-			return style.Render("   ~ │ ")
-		}
-		return style.Render(fmt.Sprintf("%4d │ ", info.Index+1))
-	}
-}
 
 // NoGutter is the default gutter used.
 var NoGutter = func(GutterContext) string { return "" }
