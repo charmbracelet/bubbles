@@ -127,6 +127,12 @@ type Styles struct {
 	Selected lipgloss.Style
 }
 
+// TODO need to account for BorderRow and BorderColumn in overall height/width.
+// If these are enabled, the table can be too tall for the frame.
+//
+// TODO if BorderColumn is not set, continue use of styles on the whitespace
+// between cells.
+
 // DefaultStyles returns a set of default style definitions for this table.
 func DefaultStyles() Styles {
 	return Styles{
@@ -135,8 +141,8 @@ func DefaultStyles() Styles {
 		BorderBottom: true,
 		BorderLeft:   true,
 		BorderRight:  true,
-		BorderColumn: true,
-		BorderRow:    true,
+		BorderColumn: false,
+		BorderRow:    false,
 		BorderHeader: true,
 		Selected:     lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("212")).Margin(0, 1),
 		Header:       lipgloss.NewStyle().Bold(true).Padding(0, 1),
@@ -582,6 +588,7 @@ func (m *Model) MoveUp(n int) {
 func (m *Model) MoveDown(n int) {
 	// once we're at the last set of rows, where there is no truncation
 	// stop setting the y offset and only move cursor
+	// Only move cursor on first and last pages
 
 	// visible lines after updating viewport
 	m.SetCursor(m.cursor + n)
