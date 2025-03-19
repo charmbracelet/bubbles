@@ -188,10 +188,10 @@ func newStack() stack {
 	}
 }
 
-func (m *Model) pushView(selected, min, max int) {
+func (m *Model) pushView(selected, minimum, maximum int) {
 	m.selectedStack.Push(selected)
-	m.minStack.Push(min)
-	m.maxStack.Push(max)
+	m.minStack.Push(minimum)
+	m.maxStack.Push(maximum)
 }
 
 func (m *Model) popView() (int, int, int) {
@@ -506,11 +506,4 @@ func (m Model) canSelect(file string) bool {
 		}
 	}
 	return false
-}
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
 }
