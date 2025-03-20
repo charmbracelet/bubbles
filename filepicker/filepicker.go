@@ -158,6 +158,9 @@ type Model struct {
 	maxStack stack
 	minStack stack
 
+	// Height of the picker.
+	//
+	// Deprecated: use [Model.SetHeight] instead.
 	Height     int
 	AutoHeight bool
 
@@ -233,6 +236,14 @@ func (m Model) Init() tea.Cmd {
 	return m.readDir(m.CurrentDirectory, m.ShowHidden)
 }
 
+// SetHeight sets the height of the filepicker.
+func (m *Model) SetHeight(height int) {
+	m.Height = height
+	if m.max > m.Height-1 {
+		m.max = m.min + m.Height - 1
+	}
+}
+
 // Update handles user interactions within the file picker model.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
@@ -261,9 +272,6 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.selected++
 			if m.selected >= len(m.files) {
 				m.selected = len(m.files) - 1
-			}
-			if m.max > m.Height-1 {
-				m.max = m.min + m.Height - 1
 			}
 			if m.selected > m.max {
 				m.min++
