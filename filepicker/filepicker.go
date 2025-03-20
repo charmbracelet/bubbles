@@ -262,6 +262,9 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			if m.selected >= len(m.files) {
 				m.selected = len(m.files) - 1
 			}
+			if m.max > m.Height-1 {
+				m.max = m.min + m.Height - 1
+			}
 			if m.selected > m.max {
 				m.min++
 				m.max++
