@@ -15,7 +15,7 @@ require (
 	github.com/dustin/go-humanize v1.0.1
 	github.com/lucasb-eyer/go-colorful v1.2.0
 	github.com/mattn/go-runewidth v0.0.16
-	github.com/muesli/termenv v0.15.2
+	github.com/muesli/termenv v0.16.0
 	github.com/rivo/uniseg v0.4.7
 	github.com/sahilm/fuzzy v0.1.1
 )
@@ -31,6 +31,6 @@ require (
 	github.com/muesli/ansi v0.0.0-20230316100256-276c6243b2f6 // indirect
 	github.com/muesli/cancelreader v0.2.2 // indirect
 	golang.org/x/sync v0.8.0 // indirect
-	golang.org/x/sys v0.26.0 // indirect
+	golang.org/x/sys v0.30.0 // indirect
 	golang.org/x/text v0.3.8 // indirect
 )
