@@ -39,8 +39,8 @@ type Model struct {
 	// YOffset is the vertical scroll position.
 	YOffset int
 
-	// xOffset is the horizontal scroll position.
-	xOffset int
+	// XOffset is the horizontal scroll position.
+	XOffset int
 
 	// horizontalStep is the number of columns we move left or right during a
 	// default horizontal scroll.
@@ -116,10 +116,10 @@ func (m Model) ScrollPercent() float64 {
 // HorizontalScrollPercent returns the amount horizontally scrolled as a float
 // between 0 and 1.
 func (m Model) HorizontalScrollPercent() float64 {
-	if m.xOffset >= m.longestLineWidth-m.Width {
+	if m.XOffset >= m.longestLineWidth-m.Width {
 		return 1.0
 	}
-	y := float64(m.xOffset)
+	y := float64(m.XOffset)
 	h := float64(m.Width)
 	t := float64(m.longestLineWidth)
 	v := y / (t - h)
@@ -155,13 +155,13 @@ func (m Model) visibleLines() (lines []string) {
 		lines = m.lines[top:bottom]
 	}
 
-	if (m.xOffset == 0 && m.longestLineWidth <= w) || w == 0 {
+	if (m.XOffset == 0 && m.longestLineWidth <= w) || w == 0 {
 		return lines
 	}
 
 	cutLines := make([]string, len(lines))
 	for i := range lines {
-		cutLines[i] = ansi.Cut(lines[i], m.xOffset, m.xOffset+w)
+		cutLines[i] = ansi.Cut(lines[i], m.XOffset, m.XOffset+w)
 	}
 	return cutLines
 }
@@ -343,24 +343,24 @@ func (m *Model) SetHorizontalStep(n int) {
 
 // MoveLeft moves the viewport to the left by the given number of columns.
 func (m *Model) MoveLeft(cols int) {
-	m.xOffset -= cols
-	if m.xOffset < 0 {
-		m.xOffset = 0
+	m.XOffset -= cols
+	if m.XOffset < 0 {
+		m.XOffset = 0
 	}
 }
 
 // MoveRight moves viewport to the right by the given number of columns.
 func (m *Model) MoveRight(cols int) {
 	// prevents over scrolling to the right
-	if m.xOffset >= m.longestLineWidth-m.Width {
+	if m.XOffset >= m.longestLineWidth-m.Width {
 		return
 	}
-	m.xOffset += cols
+	m.XOffset += cols
 }
 
 // Resets lines indent to zero.
 func (m *Model) ResetIndent() {
-	m.xOffset = 0
+	m.XOffset = 0
 }
 
 // Update handles standard message-based viewport updates.
