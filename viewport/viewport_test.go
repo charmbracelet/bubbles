@@ -82,7 +82,7 @@ func TestSetHorizontalStep(t *testing.T) {
 	})
 }
 
-func TestMoveLeft(t *testing.T) {
+func TestScrollLeft(t *testing.T) {
 	t.Parallel()
 
 	zeroPosition := 0
@@ -91,6 +91,7 @@ func TestMoveLeft(t *testing.T) {
 		t.Parallel()
 
 		m := New(10, 10)
+		m.longestLineWidth = 100
 		if m.xOffset != zeroPosition {
 			t.Errorf("default indent should be %d, got %d", zeroPosition, m.xOffset)
 		}
@@ -101,9 +102,10 @@ func TestMoveLeft(t *testing.T) {
 		}
 	})
 
-	t.Run("move", func(t *testing.T) {
+	t.Run("scroll", func(t *testing.T) {
 		t.Parallel()
 		m := New(10, 10)
+		m.longestLineWidth = 100
 		if m.xOffset != zeroPosition {
 			t.Errorf("default indent should be %d, got %d", zeroPosition, m.xOffset)
 		}
@@ -117,10 +119,10 @@ func TestMoveLeft(t *testing.T) {
 	})
 }
 
-func TestMoveRight(t *testing.T) {
+func TestScrollRight(t *testing.T) {
 	t.Parallel()
 
-	t.Run("move", func(t *testing.T) {
+	t.Run("scroll", func(t *testing.T) {
 		t.Parallel()
 
 		zeroPosition := 0
@@ -253,8 +255,8 @@ func TestVisibleLines(t *testing.T) {
 		numberOfLines := 10
 
 		m := New(10, numberOfLines)
-		m.lines = defaultList
-		m.YOffset = 7
+		m.SetContent(strings.Join(defaultList, "\n"))
+		m.SetYOffset(7)
 
 		// default list
 		list := m.visibleLines()
@@ -273,7 +275,7 @@ func TestVisibleLines(t *testing.T) {
 			t.Errorf("first list item has to have prefix %s", perceptPrefix)
 		}
 
-		// move right
+		// scroll right
 		m.ScrollRight(m.horizontalStep)
 		list = m.visibleLines()
 
@@ -282,11 +284,11 @@ func TestVisibleLines(t *testing.T) {
 			t.Errorf("first list item has to have prefix %s, get %s", newPrefix, list[0])
 		}
 
-		if list[lastItem] != "..." {
+		if list[lastItem] != "" {
 			t.Errorf("last item should be empty, got %s", list[lastItem])
 		}
 
-		// move left
+		// scroll left
 		m.ScrollLeft(m.horizontalStep)
 		list = m.visibleLines()
 		if !strings.HasPrefix(list[0], perceptPrefix) {
@@ -328,7 +330,7 @@ func TestVisibleLines(t *testing.T) {
 			t.Errorf("%dth list item should the the same as %dth default list item", lastItemIdx, initLastItem)
 		}
 
-		// move right
+		// scroll right
 		m.ScrollRight(horizontalStep)
 		list = m.visibleLines()
 
@@ -339,7 +341,7 @@ func TestVisibleLines(t *testing.T) {
 			}
 		}
 
-		// move left
+		// scroll left
 		m.ScrollLeft(horizontalStep)
 		list = m.visibleLines()
 		for i := range list {
@@ -348,7 +350,7 @@ func TestVisibleLines(t *testing.T) {
 			}
 		}
 
-		// move left second times do not change lites if indent == 0
+		// scroll left second times do not change lites if indent == 0
 		m.xOffset = 0
 		m.ScrollLeft(horizontalStep)
 		list = m.visibleLines()
