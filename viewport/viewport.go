@@ -10,9 +10,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 )
 
-const (
-	defaultHorizontalStep = 6
-)
+const defaultHorizontalStep = 6
 
 // New returns a new model with the given width and height as well as default
 // key mappings.
@@ -168,7 +166,7 @@ func (m Model) visibleLines() (lines []string) {
 
 // scrollArea returns the scrollable boundaries for high performance rendering.
 //
-// XXX: high performance rendering is deprecated in Bubble Tea.
+// Deprecated: high performance rendering is deprecated in Bubble Tea.
 func (m Model) scrollArea() (top, bottom int) {
 	top = max(0, m.YPosition)
 	bottom = max(top, top+m.Height)
@@ -183,45 +181,81 @@ func (m *Model) SetYOffset(n int) {
 	m.YOffset = clamp(n, 0, m.maxYOffset())
 }
 
-// ViewDown moves the view down by the number of lines in the viewport.
+// PageDown moves the view down by the number of lines in the viewport.
 // Basically, "page down".
+//
+// Deprecated: use [Model.PageDown] instead.
 func (m *Model) ViewDown() []string {
+	return m.PageDown()
+}
+
+// PageDown moves the view down by the number of lines in the viewport.
+func (m *Model) PageDown() []string {
 	if m.AtBottom() {
 		return nil
 	}
 
-	return m.LineDown(m.Height)
+	return m.ScrollDown(m.Height)
 }
 
-// ViewUp moves the view up by one height of the viewport. Basically, "page up".
+// ViewUp moves the view up by one height of the viewport.
+// Basically, "page up".
+//
+// Deprecated: use [Model.PageUp] instead.
 func (m *Model) ViewUp() []string {
+	return m.PageUp()
+}
+
+// PageUp moves the view up by one height of the viewport.
+func (m *Model) PageUp() []string {
 	if m.AtTop() {
 		return nil
 	}
 
-	return m.LineUp(m.Height)
+	return m.ScrollUp(m.Height)
 }
 
 // HalfViewDown moves the view down by half the height of the viewport.
+//
+// Deprecated: use [Model.HalfPageDown] instead.
 func (m *Model) HalfViewDown() (lines []string) {
+	return m.HalfPageDown()
+}
+
+// HalfPageDown moves the view down by half the height of the viewport.
+func (m *Model) HalfPageDown() (lines []string) {
 	if m.AtBottom() {
 		return nil
 	}
 
-	return m.LineDown(m.Height / 2) //nolint:mnd
+	return m.ScrollDown(m.Height / 2) //nolint:mnd
 }
 
 // HalfViewUp moves the view up by half the height of the viewport.
+//
+// Deprecated: use [Model.HalfPageUp] instead.
 func (m *Model) HalfViewUp() (lines []string) {
+	return m.HalfPageUp()
+}
+
+// HalfPageUp moves the view up by half the height of the viewport.
+func (m *Model) HalfPageUp() (lines []string) {
 	if m.AtTop() {
 		return nil
 	}
 
-	return m.LineUp(m.Height / 2) //nolint:mnd
+	return m.ScrollUp(m.Height / 2) //nolint:mnd
 }
 
 // LineDown moves the view down by the given number of lines.
+//
+// Deprecated: use [Model.ScrollDown] instead.
 func (m *Model) LineDown(n int) (lines []string) {
+	return m.ScrollDown(n)
+}
+
+// ScrollDown moves the view down by the given number of lines.
+func (m *Model) ScrollDown(n int) (lines []string) {
 	if m.AtBottom() || n == 0 || len(m.lines) == 0 {
 		return nil
 	}
@@ -241,7 +275,15 @@ func (m *Model) LineDown(n int) (lines []string) {
 
 // LineUp moves the view down by the given number of lines. Returns the new
 // lines to show.
+//
+// Deprecated: use [Model.ScrollUp] instead.
 func (m *Model) LineUp(n int) (lines []string) {
+	return m.ScrollUp(n)
+}
+
+// ScrollUp moves the view down by the given number of lines. Returns the new
+// lines to show.
+func (m *Model) ScrollUp(n int) (lines []string) {
 	if m.AtTop() || n == 0 || len(m.lines) == 0 {
 		return nil
 	}
@@ -256,6 +298,32 @@ func (m *Model) LineUp(n int) (lines []string) {
 	top := max(0, m.YOffset)
 	bottom := clamp(m.YOffset+n, 0, m.maxYOffset())
 	return m.lines[top:bottom]
+}
+
+// SetHorizontalStep sets the default amount of columns to scroll left or right
+// with the default viewport key map.
+// If set to 0 or less, horizontal scrolling is disabled.
+func (m *Model) SetHorizontalStep(n int) {
+	if n < 0 {
+		n = 0
+	}
+
+	m.horizontalStep = n
+}
+
+// SetXOffset sets the X offset.
+func (m *Model) SetXOffset(n int) {
+	m.xOffset = clamp(n, 0, m.longestLineWidth-m.Width)
+}
+
+// ScrollLeft moves the viewport to the left by the given number of columns.
+func (m *Model) ScrollLeft(n int) {
+	m.SetXOffset(m.xOffset - n)
+}
+
+// ScrollRight moves viewport to the right by the given number of columns.
+func (m *Model) ScrollRight(n int) {
+	m.SetXOffset(m.xOffset + n)
 }
 
 // TotalLineCount returns the total number of lines (both hidden and visible) within the viewport.
@@ -305,6 +373,8 @@ func Sync(m Model) tea.Cmd {
 //
 //	lines := model.ViewDown(1)
 //	cmd := ViewDown(m, lines)
+//
+// Deprecated: high performance rendering is deprecated in Bubble Tea.
 func ViewDown(m Model, lines []string) tea.Cmd {
 	if len(lines) == 0 {
 		return nil
@@ -319,6 +389,8 @@ func ViewDown(m Model, lines []string) tea.Cmd {
 // ViewUp is a high performance command the moves the viewport down by a given
 // number of lines height. Use Model.ViewUp to get the lines that should be
 // rendered.
+//
+// Deprecated: high performance rendering is deprecated in Bubble Tea.
 func ViewUp(m Model, lines []string) tea.Cmd {
 	if len(lines) == 0 {
 		return nil
@@ -328,39 +400,6 @@ func ViewUp(m Model, lines []string) tea.Cmd {
 	// XXX: high performance rendering is deprecated in Bubble Tea. In a v2 we
 	// won't need to return a command here.
 	return tea.ScrollUp(lines, top, bottom) //nolint:staticcheck
-}
-
-// SetHorizontalStep sets the amount of cells that the viewport moves in the
-// default viewport keymapping. If set to 0 or less, horizontal scrolling is
-// disabled.
-func (m *Model) SetHorizontalStep(n int) {
-	if n < 0 {
-		n = 0
-	}
-
-	m.horizontalStep = n
-}
-
-// MoveLeft moves the viewport to the left by the given number of columns.
-func (m *Model) MoveLeft(cols int) {
-	m.xOffset -= cols
-	if m.xOffset < 0 {
-		m.xOffset = 0
-	}
-}
-
-// MoveRight moves viewport to the right by the given number of columns.
-func (m *Model) MoveRight(cols int) {
-	// prevents over scrolling to the right
-	if m.xOffset >= m.longestLineWidth-m.Width {
-		return
-	}
-	m.xOffset += cols
-}
-
-// Resets lines indent to zero.
-func (m *Model) ResetIndent() {
-	m.xOffset = 0
 }
 
 // Update handles standard message-based viewport updates.
@@ -383,46 +422,46 @@ func (m Model) updateAsModel(msg tea.Msg) (Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, m.KeyMap.PageDown):
-			lines := m.ViewDown()
+			lines := m.PageDown()
 			if m.HighPerformanceRendering {
 				cmd = ViewDown(m, lines)
 			}
 
 		case key.Matches(msg, m.KeyMap.PageUp):
-			lines := m.ViewUp()
+			lines := m.PageUp()
 			if m.HighPerformanceRendering {
 				cmd = ViewUp(m, lines)
 			}
 
 		case key.Matches(msg, m.KeyMap.HalfPageDown):
-			lines := m.HalfViewDown()
+			lines := m.HalfPageDown()
 			if m.HighPerformanceRendering {
 				cmd = ViewDown(m, lines)
 			}
 
 		case key.Matches(msg, m.KeyMap.HalfPageUp):
-			lines := m.HalfViewUp()
+			lines := m.HalfPageUp()
 			if m.HighPerformanceRendering {
 				cmd = ViewUp(m, lines)
 			}
 
 		case key.Matches(msg, m.KeyMap.Down):
-			lines := m.LineDown(1)
+			lines := m.ScrollDown(1)
 			if m.HighPerformanceRendering {
 				cmd = ViewDown(m, lines)
 			}
 
 		case key.Matches(msg, m.KeyMap.Up):
-			lines := m.LineUp(1)
+			lines := m.ScrollUp(1)
 			if m.HighPerformanceRendering {
 				cmd = ViewUp(m, lines)
 			}
 
 		case key.Matches(msg, m.KeyMap.Left):
-			m.MoveLeft(m.horizontalStep)
+			m.ScrollLeft(m.horizontalStep)
 
 		case key.Matches(msg, m.KeyMap.Right):
-			m.MoveRight(m.horizontalStep)
+			m.ScrollRight(m.horizontalStep)
 		}
 
 	case tea.MouseMsg:
@@ -431,13 +470,13 @@ func (m Model) updateAsModel(msg tea.Msg) (Model, tea.Cmd) {
 		}
 		switch msg.Button { //nolint:exhaustive
 		case tea.MouseButtonWheelUp:
-			lines := m.LineUp(m.MouseWheelDelta)
+			lines := m.ScrollUp(m.MouseWheelDelta)
 			if m.HighPerformanceRendering {
 				cmd = ViewUp(m, lines)
 			}
 
 		case tea.MouseButtonWheelDown:
-			lines := m.LineDown(m.MouseWheelDelta)
+			lines := m.ScrollDown(m.MouseWheelDelta)
 			if m.HighPerformanceRendering {
 				cmd = ViewDown(m, lines)
 			}
