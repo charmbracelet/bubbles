@@ -5,9 +5,9 @@ go 1.23.0
 require (
 	github.com/MakeNowJust/heredoc v1.0.0
 	github.com/atotto/clipboard v0.1.4
-	github.com/charmbracelet/bubbletea/v2 v2.0.0-beta1
+	github.com/charmbracelet/bubbletea/v2 v2.0.0-beta.1
 	github.com/charmbracelet/harmonica v0.2.0
-	github.com/charmbracelet/lipgloss/v2 v2.0.0-alpha.2.0.20250319221657-e0b75f7d5b68
+	github.com/charmbracelet/lipgloss/v2 v2.0.0-beta.1
 	github.com/charmbracelet/x/ansi v0.8.0
 	github.com/charmbracelet/x/exp/golden v0.0.0-20250207160936-21c02780d27a
 	github.com/dustin/go-humanize v1.0.1
