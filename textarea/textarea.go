@@ -857,9 +857,9 @@ func (m *Model) repositionView() {
 	maximum := minimum + m.viewport.Height - 1
 
 	if row := m.cursorLineNumber(); row < minimum {
-		m.viewport.ScrollUp(minimum - row)
+		m.viewport.LineUp(minimum - row)
 	} else if row > maximum {
-		m.viewport.ScrollDown(row - maximum)
+		m.viewport.LineDown(row - maximum)
 	}
 }
 
