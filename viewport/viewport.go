@@ -702,7 +702,7 @@ func (m Model) updateAsModel(msg tea.Msg) Model {
 			break
 		}
 
-		switch msg.Button { //nolint:exhaustive
+		switch msg.Button {
 		case tea.MouseWheelDown:
 			m.LineDown(m.MouseWheelDelta)
 

@@ -182,10 +182,10 @@ func newStack() stack {
 	}
 }
 
-func (m *Model) pushView(selected, minIdx, maxIdx int) {
+func (m *Model) pushView(selected, minimum, maximum int) {
 	m.selectedStack.Push(selected)
-	m.minStack.Push(minIdx)
-	m.maxStack.Push(maxIdx)
+	m.minStack.Push(minimum)
+	m.maxStack.Push(maximum)
 }
 
 func (m *Model) popView() (int, int, int) {
@@ -225,6 +225,9 @@ func (m Model) readDir(path string, showHidden bool) tea.Cmd {
 // SetHeight sets the height of the file picker.
 func (m *Model) SetHeight(h int) {
 	m.height = h
+	if m.maxIdx > m.height-1 {
+		m.maxIdx = m.minIdx + m.height - 1
+	}
 }
 
 // Height returns the height of the file picker.
