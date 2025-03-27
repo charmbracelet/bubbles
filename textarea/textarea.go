@@ -943,7 +943,7 @@ func (m Model) LineInfo() LineInfo {
 // repositionView repositions the view of the viewport based on the defined
 // scrolling behavior.
 func (m *Model) repositionView() {
-	minimum := m.viewport.YOffset
+	minimum := m.viewport.YOffset()
 	maximum := minimum + m.viewport.Height() - 1
 	if row := m.cursorLineNumber(); row < minimum {
 		m.viewport.ScrollUp(minimum - row)
@@ -1268,7 +1268,7 @@ func (m Model) View() string {
 
 	// Always show at least `m.Height` lines at all times.
 	// To do this we can simply pad out a few extra new lines in the view.
-	for i := 0; i < m.height; i++ {
+	for range m.height {
 		s.WriteString(m.promptView(displayLine))
 		displayLine++
 
@@ -1446,7 +1446,7 @@ func (m Model) Cursor() *tea.Cursor {
 		baseStyle.GetBorderLeftSize()
 
 	yOffset := m.cursorLineNumber() -
-		m.viewport.YOffset +
+		m.viewport.YOffset() +
 		baseStyle.GetMarginTop() +
 		baseStyle.GetPaddingTop() +
 		baseStyle.GetBorderTopSize()
@@ -1472,7 +1472,7 @@ func (m Model) memoizedWrap(runes []rune, width int) [][]rune {
 // This accounts for soft wrapped lines.
 func (m Model) cursorLineNumber() int {
 	line := 0
-	for i := 0; i < m.row; i++ {
+	for i := range m.row {
 		// Calculate the number of lines that the current line will be split
 		// into.
 		line += len(m.memoizedWrap(m.value[i], m.width))

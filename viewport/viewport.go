@@ -66,8 +66,8 @@ type Model struct {
 	// The number of lines the mouse wheel will scroll. By default, this is 3.
 	MouseWheelDelta int
 
-	// YOffset is the vertical scroll position.
-	YOffset int
+	// yOffset is the vertical scroll position.
+	yOffset int
 
 	// xOffset is the horizontal scroll position.
 	xOffset int
@@ -172,19 +172,19 @@ func (m *Model) SetWidth(w int) {
 
 // AtTop returns whether or not the viewport is at the very top position.
 func (m Model) AtTop() bool {
-	return m.YOffset <= 0
+	return m.YOffset() <= 0
 }
 
 // AtBottom returns whether or not the viewport is at or past the very bottom
 // position.
 func (m Model) AtBottom() bool {
-	return m.YOffset >= m.maxYOffset()
+	return m.YOffset() >= m.maxYOffset()
 }
 
 // PastBottom returns whether or not the viewport is scrolled beyond the last
 // line. This can happen when adjusting the viewport height.
 func (m Model) PastBottom() bool {
-	return m.YOffset > m.maxYOffset()
+	return m.YOffset() > m.maxYOffset()
 }
 
 // ScrollPercent returns the amount scrolled as a float between 0 and 1.
@@ -193,7 +193,7 @@ func (m Model) ScrollPercent() float64 {
 	if m.Height() >= count {
 		return 1.0
 	}
-	y := float64(m.YOffset)
+	y := float64(m.YOffset())
 	h := float64(m.Height())
 	t := float64(count)
 	v := y / (t - h)
@@ -233,7 +233,7 @@ func (m *Model) SetContentLines(lines []string) {
 	m.longestLineWidth = maxLineWidth(m.lines)
 	m.ClearHighlights()
 
-	if m.YOffset > m.maxYOffset() {
+	if m.YOffset() > m.maxYOffset() {
 		m.GotoBottom()
 	}
 }
@@ -326,7 +326,7 @@ func (m Model) visibleLines() (lines []string) {
 	maxWidth := m.maxWidth()
 
 	if m.lineCount() > 0 {
-		pos := m.lineToIndex(m.YOffset)
+		pos := m.lineToIndex(m.YOffset())
 		top := max(0, pos)
 		bottom := clamp(pos+maxHeight, top, len(m.lines))
 		lines = make([]string, bottom-top)
@@ -406,7 +406,7 @@ func (m Model) softWrap(lines []string, maxWidth int) []string {
 			truncatedLine := ansi.Cut(line, idx, maxWidth+idx)
 			if m.LeftGutterFunc != nil {
 				truncatedLine = m.LeftGutterFunc(GutterContext{
-					Index:      i + m.YOffset,
+					Index:      i + m.YOffset(),
 					TotalLines: total,
 					Soft:       idx > 0,
 				}) + truncatedLine
@@ -424,7 +424,7 @@ func (m Model) setupGutter(lines []string) []string {
 		return lines
 	}
 
-	offset := max(0, m.lineToIndex(m.YOffset))
+	offset := max(0, m.lineToIndex(m.YOffset()))
 	total := m.TotalLineCount()
 	result := make([]string, len(lines))
 	for i := range lines {
@@ -443,17 +443,11 @@ func (m Model) setupGutter(lines []string) []string {
 
 // SetYOffset sets the Y offset.
 func (m *Model) SetYOffset(n int) {
-	m.YOffset = clamp(n, 0, m.maxYOffset())
+	m.yOffset = clamp(n, 0, m.maxYOffset())
 }
 
-// SetXOffset sets the X offset.
-// No-op when soft wrap is enabled.
-func (m *Model) SetXOffset(n int) {
-	if m.SoftWrap {
-		return
-	}
-	m.xOffset = clamp(n, 0, m.maxXOffset())
-}
+// YOffset returns the current Y offset - the vertical scroll position.
+func (m *Model) YOffset() int { return m.yOffset }
 
 // EnsureVisible ensures that the given line and column are in the viewport.
 func (m *Model) EnsureVisible(line, colstart, colend int) {
@@ -464,52 +458,51 @@ func (m *Model) EnsureVisible(line, colstart, colend int) {
 		m.SetXOffset(colstart - m.horizontalStep) // put one step to the left, feels more natural
 	}
 
-	if line < m.YOffset || line >= m.YOffset+m.maxHeight() {
+	if line < m.YOffset() || line >= m.YOffset()+m.maxHeight() {
 		m.SetYOffset(line)
 	}
 
 	m.visibleLines()
 }
 
-// ViewDown moves the view down by the number of lines in the viewport.
-// Basically, "page down".
-func (m *Model) ViewDown() {
+// PageDown moves the view down by the number of lines in the viewport.
+func (m *Model) PageDown() {
 	if m.AtBottom() {
 		return
 	}
 
-	m.LineDown(m.Height())
+	m.ScrollDown(m.Height())
 }
 
-// ViewUp moves the view up by one height of the viewport. Basically, "page up".
-func (m *Model) ViewUp() {
+// PageUp moves the view up by one height of the viewport.
+func (m *Model) PageUp() {
 	if m.AtTop() {
 		return
 	}
 
-	m.LineUp(m.Height())
+	m.ScrollUp(m.Height())
 }
 
-// HalfViewDown moves the view down by half the height of the viewport.
-func (m *Model) HalfViewDown() {
+// HalfPageDown moves the view down by half the height of the viewport.
+func (m *Model) HalfPageDown() {
 	if m.AtBottom() {
 		return
 	}
 
-	m.LineDown(m.Height() / 2) //nolint:mnd
+	m.ScrollDown(m.Height() / 2) //nolint:mnd
 }
 
-// HalfViewUp moves the view up by half the height of the viewport.
-func (m *Model) HalfViewUp() {
+// HalfPageUp moves the view up by half the height of the viewport.
+func (m *Model) HalfPageUp() {
 	if m.AtTop() {
 		return
 	}
 
-	m.LineUp(m.Height() / 2) //nolint:mnd
+	m.ScrollUp(m.Height() / 2) //nolint:mnd
 }
 
-// LineDown moves the view down by the given number of lines.
-func (m *Model) LineDown(n int) {
+// ScrollDown moves the view down by the given number of lines.
+func (m *Model) ScrollDown(n int) {
 	if m.AtBottom() || n == 0 || len(m.lines) == 0 {
 		return
 	}
@@ -517,21 +510,50 @@ func (m *Model) LineDown(n int) {
 	// Make sure the number of lines by which we're going to scroll isn't
 	// greater than the number of lines we actually have left before we reach
 	// the bottom.
-	m.SetYOffset(m.YOffset + n)
+	m.SetYOffset(m.YOffset() + n)
 	m.hiIdx = m.findNearedtMatch()
 }
 
-// LineUp moves the view down by the given number of lines. Returns the new
+// ScrollUp moves the view down by the given number of lines. Returns the new
 // lines to show.
-func (m *Model) LineUp(n int) {
+func (m *Model) ScrollUp(n int) {
 	if m.AtTop() || n == 0 || len(m.lines) == 0 {
 		return
 	}
 
 	// Make sure the number of lines by which we're going to scroll isn't
 	// greater than the number of lines we are from the top.
-	m.SetYOffset(m.YOffset - n)
+	m.SetYOffset(m.YOffset() - n)
 	m.hiIdx = m.findNearedtMatch()
+}
+
+// SetHorizontalStep sets the amount of cells that the viewport moves in the
+// default viewport keymapping. If set to 0 or less, horizontal scrolling is
+// disabled.
+func (m *Model) SetHorizontalStep(n int) {
+	m.horizontalStep = max(0, n)
+}
+
+// XOffset returns the current X offset - the horizontal scroll position.
+func (m *Model) XOffset() int { return m.xOffset }
+
+// SetXOffset sets the X offset.
+// No-op when soft wrap is enabled.
+func (m *Model) SetXOffset(n int) {
+	if m.SoftWrap {
+		return
+	}
+	m.xOffset = clamp(n, 0, m.maxXOffset())
+}
+
+// ScrollLeft moves the viewport to the left by the given number of columns.
+func (m *Model) ScrollLeft(n int) {
+	m.SetXOffset(m.xOffset - n)
+}
+
+// ScrollRight moves viewport to the right by the given number of columns.
+func (m *Model) ScrollRight(n int) {
+	m.SetXOffset(m.xOffset + n)
 }
 
 // TotalLineCount returns the total number of lines (both hidden and visible) within the viewport.
@@ -560,40 +582,6 @@ func (m *Model) GotoBottom() (lines []string) {
 	m.SetYOffset(m.maxYOffset())
 	m.hiIdx = m.findNearedtMatch()
 	return m.visibleLines()
-}
-
-// SetHorizontalStep sets the amount of cells that the viewport moves in the
-// default viewport keymapping. If set to 0 or less, horizontal scrolling is
-// disabled.
-func (m *Model) SetHorizontalStep(n int) {
-	if n < 0 {
-		n = 0
-	}
-
-	m.horizontalStep = n
-}
-
-// MoveLeft moves the viewport to the left by the given number of columns.
-func (m *Model) MoveLeft(cols int) {
-	m.xOffset -= cols
-	if m.xOffset < 0 {
-		m.xOffset = 0
-	}
-}
-
-// MoveRight moves viewport to the right by the given number of columns.
-func (m *Model) MoveRight(cols int) {
-	// prevents over scrolling to the right
-	w := m.maxWidth()
-	if m.xOffset > m.longestLineWidth-w {
-		return
-	}
-	m.xOffset += cols
-}
-
-// Resets lines indent to zero.
-func (m *Model) ResetIndent() {
-	m.xOffset = 0
 }
 
 // SetHighlights sets ranges of characters to highlight.
@@ -649,7 +637,7 @@ func (m *Model) HighlightPrevious() {
 
 func (m Model) findNearedtMatch() int {
 	for i, match := range m.highlights {
-		if match.lineStart >= m.YOffset {
+		if match.lineStart >= m.YOffset() {
 			return i
 		}
 	}
@@ -673,28 +661,28 @@ func (m Model) updateAsModel(msg tea.Msg) Model {
 	case tea.KeyPressMsg:
 		switch {
 		case key.Matches(msg, m.KeyMap.PageDown):
-			m.ViewDown()
+			m.PageDown()
 
 		case key.Matches(msg, m.KeyMap.PageUp):
-			m.ViewUp()
+			m.PageUp()
 
 		case key.Matches(msg, m.KeyMap.HalfPageDown):
-			m.HalfViewDown()
+			m.HalfPageDown()
 
 		case key.Matches(msg, m.KeyMap.HalfPageUp):
-			m.HalfViewUp()
+			m.HalfPageUp()
 
 		case key.Matches(msg, m.KeyMap.Down):
-			m.LineDown(1)
+			m.ScrollDown(1)
 
 		case key.Matches(msg, m.KeyMap.Up):
-			m.LineUp(1)
+			m.ScrollUp(1)
 
 		case key.Matches(msg, m.KeyMap.Left):
-			m.MoveLeft(m.horizontalStep)
+			m.ScrollLeft(m.horizontalStep)
 
 		case key.Matches(msg, m.KeyMap.Right):
-			m.MoveRight(m.horizontalStep)
+			m.ScrollRight(m.horizontalStep)
 		}
 
 	case tea.MouseWheelMsg:
@@ -704,10 +692,10 @@ func (m Model) updateAsModel(msg tea.Msg) Model {
 
 		switch msg.Button {
 		case tea.MouseWheelDown:
-			m.LineDown(m.MouseWheelDelta)
+			m.ScrollDown(m.MouseWheelDelta)
 
 		case tea.MouseWheelUp:
-			m.LineUp(m.MouseWheelDelta)
+			m.ScrollUp(m.MouseWheelDelta)
 		}
 	}
 
