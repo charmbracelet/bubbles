@@ -43,7 +43,7 @@ func TestVerticalScrolling(t *testing.T) {
 		"the text area.",
 	}
 	for _, line := range lines {
-		textarea.viewport.LineDown(1)
+		textarea.viewport.ScrollDown(1)
 		view = textarea.View()
 		if !strings.Contains(view, line) {
 			t.Log(view)
