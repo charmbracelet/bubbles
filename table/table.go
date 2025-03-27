@@ -1,6 +1,7 @@
 package table
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/help"
@@ -16,11 +17,12 @@ type Model struct {
 	KeyMap KeyMap
 	Help   help.Model
 
-	cols   []Column
-	rows   []Row
-	cursor int
-	focus  bool
-	styles Styles
+	cols     []Column
+	rows     []Row
+	cursor   int
+	selected []int
+	focus    bool
+	styles   Styles
 
 	viewport viewport.Model
 	start    int
@@ -47,18 +49,19 @@ type KeyMap struct {
 	HalfPageDown key.Binding
 	GotoTop      key.Binding
 	GotoBottom   key.Binding
+	Select       key.Binding
 }
 
 // ShortHelp implements the KeyMap interface.
 func (km KeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{km.LineUp, km.LineDown}
+	return []key.Binding{km.LineUp, km.LineDown, km.Select}
 }
 
 // FullHelp implements the KeyMap interface.
 func (km KeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{km.LineUp, km.LineDown, km.GotoTop, km.GotoBottom},
-		{km.PageUp, km.PageDown, km.HalfPageUp, km.HalfPageDown},
+		{km.PageUp, km.PageDown, km.HalfPageUp, km.HalfPageDown, km.Select},
 	}
 }
 
@@ -98,6 +101,10 @@ func DefaultKeyMap() KeyMap {
 			key.WithKeys("end", "G"),
 			key.WithHelp("G/end", "go to end"),
 		),
+		Select: key.NewBinding(
+			key.WithKeys("enter"),
+			key.WithHelp("enter", "select the hovered row"),
+		),
 	}
 }
 
@@ -106,15 +113,17 @@ func DefaultKeyMap() KeyMap {
 type Styles struct {
 	Header   lipgloss.Style
 	Cell     lipgloss.Style
+	Hovered  lipgloss.Style
 	Selected lipgloss.Style
 }
 
 // DefaultStyles returns a set of default style definitions for this table.
 func DefaultStyles() Styles {
 	return Styles{
-		Selected: lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("212")),
 		Header:   lipgloss.NewStyle().Bold(true).Padding(0, 1),
 		Cell:     lipgloss.NewStyle().Padding(0, 1),
+		Hovered:  lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("205")),
+		Selected: lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("212")),
 	}
 }
 
@@ -223,6 +232,8 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.GotoTop()
 		case key.Matches(msg, m.KeyMap.GotoBottom):
 			m.GotoBottom()
+		case key.Matches(msg, m.KeyMap.Select):
+			m.Select()
 		}
 	}
 
@@ -282,14 +293,31 @@ func (m *Model) UpdateViewport() {
 	)
 }
 
-// SelectedRow returns the selected row.
+// HoveredRow returns the hovered row.
 // You can cast it to your own implementation.
-func (m Model) SelectedRow() Row {
+func (m Model) HoveredRow() Row {
 	if m.cursor < 0 || m.cursor >= len(m.rows) {
 		return nil
 	}
 
 	return m.rows[m.cursor]
+}
+
+func (m *Model) Select() {
+	foundIndex := slices.Index(m.selected, m.cursor)
+	if foundIndex == -1 {
+		m.selected = append(m.selected, m.cursor)
+	} else {
+		m.selected = slices.Delete(m.selected, foundIndex, foundIndex+1)
+	}
+}
+
+func (m Model) SelectedRows() []Row {
+	selectedRows := make([]Row, len(m.selected))
+	for iSelected, iRows := range m.selected {
+		selectedRows[iSelected] = m.rows[iRows]
+	}
+	return selectedRows
 }
 
 // Rows returns the current rows.
@@ -431,7 +459,10 @@ func (m *Model) renderRow(r int) string {
 
 	row := lipgloss.JoinHorizontal(lipgloss.Top, s...)
 
-	if r == m.cursor {
+	switch {
+	case r == m.cursor:
+		return m.styles.Hovered.Render(row)
+	case slices.Contains(m.selected, r):
 		return m.styles.Selected.Render(row)
 	}
 
