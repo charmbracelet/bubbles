@@ -41,27 +41,27 @@ type Column struct {
 // KeyMap defines keybindings. It satisfies to the help.KeyMap interface, which
 // is used to render the help menu.
 type KeyMap struct {
-	LineUp       key.Binding
-	LineDown     key.Binding
-	PageUp       key.Binding
-	PageDown     key.Binding
-	HalfPageUp   key.Binding
-	HalfPageDown key.Binding
-	GotoTop      key.Binding
-	GotoBottom   key.Binding
-	Select       key.Binding
+	LineUp         key.Binding
+	LineDown       key.Binding
+	PageUp         key.Binding
+	PageDown       key.Binding
+	HalfPageUp     key.Binding
+	HalfPageDown   key.Binding
+	GotoTop        key.Binding
+	GotoBottom     key.Binding
+	ToggleSelected key.Binding
 }
 
 // ShortHelp implements the KeyMap interface.
 func (km KeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{km.LineUp, km.LineDown, km.Select}
+	return []key.Binding{km.LineUp, km.LineDown, km.ToggleSelected}
 }
 
 // FullHelp implements the KeyMap interface.
 func (km KeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{km.LineUp, km.LineDown, km.GotoTop, km.GotoBottom},
-		{km.PageUp, km.PageDown, km.HalfPageUp, km.HalfPageDown, km.Select},
+		{km.PageUp, km.PageDown, km.HalfPageUp, km.HalfPageDown, km.ToggleSelected},
 	}
 }
 
@@ -101,7 +101,7 @@ func DefaultKeyMap() KeyMap {
 			key.WithKeys("end", "G"),
 			key.WithHelp("G/end", "go to end"),
 		),
-		Select: key.NewBinding(
+		ToggleSelected: key.NewBinding(
 			key.WithKeys("enter"),
 			key.WithHelp("enter", "select the hovered row"),
 		),
@@ -232,8 +232,8 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.GotoTop()
 		case key.Matches(msg, m.KeyMap.GotoBottom):
 			m.GotoBottom()
-		case key.Matches(msg, m.KeyMap.Select):
-			m.Select()
+		case key.Matches(msg, m.KeyMap.ToggleSelected):
+			m.ToggleSelected()
 		}
 	}
 
@@ -303,7 +303,8 @@ func (m Model) HoveredRow() Row {
 	return m.rows[m.cursor]
 }
 
-func (m *Model) Select() {
+// ToggleSelected toggles the selected state of the hovered row.
+func (m *Model) ToggleSelected() {
 	foundIndex := slices.Index(m.selected, m.cursor)
 	if foundIndex == -1 {
 		m.selected = append(m.selected, m.cursor)
@@ -312,6 +313,7 @@ func (m *Model) Select() {
 	}
 }
 
+// SelectedRows returns the currently selected rows.
 func (m Model) SelectedRows() []Row {
 	selectedRows := make([]Row, len(m.selected))
 	for iSelected, iRows := range m.selected {
