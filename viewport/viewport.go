@@ -10,8 +10,6 @@ import (
 	"github.com/charmbracelet/x/ansi"
 )
 
-const defaultHorizontalStep = 6
-
 // New returns a new model with the given width and height as well as default
 // key mappings.
 func New(width, height int) (m Model) {
@@ -74,7 +72,6 @@ func (m *Model) setInitialValues() {
 	m.MouseWheelEnabled = true
 	m.MouseWheelDelta = 3
 	m.initialized = true
-	m.horizontalStep = defaultHorizontalStep
 }
 
 // Init exists to satisfy the tea.Model interface for composability purposes.
@@ -302,7 +299,10 @@ func (m *Model) ScrollUp(n int) (lines []string) {
 
 // SetHorizontalStep sets the default amount of columns to scroll left or right
 // with the default viewport key map.
+//
 // If set to 0 or less, horizontal scrolling is disabled.
+//
+// On v1, horizontal scrolling is disabled by default.
 func (m *Model) SetHorizontalStep(n int) {
 	if n < 0 {
 		n = 0

@@ -5,6 +5,8 @@ import (
 	"testing"
 )
 
+const defaultHorizontalStep = 6
+
 func TestNew(t *testing.T) {
 	t.Parallel()
 
@@ -12,6 +14,7 @@ func TestNew(t *testing.T) {
 		t.Parallel()
 
 		m := New(10, 10)
+		m.horizontalStep = defaultHorizontalStep // remove on v2
 
 		if !m.initialized {
 			t.Errorf("on create by New, Model should be initialized")
@@ -38,6 +41,7 @@ func TestSetInitialValues(t *testing.T) {
 		t.Parallel()
 
 		m := Model{}
+		m.horizontalStep = defaultHorizontalStep // remove on v2
 		m.setInitialValues()
 
 		if m.horizontalStep != defaultHorizontalStep {
@@ -53,6 +57,7 @@ func TestSetHorizontalStep(t *testing.T) {
 		t.Parallel()
 
 		m := New(10, 10)
+		m.horizontalStep = defaultHorizontalStep // remove on v2
 
 		if m.horizontalStep != defaultHorizontalStep {
 			t.Errorf("default horizontalStep should be %d, got %d", defaultHorizontalStep, m.horizontalStep)
@@ -69,6 +74,7 @@ func TestSetHorizontalStep(t *testing.T) {
 		t.Parallel()
 
 		m := New(10, 10)
+		m.horizontalStep = defaultHorizontalStep // remove on v2
 
 		if m.horizontalStep != defaultHorizontalStep {
 			t.Errorf("default horizontalStep should be %d, got %d", defaultHorizontalStep, m.horizontalStep)
@@ -105,6 +111,7 @@ func TestScrollLeft(t *testing.T) {
 	t.Run("scroll", func(t *testing.T) {
 		t.Parallel()
 		m := New(10, 10)
+		m.horizontalStep = defaultHorizontalStep // remove on v2
 		m.longestLineWidth = 100
 		if m.xOffset != zeroPosition {
 			t.Errorf("default indent should be %d, got %d", zeroPosition, m.xOffset)
@@ -128,6 +135,7 @@ func TestScrollRight(t *testing.T) {
 		zeroPosition := 0
 
 		m := New(10, 10)
+		m.SetHorizontalStep(defaultHorizontalStep)
 		m.SetContent("Some line that is longer than width")
 		if m.xOffset != zeroPosition {
 			t.Errorf("default indent should be %d, got %d", zeroPosition, m.xOffset)
@@ -255,6 +263,7 @@ func TestVisibleLines(t *testing.T) {
 		numberOfLines := 10
 
 		m := New(10, numberOfLines)
+		m.horizontalStep = defaultHorizontalStep // remove on v2
 		m.SetContent(strings.Join(defaultList, "\n"))
 		m.SetYOffset(7)
 
