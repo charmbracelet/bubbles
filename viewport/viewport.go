@@ -514,7 +514,7 @@ func (m *Model) ScrollDown(n int) {
 	m.hiIdx = m.findNearedtMatch()
 }
 
-// ScrollUp moves the view down by the given number of lines. Returns the new
+// ScrollUp moves the view up by the given number of lines. Returns the new
 // lines to show.
 func (m *Model) ScrollUp(n int) {
 	if m.AtTop() || n == 0 || len(m.lines) == 0 {
