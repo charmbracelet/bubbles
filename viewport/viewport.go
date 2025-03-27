@@ -304,11 +304,7 @@ func (m *Model) ScrollUp(n int) (lines []string) {
 //
 // On v1, horizontal scrolling is disabled by default.
 func (m *Model) SetHorizontalStep(n int) {
-	if n < 0 {
-		n = 0
-	}
-
-	m.horizontalStep = n
+	m.horizontalStep = max(n, 0)
 }
 
 // SetXOffset sets the X offset.
