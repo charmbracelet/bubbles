@@ -140,9 +140,9 @@ func (m *Model) setInitialValues() {
 	m.KeyMap = DefaultKeyMap()
 	m.MouseWheelEnabled = true
 	m.MouseWheelDelta = 3
-	m.initialized = true
 	m.horizontalStep = defaultHorizontalStep
 	m.LeftGutterFunc = NoGutter
+	m.initialized = true
 }
 
 // Init exists to satisfy the tea.Model interface for composability purposes.
@@ -689,13 +689,27 @@ func (m Model) updateAsModel(msg tea.Msg) Model {
 		if !m.MouseWheelEnabled {
 			break
 		}
-
 		switch msg.Button {
 		case tea.MouseWheelDown:
+			// NOTE: some terminal emulators don't send the shift event for
+			// mouse actions.
+			if msg.Mod.Contains(tea.ModShift) {
+				m.ScrollRight(m.horizontalStep)
+				break
+			}
 			m.ScrollDown(m.MouseWheelDelta)
-
 		case tea.MouseWheelUp:
+			// NOTE: some terminal emulators don't send the shift event for
+			// mouse actions.
+			if msg.Mod.Contains(tea.ModShift) {
+				m.ScrollLeft(m.horizontalStep)
+				break
+			}
 			m.ScrollUp(m.MouseWheelDelta)
+		case tea.MouseWheelLeft:
+			m.ScrollLeft(m.horizontalStep)
+		case tea.MouseWheelRight:
+			m.ScrollRight(m.horizontalStep)
 		}
 	}
 
