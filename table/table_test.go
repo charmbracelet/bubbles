@@ -3,6 +3,7 @@ package table
 import (
 	"testing"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/golden"
@@ -155,5 +156,68 @@ func TestTableAlignment(t *testing.T) {
 		)
 		got := ansi.Strip(baseStyle.Render(biscuits.View()))
 		golden.RequireEqual(t, []byte(got))
+	})
+}
+
+func TestWrapCursor(t *testing.T) {
+	t.Run("with default settings, wraps cursor to bottom on up", func(t *testing.T) {
+		model := New(
+			WithRows([]Row{
+				{"First"},
+				{"Second"},
+				{"Third"},
+			}),
+		)
+		model.Update(tea.KeyMsg{Type: tea.KeyUp})
+		if model.Cursor() != 2 {
+			t.Fatal("Expected cursor to be 2, actual value ", model.Cursor())
+		}
+	})
+	t.Run("with default settings, wraps cursor to top on down", func(t *testing.T) {
+		model := New(
+			WithRows([]Row{
+				{"First"},
+				{"Second"},
+				{"Third"},
+			}),
+		)
+		model.Update(tea.KeyMsg{Type: tea.KeyDown})
+		model.Update(tea.KeyMsg{Type: tea.KeyDown})
+		model.Update(tea.KeyMsg{Type: tea.KeyDown})
+		model.Update(tea.KeyMsg{Type: tea.KeyDown})
+		if model.Cursor() != 0 {
+			t.Fatal("Expected cursor to be 0, actual value ", model.Cursor())
+		}
+	})
+	t.Run("with wrap cursor off, does not wrap on up", func(t *testing.T) {
+		model := New(
+			WithRows([]Row{
+				{"First"},
+				{"Second"},
+				{"Third"},
+			}),
+			WithWrapCursor(false),
+		)
+		model.Update(tea.KeyMsg{Type: tea.KeyUp})
+		if model.Cursor() != 0 {
+			t.Fatal("Expected cursor to be 0, actual value ", model.Cursor())
+		}
+	})
+	t.Run("with wrap cursor off, does not wrap on down", func(t *testing.T) {
+		model := New(
+			WithRows([]Row{
+				{"First"},
+				{"Second"},
+				{"Third"},
+			}),
+			WithWrapCursor(false),
+		)
+		model.Update(tea.KeyMsg{Type: tea.KeyDown})
+		model.Update(tea.KeyMsg{Type: tea.KeyDown})
+		model.Update(tea.KeyMsg{Type: tea.KeyDown})
+		model.Update(tea.KeyMsg{Type: tea.KeyDown})
+		if model.Cursor() != 2 {
+			t.Fatal("Expected cursor to be 2, actual value ", model.Cursor())
+		}
 	})
 }
