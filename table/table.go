@@ -220,13 +220,15 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		case key.Matches(msg, m.KeyMap.LineUp):
 			if m.cursor == 0 && m.wrapCursor {
 				m.SetCursor(len(m.rows) - 1)
+			} else {
+				m.MoveUp(1)
 			}
-			m.MoveUp(1)
 		case key.Matches(msg, m.KeyMap.LineDown):
 			if m.cursor == len(m.rows)-1 && m.wrapCursor {
 				m.SetCursor(0)
+			} else {
+				m.MoveDown(1)
 			}
-			m.MoveDown(1)
 		case key.Matches(msg, m.KeyMap.PageUp):
 			m.MoveUp(m.viewport.Height)
 		case key.Matches(msg, m.KeyMap.PageDown):
