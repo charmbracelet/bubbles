@@ -160,62 +160,45 @@ func TestTableAlignment(t *testing.T) {
 }
 
 func TestWrapCursor(t *testing.T) {
+	baseOptions := []Option{
+		WithColumns([]Column{
+			{Title: "Col1", Width: 10},
+		}),
+		WithRows([]Row{
+			{"First"},
+			{"Second"},
+			{"Third"},
+		}),
+		WithFocused(true),
+	}
 	t.Run("with default settings, wraps cursor to bottom on up", func(t *testing.T) {
-		model := New(
-			WithRows([]Row{
-				{"First"},
-				{"Second"},
-				{"Third"},
-			}),
-		)
-		model.Update(tea.KeyMsg{Type: tea.KeyUp})
+		model := New(baseOptions...)
+		model, _ = model.Update(tea.KeyMsg{Type: tea.KeyUp})
 		if model.Cursor() != 2 {
 			t.Fatal("Expected cursor to be 2, actual value ", model.Cursor())
 		}
 	})
 	t.Run("with default settings, wraps cursor to top on down", func(t *testing.T) {
-		model := New(
-			WithRows([]Row{
-				{"First"},
-				{"Second"},
-				{"Third"},
-			}),
-		)
-		model.Update(tea.KeyMsg{Type: tea.KeyDown})
-		model.Update(tea.KeyMsg{Type: tea.KeyDown})
-		model.Update(tea.KeyMsg{Type: tea.KeyDown})
-		model.Update(tea.KeyMsg{Type: tea.KeyDown})
+		model := New(baseOptions...)
+		model, _ = model.Update(tea.KeyMsg{Type: tea.KeyDown})
+		model, _ = model.Update(tea.KeyMsg{Type: tea.KeyDown})
+		model, _ = model.Update(tea.KeyMsg{Type: tea.KeyDown})
 		if model.Cursor() != 0 {
 			t.Fatal("Expected cursor to be 0, actual value ", model.Cursor())
 		}
 	})
 	t.Run("with wrap cursor off, does not wrap on up", func(t *testing.T) {
-		model := New(
-			WithRows([]Row{
-				{"First"},
-				{"Second"},
-				{"Third"},
-			}),
-			WithWrapCursor(false),
-		)
-		model.Update(tea.KeyMsg{Type: tea.KeyUp})
-		if model.Cursor() != 0 {
-			t.Fatal("Expected cursor to be 0, actual value ", model.Cursor())
+		model := New(append(baseOptions, WithWrapCursor(false))...)
+		updated, _ := model.Update(tea.KeyMsg{Type: tea.KeyUp})
+		if updated.Cursor() != 0 {
+			t.Fatal("Expected cursor to be 0, actual value ", updated.Cursor())
 		}
 	})
 	t.Run("with wrap cursor off, does not wrap on down", func(t *testing.T) {
-		model := New(
-			WithRows([]Row{
-				{"First"},
-				{"Second"},
-				{"Third"},
-			}),
-			WithWrapCursor(false),
-		)
-		model.Update(tea.KeyMsg{Type: tea.KeyDown})
-		model.Update(tea.KeyMsg{Type: tea.KeyDown})
-		model.Update(tea.KeyMsg{Type: tea.KeyDown})
-		model.Update(tea.KeyMsg{Type: tea.KeyDown})
+		model := New(append(baseOptions, WithWrapCursor(false))...)
+		model, _ = model.Update(tea.KeyMsg{Type: tea.KeyDown})
+		model, _ = model.Update(tea.KeyMsg{Type: tea.KeyDown})
+		model, _ = model.Update(tea.KeyMsg{Type: tea.KeyDown})
 		if model.Cursor() != 2 {
 			t.Fatal("Expected cursor to be 2, actual value ", model.Cursor())
 		}
