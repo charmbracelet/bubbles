@@ -466,16 +466,30 @@ func (m Model) updateAsModel(msg tea.Msg) (Model, tea.Cmd) {
 		}
 		switch msg.Button { //nolint:exhaustive
 		case tea.MouseButtonWheelUp:
-			lines := m.ScrollUp(m.MouseWheelDelta)
-			if m.HighPerformanceRendering {
-				cmd = ViewUp(m, lines)
+			if msg.Shift {
+				// Note that not every terminal emulator sends the shift event for mouse actions by default (looking at you Konsole)
+				m.ScrollLeft(m.horizontalStep)
+			} else {
+				lines := m.ScrollUp(m.MouseWheelDelta)
+				if m.HighPerformanceRendering {
+					cmd = ViewUp(m, lines)
+				}
 			}
 
 		case tea.MouseButtonWheelDown:
-			lines := m.ScrollDown(m.MouseWheelDelta)
-			if m.HighPerformanceRendering {
-				cmd = ViewDown(m, lines)
+			if msg.Shift {
+				m.ScrollRight(m.horizontalStep)
+			} else {
+				lines := m.ScrollDown(m.MouseWheelDelta)
+				if m.HighPerformanceRendering {
+					cmd = ViewDown(m, lines)
+				}
 			}
+		// Note that not every terminal emulator sends the horizontal wheel events by default (looking at you Konsole)
+		case tea.MouseButtonWheelLeft:
+			m.ScrollLeft(m.horizontalStep)
+		case tea.MouseButtonWheelRight:
+			m.ScrollRight(m.horizontalStep)
 		}
 	}
 
