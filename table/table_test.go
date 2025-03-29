@@ -189,9 +189,9 @@ func TestWrapCursor(t *testing.T) {
 	})
 	t.Run("with wrap cursor off, does not wrap on up", func(t *testing.T) {
 		model := New(append(baseOptions, WithWrapCursor(false))...)
-		updated, _ := model.Update(tea.KeyMsg{Type: tea.KeyUp})
-		if updated.Cursor() != 0 {
-			t.Fatal("Expected cursor to be 0, actual value ", updated.Cursor())
+		model, _ = model.Update(tea.KeyMsg{Type: tea.KeyUp})
+		if model.Cursor() != 0 {
+			t.Fatal("Expected cursor to be 0, actual value ", model.Cursor())
 		}
 	})
 	t.Run("with wrap cursor off, does not wrap on down", func(t *testing.T) {
