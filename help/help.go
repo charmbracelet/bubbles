@@ -1,3 +1,4 @@
+// Package help provides a simple help view for Bubble Tea applications.
 package help
 
 import (

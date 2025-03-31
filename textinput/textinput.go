@@ -1,3 +1,5 @@
+// Package textinput provides a text input component for Bubble Tea
+// applications.
 package textinput
 
 import (
@@ -165,7 +167,7 @@ func New() Model {
 	}
 }
 
-// SetWidth sets the width of the text input.
+// Width returns the width of the text input.
 func (m Model) Width() int {
 	return m.width
 }
@@ -797,7 +799,7 @@ func (m *Model) MatchedSuggestions() []string {
 	return m.getSuggestions(m.matchedSuggestions)
 }
 
-// CurrentSuggestion returns the currently selected suggestion index.
+// CurrentSuggestionIndex returns the currently selected suggestion index.
 func (m *Model) CurrentSuggestionIndex() int {
 	return m.currentSuggestionIndex
 }
