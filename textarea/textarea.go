@@ -1,3 +1,5 @@
+// Package textarea provides a multi-line text input component for Bubble Tea
+// applications.
 package textarea
 
 import (

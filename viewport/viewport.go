@@ -178,7 +178,7 @@ func (m *Model) SetYOffset(n int) {
 	m.YOffset = clamp(n, 0, m.maxYOffset())
 }
 
-// PageDown moves the view down by the number of lines in the viewport.
+// ViewDown moves the view down by the number of lines in the viewport.
 // Basically, "page down".
 //
 // Deprecated: use [Model.PageDown] instead.

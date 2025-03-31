@@ -289,7 +289,7 @@ func (m *Model) SetFilterText(filter string) {
 	m.updateKeybindings()
 }
 
-// Helper method for setting the filtering state manually.
+// SetFilterState allows setting the filtering state manually.
 func (m *Model) SetFilterState(state FilterState) {
 	m.Paginator.Page = 0
 	m.cursor = 0

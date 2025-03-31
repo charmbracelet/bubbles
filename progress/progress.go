@@ -1,3 +1,4 @@
+// Package progress provides a simple progress bar for Bubble Tea applications.
 package progress
 
 import (
