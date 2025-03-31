@@ -1,3 +1,5 @@
+// Package viewport provides a component for rendering a viewport in a Bubble
+// Tea.
 package viewport
 
 import "github.com/charmbracelet/bubbles/key"
