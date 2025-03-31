@@ -12,6 +12,7 @@ import (
 	"github.com/charmbracelet/bubbles/runeutil"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 	rw "github.com/mattn/go-runewidth"
 	"github.com/rivo/uniseg"
 )
@@ -701,40 +702,31 @@ func (m Model) placeholderView() string {
 	var (
 		v     string
 		style = m.PlaceholderStyle.Inline(true).Render
+		p     = m.PromptStyle.Render(m.Prompt)
 	)
 
-	p := make([]rune, m.Width+1)
-	copy(p, []rune(m.Placeholder))
-
 	m.Cursor.TextStyle = m.PlaceholderStyle
-	m.Cursor.SetChar(string(p[:1]))
+	first, rest, _, _ := uniseg.FirstGraphemeClusterInString(m.Placeholder, 0)
+	m.Cursor.SetChar(first)
 	v += m.Cursor.View()
 
 	// If the entire placeholder is already set and no padding is needed, finish
-	if m.Width < 1 && len(p) <= 1 {
+	if m.Width < 1 && uniseg.StringWidth(rest) <= 1 {
 		return m.PromptStyle.Render(m.Prompt) + v
 	}
 
 	// If Width is set then size placeholder accordingly
 	if m.Width > 0 {
-		// available width is width - len + cursor offset of 1
-		minWidth := lipgloss.Width(m.Placeholder)
-		availWidth := m.Width - minWidth + 1
-
-		// if width < len, 'subtract'(add) number to len and dont add padding
-		if availWidth < 0 {
-			minWidth += availWidth
-			availWidth = 0
-		}
-		// append placeholder[len] - cursor, append padding
-		v += style(string(p[1:minWidth]))
-		v += style(strings.Repeat(" ", availWidth))
+		width := m.Width - lipgloss.Width(p) - lipgloss.Width(v)
+		placeholderRest := ansi.Truncate(rest, width, "…")
+		availWidth := max(0, width-lipgloss.Width(placeholderRest))
+		v += style(placeholderRest) + strings.Repeat(" ", availWidth)
 	} else {
 		// if there is no width, the placeholder can be any length
-		v += style(string(p[1:]))
+		v += style(rest)
 	}
 
-	return m.PromptStyle.Render(m.Prompt) + v
+	return p + v
 }
 
 // Blink is a command used to initialize cursor blinking.
