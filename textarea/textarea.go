@@ -1269,11 +1269,13 @@ func (m Model) placeholderView() string {
 		case i == 0:
 			// first character of first line as cursor with character
 			m.Cursor.TextStyle = m.style.computedPlaceholder()
-			m.Cursor.SetChar(string(plines[0][0]))
+
+			ch, rest, _, _ := uniseg.FirstGraphemeClusterInString(plines[0], 0)
+			m.Cursor.SetChar(ch)
 			s.WriteString(lineStyle.Render(m.Cursor.View()))
 
 			// the rest of the first line
-			s.WriteString(lineStyle.Render(style.Render(plines[0][1:] + strings.Repeat(" ", max(0, m.width-uniseg.StringWidth(plines[0]))))))
+			s.WriteString(lineStyle.Render(style.Render(rest)))
 		// remaining lines
 		case len(plines) > i:
 			// current line placeholder text
