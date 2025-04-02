@@ -1,3 +1,4 @@
+// Package table provides a simple table component for Bubble Tea applications.
 package table
 
 import (

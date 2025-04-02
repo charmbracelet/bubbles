@@ -1,3 +1,5 @@
+// Package filepicker provides a file picker component for Bubble Tea
+// applications.
 package filepicker
 
 import (

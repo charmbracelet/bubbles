@@ -1,3 +1,5 @@
+// Package textinput provides a text input component for Bubble Tea
+// applications.
 package textinput
 
 import (
@@ -752,15 +754,18 @@ func clamp(v, low, high int) int {
 
 // Deprecated.
 
-// Deprecated: use cursor.Mode.
+// Deprecated: use [cursor.Mode].
+//
+//nolint:revive
 type CursorMode int
 
+//nolint:revive
 const (
-	// Deprecated: use cursor.CursorBlink.
+	// Deprecated: use [cursor.CursorBlink].
 	CursorBlink = CursorMode(cursor.CursorBlink)
-	// Deprecated: use cursor.CursorStatic.
+	// Deprecated: use [cursor.CursorStatic].
 	CursorStatic = CursorMode(cursor.CursorStatic)
-	// Deprecated: use cursor.CursorHide.
+	// Deprecated: use [cursor.CursorHide].
 	CursorHide = CursorMode(cursor.CursorHide)
 )
 
@@ -768,12 +773,16 @@ func (c CursorMode) String() string {
 	return cursor.Mode(c).String()
 }
 
-// Deprecated: use cursor.Mode().
+// Deprecated: use [cursor.Mode].
+//
+//nolint:revive
 func (m Model) CursorMode() CursorMode {
 	return CursorMode(m.Cursor.Mode())
 }
 
 // Deprecated: use cursor.SetMode().
+//
+//nolint:revive
 func (m *Model) SetCursorMode(mode CursorMode) tea.Cmd {
 	return m.Cursor.SetMode(cursor.Mode(mode))
 }
@@ -811,7 +820,7 @@ func (m *Model) MatchedSuggestions() []string {
 	return m.getSuggestions(m.matchedSuggestions)
 }
 
-// CurrentSuggestion returns the currently selected suggestion index.
+// CurrentSuggestionIndex returns the currently selected suggestion index.
 func (m *Model) CurrentSuggestionIndex() int {
 	return m.currentSuggestionIndex
 }
