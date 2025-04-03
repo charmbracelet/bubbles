@@ -17,12 +17,13 @@ type Model struct {
 	KeyMap KeyMap
 	Help   help.Model
 
-	headers []string
-	rows    [][]string
-	cursor  int
-	focus   bool
-	styles  Styles
-	yOffset int
+	headers      []string
+	rows         [][]string
+	cursor       int
+	focus        bool
+	styles       Styles
+	yOffset      int
+	useStyleFunc bool
 
 	table *table.Table
 }
@@ -153,7 +154,7 @@ func NewFromTemplate(t *table.Table, rows [][]string, headers []string) *Model {
 // The final two values will set the row and column separators in that order.
 //
 // With more than four arguments nothing will be set.
-func (m *Model) SetBorder(s ...bool) {
+func (m *Model) SetBorder(s ...bool) *Model {
 	m.table.Border(m.styles.border)
 	top, right, bottom, left, rowSeparator, columnSeparator := m.whichSides(s...)
 	m.table.
@@ -163,6 +164,7 @@ func (m *Model) SetBorder(s ...bool) {
 		BorderLeft(left).
 		BorderRow(rowSeparator).
 		BorderColumn(columnSeparator)
+	return m
 }
 
 // Border sets the top border.
@@ -228,6 +230,345 @@ func (m *Model) BorderStyle(style lipgloss.Style) *Model {
 	return m
 }
 
+// Options
+
+// Option is used to set options in [New]. For example:
+//
+//	table := New(WithHeaders([]string{"Rank", "City", "Country", "Population"}))
+type Option func(*Model)
+
+// WithHeaders sets the table headers.
+func WithHeaders(headers ...string) Option {
+	return func(m *Model) {
+		m.SetHeaders(headers...)
+	}
+}
+
+// TODO andrey confirm this... I'm pretty sure that's how it's working now
+//
+// WithHeight sets the height of the table. The given height will be the total
+// table height including borders, margins, and padding.
+func WithHeight(h int) Option {
+	return func(m *Model) {
+		m.table.Height(h)
+	}
+}
+
+// WithWidth sets the width of the table. The given width will be the total
+// table width including borders, margins, and padding.
+func WithWidth(w int) Option {
+	return func(m *Model) {
+		m.table.Width(w)
+	}
+}
+
+// WithRows sets the table rows.
+func WithRows(rows ...[]string) Option {
+	return func(m *Model) {
+		m.SetRows(rows...)
+	}
+}
+
+// WithFocused sets the focus state of the table. This function is used as an
+// [Option] in when creating a table with [New].
+func WithFocused(f bool) Option {
+	return func(m *Model) {
+		m.focus = f
+	}
+}
+
+// WithStyles sets the table styles.
+func WithStyles(s Styles) Option {
+	return func(m *Model) {
+		m.SetStyles(s)
+	}
+}
+
+// WithStyleFunc sets the table [table.StyleFunc] for conditional styling.
+func WithStyleFunc(s table.StyleFunc) Option {
+	return func(m *Model) {
+		m.useStyleFunc = true
+		m.table.StyleFunc(s)
+	}
+}
+
+// WithKeyMap sets the [KeyMap].
+func WithKeyMap(km KeyMap) Option {
+	return func(m *Model) {
+		m.KeyMap = km
+	}
+}
+
+// Setters
+
+// SetHeaders sets the table headers.
+func (m *Model) SetHeaders(headers ...string) *Model {
+	m.headers = headers
+	m.table.Headers(headers...)
+	return m
+}
+
+// SetRows sets the table rows.
+func (m *Model) SetRows(rows ...[]string) *Model {
+	m.rows = rows
+	m.table.Rows(rows...)
+	return m
+}
+
+// SetCursor sets the cursor position in the table.
+func (m *Model) SetCursor(n int) *Model {
+	m.cursor = clamp(n, 0, len(m.rows)-1)
+	return m
+}
+
+// SetHeight sets the width of the table. The given height will be the total
+// table height including borders, margins, and padding.
+func (m *Model) SetHeight(h int) *Model {
+	m.table.Height(h)
+	return m
+}
+
+// SetWidth sets the width of the table. The given width will be the total
+// table width including borders, margins, and padding.
+func (m *Model) SetWidth(w int) *Model {
+	m.table.Width(w)
+	return m
+}
+
+// SetFocused sets the focus state of the table.
+func (m *Model) SetFocused(f bool) *Model {
+	m.focus = f
+	return m
+}
+
+// SetYOffset sets the YOffset position in the table.
+func (m *Model) SetYOffset(n int) *Model {
+	m.yOffset = clamp(n, 0, len(m.rows)-1)
+	m.table.YOffset(m.yOffset)
+	return m
+}
+
+// SetStyles sets the table styles, only applying non-empty [Styles]. Note: using
+// [Model.SetStyleFunc] will override styles set in this function.
+func (m *Model) SetStyles(s Styles) *Model {
+	if !reflect.DeepEqual(s.Selected, lipgloss.Style{}) {
+		m.styles.Selected = s.Selected
+	}
+	if !reflect.DeepEqual(s.Header, lipgloss.Style{}) {
+		m.styles.Header = s.Header
+	}
+	if !reflect.DeepEqual(s.Cell, lipgloss.Style{}) {
+		m.styles.Cell = s.Cell
+	}
+	return m
+}
+
+// OverwriteStyles sets the table styles, overwriting all existing styles. Note:
+// using [Model.SetStyleFunc] will override styles set in this function.
+func (m *Model) OverwriteStyles(s Styles) *Model {
+	m.styles = s
+	return m
+}
+
+// TODO
+func (m *Model) OverwriteStylesFromLipgloss(t *table.Table) {
+	t.Rows(m.rows...)
+	t.Headers(m.headers...)
+	m.table = t
+}
+
+// SetStyleFunc sets the table's custom [table.StyleFunc]. Use this for conditional
+// styling e.g. styling a cell by its contents or by index.
+func (m *Model) SetStyleFunc(s table.StyleFunc) *Model {
+	m.useStyleFunc = true
+	m.table.StyleFunc(s)
+	return m
+}
+
+// Creation
+
+// New creates a new model for the table widget.
+func New(opts ...Option) *Model {
+	m := Model{
+		cursor: 0,
+		KeyMap: DefaultKeyMap(),
+		Help:   help.New(),
+		table:  table.New(),
+	}
+
+	m.SetStyles(DefaultStyles())
+
+	// Set border defaults here
+	m.Border(lipgloss.NormalBorder())
+	m.BorderTop(true)
+	m.BorderBottom(true)
+	m.BorderLeft(true)
+	m.BorderRight(true)
+	m.BorderColumn(false)
+	m.BorderRow(false)
+	m.BorderHeader(true)
+
+	for _, opt := range opts {
+		opt(&m)
+	}
+
+	return &m
+}
+
+// FromValues create the table rows from a simple string. It uses `\n` by
+// default for getting all the rows and the given separator for the fields on
+// each row.
+func (m *Model) FromValues(value, separator string) {
+	rows := [][]string{}
+	for _, line := range strings.Split(value, "\n") {
+		row := []string{}
+		for _, field := range strings.Split(line, separator) {
+			row = append(row, field)
+		}
+		rows = append(rows, row)
+	}
+
+	m.SetRows(rows...)
+}
+
+// Bubble Tea Methods
+
+// Update is the Bubble Tea [tea.Model] update loop.
+func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
+	if !m.focus {
+		return m, nil
+	}
+	table := m.table.String()
+	// TODO make this not hard coded?
+	height := lipgloss.Height(table) - 6
+
+	switch msg := msg.(type) {
+	case tea.KeyPressMsg:
+		switch {
+		case key.Matches(msg, m.KeyMap.LineUp):
+			m.MoveUp(1)
+		case key.Matches(msg, m.KeyMap.LineDown):
+			m.MoveDown(1)
+		case key.Matches(msg, m.KeyMap.PageUp):
+			m.MoveUp(height)
+		case key.Matches(msg, m.KeyMap.PageDown):
+			m.MoveDown(height)
+		case key.Matches(msg, m.KeyMap.HalfPageUp):
+			m.MoveUp(height / 2) //nolint:mnd
+		case key.Matches(msg, m.KeyMap.HalfPageDown):
+			m.MoveDown(height / 2) //nolint:mnd
+		case key.Matches(msg, m.KeyMap.GotoTop):
+			m.GotoTop()
+		case key.Matches(msg, m.KeyMap.GotoBottom):
+			m.GotoBottom()
+		}
+	}
+
+	return m, nil
+}
+
+// Focus focuses the table, allowing the user to move around the rows and
+// interact.
+func (m *Model) Focus() {
+	m.focus = true
+}
+
+// Blur blurs the table, preventing selection or movement.
+func (m *Model) Blur() {
+	m.focus = false
+}
+
+// View renders the table [Model].
+func (m Model) View() string {
+	if !m.useStyleFunc {
+		// Update the position-sensitive styles as the cursor position may have
+		// changed in Update.
+		m.table.StyleFunc(func(row, col int) lipgloss.Style {
+			if row == m.cursor {
+				return m.styles.Selected
+			}
+			if row == table.HeaderRow {
+				return m.styles.Header
+			}
+			return m.styles.Cell
+		})
+	}
+	return m.table.String()
+}
+
+// HelpView is a helper method for rendering the help menu from the keymap.
+// Note that this view is not rendered by default and you must call it
+// manually in your application, where applicable.
+func (m Model) HelpView() string {
+	return m.Help.View(m.KeyMap)
+}
+
+// Getters
+
+// Focused returns the focus state of the table.
+func (m Model) Focused() bool {
+	return m.focus
+}
+
+// Rows returns the current rows.
+func (m Model) Rows() [][]string {
+	return m.rows
+}
+
+// GetHeaders returns the current headers.
+func (m Model) Headers() []string {
+	return m.headers
+}
+
+// Cursor returns the index of the selected row.
+func (m Model) Cursor() int {
+	return m.cursor
+}
+
+// SelectedRow returns the selected row. You can cast it to your own
+// implementation.
+func (m Model) SelectedRow() []string {
+	if m.cursor < 0 || m.cursor >= len(m.rows) {
+		return nil
+	}
+
+	return m.rows[m.cursor]
+}
+
+// Movement
+
+// MoveUp moves the selection up by any number of rows.
+// It can not go above the first row.
+func (m *Model) MoveUp(n int) {
+	m.SetCursor(m.cursor - n)
+	m.SetYOffset(m.yOffset - n)
+	m.table.YOffset(m.yOffset)
+}
+
+// MoveDown moves the selection down by any number of rows.
+// It can not go below the last row.
+func (m *Model) MoveDown(n int) {
+	m.SetCursor(m.cursor + n)
+	m.SetYOffset(m.yOffset + n)
+	m.table.YOffset(m.yOffset)
+}
+
+// GotoTop moves the selection to the first row.
+func (m *Model) GotoTop() {
+	m.MoveUp(m.cursor)
+}
+
+// GotoBottom moves the selection to the last row.
+func (m *Model) GotoBottom() {
+	m.MoveDown(len(m.rows))
+}
+
+// Helpers
+
+func clamp(v, low, high int) int {
+	return min(max(v, low), high)
+}
+
 // whichSides is a helper method for setting values on sides of a block based on
 // the number of arguments given.
 // 0: set all sides to true
@@ -285,310 +626,4 @@ func (m Model) whichSides(s ...bool) (top, right, bottom, left, rowSeparator, co
 		left = m.styles.borderLeft
 	}
 	return top, right, bottom, left, rowSeparator, columnSeparator
-}
-
-// Option is used to set options in New. For example:
-//
-//	table := New(WithColumns([]Column{{Title: "ID", Width: 10}}))
-type Option func(*Model)
-
-// New creates a new model for the table widget.
-func New(opts ...Option) *Model {
-	m := Model{
-		cursor: 0,
-		KeyMap: DefaultKeyMap(),
-		Help:   help.New(),
-		table:  table.New(),
-	}
-
-	m.SetStyles(DefaultStyles())
-
-	// Set border defaults here...
-	m.Border(lipgloss.NormalBorder())
-	m.BorderTop(true)
-	m.BorderBottom(true)
-	m.BorderLeft(true)
-	m.BorderRight(true)
-	m.BorderColumn(false)
-	m.BorderRow(false)
-	m.BorderHeader(true)
-
-	for _, opt := range opts {
-		opt(&m)
-	}
-
-	return &m
-}
-
-func (m *Model) SetHeaders(headers ...string) *Model {
-	m.headers = headers
-	m.table.Headers(headers...)
-	return m
-}
-
-// WithHeaders sets the table headers.
-func WithHeaders(headers ...string) Option {
-	return func(m *Model) {
-		m.SetHeaders(headers...)
-	}
-}
-
-func (m *Model) SetRows(rows ...[]string) *Model {
-	m.rows = rows
-	m.table.Rows(rows...)
-	return m
-}
-
-// WithRows sets the table rows.
-func WithRows(rows ...[]string) Option {
-	return func(m *Model) {
-		m.SetRows(rows...)
-	}
-}
-
-func (m *Model) SetHeight(h int) *Model {
-	m.table.Height(h)
-	return m
-}
-
-// WithHeight sets the height of the table.
-func WithHeight(h int) Option {
-	return func(m *Model) {
-		m.table.Height(h)
-	}
-}
-
-func (m *Model) SetWidth(w int) *Model {
-	m.table.Width(w)
-	return m
-}
-
-// WithWidth sets the width of the table.
-func WithWidth(w int) Option {
-	return func(m *Model) {
-		m.table.Width(w)
-	}
-}
-
-func (m *Model) SetFocused(f bool) *Model {
-	m.focus = f
-	return m
-}
-
-// WithFocused sets the focus state of the table.
-func WithFocused(f bool) Option {
-	return func(m *Model) {
-		m.focus = f
-	}
-}
-
-// SetStyles sets the table styles.
-func (m *Model) SetStyles(s Styles) {
-	// Update table styles.
-	if !reflect.DeepEqual(s.Selected, lipgloss.Style{}) {
-		m.styles.Selected = s.Selected
-	}
-	if !reflect.DeepEqual(s.Header, lipgloss.Style{}) {
-		m.styles.Header = s.Header
-	}
-	if !reflect.DeepEqual(s.Cell, lipgloss.Style{}) {
-		m.styles.Cell = s.Cell
-	}
-}
-
-func (m *Model) SetStyleFromLipgloss(t *table.Table) {
-	t.Rows(m.rows...)
-	t.Headers(m.headers...)
-	m.table = t
-}
-
-// SetStyleFunc sets the table's custom StyleFunc. Use this for conditional
-// styling e.g. styling a cell by its contents or by index.
-func (m *Model) SetStyleFunc(s table.StyleFunc) {
-	m.table.StyleFunc(s)
-}
-
-// WithStyles sets the table styles.
-func WithStyles(s Styles) Option {
-	return func(m *Model) {
-		m.SetStyles(s)
-	}
-}
-
-// WithStyleFunc sets the table StyleFunc for conditional styling.
-func WithStyleFunc(s table.StyleFunc) Option {
-	return func(m *Model) {
-		m.table.StyleFunc(s)
-	}
-}
-
-// WithKeyMap sets the key map.
-func WithKeyMap(km KeyMap) Option {
-	return func(m *Model) {
-		m.KeyMap = km
-	}
-}
-
-// Update is the Bubble Tea update loop.
-func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
-	if !m.focus {
-		return m, nil
-	}
-	table := m.table.String()
-	// TODO make this not hard coded?
-	height := lipgloss.Height(table) - 6
-
-	switch msg := msg.(type) {
-	case tea.KeyPressMsg:
-		switch {
-		case key.Matches(msg, m.KeyMap.LineUp):
-			m.MoveUp(1)
-		case key.Matches(msg, m.KeyMap.LineDown):
-			m.MoveDown(1)
-		case key.Matches(msg, m.KeyMap.PageUp):
-			m.MoveUp(height)
-		case key.Matches(msg, m.KeyMap.PageDown):
-			m.MoveDown(height)
-		case key.Matches(msg, m.KeyMap.HalfPageUp):
-			m.MoveUp(height / 2) //nolint:mnd
-		case key.Matches(msg, m.KeyMap.HalfPageDown):
-			m.MoveDown(height / 2) //nolint:mnd
-		case key.Matches(msg, m.KeyMap.GotoTop):
-			m.GotoTop()
-		case key.Matches(msg, m.KeyMap.GotoBottom):
-			m.GotoBottom()
-		}
-	}
-
-	return m, nil
-}
-
-// Focused returns the focus state of the table.
-func (m Model) Focused() bool {
-	return m.focus
-}
-
-// Focus focuses the table, allowing the user to move around the rows and
-// interact.
-func (m *Model) Focus() {
-	m.focus = true
-}
-
-// Blur blurs the table, preventing selection or movement.
-func (m *Model) Blur() {
-	m.focus = false
-}
-
-// View renders the component.
-func (m Model) View() string {
-	// Update the position-sensitive styles as the cursor position may have
-	// changed in Update.
-	m.table.StyleFunc(func(row, col int) lipgloss.Style {
-		if row == m.cursor {
-			return m.styles.Selected
-		}
-		if row == table.HeaderRow {
-			return m.styles.Header
-		}
-		return m.styles.Cell
-	})
-
-	return m.table.String()
-}
-
-// HelpView is a helper method for rendering the help menu from the keymap.
-// Note that this view is not rendered by default and you must call it
-// manually in your application, where applicable.
-func (m Model) HelpView() string {
-	return m.Help.View(m.KeyMap)
-}
-
-// Rows returns the current rows.
-func (m Model) Rows() [][]string {
-	return m.rows
-}
-
-// GetHeaders returns the current headers.
-func (m Model) Headers() []string {
-	return m.headers
-}
-
-// WithWidth sets the width of the table.
-func (m *Model) WithWidth(w int) {
-	m.table.Width(w)
-}
-
-// WithHeight sets the height of the table.
-func (m *Model) WithHeight(h int) {
-	m.table.Height(h)
-}
-
-// Cursor returns the index of the selected row.
-func (m Model) Cursor() int {
-	return m.cursor
-}
-
-// SetCursor sets the cursor position in the table.
-func (m *Model) SetCursor(n int) {
-	m.cursor = clamp(n, 0, len(m.rows)-1)
-}
-
-// SelectedRow returns the selected row. You can cast it to your own
-// implementation.
-func (m Model) SelectedRow() []string {
-	if m.cursor < 0 || m.cursor >= len(m.rows) {
-		return nil
-	}
-
-	return m.rows[m.cursor]
-}
-
-// SetYOffset sets the YOffset position in the table.
-func (m *Model) SetYOffset(n int) {
-	m.yOffset = clamp(n, 0, len(m.rows)-1)
-	m.table.YOffset(m.yOffset)
-}
-
-// MoveUp moves the selection up by any number of rows.
-// It can not go above the first row.
-func (m *Model) MoveUp(n int) {
-	m.SetCursor(m.cursor - n)
-	m.SetYOffset(m.yOffset - n)
-	m.table.YOffset(m.yOffset)
-}
-
-// MoveDown moves the selection down by any number of rows.
-// It can not go below the last row.
-func (m *Model) MoveDown(n int) {
-	m.SetCursor(m.cursor + n)
-	m.SetYOffset(m.yOffset + n)
-	m.table.YOffset(m.yOffset)
-}
-
-// GotoTop moves the selection to the first row.
-func (m *Model) GotoTop() {
-	m.MoveUp(m.cursor)
-}
-
-// GotoBottom moves the selection to the last row.
-func (m *Model) GotoBottom() {
-	m.MoveDown(len(m.rows))
-}
-
-// FromValues create the table rows from a simple string. It uses `\n` by
-// default for getting all the rows and the given separator for the fields on
-// each row.
-func (m *Model) FromValues(value, separator string) {
-	var rows [][]string
-	for i, line := range strings.Split(value, "\n") {
-		for j, field := range strings.Split(line, separator) {
-			rows[i][j] = field
-		}
-	}
-
-	m.SetRows(rows...)
-}
-
-func clamp(v, low, high int) int {
-	return min(max(v, low), high)
 }
