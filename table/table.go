@@ -110,14 +110,17 @@ type Styles struct {
 	Selected lipgloss.Style
 }
 
+// DefaultStyles returns sensible default table styles.
 func DefaultStyles() Styles {
 	return Styles{
 		Header:   lipgloss.NewStyle().Bold(true).Padding(0, 1),
-		Cell:     lipgloss.NewStyle().Margin(0, 1),
-		Selected: lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("212")).Margin(0, 1),
+		Cell:     lipgloss.NewStyle().Padding(0, 1),
+		Selected: lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("212")).Padding(0, 1),
 	}
 }
 
+// TODO do we want this?
+// NewFromTemplate lets you create a table [Model] from Lip Gloss' [table.Table].
 func NewFromTemplate(t *table.Table, rows [][]string, headers []string) *Model {
 	m := &Model{
 		cursor: 0,
