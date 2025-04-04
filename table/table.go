@@ -348,12 +348,6 @@ func (m *Model) SetWidth(w int) *Model {
 	return m
 }
 
-// SetFocused sets the focus state of the table.
-func (m *Model) SetFocused(f bool) *Model {
-	m.focus = f
-	return m
-}
-
 // SetYOffset sets the YOffset position in the table.
 func (m *Model) SetYOffset(n int) *Model {
 	m.yOffset = clamp(n, 0, len(m.rows)-1)
