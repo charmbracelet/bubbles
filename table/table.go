@@ -250,8 +250,6 @@ func WithHeaders(headers ...string) Option {
 	}
 }
 
-// TODO andrey confirm this... I'm pretty sure that's how it's working now
-//
 // WithHeight sets the height of the table. The given height will be the total
 // table height including borders, margins, and padding. This function is used
 // as an [Option] in when creating a table with [New].

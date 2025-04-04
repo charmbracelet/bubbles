@@ -90,12 +90,6 @@ func TestTableAlignment(t *testing.T) {
 		golden.RequireEqual(t, []byte(biscuits.View()))
 	})
 	t.Run("With border", func(t *testing.T) {
-		// TODO how do we style header border?
-		//		s.Header = s.Header.
-		//			BorderStyle(lipgloss.NormalBorder()).
-		//			BorderForeground(lipgloss.Color("240")).
-		//			Bold(false)
-
 		biscuits := New(
 			WithHeaders(headers...),
 			WithRows(rows...),
