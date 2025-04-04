@@ -185,7 +185,7 @@ func TestSetStyles(t *testing.T) {
 		name   string
 		styles Styles
 	}{
-		{"empty styles; do nothing", Styles{
+		{"empty styles", Styles{
 			Selected: lipgloss.NewStyle(),
 			Header:   lipgloss.NewStyle(),
 			Cell:     lipgloss.NewStyle(),
