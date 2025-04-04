@@ -355,6 +355,30 @@ func TestNewFromTemplate(t *testing.T) {
 	golden.RequireEqual(t, []byte(bubblesTable.View()))
 }
 
+func TestOverwriteStylesFromLipgloss(t *testing.T) {
+	baseStyle := lipgloss.NewStyle().Padding(0, 1)
+	headerStyle := baseStyle.Foreground(lipgloss.Color("252")).Bold(true)
+	lipglossTable := table.New().
+		Border(lipgloss.NormalBorder()).
+		BorderStyle(lipgloss.NewStyle().Foreground(lipgloss.Color("238"))).
+		Width(80).
+		StyleFunc(func(row, col int) lipgloss.Style {
+			if row == table.HeaderRow {
+				return headerStyle
+			}
+
+			even := row%2 == 0
+
+			if even {
+				return baseStyle.Foreground(lipgloss.Color("245"))
+			}
+			return baseStyle.Foreground(lipgloss.Color("252"))
+		})
+	bubblesTable := New().SetHeaders(headers...).SetRows(rows...)
+	bubblesTable.OverwriteStylesFromLipgloss(lipglossTable)
+	golden.RequireEqual(t, []byte(bubblesTable.View()))
+}
+
 // Examples
 
 func ExampleOption() {
