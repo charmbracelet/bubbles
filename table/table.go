@@ -119,17 +119,19 @@ func DefaultStyles() Styles {
 	}
 }
 
-// TODO do we want this?
 // NewFromTemplate lets you create a table [Model] from Lip Gloss' [table.Table].
-func NewFromTemplate(t *table.Table, rows [][]string, headers []string) *Model {
+func NewFromTemplate(t *table.Table, headers []string, rows [][]string) *Model {
 	m := &Model{
-		cursor: 0,
-		KeyMap: DefaultKeyMap(),
-		Help:   help.New(),
-		table:  t,
+		cursor:       0,
+		KeyMap:       DefaultKeyMap(),
+		Help:         help.New(),
+		table:        t,
+		useStyleFunc: true,
 	}
-	m.SetRows(rows...)
-	m.SetHeaders(headers...)
+	// We can't get the rows and headers from the table, so the user needs to
+	// provide them as arguments.
+	m.rows = rows
+	m.headers = headers
 
 	return m
 }
