@@ -3,7 +3,6 @@ package table
 import (
 	"fmt"
 	"image/color"
-	"reflect"
 	"testing"
 
 	"github.com/charmbracelet/lipgloss/v2"
@@ -62,43 +61,6 @@ func TestNew(t *testing.T) {
 		tb := New().SetHeaders(headers...).SetRows(rows...)
 		tb.View()
 	})
-}
-
-func TestFromValues(t *testing.T) {
-	input := "foo1,bar1\nfoo2,bar2\nfoo3,bar3"
-	table := New(WithHeaders("Foo", "Bar"))
-	table.FromValues(input, ",")
-
-	if len(table.rows) != 3 {
-		t.Fatalf("expect table to have 3 rows but it has %d", len(table.rows))
-	}
-
-	expect := [][]string{
-		{"foo1", "bar1"},
-		{"foo2", "bar2"},
-		{"foo3", "bar3"},
-	}
-	if !reflect.DeepEqual(table.rows, expect) {
-		t.Fatal("table rows is not equals to the input")
-	}
-}
-
-func TestFromValuesWithTabSeparator(t *testing.T) {
-	input := "foo1.\tbar1\nfoo,bar,baz\tbar,2"
-	table := New(WithHeaders("Foo", "Bar"))
-	table.FromValues(input, "\t")
-
-	if len(table.rows) != 2 {
-		t.Fatalf("expect table to have 2 rows but it has %d", len(table.rows))
-	}
-
-	expect := [][]string{
-		{"foo1.", "bar1"},
-		{"foo,bar,baz", "bar,2"},
-	}
-	if !reflect.DeepEqual(table.rows, expect) {
-		t.Fatal("table rows is not equals to the input")
-	}
 }
 
 func TestTableAlignment(t *testing.T) {

@@ -3,7 +3,6 @@ package table
 
 import (
 	"reflect"
-	"strings"
 
 	"github.com/charmbracelet/bubbles/v2/help"
 	"github.com/charmbracelet/bubbles/v2/key"
@@ -422,22 +421,6 @@ func New(opts ...Option) *Model {
 	}
 
 	return &m
-}
-
-// FromValues create the table rows from a simple string. It uses `\n` by
-// default for getting all the rows and the given separator for the fields on
-// each row.
-func (m *Model) FromValues(value, separator string) {
-	rows := [][]string{}
-	for _, line := range strings.Split(value, "\n") {
-		row := []string{}
-		for _, field := range strings.Split(line, separator) {
-			row = append(row, field)
-		}
-		rows = append(rows, row)
-	}
-
-	m.SetRows(rows...)
 }
 
 // Bubble Tea Methods
