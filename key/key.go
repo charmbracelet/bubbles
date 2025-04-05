@@ -36,7 +36,10 @@
 // to render help text for keystrokes in your views.
 package key
 
-import "fmt"
+import (
+	"fmt"
+	"slices"
+)
 
 // Binding describes a set of keybindings and, optionally, their associated
 // help text.
@@ -78,6 +81,15 @@ func WithDisabled() BindingOpt {
 	return func(b *Binding) {
 		b.disabled = true
 	}
+}
+
+func (b Binding) Equal(o Binding) bool {
+	keysEqual := slices.Equal(slices.Sorted(slices.Values(b.keys)), slices.Sorted(slices.Values(o.keys)))
+	helpsEqual := b.help == o.help
+	if keysEqual && helpsEqual {
+		return true
+	}
+	return false
 }
 
 // SetKeys sets the keys for the keybinding.
