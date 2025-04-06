@@ -1,11 +1,13 @@
 package viewport
 
 import (
+	"reflect"
+	"regexp"
 	"strings"
 	"testing"
-)
 
-const defaultHorizontalStep = 6
+	"github.com/charmbracelet/x/ansi"
+)
 
 func TestNew(t *testing.T) {
 	t.Parallel()
@@ -13,8 +15,7 @@ func TestNew(t *testing.T) {
 	t.Run("default values on create by New", func(t *testing.T) {
 		t.Parallel()
 
-		m := New(10, 10)
-		m.horizontalStep = defaultHorizontalStep // remove on v2
+		m := New(WithHeight(10), WithWidth(10))
 
 		if !m.initialized {
 			t.Errorf("on create by New, Model should be initialized")
@@ -41,7 +42,6 @@ func TestSetInitialValues(t *testing.T) {
 		t.Parallel()
 
 		m := Model{}
-		m.horizontalStep = defaultHorizontalStep // remove on v2
 		m.setInitialValues()
 
 		if m.horizontalStep != defaultHorizontalStep {
@@ -56,8 +56,7 @@ func TestSetHorizontalStep(t *testing.T) {
 	t.Run("change default", func(t *testing.T) {
 		t.Parallel()
 
-		m := New(10, 10)
-		m.horizontalStep = defaultHorizontalStep // remove on v2
+		m := New(WithHeight(10), WithWidth(10))
 
 		if m.horizontalStep != defaultHorizontalStep {
 			t.Errorf("default horizontalStep should be %d, got %d", defaultHorizontalStep, m.horizontalStep)
@@ -73,8 +72,7 @@ func TestSetHorizontalStep(t *testing.T) {
 	t.Run("no negative", func(t *testing.T) {
 		t.Parallel()
 
-		m := New(10, 10)
-		m.horizontalStep = defaultHorizontalStep // remove on v2
+		m := New(WithHeight(10), WithWidth(10))
 
 		if m.horizontalStep != defaultHorizontalStep {
 			t.Errorf("default horizontalStep should be %d, got %d", defaultHorizontalStep, m.horizontalStep)
@@ -88,7 +86,7 @@ func TestSetHorizontalStep(t *testing.T) {
 	})
 }
 
-func TestScrollLeft(t *testing.T) {
+func TestMoveLeft(t *testing.T) {
 	t.Parallel()
 
 	zeroPosition := 0
@@ -96,8 +94,7 @@ func TestScrollLeft(t *testing.T) {
 	t.Run("zero position", func(t *testing.T) {
 		t.Parallel()
 
-		m := New(10, 10)
-		m.longestLineWidth = 100
+		m := New(WithHeight(10), WithWidth(10))
 		if m.xOffset != zeroPosition {
 			t.Errorf("default indent should be %d, got %d", zeroPosition, m.xOffset)
 		}
@@ -108,10 +105,9 @@ func TestScrollLeft(t *testing.T) {
 		}
 	})
 
-	t.Run("scroll", func(t *testing.T) {
+	t.Run("move", func(t *testing.T) {
 		t.Parallel()
-		m := New(10, 10)
-		m.horizontalStep = defaultHorizontalStep // remove on v2
+		m := New(WithHeight(10), WithWidth(10))
 		m.longestLineWidth = 100
 		if m.xOffset != zeroPosition {
 			t.Errorf("default indent should be %d, got %d", zeroPosition, m.xOffset)
@@ -126,16 +122,15 @@ func TestScrollLeft(t *testing.T) {
 	})
 }
 
-func TestScrollRight(t *testing.T) {
+func TestMoveRight(t *testing.T) {
 	t.Parallel()
 
-	t.Run("scroll", func(t *testing.T) {
+	t.Run("move", func(t *testing.T) {
 		t.Parallel()
 
 		zeroPosition := 0
 
-		m := New(10, 10)
-		m.SetHorizontalStep(defaultHorizontalStep)
+		m := New(WithHeight(10), WithWidth(10))
 		m.SetContent("Some line that is longer than width")
 		if m.xOffset != zeroPosition {
 			t.Errorf("default indent should be %d, got %d", zeroPosition, m.xOffset)
@@ -157,7 +152,7 @@ func TestResetIndent(t *testing.T) {
 
 		zeroPosition := 0
 
-		m := New(10, 10)
+		m := New(WithHeight(10), WithWidth(10))
 		m.xOffset = 500
 
 		m.SetXOffset(0)
@@ -193,7 +188,7 @@ func TestVisibleLines(t *testing.T) {
 	t.Run("empty list", func(t *testing.T) {
 		t.Parallel()
 
-		m := New(10, 10)
+		m := New(WithHeight(10), WithWidth(10))
 		list := m.visibleLines()
 
 		if len(list) != 0 {
@@ -204,7 +199,7 @@ func TestVisibleLines(t *testing.T) {
 	t.Run("empty list: with indent", func(t *testing.T) {
 		t.Parallel()
 
-		m := New(10, 10)
+		m := New(WithHeight(10), WithWidth(10))
 		list := m.visibleLines()
 		m.xOffset = 5
 
@@ -217,7 +212,7 @@ func TestVisibleLines(t *testing.T) {
 		t.Parallel()
 		numberOfLines := 10
 
-		m := New(10, numberOfLines)
+		m := New(WithHeight(numberOfLines), WithWidth(10))
 		m.SetContent(strings.Join(defaultList, "\n"))
 
 		list := m.visibleLines()
@@ -227,7 +222,7 @@ func TestVisibleLines(t *testing.T) {
 
 		lastItemIdx := numberOfLines - 1
 		// we trim line if it doesn't fit to width of the viewport
-		shouldGet := defaultList[lastItemIdx][:m.Width]
+		shouldGet := defaultList[lastItemIdx][:m.Width()]
 		if list[lastItemIdx] != shouldGet {
 			t.Errorf(`%dth list item should be '%s', got '%s'`, lastItemIdx, shouldGet, list[lastItemIdx])
 		}
@@ -237,9 +232,9 @@ func TestVisibleLines(t *testing.T) {
 		t.Parallel()
 		numberOfLines := 10
 
-		m := New(10, numberOfLines)
+		m := New(WithHeight(numberOfLines), WithWidth(10))
 		m.SetContent(strings.Join(defaultList, "\n"))
-		m.YOffset = 5
+		m.SetYOffset(5)
 
 		list := m.visibleLines()
 		if len(list) != numberOfLines {
@@ -252,7 +247,7 @@ func TestVisibleLines(t *testing.T) {
 
 		lastItemIdx := numberOfLines - 1
 		// we trim line if it doesn't fit to width of the viewport
-		shouldGet := defaultList[m.YOffset+lastItemIdx][:m.Width]
+		shouldGet := defaultList[m.YOffset()+lastItemIdx][:m.Width()]
 		if list[lastItemIdx] != shouldGet {
 			t.Errorf(`%dth list item should be '%s', got '%s'`, lastItemIdx, shouldGet, list[lastItemIdx])
 		}
@@ -262,9 +257,8 @@ func TestVisibleLines(t *testing.T) {
 		t.Parallel()
 		numberOfLines := 10
 
-		m := New(10, numberOfLines)
-		m.horizontalStep = defaultHorizontalStep // remove on v2
-		m.SetContent(strings.Join(defaultList, "\n"))
+		m := New(WithHeight(numberOfLines), WithWidth(10))
+		m.lines = defaultList
 		m.SetYOffset(7)
 
 		// default list
@@ -284,7 +278,7 @@ func TestVisibleLines(t *testing.T) {
 			t.Errorf("first list item has to have prefix %s", perceptPrefix)
 		}
 
-		// scroll right
+		// move right
 		m.ScrollRight(m.horizontalStep)
 		list = m.visibleLines()
 
@@ -293,11 +287,11 @@ func TestVisibleLines(t *testing.T) {
 			t.Errorf("first list item has to have prefix %s, get %s", newPrefix, list[0])
 		}
 
-		if list[lastItem] != "" {
+		if list[lastItem] != "..." {
 			t.Errorf("last item should be empty, got %s", list[lastItem])
 		}
 
-		// scroll left
+		// move left
 		m.ScrollLeft(m.horizontalStep)
 		list = m.visibleLines()
 		if !strings.HasPrefix(list[0], perceptPrefix) {
@@ -322,7 +316,7 @@ func TestVisibleLines(t *testing.T) {
 		}
 		numberOfLines := len(initList)
 
-		m := New(20, numberOfLines)
+		m := New(WithHeight(numberOfLines), WithWidth(20))
 		m.lines = initList
 		m.longestLineWidth = 30 // dirty hack: not checking right overscroll for this test case
 
@@ -339,7 +333,7 @@ func TestVisibleLines(t *testing.T) {
 			t.Errorf("%dth list item should the the same as %dth default list item", lastItemIdx, initLastItem)
 		}
 
-		// scroll right
+		// move right
 		m.ScrollRight(horizontalStep)
 		list = m.visibleLines()
 
@@ -350,7 +344,7 @@ func TestVisibleLines(t *testing.T) {
 			}
 		}
 
-		// scroll left
+		// move left
 		m.ScrollLeft(horizontalStep)
 		list = m.visibleLines()
 		for i := range list {
@@ -359,7 +353,7 @@ func TestVisibleLines(t *testing.T) {
 			}
 		}
 
-		// scroll left second times do not change lites if indent == 0
+		// move left second times do not change lites if indent == 0
 		m.xOffset = 0
 		m.ScrollLeft(horizontalStep)
 		list = m.visibleLines()
@@ -377,7 +371,7 @@ func TestRightOverscroll(t *testing.T) {
 	t.Run("prevent right overscroll", func(t *testing.T) {
 		t.Parallel()
 		content := "Content is short"
-		m := New(len(content)+1, 5)
+		m := New(WithHeight(5), WithWidth(len(content)+1))
 		m.SetContent(content)
 
 		for i := 0; i < 10; i++ {
@@ -389,6 +383,213 @@ func TestRightOverscroll(t *testing.T) {
 
 		if visibleLine != content {
 			t.Error("visible line should stay the same as content")
+		}
+	})
+}
+
+func TestMatchesToHighlights(t *testing.T) {
+	content := `hello
+world
+
+with empty rows
+
+wide chars: あいうえおafter
+
+爱开源 • Charm does open source
+
+Charm热爱开源 • Charm loves open source
+`
+
+	vt := New(WithWidth(100), WithHeight(100))
+	vt.SetContent(content)
+
+	t.Run("first", func(t *testing.T) {
+		testHighlights(t, content, regexp.MustCompile("hello"), []highlightInfo{
+			{
+				lineStart: 0,
+				lineEnd:   0,
+				lines: map[int][2]int{
+					0: {0, 5},
+				},
+			},
+		})
+	})
+
+	t.Run("multiple", func(t *testing.T) {
+		testHighlights(t, content, regexp.MustCompile("l"), []highlightInfo{
+			{
+				lineStart: 0,
+				lineEnd:   0,
+				lines: map[int][2]int{
+					0: {2, 3},
+				},
+			},
+			{
+				lineStart: 0,
+				lineEnd:   0,
+				lines: map[int][2]int{
+					0: {3, 4},
+				},
+			},
+			{
+				lineStart: 1,
+				lineEnd:   1,
+				lines: map[int][2]int{
+					1: {3, 4},
+				},
+			},
+			{
+				lineStart: 9,
+				lineEnd:   9,
+				lines: map[int][2]int{
+					9: {22, 23},
+				},
+			},
+		})
+	})
+
+	t.Run("span lines", func(t *testing.T) {
+		testHighlights(t, content, regexp.MustCompile("lo\nwo"), []highlightInfo{
+			{
+				lineStart: 0,
+				lineEnd:   1,
+				lines: map[int][2]int{
+					0: {3, 6},
+					1: {0, 2},
+				},
+			},
+		})
+	})
+
+	t.Run("ends with newline", func(t *testing.T) {
+		testHighlights(t, content, regexp.MustCompile("lo\n"), []highlightInfo{
+			{
+				lineStart: 0,
+				lineEnd:   0,
+				lines: map[int][2]int{
+					0: {3, 6},
+				},
+			},
+		})
+	})
+
+	t.Run("empty lines in the text", func(t *testing.T) {
+		testHighlights(t, content, regexp.MustCompile("ith"), []highlightInfo{
+			{
+				lineStart: 3,
+				lineEnd:   3,
+				lines: map[int][2]int{
+					3: {1, 4},
+				},
+			},
+		})
+	})
+
+	t.Run("empty lines in the text match start of new line", func(t *testing.T) {
+		testHighlights(t, content, regexp.MustCompile("with"), []highlightInfo{
+			{
+				lineStart: 3,
+				lineEnd:   3,
+				lines: map[int][2]int{
+					3: {0, 4},
+				},
+			},
+		})
+	})
+
+	t.Run("wide characteres", func(t *testing.T) {
+		testHighlights(t, content, regexp.MustCompile("after"), []highlightInfo{
+			{
+				lineStart: 5,
+				lineEnd:   5,
+				lines: map[int][2]int{
+					5: {22, 27},
+				},
+			},
+		})
+	})
+
+	t.Run("wide 2", func(t *testing.T) {
+		testHighlights(t, content, regexp.MustCompile("Charm"), []highlightInfo{
+			{
+				lineStart: 7,
+				lineEnd:   7,
+				lines: map[int][2]int{
+					7: {9, 14},
+				},
+			},
+			{
+				lineStart: 9,
+				lineEnd:   9,
+				lines: map[int][2]int{
+					9: {0, 5},
+				},
+			},
+			{
+				lineStart: 9,
+				lineEnd:   9,
+				lines: map[int][2]int{
+					9: {16, 21},
+				},
+			},
+		})
+	})
+}
+
+func testHighlights(tb testing.TB, content string, re *regexp.Regexp, expect []highlightInfo) {
+	tb.Helper()
+
+	vt := New(WithHeight(100), WithWidth(100))
+	vt.SetContent(content)
+
+	matches := re.FindAllStringIndex(vt.GetContent(), -1)
+	vt.SetHighlights(matches)
+
+	if !reflect.DeepEqual(expect, vt.highlights) {
+		tb.Errorf("\nexpect: %+v\n   got: %+v\n", expect, vt.highlights)
+	}
+
+	if strings.Contains(re.String(), "\n") {
+		tb.Log("cannot check text when regex has span lines")
+		return
+	}
+
+	for _, hi := range expect {
+		for line, hl := range hi.lines {
+			cut := ansi.Cut(vt.lines[line], hl[0], hl[1])
+			if !re.MatchString(cut) {
+				tb.Errorf("exptect to match '%s', got '%s': line: %d, cut: %+v", re.String(), cut, line, hl)
+			}
+		}
+	}
+}
+
+func TestCalculateLine(t *testing.T) {
+	t.Run("simple", func(t *testing.T) {
+		vp := New(WithWidth(40), WithHeight(20))
+		vp.SetContent("foo\nbar")
+		total, idx := vp.calculateLine(0)
+		if total != 2 || idx != 0 {
+			t.Errorf("total: %d, idx: %d", total, idx)
+		}
+	})
+
+	t.Run("line breaks", func(t *testing.T) {
+		vp := New(WithWidth(40), WithHeight(20))
+		vp.SetContentLines([]string{"new\nbar", "foo", "another line", "multiple\nlines"})
+		total, idx := vp.calculateLine(6)
+		if total != 6 || idx != 4 {
+			t.Errorf("total: %d, idx: %d", total, idx)
+		}
+	})
+
+	t.Run("soft breaks", func(t *testing.T) {
+		vp := New(WithWidth(40), WithHeight(20))
+		vp.SoftWrap = true
+		vp.SetContent("super long line super long line super long line super long line super long line super long line super long line super long line super long line super long line super long line super long line super long line super\nlong line super long line super long line super long line")
+		total, idx := vp.calculateLine(10)
+		if total != 6 || idx != 2 {
+			t.Errorf("total: %d, idx: %d", total, idx)
 		}
 	})
 }

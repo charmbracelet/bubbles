@@ -11,9 +11,9 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"github.com/charmbracelet/bubbles/key"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/bubbles/v2/key"
+	tea "github.com/charmbracelet/bubbletea/v2"
+	"github.com/charmbracelet/lipgloss/v2"
 	"github.com/dustin/go-humanize"
 )
 
@@ -37,9 +37,9 @@ func New() Model {
 		DirAllowed:       false,
 		FileAllowed:      true,
 		AutoHeight:       true,
-		Height:           0,
-		max:              0,
-		min:              0,
+		height:           0,
+		maxIdx:           0,
+		minIdx:           0,
 		selectedStack:    newStack(),
 		minStack:         newStack(),
 		maxStack:         newStack(),
@@ -108,24 +108,18 @@ type Styles struct {
 
 // DefaultStyles defines the default styling for the file picker.
 func DefaultStyles() Styles {
-	return DefaultStylesWithRenderer(lipgloss.DefaultRenderer())
-}
-
-// DefaultStylesWithRenderer defines the default styling for the file picker,
-// with a given Lip Gloss renderer.
-func DefaultStylesWithRenderer(r *lipgloss.Renderer) Styles {
 	return Styles{
-		DisabledCursor:   r.NewStyle().Foreground(lipgloss.Color("247")),
-		Cursor:           r.NewStyle().Foreground(lipgloss.Color("212")),
-		Symlink:          r.NewStyle().Foreground(lipgloss.Color("36")),
-		Directory:        r.NewStyle().Foreground(lipgloss.Color("99")),
-		File:             r.NewStyle(),
-		DisabledFile:     r.NewStyle().Foreground(lipgloss.Color("243")),
-		DisabledSelected: r.NewStyle().Foreground(lipgloss.Color("247")),
-		Permission:       r.NewStyle().Foreground(lipgloss.Color("244")),
-		Selected:         r.NewStyle().Foreground(lipgloss.Color("212")).Bold(true),
-		FileSize:         r.NewStyle().Foreground(lipgloss.Color("240")).Width(fileSizeWidth).Align(lipgloss.Right),
-		EmptyDirectory:   r.NewStyle().Foreground(lipgloss.Color("240")).PaddingLeft(paddingLeft).SetString("Bummer. No Files Found."),
+		DisabledCursor:   lipgloss.NewStyle().Foreground(lipgloss.Color("247")),
+		Cursor:           lipgloss.NewStyle().Foreground(lipgloss.Color("212")),
+		Symlink:          lipgloss.NewStyle().Foreground(lipgloss.Color("36")),
+		Directory:        lipgloss.NewStyle().Foreground(lipgloss.Color("99")),
+		File:             lipgloss.NewStyle(),
+		DisabledFile:     lipgloss.NewStyle().Foreground(lipgloss.Color("243")),
+		DisabledSelected: lipgloss.NewStyle().Foreground(lipgloss.Color("247")),
+		Permission:       lipgloss.NewStyle().Foreground(lipgloss.Color("244")),
+		Selected:         lipgloss.NewStyle().Foreground(lipgloss.Color("212")).Bold(true),
+		FileSize:         lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Width(fileSizeWidth).Align(lipgloss.Right),
+		EmptyDirectory:   lipgloss.NewStyle().Foreground(lipgloss.Color("240")).PaddingLeft(paddingLeft).SetString("Bummer. No Files Found."),
 	}
 }
 
@@ -155,15 +149,12 @@ type Model struct {
 	selected      int
 	selectedStack stack
 
-	min      int
-	max      int
+	minIdx   int
+	maxIdx   int
 	maxStack stack
 	minStack stack
 
-	// Height of the picker.
-	//
-	// Deprecated: use [Model.SetHeight] instead.
-	Height     int
+	height     int
 	AutoHeight bool
 
 	Cursor string
@@ -233,17 +224,22 @@ func (m Model) readDir(path string, showHidden bool) tea.Cmd {
 	}
 }
 
+// SetHeight sets the height of the file picker.
+func (m *Model) SetHeight(h int) {
+	m.height = h
+	if m.maxIdx > m.height-1 {
+		m.maxIdx = m.minIdx + m.height - 1
+	}
+}
+
+// Height returns the height of the file picker.
+func (m Model) Height() int {
+	return m.height
+}
+
 // Init initializes the file picker model.
 func (m Model) Init() tea.Cmd {
 	return m.readDir(m.CurrentDirectory, m.ShowHidden)
-}
-
-// SetHeight sets the height of the filepicker.
-func (m *Model) SetHeight(height int) {
-	m.Height = height
-	if m.max > m.Height-1 {
-		m.max = m.min + m.Height - 1
-	}
 }
 
 // Update handles user interactions within the file picker model.
@@ -254,72 +250,72 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			break
 		}
 		m.files = msg.entries
-		m.max = max(m.max, m.Height-1)
+		m.maxIdx = max(m.maxIdx, m.Height()-1)
 	case tea.WindowSizeMsg:
 		if m.AutoHeight {
-			m.Height = msg.Height - marginBottom
+			m.SetHeight(msg.Height - marginBottom)
 		}
-		m.max = m.Height - 1
-	case tea.KeyMsg:
+		m.maxIdx = m.Height() - 1
+	case tea.KeyPressMsg:
 		switch {
 		case key.Matches(msg, m.KeyMap.GoToTop):
 			m.selected = 0
-			m.min = 0
-			m.max = m.Height - 1
+			m.minIdx = 0
+			m.maxIdx = m.Height() - 1
 		case key.Matches(msg, m.KeyMap.GoToLast):
 			m.selected = len(m.files) - 1
-			m.min = len(m.files) - m.Height
-			m.max = len(m.files) - 1
+			m.minIdx = len(m.files) - m.Height()
+			m.maxIdx = len(m.files) - 1
 		case key.Matches(msg, m.KeyMap.Down):
 			m.selected++
 			if m.selected >= len(m.files) {
 				m.selected = len(m.files) - 1
 			}
-			if m.selected > m.max {
-				m.min++
-				m.max++
+			if m.selected > m.maxIdx {
+				m.minIdx++
+				m.maxIdx++
 			}
 		case key.Matches(msg, m.KeyMap.Up):
 			m.selected--
 			if m.selected < 0 {
 				m.selected = 0
 			}
-			if m.selected < m.min {
-				m.min--
-				m.max--
+			if m.selected < m.minIdx {
+				m.minIdx--
+				m.maxIdx--
 			}
 		case key.Matches(msg, m.KeyMap.PageDown):
-			m.selected += m.Height
+			m.selected += m.Height()
 			if m.selected >= len(m.files) {
 				m.selected = len(m.files) - 1
 			}
-			m.min += m.Height
-			m.max += m.Height
+			m.minIdx += m.Height()
+			m.maxIdx += m.Height()
 
-			if m.max >= len(m.files) {
-				m.max = len(m.files) - 1
-				m.min = m.max - m.Height
+			if m.maxIdx >= len(m.files) {
+				m.maxIdx = len(m.files) - 1
+				m.minIdx = m.maxIdx - m.Height()
 			}
 		case key.Matches(msg, m.KeyMap.PageUp):
-			m.selected -= m.Height
+			m.selected -= m.Height()
 			if m.selected < 0 {
 				m.selected = 0
 			}
-			m.min -= m.Height
-			m.max -= m.Height
+			m.minIdx -= m.Height()
+			m.maxIdx -= m.Height()
 
-			if m.min < 0 {
-				m.min = 0
-				m.max = m.min + m.Height
+			if m.minIdx < 0 {
+				m.minIdx = 0
+				m.maxIdx = m.minIdx + m.Height()
 			}
 		case key.Matches(msg, m.KeyMap.Back):
 			m.CurrentDirectory = filepath.Dir(m.CurrentDirectory)
 			if m.selectedStack.Length() > 0 {
-				m.selected, m.min, m.max = m.popView()
+				m.selected, m.minIdx, m.maxIdx = m.popView()
 			} else {
 				m.selected = 0
-				m.min = 0
-				m.max = m.Height - 1
+				m.minIdx = 0
+				m.maxIdx = m.Height() - 1
 			}
 			return m, m.readDir(m.CurrentDirectory, m.ShowHidden)
 		case key.Matches(msg, m.KeyMap.Open):
@@ -358,10 +354,10 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			}
 
 			m.CurrentDirectory = filepath.Join(m.CurrentDirectory, f.Name())
-			m.pushView(m.selected, m.min, m.max)
+			m.pushView(m.selected, m.minIdx, m.maxIdx)
 			m.selected = 0
-			m.min = 0
-			m.max = m.Height - 1
+			m.minIdx = 0
+			m.maxIdx = m.Height() - 1
 			return m, m.readDir(m.CurrentDirectory, m.ShowHidden)
 		}
 	}
@@ -371,12 +367,12 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 // View returns the view of the file picker.
 func (m Model) View() string {
 	if len(m.files) == 0 {
-		return m.Styles.EmptyDirectory.Height(m.Height).MaxHeight(m.Height).String()
+		return m.Styles.EmptyDirectory.Height(m.Height()).MaxHeight(m.Height()).String()
 	}
 	var s strings.Builder
 
 	for i, f := range m.files {
-		if i < m.min || i > m.max {
+		if i < m.minIdx || i > m.maxIdx {
 			continue
 		}
 
@@ -437,7 +433,7 @@ func (m Model) View() string {
 		s.WriteRune('\n')
 	}
 
-	for i := lipgloss.Height(s.String()); i <= m.Height; i++ {
+	for i := lipgloss.Height(s.String()); i <= m.Height(); i++ {
 		s.WriteRune('\n')
 	}
 
@@ -469,7 +465,7 @@ func (m Model) didSelectFile(msg tea.Msg) (bool, string) {
 		return false, ""
 	}
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		// If the msg does not match the Select keymap then this could not have been a selection.
 		if !key.Matches(msg, m.KeyMap.Select) {
 			return false, ""
@@ -500,8 +496,8 @@ func (m Model) didSelectFile(msg tea.Msg) (bool, string) {
 			return true, m.Path
 		}
 
-		// If the msg was not a KeyMsg, then the file could not have been selected this iteration.
-		// Only a KeyMsg can select a file.
+		// If the msg was not a KeyPressMsg, then the file could not have been selected this iteration.
+		// Only a KeyPressMsg can select a file.
 	default:
 		return false, ""
 	}

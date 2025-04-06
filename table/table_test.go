@@ -1,9 +1,10 @@
 package table
 
 import (
+	"strings"
 	"testing"
 
-	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/golden"
 )
@@ -124,7 +125,7 @@ func TestTableAlignment(t *testing.T) {
 				{"Hobnobs", "UK", "Yes"},
 			}),
 		)
-		got := ansi.Strip(biscuits.View())
+		got := ansiStrip(biscuits.View())
 		golden.RequireEqual(t, []byte(got))
 	})
 	t.Run("With border", func(t *testing.T) {
@@ -153,7 +154,13 @@ func TestTableAlignment(t *testing.T) {
 			}),
 			WithStyles(s),
 		)
-		got := ansi.Strip(baseStyle.Render(biscuits.View()))
+		got := ansiStrip(baseStyle.Render(biscuits.View()))
 		golden.RequireEqual(t, []byte(got))
 	})
+}
+
+func ansiStrip(s string) string {
+	// Replace all \r\n with \n
+	s = strings.ReplaceAll(s, "\r\n", "\n")
+	return ansi.Strip(s)
 }

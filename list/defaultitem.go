@@ -5,9 +5,9 @@ import (
 	"io"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/key"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/bubbles/v2/key"
+	tea "github.com/charmbracelet/bubbletea/v2"
+	"github.com/charmbracelet/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 )
 
@@ -32,29 +32,31 @@ type DefaultItemStyles struct {
 
 // NewDefaultItemStyles returns style definitions for a default item. See
 // DefaultItemView for when these come into play.
-func NewDefaultItemStyles() (s DefaultItemStyles) {
+func NewDefaultItemStyles(isDark bool) (s DefaultItemStyles) {
+	lightDark := lipgloss.LightDark(isDark)
+
 	s.NormalTitle = lipgloss.NewStyle().
-		Foreground(lipgloss.AdaptiveColor{Light: "#1a1a1a", Dark: "#dddddd"}).
+		Foreground(lightDark(lipgloss.Color("#1a1a1a"), lipgloss.Color("#dddddd"))).
 		Padding(0, 0, 0, 2) //nolint:mnd
 
 	s.NormalDesc = s.NormalTitle.
-		Foreground(lipgloss.AdaptiveColor{Light: "#A49FA5", Dark: "#777777"})
+		Foreground(lightDark(lipgloss.Color("#A49FA5"), lipgloss.Color("#777777")))
 
 	s.SelectedTitle = lipgloss.NewStyle().
 		Border(lipgloss.NormalBorder(), false, false, false, true).
-		BorderForeground(lipgloss.AdaptiveColor{Light: "#F793FF", Dark: "#AD58B4"}).
-		Foreground(lipgloss.AdaptiveColor{Light: "#EE6FF8", Dark: "#EE6FF8"}).
+		BorderForeground(lightDark(lipgloss.Color("#F793FF"), lipgloss.Color("#AD58B4"))).
+		Foreground(lightDark(lipgloss.Color("#EE6FF8"), lipgloss.Color("#EE6FF8"))).
 		Padding(0, 0, 0, 1)
 
 	s.SelectedDesc = s.SelectedTitle.
-		Foreground(lipgloss.AdaptiveColor{Light: "#F793FF", Dark: "#AD58B4"})
+		Foreground(lightDark(lipgloss.Color("#F793FF"), lipgloss.Color("#AD58B4")))
 
 	s.DimmedTitle = lipgloss.NewStyle().
-		Foreground(lipgloss.AdaptiveColor{Light: "#A49FA5", Dark: "#777777"}).
+		Foreground(lightDark(lipgloss.Color("#A49FA5"), lipgloss.Color("#777777"))).
 		Padding(0, 0, 0, 2) //nolint:mnd
 
 	s.DimmedDesc = s.DimmedTitle.
-		Foreground(lipgloss.AdaptiveColor{Light: "#C2B8C2", Dark: "#4D4D4D"})
+		Foreground(lightDark(lipgloss.Color("#C2B8C2"), lipgloss.Color("#4D4D4D")))
 
 	s.FilterMatch = lipgloss.NewStyle().Underline(true)
 
@@ -97,9 +99,11 @@ func NewDefaultDelegate() DefaultDelegate {
 	const defaultSpacing = 1
 	return DefaultDelegate{
 		ShowDescription: true,
-		Styles:          NewDefaultItemStyles(),
-		height:          defaultHeight,
-		spacing:         defaultSpacing,
+		// XXX: Let the user choose between light and dark colors. We've
+		// temporarily hardcoded the dark colors here.
+		Styles:  NewDefaultItemStyles(true),
+		height:  defaultHeight,
+		spacing: defaultSpacing,
 	}
 }
 

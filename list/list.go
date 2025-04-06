@@ -10,16 +10,16 @@ import (
 	"strings"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	tea "github.com/charmbracelet/bubbletea/v2"
+	"github.com/charmbracelet/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/sahilm/fuzzy"
 
-	"github.com/charmbracelet/bubbles/help"
-	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/paginator"
-	"github.com/charmbracelet/bubbles/spinner"
-	"github.com/charmbracelet/bubbles/textinput"
+	"github.com/charmbracelet/bubbles/v2/help"
+	"github.com/charmbracelet/bubbles/v2/key"
+	"github.com/charmbracelet/bubbles/v2/paginator"
+	"github.com/charmbracelet/bubbles/v2/spinner"
+	"github.com/charmbracelet/bubbles/v2/textinput"
 )
 
 // Item is an item that appears in the list.
@@ -197,7 +197,9 @@ type Model struct {
 
 // New returns a new model with sensible defaults.
 func New(items []Item, delegate ItemDelegate, width, height int) Model {
-	styles := DefaultStyles()
+	// XXX: Let the user choose between light and dark colors. We've
+	// temporarily hardcoded the dark colors here.
+	styles := DefaultStyles(true)
 
 	sp := spinner.New()
 	sp.Spinner = spinner.Line
@@ -205,8 +207,6 @@ func New(items []Item, delegate ItemDelegate, width, height int) Model {
 
 	filterInput := textinput.New()
 	filterInput.Prompt = "Filter: "
-	filterInput.PromptStyle = styles.FilterPrompt
-	filterInput.Cursor.Style = styles.FilterCursor
 	filterInput.CharLimit = 64
 	filterInput.Focus()
 
@@ -244,11 +244,6 @@ func New(items []Item, delegate ItemDelegate, width, height int) Model {
 	m.updateKeybindings()
 	return m
 }
-
-// NewModel returns a new model with sensible defaults.
-//
-// Deprecated: use [New] instead.
-var NewModel = New
 
 // SetFilteringEnabled enables or disables filtering. Note that this is different
 // from ShowFilter, which merely hides or shows the input view.
@@ -694,7 +689,7 @@ func (m *Model) setSize(width, height int) {
 	m.width = width
 	m.height = height
 	m.Help.Width = width
-	m.FilterInput.Width = width - promptWidth - lipgloss.Width(m.spinnerView())
+	m.FilterInput.SetWidth(width - promptWidth - lipgloss.Width(m.spinnerView()))
 	m.updatePagination()
 }
 
@@ -815,7 +810,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		if key.Matches(msg, m.KeyMap.ForceQuit) {
 			return m, tea.Quit
 		}
@@ -850,7 +845,7 @@ func (m *Model) handleBrowsing(msg tea.Msg) tea.Cmd {
 	numItems := len(m.VisibleItems())
 
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		switch {
 		// Note: we match clear filter before quit because, by default, they're
 		// both mapped to escape.
@@ -919,7 +914,7 @@ func (m *Model) handleFiltering(msg tea.Msg) tea.Cmd {
 	var cmds []tea.Cmd
 
 	// Handle keys
-	if msg, ok := msg.(tea.KeyMsg); ok {
+	if msg, ok := msg.(tea.KeyPressMsg); ok {
 		switch {
 		case key.Matches(msg, m.KeyMap.CancelWhileFiltering):
 			m.resetFiltering()

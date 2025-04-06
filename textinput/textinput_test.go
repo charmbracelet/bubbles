@@ -42,7 +42,7 @@ func Test_CurrentSuggestion(t *testing.T) {
 func Test_SlicingOutsideCap(t *testing.T) {
 	textinput := New()
 	textinput.Placeholder = "作業ディレクトリを指定してください"
-	textinput.Width = 32
+	textinput.SetWidth(32)
 	textinput.View()
 }
 
@@ -51,7 +51,7 @@ func ExampleValidateFunc() {
 	creditCardNumber.Placeholder = "4505 **** **** 1234"
 	creditCardNumber.Focus()
 	creditCardNumber.CharLimit = 20
-	creditCardNumber.Width = 30
+	creditCardNumber.SetWidth(30)
 	creditCardNumber.Prompt = ""
 	// This anonymous function is a valid function for ValidateFunc.
 	creditCardNumber.Validate = func(s string) error {

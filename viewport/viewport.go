@@ -4,26 +4,60 @@ import (
 	"math"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/key"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/bubbles/v2/key"
+	tea "github.com/charmbracelet/bubbletea/v2"
+	"github.com/charmbracelet/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 )
 
+const (
+	defaultHorizontalStep = 6
+)
+
+// Option is a configuration option that works in conjunction with [New]. For
+// example:
+//
+//	timer := New(WithWidth(10, WithHeight(5)))
+type Option func(*Model)
+
+// WithWidth is an initialization option that sets the width of the
+// viewport. Pass as an argument to [New].
+func WithWidth(w int) Option {
+	return func(m *Model) {
+		m.width = w
+	}
+}
+
+// WithHeight is an initialization option that sets the height of the
+// viewport. Pass as an argument to [New].
+func WithHeight(h int) Option {
+	return func(m *Model) {
+		m.height = h
+	}
+}
+
 // New returns a new model with the given width and height as well as default
 // key mappings.
-func New(width, height int) (m Model) {
-	m.Width = width
-	m.Height = height
+func New(opts ...Option) (m Model) {
+	for _, opt := range opts {
+		opt(&m)
+	}
 	m.setInitialValues()
 	return m
 }
 
 // Model is the Bubble Tea model for this viewport element.
 type Model struct {
-	Width  int
-	Height int
+	width  int
+	height int
 	KeyMap KeyMap
+
+	// Whether or not to wrap text. If false, it'll allow horizontal scrolling
+	// instead.
+	SoftWrap bool
+
+	// Whether or not to fill to the height of the viewport with empty lines.
+	FillHeight bool
 
 	// Whether or not to respond to the mouse. The mouse must be enabled in
 	// Bubble Tea for this to work. For details, see the Bubble Tea docs.
@@ -32,8 +66,8 @@ type Model struct {
 	// The number of lines the mouse wheel will scroll. By default, this is 3.
 	MouseWheelDelta int
 
-	// YOffset is the vertical scroll position.
-	YOffset int
+	// yOffset is the vertical scroll position.
+	yOffset int
 
 	// xOffset is the horizontal scroll position.
 	xOffset int
@@ -50,27 +84,64 @@ type Model struct {
 	// useful for setting borders, margins and padding.
 	Style lipgloss.Style
 
-	// HighPerformanceRendering bypasses the normal Bubble Tea renderer to
-	// provide higher performance rendering. Most of the time the normal Bubble
-	// Tea rendering methods will suffice, but if you're passing content with
-	// a lot of ANSI escape codes you may see improved rendering in certain
-	// terminals with this enabled.
-	//
-	// This should only be used in program occupying the entire terminal,
-	// which is usually via the alternate screen buffer.
-	//
-	// Deprecated: high performance rendering is now deprecated in Bubble Tea.
-	HighPerformanceRendering bool
+	// LeftGutterFunc allows to define a [GutterFunc] that adds a column into
+	// the left of the viewport, which is kept when horizontal scrolling.
+	// This can be used for things like line numbers, selection indicators,
+	// show statuses, etc.
+	LeftGutterFunc GutterFunc
 
 	initialized      bool
 	lines            []string
 	longestLineWidth int
+
+	// HighlightStyle highlights the ranges set with [SetHighligths].
+	HighlightStyle lipgloss.Style
+
+	// SelectedHighlightStyle highlights the highlight range focused during
+	// navigation.
+	// Use [SetHighligths] to set the highlight ranges, and [HightlightNext]
+	// and [HihglightPrevious] to navigate.
+	SelectedHighlightStyle lipgloss.Style
+
+	// StyleLineFunc allows to return a [lipgloss.Style] for each line.
+	// The argument is the line index.
+	StyleLineFunc func(int) lipgloss.Style
+
+	highlights []highlightInfo
+	hiIdx      int
+}
+
+// GutterFunc can be implemented and set into [Model.LeftGutterFunc].
+//
+// Example implementation showing line numbers:
+//
+//	func(info GutterContext) string {
+//		if info.Soft {
+//			return "     │ "
+//		}
+//		if info.Index >= info.TotalLines {
+//			return "   ~ │ "
+//		}
+//		return fmt.Sprintf("%4d │ ", info.Index+1)
+//	}
+type GutterFunc func(GutterContext) string
+
+// NoGutter is the default gutter used.
+var NoGutter = func(GutterContext) string { return "" }
+
+// GutterContext provides context to a [GutterFunc].
+type GutterContext struct {
+	Index      int
+	TotalLines int
+	Soft       bool
 }
 
 func (m *Model) setInitialValues() {
 	m.KeyMap = DefaultKeyMap()
 	m.MouseWheelEnabled = true
 	m.MouseWheelDelta = 3
+	m.horizontalStep = defaultHorizontalStep
+	m.LeftGutterFunc = NoGutter
 	m.initialized = true
 }
 
@@ -79,31 +150,52 @@ func (m Model) Init() tea.Cmd {
 	return nil
 }
 
+// Height returns the height of the viewport.
+func (m Model) Height() int {
+	return m.height
+}
+
+// SetHeight sets the height of the viewport.
+func (m *Model) SetHeight(h int) {
+	m.height = h
+}
+
+// Width returns the width of the viewport.
+func (m Model) Width() int {
+	return m.width
+}
+
+// SetWidth sets the width of the viewport.
+func (m *Model) SetWidth(w int) {
+	m.width = w
+}
+
 // AtTop returns whether or not the viewport is at the very top position.
 func (m Model) AtTop() bool {
-	return m.YOffset <= 0
+	return m.YOffset() <= 0
 }
 
 // AtBottom returns whether or not the viewport is at or past the very bottom
 // position.
 func (m Model) AtBottom() bool {
-	return m.YOffset >= m.maxYOffset()
+	return m.YOffset() >= m.maxYOffset()
 }
 
 // PastBottom returns whether or not the viewport is scrolled beyond the last
 // line. This can happen when adjusting the viewport height.
 func (m Model) PastBottom() bool {
-	return m.YOffset > m.maxYOffset()
+	return m.YOffset() > m.maxYOffset()
 }
 
 // ScrollPercent returns the amount scrolled as a float between 0 and 1.
 func (m Model) ScrollPercent() float64 {
-	if m.Height >= len(m.lines) {
+	count := m.lineCount()
+	if m.Height() >= count {
 		return 1.0
 	}
-	y := float64(m.YOffset)
-	h := float64(m.Height)
-	t := float64(len(m.lines))
+	y := float64(m.YOffset())
+	h := float64(m.Height())
+	t := float64(count)
 	v := y / (t - h)
 	return math.Max(0.0, math.Min(1.0, v))
 }
@@ -111,205 +203,347 @@ func (m Model) ScrollPercent() float64 {
 // HorizontalScrollPercent returns the amount horizontally scrolled as a float
 // between 0 and 1.
 func (m Model) HorizontalScrollPercent() float64 {
-	if m.xOffset >= m.longestLineWidth-m.Width {
+	if m.xOffset >= m.longestLineWidth-m.Width() {
 		return 1.0
 	}
 	y := float64(m.xOffset)
-	h := float64(m.Width)
+	h := float64(m.Width())
 	t := float64(m.longestLineWidth)
 	v := y / (t - h)
 	return math.Max(0.0, math.Min(1.0, v))
 }
 
 // SetContent set the pager's text content.
+// Line endings will be normalized to '\n'.
 func (m *Model) SetContent(s string) {
 	s = strings.ReplaceAll(s, "\r\n", "\n") // normalize line endings
-	m.lines = strings.Split(s, "\n")
-	m.longestLineWidth = findLongestLineWidth(m.lines)
+	m.SetContentLines(strings.Split(s, "\n"))
+}
 
-	if m.YOffset > len(m.lines)-1 {
+// SetContentLines allows to set the lines to be shown instead of the content.
+// If a given line has a \n in it, it'll be considered a [Model.SoftWrap].
+// See also [Model.SetContent].
+func (m *Model) SetContentLines(lines []string) {
+	// if there's no content, set content to actual nil instead of one empty
+	// line.
+	m.lines = lines
+	if len(m.lines) == 1 && ansi.StringWidth(m.lines[0]) == 0 {
+		m.lines = nil
+	}
+	m.longestLineWidth = maxLineWidth(m.lines)
+	m.ClearHighlights()
+
+	if m.YOffset() > m.maxYOffset() {
 		m.GotoBottom()
 	}
+}
+
+// GetContent returns the entire content as a single string.
+// Line endings are normalized to '\n'.
+func (m Model) GetContent() string {
+	return strings.Join(m.lines, "\n")
+}
+
+// calculateLine taking soft wraping into account, returns the total viewable
+// lines and the real-line index for the given yoffset.
+func (m Model) calculateLine(yoffset int) (total, idx int) {
+	if !m.SoftWrap {
+		for i, line := range m.lines {
+			adjust := max(1, lipgloss.Height(line))
+			if yoffset >= total && yoffset < total+adjust {
+				idx = i
+			}
+			total += adjust
+		}
+		if yoffset >= total {
+			idx = len(m.lines)
+		}
+		return total, idx
+	}
+
+	maxWidth := m.maxWidth()
+	var gutterSize int
+	if m.LeftGutterFunc != nil {
+		gutterSize = lipgloss.Width(m.LeftGutterFunc(GutterContext{}))
+	}
+	for i, line := range m.lines {
+		adjust := max(1, lipgloss.Width(line)/(maxWidth-gutterSize))
+		if yoffset >= total && yoffset < total+adjust {
+			idx = i
+		}
+		total += adjust
+	}
+	if yoffset >= total {
+		idx = len(m.lines)
+	}
+	return total, idx
+}
+
+// lineToIndex taking soft wrappign into account, return the real line index
+// for the given line.
+func (m Model) lineToIndex(y int) int {
+	_, idx := m.calculateLine(y)
+	return idx
+}
+
+// lineCount taking soft wrapping into account, return the total viewable line
+// count (real lines + soft wrapped line).
+func (m Model) lineCount() int {
+	total, _ := m.calculateLine(0)
+	return total
 }
 
 // maxYOffset returns the maximum possible value of the y-offset based on the
 // viewport's content and set height.
 func (m Model) maxYOffset() int {
-	return max(0, len(m.lines)-m.Height+m.Style.GetVerticalFrameSize())
+	return max(0, m.lineCount()-m.Height()+m.Style.GetVerticalFrameSize())
+}
+
+// maxXOffset returns the maximum possible value of the x-offset based on the
+// viewport's content and set width.
+func (m Model) maxXOffset() int {
+	return max(0, m.longestLineWidth-m.Width())
+}
+
+func (m Model) maxWidth() int {
+	var gutterSize int
+	if m.LeftGutterFunc != nil {
+		gutterSize = lipgloss.Width(m.LeftGutterFunc(GutterContext{}))
+	}
+	return m.Width() -
+		m.Style.GetHorizontalFrameSize() -
+		gutterSize
+}
+
+func (m Model) maxHeight() int {
+	return m.Height() - m.Style.GetVerticalFrameSize()
 }
 
 // visibleLines returns the lines that should currently be visible in the
 // viewport.
 func (m Model) visibleLines() (lines []string) {
-	h := m.Height - m.Style.GetVerticalFrameSize()
-	w := m.Width - m.Style.GetHorizontalFrameSize()
+	maxHeight := m.maxHeight()
+	maxWidth := m.maxWidth()
 
-	if len(m.lines) > 0 {
-		top := max(0, m.YOffset)
-		bottom := clamp(m.YOffset+h, top, len(m.lines))
-		lines = m.lines[top:bottom]
+	if m.lineCount() > 0 {
+		pos := m.lineToIndex(m.YOffset())
+		top := max(0, pos)
+		bottom := clamp(pos+maxHeight, top, len(m.lines))
+		lines = make([]string, bottom-top)
+		copy(lines, m.lines[top:bottom])
+		lines = m.styleLines(lines, top)
+		lines = m.highlightLines(lines, top)
 	}
 
-	if (m.xOffset == 0 && m.longestLineWidth <= w) || w == 0 {
+	for m.FillHeight && len(lines) < maxHeight {
+		lines = append(lines, "")
+	}
+
+	// if longest line fit within width, no need to do anything else.
+	if (m.xOffset == 0 && m.longestLineWidth <= maxWidth) || maxWidth == 0 {
+		return m.setupGutter(lines)
+	}
+
+	if m.SoftWrap {
+		return m.softWrap(lines, maxWidth)
+	}
+
+	for i, line := range lines {
+		sublines := strings.Split(line, "\n") // will only have more than 1 if caller used [Model.SetContentLines].
+		for j := range sublines {
+			sublines[j] = ansi.Cut(sublines[j], m.xOffset, m.xOffset+maxWidth)
+		}
+		lines[i] = strings.Join(sublines, "\n")
+	}
+	return m.setupGutter(lines)
+}
+
+// styleLines styles the lines using [Model.StyleLineFunc].
+func (m Model) styleLines(lines []string, offset int) []string {
+	if m.StyleLineFunc == nil {
+		return lines
+	}
+	for i := range lines {
+		lines[i] = m.StyleLineFunc(i + offset).Render(lines[i])
+	}
+	return lines
+}
+
+// highlightLines highlights the lines with [Model.HighlightStyle] and
+// [Model.SelectedHighlightStyle].
+func (m Model) highlightLines(lines []string, offset int) []string {
+	if len(m.highlights) == 0 {
+		return lines
+	}
+	for i := range lines {
+		ranges := makeHighlightRanges(
+			m.highlights,
+			i+offset,
+			m.HighlightStyle,
+		)
+		lines[i] = lipgloss.StyleRanges(lines[i], ranges...)
+		if m.hiIdx < 0 {
+			continue
+		}
+		sel := m.highlights[m.hiIdx]
+		if hi, ok := sel.lines[i+offset]; ok {
+			lines[i] = lipgloss.StyleRanges(lines[i], lipgloss.NewRange(
+				hi[0],
+				hi[1],
+				m.SelectedHighlightStyle,
+			))
+		}
+	}
+	return lines
+}
+
+func (m Model) softWrap(lines []string, maxWidth int) []string {
+	var wrappedLines []string
+	total := m.TotalLineCount()
+	for i, line := range lines {
+		idx := 0
+		for ansi.StringWidth(line) >= idx {
+			truncatedLine := ansi.Cut(line, idx, maxWidth+idx)
+			if m.LeftGutterFunc != nil {
+				truncatedLine = m.LeftGutterFunc(GutterContext{
+					Index:      i + m.YOffset(),
+					TotalLines: total,
+					Soft:       idx > 0,
+				}) + truncatedLine
+			}
+			wrappedLines = append(wrappedLines, truncatedLine)
+			idx += maxWidth
+		}
+	}
+	return wrappedLines
+}
+
+// setupGutter sets up the left gutter using [Moddel.LeftGutterFunc].
+func (m Model) setupGutter(lines []string) []string {
+	if m.LeftGutterFunc == nil {
 		return lines
 	}
 
-	cutLines := make([]string, len(lines))
+	offset := max(0, m.lineToIndex(m.YOffset()))
+	total := m.TotalLineCount()
+	result := make([]string, len(lines))
 	for i := range lines {
-		cutLines[i] = ansi.Cut(lines[i], m.xOffset, m.xOffset+w)
+		var line []string
+		for j, realLine := range strings.Split(lines[i], "\n") {
+			line = append(line, m.LeftGutterFunc(GutterContext{
+				Index:      i + offset,
+				TotalLines: total,
+				Soft:       j > 0,
+			})+realLine)
+		}
+		result[i] = strings.Join(line, "\n")
 	}
-	return cutLines
-}
-
-// scrollArea returns the scrollable boundaries for high performance rendering.
-//
-// Deprecated: high performance rendering is deprecated in Bubble Tea.
-func (m Model) scrollArea() (top, bottom int) {
-	top = max(0, m.YPosition)
-	bottom = max(top, top+m.Height)
-	if top > 0 && bottom > top {
-		bottom--
-	}
-	return top, bottom
+	return result
 }
 
 // SetYOffset sets the Y offset.
 func (m *Model) SetYOffset(n int) {
-	m.YOffset = clamp(n, 0, m.maxYOffset())
+	m.yOffset = clamp(n, 0, m.maxYOffset())
 }
 
-// ViewDown moves the view down by the number of lines in the viewport.
-// Basically, "page down".
-//
-// Deprecated: use [Model.PageDown] instead.
-func (m *Model) ViewDown() []string {
-	return m.PageDown()
+// YOffset returns the current Y offset - the vertical scroll position.
+func (m *Model) YOffset() int { return m.yOffset }
+
+// EnsureVisible ensures that the given line and column are in the viewport.
+func (m *Model) EnsureVisible(line, colstart, colend int) {
+	maxWidth := m.maxWidth()
+	if colend <= maxWidth {
+		m.SetXOffset(0)
+	} else {
+		m.SetXOffset(colstart - m.horizontalStep) // put one step to the left, feels more natural
+	}
+
+	if line < m.YOffset() || line >= m.YOffset()+m.maxHeight() {
+		m.SetYOffset(line)
+	}
+
+	m.visibleLines()
 }
 
 // PageDown moves the view down by the number of lines in the viewport.
-func (m *Model) PageDown() []string {
+func (m *Model) PageDown() {
 	if m.AtBottom() {
-		return nil
+		return
 	}
 
-	return m.ScrollDown(m.Height)
-}
-
-// ViewUp moves the view up by one height of the viewport.
-// Basically, "page up".
-//
-// Deprecated: use [Model.PageUp] instead.
-func (m *Model) ViewUp() []string {
-	return m.PageUp()
+	m.ScrollDown(m.Height())
 }
 
 // PageUp moves the view up by one height of the viewport.
-func (m *Model) PageUp() []string {
+func (m *Model) PageUp() {
 	if m.AtTop() {
-		return nil
+		return
 	}
 
-	return m.ScrollUp(m.Height)
-}
-
-// HalfViewDown moves the view down by half the height of the viewport.
-//
-// Deprecated: use [Model.HalfPageDown] instead.
-func (m *Model) HalfViewDown() (lines []string) {
-	return m.HalfPageDown()
+	m.ScrollUp(m.Height())
 }
 
 // HalfPageDown moves the view down by half the height of the viewport.
-func (m *Model) HalfPageDown() (lines []string) {
+func (m *Model) HalfPageDown() {
 	if m.AtBottom() {
-		return nil
+		return
 	}
 
-	return m.ScrollDown(m.Height / 2) //nolint:mnd
-}
-
-// HalfViewUp moves the view up by half the height of the viewport.
-//
-// Deprecated: use [Model.HalfPageUp] instead.
-func (m *Model) HalfViewUp() (lines []string) {
-	return m.HalfPageUp()
+	m.ScrollDown(m.Height() / 2) //nolint:mnd
 }
 
 // HalfPageUp moves the view up by half the height of the viewport.
-func (m *Model) HalfPageUp() (lines []string) {
+func (m *Model) HalfPageUp() {
 	if m.AtTop() {
-		return nil
+		return
 	}
 
-	return m.ScrollUp(m.Height / 2) //nolint:mnd
-}
-
-// LineDown moves the view down by the given number of lines.
-//
-// Deprecated: use [Model.ScrollDown] instead.
-func (m *Model) LineDown(n int) (lines []string) {
-	return m.ScrollDown(n)
+	m.ScrollUp(m.Height() / 2) //nolint:mnd
 }
 
 // ScrollDown moves the view down by the given number of lines.
-func (m *Model) ScrollDown(n int) (lines []string) {
+func (m *Model) ScrollDown(n int) {
 	if m.AtBottom() || n == 0 || len(m.lines) == 0 {
-		return nil
+		return
 	}
 
 	// Make sure the number of lines by which we're going to scroll isn't
 	// greater than the number of lines we actually have left before we reach
 	// the bottom.
-	m.SetYOffset(m.YOffset + n)
-
-	// Gather lines to send off for performance scrolling.
-	//
-	// XXX: high performance rendering is deprecated in Bubble Tea.
-	bottom := clamp(m.YOffset+m.Height, 0, len(m.lines))
-	top := clamp(m.YOffset+m.Height-n, 0, bottom)
-	return m.lines[top:bottom]
+	m.SetYOffset(m.YOffset() + n)
+	m.hiIdx = m.findNearedtMatch()
 }
 
-// LineUp moves the view down by the given number of lines. Returns the new
+// ScrollUp moves the view up by the given number of lines. Returns the new
 // lines to show.
-//
-// Deprecated: use [Model.ScrollUp] instead.
-func (m *Model) LineUp(n int) (lines []string) {
-	return m.ScrollUp(n)
-}
-
-// ScrollUp moves the view down by the given number of lines. Returns the new
-// lines to show.
-func (m *Model) ScrollUp(n int) (lines []string) {
+func (m *Model) ScrollUp(n int) {
 	if m.AtTop() || n == 0 || len(m.lines) == 0 {
-		return nil
+		return
 	}
 
 	// Make sure the number of lines by which we're going to scroll isn't
 	// greater than the number of lines we are from the top.
-	m.SetYOffset(m.YOffset - n)
-
-	// Gather lines to send off for performance scrolling.
-	//
-	// XXX: high performance rendering is deprecated in Bubble Tea.
-	top := max(0, m.YOffset)
-	bottom := clamp(m.YOffset+n, 0, m.maxYOffset())
-	return m.lines[top:bottom]
+	m.SetYOffset(m.YOffset() - n)
+	m.hiIdx = m.findNearedtMatch()
 }
 
-// SetHorizontalStep sets the default amount of columns to scroll left or right
-// with the default viewport key map.
-//
-// If set to 0 or less, horizontal scrolling is disabled.
-//
-// On v1, horizontal scrolling is disabled by default.
+// SetHorizontalStep sets the amount of cells that the viewport moves in the
+// default viewport keymapping. If set to 0 or less, horizontal scrolling is
+// disabled.
 func (m *Model) SetHorizontalStep(n int) {
-	m.horizontalStep = max(n, 0)
+	m.horizontalStep = max(0, n)
 }
+
+// XOffset returns the current X offset - the horizontal scroll position.
+func (m *Model) XOffset() int { return m.xOffset }
 
 // SetXOffset sets the X offset.
+// No-op when soft wrap is enabled.
 func (m *Model) SetXOffset(n int) {
-	m.xOffset = clamp(n, 0, m.longestLineWidth-m.Width)
+	if m.SoftWrap {
+		return
+	}
+	m.xOffset = clamp(n, 0, m.maxXOffset())
 }
 
 // ScrollLeft moves the viewport to the left by the given number of columns.
@@ -324,7 +558,7 @@ func (m *Model) ScrollRight(n int) {
 
 // TotalLineCount returns the total number of lines (both hidden and visible) within the viewport.
 func (m Model) TotalLineCount() int {
-	return len(m.lines)
+	return m.lineCount()
 }
 
 // VisibleLineCount returns the number of the visible lines within the viewport.
@@ -339,119 +573,110 @@ func (m *Model) GotoTop() (lines []string) {
 	}
 
 	m.SetYOffset(0)
+	m.hiIdx = m.findNearedtMatch()
 	return m.visibleLines()
 }
 
 // GotoBottom sets the viewport to the bottom position.
 func (m *Model) GotoBottom() (lines []string) {
 	m.SetYOffset(m.maxYOffset())
+	m.hiIdx = m.findNearedtMatch()
 	return m.visibleLines()
 }
 
-// Sync tells the renderer where the viewport will be located and requests
-// a render of the current state of the viewport. It should be called for the
-// first render and after a window resize.
-//
-// For high performance rendering only.
-//
-// Deprecated: high performance rendering is deprecated in Bubble Tea.
-func Sync(m Model) tea.Cmd {
-	if len(m.lines) == 0 {
-		return nil
+// SetHighlights sets ranges of characters to highlight.
+// For instance, `[]int{[]int{2, 10}, []int{20, 30}}` will highlight characters
+// 2 to 10 and 20 to 30.
+// Note that highlights are not expected to transpose each other, and are also
+// expected to be in order.
+// Use [Model.SetHighlights] to set the highlight ranges, and
+// [Model.HighlightNext] and [Model.HighlightPrevious] to navigate.
+// Use [Model.ClearHighlights] to remove all highlights.
+func (m *Model) SetHighlights(matches [][]int) {
+	if len(matches) == 0 || len(m.lines) == 0 {
+		return
 	}
-	top, bottom := m.scrollArea()
-	return tea.SyncScrollArea(m.visibleLines(), top, bottom)
+	m.highlights = parseMatches(m.GetContent(), matches)
+	m.hiIdx = m.findNearedtMatch()
+	m.showHighlight()
 }
 
-// ViewDown is a high performance command that moves the viewport up by a given
-// number of lines. Use Model.ViewDown to get the lines that should be rendered.
-// For example:
-//
-//	lines := model.ViewDown(1)
-//	cmd := ViewDown(m, lines)
-//
-// Deprecated: high performance rendering is deprecated in Bubble Tea.
-func ViewDown(m Model, lines []string) tea.Cmd {
-	if len(lines) == 0 {
-		return nil
-	}
-	top, bottom := m.scrollArea()
-
-	// XXX: high performance rendering is deprecated in Bubble Tea. In a v2 we
-	// won't need to return a command here.
-	return tea.ScrollDown(lines, top, bottom)
+// ClearHighlights clears previously set highlights.
+func (m *Model) ClearHighlights() {
+	m.highlights = nil
+	m.hiIdx = -1
 }
 
-// ViewUp is a high performance command the moves the viewport down by a given
-// number of lines height. Use Model.ViewUp to get the lines that should be
-// rendered.
-//
-// Deprecated: high performance rendering is deprecated in Bubble Tea.
-func ViewUp(m Model, lines []string) tea.Cmd {
-	if len(lines) == 0 {
-		return nil
+func (m *Model) showHighlight() {
+	if m.hiIdx == -1 {
+		return
 	}
-	top, bottom := m.scrollArea()
+	line, colstart, colend := m.highlights[m.hiIdx].coords()
+	m.EnsureVisible(line, colstart, colend)
+}
 
-	// XXX: high performance rendering is deprecated in Bubble Tea. In a v2 we
-	// won't need to return a command here.
-	return tea.ScrollUp(lines, top, bottom)
+// HighlightNext highlights the next match.
+func (m *Model) HighlightNext() {
+	if m.highlights == nil {
+		return
+	}
+
+	m.hiIdx = (m.hiIdx + 1) % len(m.highlights)
+	m.showHighlight()
+}
+
+// HighlightPrevious highlights the previous match.
+func (m *Model) HighlightPrevious() {
+	if m.highlights == nil {
+		return
+	}
+
+	m.hiIdx = (m.hiIdx - 1 + len(m.highlights)) % len(m.highlights)
+	m.showHighlight()
+}
+
+func (m Model) findNearedtMatch() int {
+	for i, match := range m.highlights {
+		if match.lineStart >= m.YOffset() {
+			return i
+		}
+	}
+	return -1
 }
 
 // Update handles standard message-based viewport updates.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
-	var cmd tea.Cmd
-	m, cmd = m.updateAsModel(msg)
-	return m, cmd
+	m = m.updateAsModel(msg)
+	return m, nil
 }
 
 // Author's note: this method has been broken out to make it easier to
 // potentially transition Update to satisfy tea.Model.
-func (m Model) updateAsModel(msg tea.Msg) (Model, tea.Cmd) {
+func (m Model) updateAsModel(msg tea.Msg) Model {
 	if !m.initialized {
 		m.setInitialValues()
 	}
 
-	var cmd tea.Cmd
-
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		switch {
 		case key.Matches(msg, m.KeyMap.PageDown):
-			lines := m.PageDown()
-			if m.HighPerformanceRendering {
-				cmd = ViewDown(m, lines)
-			}
+			m.PageDown()
 
 		case key.Matches(msg, m.KeyMap.PageUp):
-			lines := m.PageUp()
-			if m.HighPerformanceRendering {
-				cmd = ViewUp(m, lines)
-			}
+			m.PageUp()
 
 		case key.Matches(msg, m.KeyMap.HalfPageDown):
-			lines := m.HalfPageDown()
-			if m.HighPerformanceRendering {
-				cmd = ViewDown(m, lines)
-			}
+			m.HalfPageDown()
 
 		case key.Matches(msg, m.KeyMap.HalfPageUp):
-			lines := m.HalfPageUp()
-			if m.HighPerformanceRendering {
-				cmd = ViewUp(m, lines)
-			}
+			m.HalfPageUp()
 
 		case key.Matches(msg, m.KeyMap.Down):
-			lines := m.ScrollDown(1)
-			if m.HighPerformanceRendering {
-				cmd = ViewDown(m, lines)
-			}
+			m.ScrollDown(1)
 
 		case key.Matches(msg, m.KeyMap.Up):
-			lines := m.ScrollUp(1)
-			if m.HighPerformanceRendering {
-				cmd = ViewUp(m, lines)
-			}
+			m.ScrollUp(1)
 
 		case key.Matches(msg, m.KeyMap.Left):
 			m.ScrollLeft(m.horizontalStep)
@@ -460,53 +685,40 @@ func (m Model) updateAsModel(msg tea.Msg) (Model, tea.Cmd) {
 			m.ScrollRight(m.horizontalStep)
 		}
 
-	case tea.MouseMsg:
-		if !m.MouseWheelEnabled || msg.Action != tea.MouseActionPress {
+	case tea.MouseWheelMsg:
+		if !m.MouseWheelEnabled {
 			break
 		}
-		switch msg.Button { //nolint:exhaustive
-		case tea.MouseButtonWheelUp:
-			if msg.Shift {
-				// Note that not every terminal emulator sends the shift event for mouse actions by default (looking at you Konsole)
-				m.ScrollLeft(m.horizontalStep)
-			} else {
-				lines := m.ScrollUp(m.MouseWheelDelta)
-				if m.HighPerformanceRendering {
-					cmd = ViewUp(m, lines)
-				}
-			}
-
-		case tea.MouseButtonWheelDown:
-			if msg.Shift {
+		switch msg.Button {
+		case tea.MouseWheelDown:
+			// NOTE: some terminal emulators don't send the shift event for
+			// mouse actions.
+			if msg.Mod.Contains(tea.ModShift) {
 				m.ScrollRight(m.horizontalStep)
-			} else {
-				lines := m.ScrollDown(m.MouseWheelDelta)
-				if m.HighPerformanceRendering {
-					cmd = ViewDown(m, lines)
-				}
+				break
 			}
-		// Note that not every terminal emulator sends the horizontal wheel events by default (looking at you Konsole)
-		case tea.MouseButtonWheelLeft:
+			m.ScrollDown(m.MouseWheelDelta)
+		case tea.MouseWheelUp:
+			// NOTE: some terminal emulators don't send the shift event for
+			// mouse actions.
+			if msg.Mod.Contains(tea.ModShift) {
+				m.ScrollLeft(m.horizontalStep)
+				break
+			}
+			m.ScrollUp(m.MouseWheelDelta)
+		case tea.MouseWheelLeft:
 			m.ScrollLeft(m.horizontalStep)
-		case tea.MouseButtonWheelRight:
+		case tea.MouseWheelRight:
 			m.ScrollRight(m.horizontalStep)
 		}
 	}
 
-	return m, cmd
+	return m
 }
 
 // View renders the viewport into a string.
 func (m Model) View() string {
-	if m.HighPerformanceRendering {
-		// Just send newlines since we're going to be rendering the actual
-		// content separately. We still need to send something that equals the
-		// height of this view so that the Bubble Tea standard renderer can
-		// position anything below this view properly.
-		return strings.Repeat("\n", max(0, m.Height-1))
-	}
-
-	w, h := m.Width, m.Height
+	w, h := m.Width(), m.Height()
 	if sw := m.Style.GetWidth(); sw != 0 {
 		w = min(w, sw)
 	}
@@ -533,12 +745,10 @@ func clamp(v, low, high int) int {
 	return min(high, max(low, v))
 }
 
-func findLongestLineWidth(lines []string) int {
-	w := 0
-	for _, l := range lines {
-		if ww := ansi.StringWidth(l); ww > w {
-			w = ww
-		}
+func maxLineWidth(lines []string) int {
+	result := 0
+	for _, line := range lines {
+		result = max(result, lipgloss.Width(line))
 	}
-	return w
+	return result
 }
