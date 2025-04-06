@@ -1671,6 +1671,26 @@ func TestView(t *testing.T) {
 				`),
 			},
 		},
+		{
+			name: "placeholder chinese character",
+			modelFunc: func(m Model) Model {
+				m.Placeholder = "输入消息..."
+				m.ShowLineNumbers = true
+				m.SetWidth(20)
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					>   1 输入消息...
+					>
+					>
+					>
+					>
+					>
+
+				`),
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -1689,6 +1709,7 @@ func TestView(t *testing.T) {
 			wantView := stripString(tt.want.view)
 
 			if view != wantView {
+				t.Log(udiff.Unified("expected", "got", wantView, view))
 				t.Fatalf("Want:\n%v\nGot:\n%v\n", wantView, view)
 			}
 

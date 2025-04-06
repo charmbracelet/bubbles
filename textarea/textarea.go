@@ -1391,6 +1391,7 @@ func (m Model) placeholderView() string {
 			gap := strings.Repeat(" ", max(0, m.width-uniseg.StringWidth(plines[0])))
 			renderedPlaceholder := styles.computedPlaceholder().Render(placeholderTail + gap)
 			s.WriteString(lineStyle.Render(renderedPlaceholder))
+      
 		// remaining lines
 		case len(plines) > i:
 			// current line placeholder text
