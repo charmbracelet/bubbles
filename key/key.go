@@ -36,7 +36,11 @@
 // to render help text for keystrokes in your views.
 package key
 
-import "fmt"
+import (
+	"fmt"
+
+	tea "github.com/charmbracelet/bubbletea/v2"
+)
 
 // Binding describes a set of keybindings and, optionally, their associated
 // help text.
@@ -128,10 +132,15 @@ type Help struct {
 
 // Matches checks if the given key matches the given bindings.
 func Matches[Key fmt.Stringer](k Key, b ...Binding) bool {
+	var txt string
+	switch v := any(k).(type) {
+	case tea.KeyMsg:
+		txt = v.Key().Text
+	}
 	keys := k.String()
 	for _, binding := range b {
 		for _, v := range binding.keys {
-			if keys == v && binding.Enabled() {
+			if binding.Enabled() && (v == keys || (txt != "" && v == txt)) {
 				return true
 			}
 		}
