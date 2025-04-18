@@ -107,6 +107,10 @@ func DefaultKeyMap() KeyMap {
 
 // Model is the Bubble Tea model for this tree element.
 type Model struct {
+	// KeyMap encodes the keybindings recognized by the widget.
+	KeyMap KeyMap
+	Help   help.Model
+
 	showHelp bool
 	// scrollOff is the minimal number of lines to keep visible above and below the selected node.
 	scrollOff int
@@ -116,19 +120,11 @@ type Model struct {
 	closedCharacter string
 	// cursorCharacter is the character used to represent the cursor.
 	cursorCharacter string
-	// KeyMap encodes the keybindings recognized by the widget.
-	KeyMap KeyMap
 	// styles sets the styling for the tree
 	styles Styles
-	Help   help.Model
 
-	// Additional key mappings for the short and full help views. This allows
-	// you to add additional key mappings to the help menu without
-	// re-implementing the help component. Of course, you can also disable the
-	// list's help component and implement a new one if you need more
-	// flexibility.
-	AdditionalShortHelpKeys func() []key.Binding
-	AdditionalFullHelpKeys  func() []key.Binding
+	additionalShortHelpKeys func() []key.Binding
+	additionalFullHelpKeys  func() []key.Binding
 
 	root *Node
 
@@ -258,6 +254,24 @@ func (m *Model) SetNodes(t *Node) {
 	m.setAttributes()
 	m.updateStyles()
 	m.updateViewport(0)
+}
+
+// Additional key mappings for the full help view. This allows
+// you to add additional key mappings to the help menu without
+// re-implementing the help component. Of course, you can also disable the
+// tree's help component and implement a new one if you need more
+// flexibility.
+func (m *Model) SetAdditionalFullHelpKeys(val func() []key.Binding) {
+	m.additionalFullHelpKeys = val
+}
+
+// Additional key mappings for the short help view. This allows
+// you to add additional key mappings to the help menu without
+// re-implementing the help component. Of course, you can also disable the
+// tree's help component and implement a new one if you need more
+// flexibility.
+func (m *Model) SetAdditionalShortHelpKeys(val func() []key.Binding) {
+	m.additionalShortHelpKeys = val
 }
 
 // Down moves the selection down by one item.
