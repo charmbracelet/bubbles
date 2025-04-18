@@ -1,0 +1,13 @@
+→ ▼ ~/charm                                                           
+  ├──ayman                                                            
+  ├──▼ bash                                                           
+  │  └──▼ tools                                                       
+  │     ├──zsh                                                        
+  │     └──doom-emacs                                                 
+  ├──▼ carlos                                                         
+  │  └──▼ emotes                                                      
+  │     ├──chefkiss.png                                               
+  │     └──kekw.png                                                   
+  └──maas                                                             
+                                                                      
+↓/j down • ↑/k up • ⏎ toggle • q quit • ? more                        

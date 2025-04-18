@@ -484,8 +484,8 @@ func (m Model) ShortHelp() []key.Binding {
 		m.KeyMap.Toggle,
 	}
 
-	if m.AdditionalShortHelpKeys != nil {
-		kb = append(kb, m.AdditionalShortHelpKeys()...)
+	if m.additionalShortHelpKeys != nil {
+		kb = append(kb, m.additionalShortHelpKeys()...)
 	}
 
 	kb = append(kb, m.KeyMap.Quit, m.KeyMap.ShowFullHelp)
@@ -516,8 +516,8 @@ func (m Model) FullHelp() [][]key.Binding {
 		},
 	}
 
-	if m.AdditionalFullHelpKeys != nil {
-		kb = append(kb, m.AdditionalFullHelpKeys())
+	if m.additionalFullHelpKeys != nil {
+		kb = append(kb, m.additionalFullHelpKeys())
 	}
 
 	kb = append(kb, []key.Binding{
