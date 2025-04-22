@@ -4,12 +4,13 @@ package table
 import (
 	"strings"
 
-	"github.com/charmbracelet/bubbles/help"
-	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/mattn/go-runewidth"
+
+	"github.com/charmbracelet/bubbles/help"
+	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/viewport"
 )
 
 // Model defines a state for the table widget.
@@ -306,6 +307,11 @@ func (m Model) Columns() []Column {
 // SetRows sets a new rows state.
 func (m *Model) SetRows(r []Row) {
 	m.rows = r
+
+	if m.cursor > len(m.rows)-1 {
+		m.cursor = len(m.rows) - 1
+	}
+
 	m.UpdateViewport()
 }
 
