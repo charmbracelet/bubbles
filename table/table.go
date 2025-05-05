@@ -15,8 +15,11 @@ import (
 
 // Model defines a state for the table widget.
 type Model struct {
-	KeyMap KeyMap
-	Help   help.Model
+	KeyMap                  KeyMap
+	additionalShortHelpKeys []key.Binding
+	additionalFullHelpKeys  [][]key.Binding
+
+	Help help.Model
 
 	cols   []Column
 	rows   []Row
@@ -200,6 +203,22 @@ func WithKeyMap(km KeyMap) Option {
 	}
 }
 
+// WithAdditionalShortHelpKeys adds additional keys to the short help.
+// you need to handle the keys itself!
+func WithAdditionalShortHelpKeys(kbs []key.Binding) Option {
+	return func(m *Model) {
+		m.additionalShortHelpKeys = kbs
+	}
+}
+
+// WithAdditionalFullHelpKeys adds additional keys to the full help.
+// you need to handle the keys itself!
+func WithAdditionalFullHelpKeys(kbs [][]key.Binding) Option {
+	return func(m *Model) {
+		m.additionalFullHelpKeys = kbs
+	}
+}
+
 // Update is the Bubble Tea update loop.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	if !m.focus {
@@ -258,7 +277,18 @@ func (m Model) View() string {
 // Note that this view is not rendered by default and you must call it
 // manually in your application, where applicable.
 func (m Model) HelpView() string {
-	return m.Help.View(m.KeyMap)
+	if m.Help.ShowAll {
+		var kbs [][]key.Binding
+		kbs = append(kbs, m.KeyMap.FullHelp()...)
+		kbs = append(kbs, m.additionalFullHelpKeys...)
+		return m.Help.FullHelpView(kbs)
+	}
+
+	var kbs []key.Binding
+	kbs = append(kbs, m.KeyMap.ShortHelp()...)
+	kbs = append(kbs, m.additionalShortHelpKeys...)
+
+	return m.Help.ShortHelpView(kbs)
 }
 
 // UpdateViewport updates the list content based on the previously defined
