@@ -24,9 +24,10 @@ type Model struct {
 	focus  bool
 	styles Styles
 
-	viewport viewport.Model
-	start    int
-	end      int
+	viewport   viewport.Model
+	start      int
+	end        int
+	wrapCursor bool
 }
 
 // Row represents one line in the table.
@@ -137,9 +138,10 @@ func New(opts ...Option) Model {
 		cursor:   0,
 		viewport: viewport.New(0, 20), //nolint:mnd
 
-		KeyMap: DefaultKeyMap(),
-		Help:   help.New(),
-		styles: DefaultStyles(),
+		KeyMap:     DefaultKeyMap(),
+		Help:       help.New(),
+		styles:     DefaultStyles(),
+		wrapCursor: true,
 	}
 
 	for _, opt := range opts {
@@ -200,6 +202,14 @@ func WithKeyMap(km KeyMap) Option {
 	}
 }
 
+// WithWrapCursor sets whether the cursor should be wrapped to opposite end on
+// LineUp and LineDown. Default is true.
+func WithWrapCursor(wrapCursor bool) Option {
+	return func(m *Model) {
+		m.wrapCursor = wrapCursor
+	}
+}
+
 // Update is the Bubble Tea update loop.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	if !m.focus {
@@ -210,9 +220,17 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, m.KeyMap.LineUp):
-			m.MoveUp(1)
+			if m.cursor == 0 && m.wrapCursor {
+				m.SetCursor(len(m.rows) - 1)
+			} else {
+				m.MoveUp(1)
+			}
 		case key.Matches(msg, m.KeyMap.LineDown):
-			m.MoveDown(1)
+			if m.cursor == len(m.rows)-1 && m.wrapCursor {
+				m.SetCursor(0)
+			} else {
+				m.MoveDown(1)
+			}
 		case key.Matches(msg, m.KeyMap.PageUp):
 			m.MoveUp(m.viewport.Height)
 		case key.Matches(msg, m.KeyMap.PageDown):
