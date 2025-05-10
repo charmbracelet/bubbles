@@ -15,11 +15,11 @@ import (
 	"github.com/charmbracelet/x/ansi"
 	"github.com/sahilm/fuzzy"
 
-	"github.com/charmbracelet/bubbles/help"
-	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/paginator"
-	"github.com/charmbracelet/bubbles/spinner"
-	"github.com/charmbracelet/bubbles/textinput"
+	"github.com/mikeflynn/bubbles/help"
+	"github.com/mikeflynn/bubbles/key"
+	"github.com/mikeflynn/bubbles/paginator"
+	"github.com/mikeflynn/bubbles/spinner"
+	"github.com/mikeflynn/bubbles/textinput"
 )
 
 // Item is an item that appears in the list.

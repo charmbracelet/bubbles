@@ -6,7 +6,7 @@ import (
 
 	"github.com/charmbracelet/x/exp/golden"
 
-	"github.com/charmbracelet/bubbles/key"
+	"github.com/mikeflynn/bubbles/key"
 )
 
 func TestFullHelp(t *testing.T) {

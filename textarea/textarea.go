@@ -10,15 +10,15 @@ import (
 	"unicode"
 
 	"github.com/atotto/clipboard"
-	"github.com/charmbracelet/bubbles/cursor"
-	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/runeutil"
-	"github.com/charmbracelet/bubbles/textarea/memoization"
-	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 	rw "github.com/mattn/go-runewidth"
+	"github.com/mikeflynn/bubbles/cursor"
+	"github.com/mikeflynn/bubbles/key"
+	"github.com/mikeflynn/bubbles/runeutil"
+	"github.com/mikeflynn/bubbles/textarea/memoization"
+	"github.com/mikeflynn/bubbles/viewport"
 	"github.com/rivo/uniseg"
 )
 

@@ -1,6 +1,6 @@
 package list
 
-import "github.com/charmbracelet/bubbles/key"
+import "github.com/mikeflynn/bubbles/key"
 
 // KeyMap defines keybindings. It satisfies to the help.KeyMap interface, which
 // is used to render the menu.

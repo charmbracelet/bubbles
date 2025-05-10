@@ -9,12 +9,12 @@ import (
 	"unicode"
 
 	"github.com/atotto/clipboard"
-	"github.com/charmbracelet/bubbles/cursor"
-	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/runeutil"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	rw "github.com/mattn/go-runewidth"
+	"github.com/mikeflynn/bubbles/cursor"
+	"github.com/mikeflynn/bubbles/key"
+	"github.com/mikeflynn/bubbles/runeutil"
 	"github.com/rivo/uniseg"
 )
 

@@ -4,10 +4,10 @@ import (
 	"math"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/mikeflynn/bubbles/key"
 )
 
 // New returns a new model with the given width and height as well as default

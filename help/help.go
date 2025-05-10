@@ -4,9 +4,9 @@ package help
 import (
 	"strings"
 
-	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/mikeflynn/bubbles/key"
 )
 
 // KeyMap is a map of keybindings used to generate help. Since it's an
