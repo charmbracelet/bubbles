@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 func Test_CurrentSuggestion(t *testing.T) {
@@ -46,6 +48,30 @@ func Test_SlicingOutsideCap(t *testing.T) {
 	textinput.View()
 }
 
+func TestChinesePlaceholder(t *testing.T) {
+	textinput := New()
+	textinput.Placeholder = "输入消息..."
+	textinput.Width = 20
+
+	got := textinput.View()
+	expected := "> 输入消息...       "
+	if got != expected {
+		t.Fatalf("expected %q but got %q", expected, got)
+	}
+}
+
+func TestPlaceholderTruncate(t *testing.T) {
+	textinput := New()
+	textinput.Placeholder = "A very long placeholder, or maybe not so much"
+	textinput.Width = 10
+
+	got := textinput.View()
+	expected := "> A very …"
+	if got != expected {
+		t.Fatalf("expected %q but got %q", expected, got)
+	}
+}
+
 func ExampleValidateFunc() {
 	creditCardNumber := New()
 	creditCardNumber.Placeholder = "4505 **** **** 1234"
@@ -77,4 +103,16 @@ func ExampleValidateFunc() {
 
 		return err
 	}
+}
+
+func keyPress(key rune) tea.Msg {
+	return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{key}, Alt: false}
+}
+
+func sendString(m Model, str string) Model {
+	for _, k := range str {
+		m, _ = m.Update(keyPress(k))
+	}
+
+	return m
 }
