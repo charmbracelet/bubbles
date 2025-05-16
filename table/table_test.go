@@ -195,6 +195,11 @@ func TestNew(t *testing.T) {
 
 			got := New(tc.opts...)
 
+			// NOTE(@andreynering): Funcs have different references, so we need
+			// to clear them out to compare the structs.
+			tc.want.viewport.LeftGutterFunc = nil
+			got.viewport.LeftGutterFunc = nil
+
 			if !reflect.DeepEqual(tc.want, got) {
 				t.Errorf("\n\nwant %v\n\ngot %v", tc.want, got)
 			}
