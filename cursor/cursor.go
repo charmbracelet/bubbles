@@ -1,3 +1,4 @@
+// Package cursor provides cursor functionality for Bubble Tea applications.
 package cursor
 
 import (
@@ -172,11 +173,13 @@ func (m *Model) BlinkCmd() tea.Cmd {
 
 	m.blinkTag++
 
+	blinkMsg := BlinkMsg{id: m.id, tag: m.blinkTag}
+
 	return func() tea.Msg {
 		defer cancel()
 		<-ctx.Done()
 		if ctx.Err() == context.DeadlineExceeded {
-			return BlinkMsg{id: m.id, tag: m.blinkTag}
+			return blinkMsg
 		}
 		return blinkCanceled{}
 	}

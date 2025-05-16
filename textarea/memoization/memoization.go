@@ -1,3 +1,5 @@
+// Package memoization is an internal package that provides a simple memoization
+// for text area.
 package memoization
 
 import (

@@ -212,10 +212,3 @@ func (m Model) dotsView() string {
 func (m Model) arabicView() string {
 	return fmt.Sprintf(m.ArabicFormat, m.Page+1, m.TotalPages)
 }
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}

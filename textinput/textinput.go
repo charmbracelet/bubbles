@@ -1,3 +1,5 @@
+// Package textinput provides a text input component for Bubble Tea
+// applications.
 package textinput
 
 import (
@@ -398,7 +400,7 @@ func (m *Model) deleteWordBackward() {
 	// Linter note: it's critical that we acquire the initial cursor position
 	// here prior to altering it via SetCursor() below. As such, moving this
 	// call into the corresponding if clause does not apply here.
-	oldPos := m.pos //nolint:ifshort
+	oldPos := m.pos
 
 	m.SetCursor(m.pos - 1)
 	for unicode.IsSpace(m.value[m.pos]) {
@@ -665,7 +667,7 @@ func (m Model) View() string {
 		v += styleText(m.echoTransform(string(value[pos+1:]))) // text after cursor
 		v += m.completionView(0)                               // suggested completion
 	} else {
-		if m.canAcceptSuggestion() {
+		if m.focus && m.canAcceptSuggestion() {
 			suggestion := m.matchedSuggestions[m.currentSuggestionIndex]
 			if len(value) < len(suggestion) {
 				m.Cursor.TextStyle = m.CompletionStyle
@@ -758,31 +760,20 @@ func clamp(v, low, high int) int {
 	return min(high, max(low, v))
 }
 
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}
-
 // Deprecated.
 
-// Deprecated: use cursor.Mode.
+// Deprecated: use [cursor.Mode].
+//
+//nolint:revive
 type CursorMode int
 
+//nolint:revive
 const (
-	// Deprecated: use cursor.CursorBlink.
+	// Deprecated: use [cursor.CursorBlink].
 	CursorBlink = CursorMode(cursor.CursorBlink)
-	// Deprecated: use cursor.CursorStatic.
+	// Deprecated: use [cursor.CursorStatic].
 	CursorStatic = CursorMode(cursor.CursorStatic)
-	// Deprecated: use cursor.CursorHide.
+	// Deprecated: use [cursor.CursorHide].
 	CursorHide = CursorMode(cursor.CursorHide)
 )
 
@@ -790,12 +781,16 @@ func (c CursorMode) String() string {
 	return cursor.Mode(c).String()
 }
 
-// Deprecated: use cursor.Mode().
+// Deprecated: use [cursor.Mode].
+//
+//nolint:revive
 func (m Model) CursorMode() CursorMode {
 	return CursorMode(m.Cursor.Mode())
 }
 
 // Deprecated: use cursor.SetMode().
+//
+//nolint:revive
 func (m *Model) SetCursorMode(mode CursorMode) tea.Cmd {
 	return m.Cursor.SetMode(cursor.Mode(mode))
 }
@@ -833,7 +828,7 @@ func (m *Model) MatchedSuggestions() []string {
 	return m.getSuggestions(m.matchedSuggestions)
 }
 
-// CurrentSuggestion returns the currently selected suggestion index.
+// CurrentSuggestionIndex returns the currently selected suggestion index.
 func (m *Model) CurrentSuggestionIndex() int {
 	return m.currentSuggestionIndex
 }

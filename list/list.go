@@ -289,7 +289,7 @@ func (m *Model) SetFilterText(filter string) {
 	m.updateKeybindings()
 }
 
-// Helper method for setting the filtering state manually.
+// SetFilterState allows setting the filtering state manually.
 func (m *Model) SetFilterState(state FilterState) {
 	m.Paginator.Page = 0
 	m.cursor = 0
@@ -696,6 +696,7 @@ func (m *Model) setSize(width, height int) {
 	m.Help.Width = width
 	m.FilterInput.Width = width - promptWidth - lipgloss.Width(m.spinnerView())
 	m.updatePagination()
+	m.updateKeybindings()
 }
 
 func (m *Model) resetFiltering() {
@@ -1325,11 +1326,4 @@ func countEnabledBindings(groups [][]key.Binding) (agg int) {
 		}
 	}
 	return agg
-}
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
 }

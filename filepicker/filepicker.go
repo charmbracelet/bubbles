@@ -1,3 +1,5 @@
+// Package filepicker provides a file picker component for Bubble Tea
+// applications.
 package filepicker
 
 import (
@@ -158,6 +160,9 @@ type Model struct {
 	maxStack stack
 	minStack stack
 
+	// Height of the picker.
+	//
+	// Deprecated: use [Model.SetHeight] instead.
 	Height     int
 	AutoHeight bool
 
@@ -188,10 +193,10 @@ func newStack() stack {
 	}
 }
 
-func (m *Model) pushView(selected, min, max int) {
+func (m *Model) pushView(selected, minimum, maximum int) {
 	m.selectedStack.Push(selected)
-	m.minStack.Push(min)
-	m.maxStack.Push(max)
+	m.minStack.Push(minimum)
+	m.maxStack.Push(maximum)
 }
 
 func (m *Model) popView() (int, int, int) {
@@ -231,6 +236,14 @@ func (m Model) readDir(path string, showHidden bool) tea.Cmd {
 // Init initializes the file picker model.
 func (m Model) Init() tea.Cmd {
 	return m.readDir(m.CurrentDirectory, m.ShowHidden)
+}
+
+// SetHeight sets the height of the filepicker.
+func (m *Model) SetHeight(height int) {
+	m.Height = height
+	if m.max > m.Height-1 {
+		m.max = m.min + m.Height - 1
+	}
 }
 
 // Update handles user interactions within the file picker model.
@@ -506,11 +519,4 @@ func (m Model) canSelect(file string) bool {
 		}
 	}
 	return false
-}
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
 }

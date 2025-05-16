@@ -1,3 +1,4 @@
+// Package progress provides a simple progress bar for Bubble Tea applications.
 package progress
 
 import (
@@ -357,22 +358,8 @@ func (m Model) color(c string) termenv.Color {
 	return m.colorProfile.Color(c)
 }
 
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}
-
 // IsAnimating returns false if the progress bar reached equilibrium and is no longer animating.
 func (m *Model) IsAnimating() bool {
 	dist := math.Abs(m.percentShown - m.targetPercent)
 	return !(dist < 0.001 && m.velocity < 0.01)
-}
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }
