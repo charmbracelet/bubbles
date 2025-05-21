@@ -397,7 +397,7 @@ func (m *Model) deleteWordBackward() {
 	// Linter note: it's critical that we acquire the initial cursor position
 	// here prior to altering it via SetCursor() below. As such, moving this
 	// call into the corresponding if clause does not apply here.
-	oldPos := m.pos //nolint:ifshort
+	oldPos := m.pos
 
 	m.SetCursor(m.pos - 1)
 	for unicode.IsSpace(m.value[m.pos]) {

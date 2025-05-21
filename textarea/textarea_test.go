@@ -1671,6 +1671,26 @@ func TestView(t *testing.T) {
 				`),
 			},
 		},
+		{
+			name: "placeholder chinese character",
+			modelFunc: func(m Model) Model {
+				m.Placeholder = "输入消息..."
+				m.ShowLineNumbers = true
+				m.SetWidth(20)
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					>   1 输入消息...
+					>
+					>
+					>
+					>
+					>
+
+				`),
+			},
+		},
 	}
 
 	for _, tt := range tests {

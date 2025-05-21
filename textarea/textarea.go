@@ -743,7 +743,7 @@ func (m *Model) deleteWordLeft() {
 	// Linter note: it's critical that we acquire the initial cursor position
 	// here prior to altering it via SetCursor() below. As such, moving this
 	// call into the corresponding if clause does not apply here.
-	oldCol := m.col //nolint:ifshort
+	oldCol := m.col
 
 	m.SetCursorColumn(m.col - 1)
 	for unicode.IsSpace(m.value[m.row][m.col]) {
@@ -1383,14 +1383,13 @@ func (m Model) placeholderView() string {
 		case i == 0:
 			// first character of first line as cursor with character
 			m.virtualCursor.TextStyle = styles.computedPlaceholder()
-			m.virtualCursor.SetChar(string(plines[0][0]))
+
+			ch, rest, _, _ := uniseg.FirstGraphemeClusterInString(plines[0], 0)
+			m.virtualCursor.SetChar(ch)
 			s.WriteString(lineStyle.Render(m.virtualCursor.View()))
 
 			// the rest of the first line
-			placeholderTail := plines[0][1:]
-			gap := strings.Repeat(" ", max(0, m.width-uniseg.StringWidth(plines[0])))
-			renderedPlaceholder := styles.computedPlaceholder().Render(placeholderTail + gap)
-			s.WriteString(lineStyle.Render(renderedPlaceholder))
+			s.WriteString(lineStyle.Render(styles.computedPlaceholder().Render(rest)))
 		// remaining lines
 		case len(plines) > i:
 			// current line placeholder text
