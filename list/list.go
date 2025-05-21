@@ -438,12 +438,15 @@ func (m *Model) InsertItem(index int, item Item) tea.Cmd {
 // this will be a no-op. O(n) complexity, which probably won't matter in the
 // case of a TUI.
 func (m *Model) RemoveItem(index int) {
-	m.items = removeItemFromSlice(m.items, index)
 	if m.filterState != Unfiltered {
+		itemsIndex := m.filteredItems[index].index
+		m.items = removeItemFromSlice(m.items, itemsIndex)
 		m.filteredItems = removeFilterMatchFromSlice(m.filteredItems, index)
 		if len(m.filteredItems) == 0 {
 			m.resetFiltering()
 		}
+	} else {
+		m.items = removeItemFromSlice(m.items, index)
 	}
 	m.updatePagination()
 }
