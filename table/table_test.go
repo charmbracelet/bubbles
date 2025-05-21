@@ -133,7 +133,7 @@ func TestTableAlignment(t *testing.T) {
 		{"Tim Tams", "Australia", "No"},
 		{"Hobnobs", "UK", "Yes"},
 	}
-	t.Run("No border", func(t *testing.T) {
+	t.Run("NoBorder", func(t *testing.T) {
 		biscuits := New(
 			WithHeaders(headers...),
 			WithRows(rows...),
@@ -148,7 +148,7 @@ func TestTableAlignment(t *testing.T) {
 			})
 		golden.RequireEqual(t, []byte(biscuits.View()))
 	})
-	t.Run("With border", func(t *testing.T) {
+	t.Run("WithBorder", func(t *testing.T) {
 		biscuits := New(
 			WithHeaders(headers...),
 			WithRows(rows...),
@@ -168,12 +168,12 @@ func TestOverwriteStyles(t *testing.T) {
 		name   string
 		styles Styles
 	}{
-		{"clear styles", Styles{
+		{"ClearStyles", Styles{
 			Selected: lipgloss.NewStyle(),
 			Header:   lipgloss.NewStyle(),
 			Cell:     lipgloss.NewStyle(),
 		}},
-		{"new styles", Styles{
+		{"NewStyles", Styles{
 			Selected: niceMargins.Foreground(lipgloss.Color("68")),
 			Header:   niceMargins,
 			Cell:     niceMargins,
@@ -198,12 +198,12 @@ func TestSetStyles(t *testing.T) {
 		name   string
 		styles Styles
 	}{
-		{"empty styles", Styles{
+		{"EmptyStyles", Styles{
 			Selected: lipgloss.NewStyle(),
 			Header:   lipgloss.NewStyle(),
 			Cell:     lipgloss.NewStyle(),
 		}},
-		{"new styles", Styles{
+		{"NewStyles", Styles{
 			Selected: niceMargins.Background(lipgloss.Color("68")),
 			Header:   niceMargins,
 			Cell:     niceMargins,
@@ -226,7 +226,7 @@ func TestSetStyles(t *testing.T) {
 }
 
 func TestSetStyleFunc(t *testing.T) {
-	t.Run("Clear styles with StyleFunc", func(t *testing.T) {
+	t.Run("ClearStylesWithStyleFunc", func(t *testing.T) {
 		tb := New(
 			WithHeaders(headers...),
 			WithRows(rows...),
@@ -248,14 +248,14 @@ func TestSetBorder(t *testing.T) {
 		name    string
 		borders []bool
 	}{
-		{"unset all borders", []bool{false}},
-		// {"set all borders", []bool{true}}, // FIXME(@andreynering): Fix on Lip Gloss. Unneeded extra row.
-		{"vertical borders only", []bool{true, false}},
-		{"no top border", []bool{false, true, true}},
-		{"no left border", []bool{true, true, true, false}},
-		{"row separator and no right border", []bool{true, false, true, true, true}},
-		// {"set row and column separators", []bool{false, false, false, false, true, true}}, // FIXME(@andreynering): Broken style, does this make sense?
-		{"invalid number of arguments", []bool{true, false, false, false, false, true, true}},
+		{"UnsetAllBorders", []bool{false}},
+		//{"SetAllBorders", []bool{true}}, // FIXME(@andreynering): Fix on Lip Gloss. Unneeded extra row.
+		{"VerticalBordersOnly", []bool{true, false}},
+		{"NoTopBorder", []bool{false, true, true}},
+		{"NoLeftBorder", []bool{true, true, true, false}},
+		{"RowSeparatorAndNoRightBorder", []bool{true, false, true, true, true}},
+		//{"SetRowAndColumnSeparators", []bool{false, false, false, false, true, true}}, // FIXME(@andreynering): Broken style, does this make sense?
+		{"InvalidNumberOfArguments", []bool{true, false, false, false, false, true, true}},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -651,7 +651,7 @@ func TestModel_View(t *testing.T) {
 				return New()
 			},
 		},
-		"Single row and column": {
+		"SingleRowAndColumn": {
 			modelFunc: func() *Model {
 				return New(
 					WithHeaders("Name"),
@@ -661,7 +661,7 @@ func TestModel_View(t *testing.T) {
 				)
 			},
 		},
-		"Multiple rows and columns": {
+		"MultipleRowsAndColumns": {
 			modelFunc: func() *Model {
 				return New(
 					WithHeaders("Name", "Country of Origin", "Dunk-able"),
@@ -674,7 +674,7 @@ func TestModel_View(t *testing.T) {
 			},
 		},
 		// FIXME(@andreynering): Fix this scenario in Lip Gloss
-		"Extra padding": {
+		"ExtraPadding": {
 			modelFunc: func() *Model {
 				s := DefaultStyles()
 				s.Header = lipgloss.NewStyle().Padding(2, 2)
@@ -693,7 +693,7 @@ func TestModel_View(t *testing.T) {
 			},
 			skip: true,
 		},
-		"No padding": {
+		"NoPadding": {
 			modelFunc: func() *Model {
 				s := DefaultStyles()
 				s.Header = lipgloss.NewStyle()
@@ -712,7 +712,7 @@ func TestModel_View(t *testing.T) {
 			},
 		},
 		// FIXME(@andreynering): Fix this scenario in Lip Gloss
-		"Bordered headers": {
+		"BorderedHeaders": {
 			modelFunc: func() *Model {
 				return New(
 					WithHeaders("Name", "Country of Origin", "Dunk-able"),
@@ -729,7 +729,7 @@ func TestModel_View(t *testing.T) {
 			skip: true,
 		},
 		// FIXME(@andreynering): Fix this scenario in Lip Gloss
-		"Bordered cells": {
+		"BorderedCells": {
 			modelFunc: func() *Model {
 				return New(
 					WithHeaders("Name", "Country of Origin", "Dunk-able"),
@@ -746,7 +746,7 @@ func TestModel_View(t *testing.T) {
 			skip: true,
 		},
 		// FIXME(@andreynering): Fix in Lip Gloss? Potentially add extra empty lines to the bottom of the table.
-		"Manual height greater than rows": {
+		"ManualHeightGreaterThanRows": {
 			modelFunc: func() *Model {
 				return New(
 					WithHeight(15),
@@ -760,7 +760,7 @@ func TestModel_View(t *testing.T) {
 			},
 		},
 		// FIXME(@andreynering): Fix this scenario in Lip Gloss. Should truncate table if height is too small.
-		"Manual height less than rows": {
+		"ManualHeightLessThanRows": {
 			modelFunc: func() *Model {
 				return New(
 					WithHeight(2),
@@ -774,7 +774,7 @@ func TestModel_View(t *testing.T) {
 			},
 			skip: true,
 		},
-		"Manual width greater than columns": {
+		"ManualWidthGreaterThanColumns": {
 			modelFunc: func() *Model {
 				return New(
 					WithWidth(80),
@@ -788,7 +788,7 @@ func TestModel_View(t *testing.T) {
 			},
 		},
 		// FIXME(@andreynering): Fix this scenario in Lip Gloss.
-		"Manual width less than columns": {
+		"ManualWidthLessThanColumns": {
 			modelFunc: func() *Model {
 				return New(
 					WithWidth(30),
