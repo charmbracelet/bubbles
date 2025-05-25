@@ -1,3 +1,5 @@
+// Package viewport provides a component for rendering a viewport in a Bubble
+// Tea application.
 package viewport
 
 import (
