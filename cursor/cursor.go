@@ -4,6 +4,7 @@ package cursor
 
 import (
 	"context"
+	"sync/atomic"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea/v2"
@@ -11,6 +12,14 @@ import (
 )
 
 const defaultBlinkSpeed = time.Millisecond * 530
+
+// Internal ID management. Used during animating to ensure that frame messages
+// are received only by spinner components that sent them.
+var lastID int64
+
+func nextID() int {
+	return int(atomic.AddInt64(&lastID, 1))
+}
 
 // initialBlinkMsg initializes cursor blinking.
 type initialBlinkMsg struct{}
@@ -65,6 +74,7 @@ type Model struct {
 	BlinkSpeed time.Duration
 
 	// Blink is the state of the cursor blink. When true, the cursor is hidden.
+	// TODO: rename to Blinking
 	Blink bool
 
 	// char is the character under the cursor
@@ -89,10 +99,10 @@ type Model struct {
 // New creates a new model with default settings.
 func New() Model {
 	return Model{
+		id:         nextID(),
 		BlinkSpeed: defaultBlinkSpeed,
-
-		Blink: true,
-		mode:  CursorBlink,
+		Blink:      true,
+		mode:       CursorBlink,
 
 		blinkCtx: &blinkCtx{
 			ctx: context.Background(),
@@ -170,6 +180,7 @@ func (m *Model) SetMode(mode Mode) tea.Cmd {
 }
 
 // BlinkCmd is a command used to manage cursor blinking.
+// TODO: Rename to Blink
 func (m *Model) BlinkCmd() tea.Cmd {
 	if m.mode != CursorBlink {
 		return nil
