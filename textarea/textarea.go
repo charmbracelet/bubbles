@@ -1204,8 +1204,8 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		// nuance that makes cursor movement obvious and feel snappy.
 		newRow, newCol := m.cursorLineNumber(), m.col
 		if (newRow != oldRow || newCol != oldCol) && m.virtualCursor.Mode() == cursor.CursorBlink {
-			m.virtualCursor.Blink = false
-			cmd = m.virtualCursor.BlinkCmd()
+			m.virtualCursor.IsBlinked = false
+			cmd = m.virtualCursor.Blink()
 		}
 		cmds = append(cmds, cmd)
 	}
