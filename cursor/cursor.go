@@ -74,7 +74,8 @@ type Model struct {
 	BlinkSpeed time.Duration
 
 	// Blink is the state of the cursor blink. When true, the cursor is hidden.
-	// TODO: rename to Blinking
+	//
+	// TODO: rename to Blinking.
 	Blink bool
 
 	// char is the character under the cursor
@@ -180,7 +181,8 @@ func (m *Model) SetMode(mode Mode) tea.Cmd {
 }
 
 // BlinkCmd is a command used to manage cursor blinking.
-// TODO: Rename to Blink
+//
+// TODO: Rename to Blink.
 func (m *Model) BlinkCmd() tea.Cmd {
 	if m.mode != CursorBlink {
 		return nil
@@ -194,7 +196,6 @@ func (m *Model) BlinkCmd() tea.Cmd {
 	m.blinkCtx.cancel = cancel
 
 	m.blinkTag++
-
 	blinkMsg := BlinkMsg{id: m.id, tag: m.blinkTag}
 
 	return func() tea.Msg {

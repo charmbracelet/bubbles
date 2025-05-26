@@ -95,18 +95,20 @@ type Model struct {
 	EchoMode      EchoMode
 	EchoCharacter rune
 
-	// VirtualCursor determines whether or not to use the virtual cursor. If
+	// useVirtualCursor determines whether or not to use the virtual cursor. If
 	// set to false, use [Model.Cursor] to return a real cursor for rendering.
-	VirtualCursor bool
-	virtualCursor cursor.Model
+	useVirtualCursor bool
 
-	// Styling. FocusedStyle and BlurredStyle are used to style the textarea in
-	// focused and blurred states.
-	Styles Styles
+	// Virtual cursor manager.
+	virtualCursor cursor.Model
 
 	// CharLimit is the maximum amount of characters this input element will
 	// accept. If 0 or less, there's no limit.
 	CharLimit int
+
+	// Styling. FocusedStyle and BlurredStyle are used to style the textarea in
+	// focused and blurred states.
+	styles Styles
 
 	// Width is the maximum number of characters that can be displayed at once.
 	// It essentially treats the text field like a horizontally scrolling
@@ -152,19 +154,45 @@ type Model struct {
 
 // New creates a new model with default settings.
 func New() Model {
-	return Model{
-		Prompt:          "> ",
-		EchoCharacter:   '*',
-		CharLimit:       0,
-		Styles:          DefaultDarkStyles(),
-		ShowSuggestions: false,
-		virtualCursor:   cursor.New(),
-		KeyMap:          DefaultKeyMap(),
-		suggestions:     [][]rune{},
-		value:           nil,
-		focus:           false,
-		pos:             0,
+	m := Model{
+		Prompt:           "> ",
+		EchoCharacter:    '*',
+		CharLimit:        0,
+		styles:           DefaultDarkStyles(),
+		ShowSuggestions:  false,
+		useVirtualCursor: true,
+		virtualCursor:    cursor.New(),
+		KeyMap:           DefaultKeyMap(),
+		suggestions:      [][]rune{},
+		value:            nil,
+		focus:            false,
+		pos:              0,
 	}
+	m.updateVirtualCursorStyle()
+	return m
+}
+
+// VirtualCursor returns whether the model is using a virtual cursor.
+func (m Model) VirtualCursor() bool {
+	return m.useVirtualCursor
+}
+
+// SetVirtualCursor sets whether the model should use a virtual cursor. If
+// disabled, use [Model.Cursor] to return a real cursor for rendering.
+func (m *Model) SetVirtualCursor(v bool) {
+	m.useVirtualCursor = v
+	m.updateVirtualCursorStyle()
+}
+
+// Styles returns the current set of styles.
+func (m Model) Styles() Styles {
+	return m.styles
+}
+
+// SetStyles sets the styles for the text input.
+func (m *Model) SetStyles(s Styles) {
+	m.styles = s
+	m.updateVirtualCursorStyle()
 }
 
 // Width returns the width of the text input.
@@ -549,7 +577,6 @@ func (m Model) echoTransform(v string) string {
 
 // Update is the Bubble Tea update loop.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
-	m.updateVirtualCursorStyle()
 	if !m.focus {
 		return m, nil
 	}
@@ -636,8 +663,10 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	var cmds []tea.Cmd
 	var cmd tea.Cmd
 
-	m.virtualCursor, cmd = m.virtualCursor.Update(msg)
-	cmds = append(cmds, cmd)
+	if m.useVirtualCursor {
+		m.virtualCursor, cmd = m.virtualCursor.Update(msg)
+		cmds = append(cmds, cmd)
+	}
 
 	if oldPos != m.pos && m.virtualCursor.Mode() == cursor.CursorBlink {
 		m.virtualCursor.Blink = false
@@ -882,7 +911,7 @@ func (m Model) validate(v []rune) error {
 //	f.Cursor.Position.X += offsetX
 //	f.Cursor.Position.Y += offsetY
 func (m Model) Cursor() *tea.Cursor {
-	if m.VirtualCursor {
+	if m.useVirtualCursor {
 		return nil
 	}
 
@@ -895,7 +924,7 @@ func (m Model) Cursor() *tea.Cursor {
 		xOffset = min(xOffset, m.width+promptWidth)
 	}
 
-	style := m.Styles.Cursor
+	style := m.styles.Cursor
 	c := tea.NewCursor(xOffset, 0)
 	c.Blink = style.Blink
 	c.Color = style.Color
@@ -906,18 +935,19 @@ func (m Model) Cursor() *tea.Cursor {
 // updateVirtualCursorStyle sets styling on the virtual cursor based on the
 // textarea's style settings.
 func (m *Model) updateVirtualCursorStyle() {
-	if !m.VirtualCursor {
+	if !m.useVirtualCursor {
+		// Hide the virtual cursor if we're using a real cursor.
 		m.virtualCursor.SetMode(cursor.CursorHide)
 		return
 	}
 
-	m.virtualCursor.Style = lipgloss.NewStyle().Foreground(m.Styles.Cursor.Color)
+	m.virtualCursor.Style = lipgloss.NewStyle().Foreground(m.styles.Cursor.Color)
 
 	// By default, the blink speed of the cursor is set to a default
 	// internally.
-	if m.Styles.Cursor.Blink {
-		if m.Styles.Cursor.BlinkSpeed > 0 {
-			m.virtualCursor.BlinkSpeed = m.Styles.Cursor.BlinkSpeed
+	if m.styles.Cursor.Blink {
+		if m.styles.Cursor.BlinkSpeed > 0 {
+			m.virtualCursor.BlinkSpeed = m.styles.Cursor.BlinkSpeed
 		}
 		m.virtualCursor.SetMode(cursor.CursorBlink)
 		return
@@ -929,7 +959,7 @@ func (m *Model) updateVirtualCursorStyle() {
 // whether the textarea is focused or blurred.
 func (m Model) activeStyle() *StyleState {
 	if m.focus {
-		return &m.Styles.Focused
+		return &m.styles.Focused
 	}
-	return &m.Styles.Blurred
+	return &m.styles.Blurred
 }
