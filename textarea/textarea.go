@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"image/color"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -1125,7 +1126,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			}
 		case key.Matches(msg, m.KeyMap.DeleteCharacterForward):
 			if len(m.value[m.row]) > 0 && m.col < len(m.value[m.row]) {
-				m.value[m.row] = append(m.value[m.row][:m.col], m.value[m.row][m.col+1:]...)
+				m.value[m.row] = slices.Delete(m.value[m.row], m.col, m.col+1)
 			}
 			if m.col >= len(m.value[m.row]) {
 				m.mergeLineBelow(m.row)
