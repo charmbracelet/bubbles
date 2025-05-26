@@ -666,11 +666,13 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	if m.useVirtualCursor {
 		m.virtualCursor, cmd = m.virtualCursor.Update(msg)
 		cmds = append(cmds, cmd)
-	}
 
-	if oldPos != m.pos && m.virtualCursor.Mode() == cursor.CursorBlink {
-		m.virtualCursor.Blink = false
-		cmds = append(cmds, m.virtualCursor.BlinkCmd())
+		// If the cursor position changed, reset the blink state. This is a
+		// small UX nuance that makes cursor movement obvious and feel snappy.
+		if oldPos != m.pos && m.virtualCursor.Mode() == cursor.CursorBlink {
+			m.virtualCursor.Blink = false
+			cmds = append(cmds, m.virtualCursor.BlinkCmd())
+		}
 	}
 
 	m.handleOverflow()
