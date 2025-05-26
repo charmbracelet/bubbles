@@ -1196,13 +1196,18 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	m.viewport = &vp
 	cmds = append(cmds, cmd)
 
-	newRow, newCol := m.cursorLineNumber(), m.col
-	m.virtualCursor, cmd = m.virtualCursor.Update(msg)
-	if (newRow != oldRow || newCol != oldCol) && m.virtualCursor.Mode() == cursor.CursorBlink {
-		m.virtualCursor.Blink = false
-		cmd = m.virtualCursor.BlinkCmd()
+	if m.useVirtualCursor {
+		m.virtualCursor, cmd = m.virtualCursor.Update(msg)
+
+		// If the cursor has moved, reset the blink state. This is a small UX
+		// nuance that makes cursor movement obvious and feel snappy.
+		newRow, newCol := m.cursorLineNumber(), m.col
+		if (newRow != oldRow || newCol != oldCol) && m.virtualCursor.Mode() == cursor.CursorBlink {
+			m.virtualCursor.Blink = false
+			cmd = m.virtualCursor.BlinkCmd()
+		}
+		cmds = append(cmds, cmd)
 	}
-	cmds = append(cmds, cmd)
 
 	m.repositionView()
 
