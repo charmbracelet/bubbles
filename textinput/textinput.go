@@ -4,6 +4,7 @@ package textinput
 
 import (
 	"reflect"
+	"slices"
 	"strings"
 	"unicode"
 
@@ -624,7 +625,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.CursorStart()
 		case key.Matches(msg, m.KeyMap.DeleteCharacterForward):
 			if len(m.value) > 0 && m.pos < len(m.value) {
-				m.value = append(m.value[:m.pos], m.value[m.pos+1:]...)
+				m.value = slices.Delete(m.value, m.pos, m.pos+1)
 				m.Err = m.validate(m.value)
 			}
 		case key.Matches(msg, m.KeyMap.LineEnd):
