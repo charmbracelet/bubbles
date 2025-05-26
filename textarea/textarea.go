@@ -1418,6 +1418,11 @@ func (m Model) placeholderView() string {
 
 			// the rest of the first line
 			s.WriteString(lineStyle.Render(styles.computedPlaceholder().Render(rest)))
+
+			// extend the first line with spaces to fill the width, so that
+			// the entire line is filled when cursorline is enabled.
+			gap := strings.Repeat(" ", max(0, m.width-lipgloss.Width(plines[0])))
+			s.WriteString(lineStyle.Render(gap))
 		// remaining lines
 		case len(plines) > i:
 			// current line placeholder text
