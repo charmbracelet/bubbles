@@ -260,16 +260,8 @@ type Model struct {
 	// KeyMap encodes the keybindings recognized by the widget.
 	KeyMap KeyMap
 
-	// Styling. FocusedStyle and BlurredStyle are used to style the textarea in
-	// focused and blurred states.
-	Styles Styles
-
 	// virtualCursor manages the virtual cursor.
 	virtualCursor cursor.Model
-
-	// VirtualCursor determines whether or not to use the virtual cursor. If
-	// set to false, use [Model.Cursor] to return a real cursor for rendering.
-	VirtualCursor bool
 
 	// CharLimit is the maximum number of characters this input element will
 	// accept. If 0 or less, there's no limit.
@@ -282,6 +274,15 @@ type Model struct {
 	// MaxWidth is the maximum width of the text area in columns. If 0 or less,
 	// there's no limit.
 	MaxWidth int
+
+	// Styling. Styles are defined in [Styles]. Use [SetStyles] and [GetStyles]
+	// to work with this value publicly.
+	styles Styles
+
+	// useVirtualCursor determines whether or not to use the virtual cursor.
+	// Use [SetVirtualCursor] and [VirtualCursor] to work with this this
+	// value publicly.
+	useVirtualCursor bool
 
 	// If promptFunc is set, it replaces Prompt as a generator for
 	// prompt strings at the beginning of each line.
@@ -337,11 +338,11 @@ func New() Model {
 		MaxHeight:            defaultMaxHeight,
 		MaxWidth:             defaultMaxWidth,
 		Prompt:               lipgloss.ThickBorder().Left + " ",
-		Styles:               styles,
+		styles:               styles,
 		cache:                memoization.NewMemoCache[line, [][]rune](maxLines),
 		EndOfBufferCharacter: ' ',
 		ShowLineNumbers:      true,
-		VirtualCursor:        true,
+		useVirtualCursor:     true,
 		virtualCursor:        cur,
 		KeyMap:               DefaultKeyMap(),
 
@@ -403,21 +404,43 @@ func DefaultDarkStyles() Styles {
 	return DefaultStyles(true)
 }
 
+// Styles returns the current styles for the textarea.
+func (m Model) Styles() Styles {
+	return m.styles
+}
+
+// SetStyles updates styling for the textarea.
+func (m *Model) SetStyles(s Styles) {
+	m.styles = s
+	m.updateVirtualCursorStyle()
+}
+
+// VirtualCursor returns whether or not the virtual cursor is enabled.
+func (m Model) VirtualCursor() bool {
+	return m.useVirtualCursor
+}
+
+// SetVirtualCursor sets whether or not to use the virtual cursor.
+func (m *Model) SetVirtualCursor(v bool) {
+	m.useVirtualCursor = v
+	m.updateVirtualCursorStyle()
+}
+
 // updateVirtualCursorStyle sets styling on the virtual cursor based on the
 // textarea's style settings.
 func (m *Model) updateVirtualCursorStyle() {
-	if !m.VirtualCursor {
+	if !m.useVirtualCursor {
 		m.virtualCursor.SetMode(cursor.CursorHide)
 		return
 	}
 
-	m.virtualCursor.Style = lipgloss.NewStyle().Foreground(m.Styles.Cursor.Color)
+	m.virtualCursor.Style = lipgloss.NewStyle().Foreground(m.styles.Cursor.Color)
 
 	// By default, the blink speed of the cursor is set to a default
 	// internally.
-	if m.Styles.Cursor.Blink {
-		if m.Styles.Cursor.BlinkSpeed > 0 {
-			m.virtualCursor.BlinkSpeed = m.Styles.Cursor.BlinkSpeed
+	if m.styles.Cursor.Blink {
+		if m.styles.Cursor.BlinkSpeed > 0 {
+			m.virtualCursor.BlinkSpeed = m.styles.Cursor.BlinkSpeed
 		}
 		m.virtualCursor.SetMode(cursor.CursorBlink)
 		return
@@ -663,9 +686,9 @@ func (m Model) Focused() bool {
 // whether the textarea is focused or blurred.
 func (m Model) activeStyle() *StyleState {
 	if m.focus {
-		return &m.Styles.Focused
+		return &m.styles.Focused
 	}
-	return &m.Styles.Blurred
+	return &m.styles.Blurred
 }
 
 // Focus sets the focus state on the model. When the model is in focus it can
@@ -1188,7 +1211,6 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 // View renders the text area in its current state.
 func (m Model) View() string {
-	m.updateVirtualCursorStyle()
 	if m.Value() == "" && m.row == 0 && m.col == 0 && m.Placeholder != "" {
 		return m.placeholderView()
 	}
@@ -1431,7 +1453,7 @@ func Blink() tea.Msg {
 //	f.Cursor.Position.X += offsetX
 //	f.Cursor.Position.Y += offsetY
 func (m Model) Cursor() *tea.Cursor {
-	if m.VirtualCursor {
+	if m.useVirtualCursor {
 		return nil
 	}
 
@@ -1453,9 +1475,9 @@ func (m Model) Cursor() *tea.Cursor {
 		baseStyle.GetBorderTopSize()
 
 	c := tea.NewCursor(xOffset, yOffset)
-	c.Blink = m.Styles.Cursor.Blink
-	c.Color = m.Styles.Cursor.Color
-	c.Shape = m.Styles.Cursor.Shape
+	c.Blink = m.styles.Cursor.Blink
+	c.Color = m.styles.Cursor.Color
+	c.Shape = m.styles.Cursor.Shape
 	return c
 }
 
