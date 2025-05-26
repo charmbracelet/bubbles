@@ -671,8 +671,8 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		// If the cursor position changed, reset the blink state. This is a
 		// small UX nuance that makes cursor movement obvious and feel snappy.
 		if oldPos != m.pos && m.virtualCursor.Mode() == cursor.CursorBlink {
-			m.virtualCursor.Blink = false
-			cmds = append(cmds, m.virtualCursor.BlinkCmd())
+			m.virtualCursor.IsBlinked = false
+			cmds = append(cmds, m.virtualCursor.Blink())
 		}
 	}
 

@@ -73,10 +73,9 @@ type Model struct {
 	// unless [CursorMode] is not set to [CursorBlink].
 	BlinkSpeed time.Duration
 
-	// Blink is the state of the cursor blink. When true, the cursor is hidden.
-	//
-	// TODO: rename to Blinking.
-	Blink bool
+	// IsBlinked is the state of the cursor blink. When true, the cursor is
+	// hidden.
+	IsBlinked bool
 
 	// char is the character under the cursor
 	char string
@@ -102,7 +101,7 @@ func New() Model {
 	return Model{
 		id:         nextID(),
 		BlinkSpeed: defaultBlinkSpeed,
-		Blink:      true,
+		IsBlinked:  true,
 		mode:       CursorBlink,
 
 		blinkCtx: &blinkCtx{
@@ -121,7 +120,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			return m, nil
 		}
 
-		cmd := m.BlinkCmd()
+		cmd := m.Blink()
 		return m, cmd
 
 	case tea.FocusMsg:
@@ -147,8 +146,8 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 		var cmd tea.Cmd
 		if m.mode == CursorBlink {
-			m.Blink = !m.Blink
-			cmd = m.BlinkCmd()
+			m.IsBlinked = !m.IsBlinked
+			cmd = m.Blink()
 		}
 		return m, cmd
 
@@ -173,17 +172,15 @@ func (m *Model) SetMode(mode Mode) tea.Cmd {
 		return nil
 	}
 	m.mode = mode
-	m.Blink = m.mode == CursorHide || !m.focus
+	m.IsBlinked = m.mode == CursorHide || !m.focus
 	if mode == CursorBlink {
 		return Blink
 	}
 	return nil
 }
 
-// BlinkCmd is a command used to manage cursor blinking.
-//
-// TODO: Rename to Blink.
-func (m *Model) BlinkCmd() tea.Cmd {
+// Blink is a command used to manage cursor blinking.
+func (m *Model) Blink() tea.Cmd {
 	if m.mode != CursorBlink {
 		return nil
 	}
@@ -216,10 +213,10 @@ func Blink() tea.Msg {
 // Focus focuses the cursor to allow it to blink if desired.
 func (m *Model) Focus() tea.Cmd {
 	m.focus = true
-	m.Blink = m.mode == CursorHide // show the cursor unless we've explicitly hidden it
+	m.IsBlinked = m.mode == CursorHide // show the cursor unless we've explicitly hidden it
 
 	if m.mode == CursorBlink && m.focus {
-		return m.BlinkCmd()
+		return m.Blink()
 	}
 	return nil
 }
@@ -227,7 +224,7 @@ func (m *Model) Focus() tea.Cmd {
 // Blur blurs the cursor.
 func (m *Model) Blur() {
 	m.focus = false
-	m.Blink = true
+	m.IsBlinked = true
 }
 
 // SetChar sets the character under the cursor.
@@ -237,7 +234,7 @@ func (m *Model) SetChar(char string) {
 
 // View displays the cursor.
 func (m Model) View() string {
-	if m.Blink {
+	if m.IsBlinked {
 		return m.TextStyle.Inline(true).Render(m.char)
 	}
 	return m.Style.Inline(true).Reverse(true).Render(m.char)
