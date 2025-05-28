@@ -249,12 +249,12 @@ func TestSetBorder(t *testing.T) {
 		borders []bool
 	}{
 		{"UnsetAllBorders", []bool{false}},
-		//{"SetAllBorders", []bool{true}}, // FIXME(@andreynering): Fix on Lip Gloss. Unneeded extra row.
+		{"SetAllBorders", []bool{true}},
 		{"VerticalBordersOnly", []bool{true, false}},
 		{"NoTopBorder", []bool{false, true, true}},
 		{"NoLeftBorder", []bool{true, true, true, false}},
 		{"RowSeparatorAndNoRightBorder", []bool{true, false, true, true, true}},
-		//{"SetRowAndColumnSeparators", []bool{false, false, false, false, true, true}}, // FIXME(@andreynering): Broken style, does this make sense?
+		{"SetRowAndColumnSeparators", []bool{false, false, false, false, true, true}},
 		{"InvalidNumberOfArguments", []bool{true, false, false, false, false, true, true}},
 	}
 	for _, tc := range tests {
@@ -673,7 +673,6 @@ func TestModel_View(t *testing.T) {
 				)
 			},
 		},
-		// FIXME(@andreynering): Fix this scenario in Lip Gloss
 		"ExtraPadding": {
 			modelFunc: func() *Model {
 				s := DefaultStyles()
@@ -681,7 +680,6 @@ func TestModel_View(t *testing.T) {
 				s.Cell = lipgloss.NewStyle().Padding(2, 2)
 
 				return New(
-					WithHeight(10),
 					WithHeaders("Name", "Country of Origin", "Dunk-able"),
 					WithRows(
 						[]string{"Chocolate Digestives", "UK", "Yes"},
@@ -691,7 +689,6 @@ func TestModel_View(t *testing.T) {
 					WithStyles(s),
 				)
 			},
-			skip: true,
 		},
 		"NoPadding": {
 			modelFunc: func() *Model {
@@ -711,7 +708,6 @@ func TestModel_View(t *testing.T) {
 				)
 			},
 		},
-		// FIXME(@andreynering): Fix this scenario in Lip Gloss
 		"BorderedHeaders": {
 			modelFunc: func() *Model {
 				return New(
@@ -726,9 +722,7 @@ func TestModel_View(t *testing.T) {
 					}),
 				)
 			},
-			skip: true,
 		},
-		// FIXME(@andreynering): Fix this scenario in Lip Gloss
 		"BorderedCells": {
 			modelFunc: func() *Model {
 				return New(
@@ -743,7 +737,6 @@ func TestModel_View(t *testing.T) {
 					}),
 				)
 			},
-			skip: true,
 		},
 		// FIXME(@andreynering): Fix in Lip Gloss? Potentially add extra empty lines to the bottom of the table.
 		"ManualHeightGreaterThanRows": {
@@ -759,7 +752,6 @@ func TestModel_View(t *testing.T) {
 				)
 			},
 		},
-		// FIXME(@andreynering): Fix this scenario in Lip Gloss. Should truncate table if height is too small.
 		"ManualHeightLessThanRows": {
 			modelFunc: func() *Model {
 				return New(
@@ -772,7 +764,6 @@ func TestModel_View(t *testing.T) {
 					),
 				)
 			},
-			skip: true,
 		},
 		"ManualWidthGreaterThanColumns": {
 			modelFunc: func() *Model {
@@ -787,7 +778,6 @@ func TestModel_View(t *testing.T) {
 				)
 			},
 		},
-		// FIXME(@andreynering): Fix this scenario in Lip Gloss.
 		"ManualWidthLessThanColumns": {
 			modelFunc: func() *Model {
 				return New(
@@ -800,7 +790,6 @@ func TestModel_View(t *testing.T) {
 					),
 				)
 			},
-			skip: true,
 		},
 	}
 
