@@ -364,7 +364,7 @@ func TestNewFromTemplate(t *testing.T) {
 			return baseStyle.Foreground(lipgloss.Color("252"))
 		})
 
-	bubblesTable := NewFromTemplate(lipglossTable, headers, pokemonData)
+	bubblesTable := NewFromTemplate(lipglossTable)
 	golden.RequireEqual(t, []byte(bubblesTable.View()))
 }
 

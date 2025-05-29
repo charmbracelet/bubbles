@@ -118,7 +118,7 @@ func DefaultStyles() Styles {
 
 // NewFromTemplate lets you create a table [Model] from Lip Gloss'
 // [table.Table].
-func NewFromTemplate(t *table.Table, headers []string, rows [][]string) *Model {
+func NewFromTemplate(t *table.Table) *Model {
 	return &Model{
 		cursor:       0,
 		KeyMap:       DefaultKeyMap(),
