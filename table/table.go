@@ -429,7 +429,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		return m, nil
 	}
 	table := m.table.String()
-	// TODO make this not hard coded?
+	// XXX: make this not hard coded?
 	height := lipgloss.Height(table) - 6
 
 	switch msg := msg.(type) {
@@ -473,7 +473,7 @@ func (m Model) View() string {
 	if !m.useStyleFunc {
 		// Update the position-sensitive styles as the cursor position may have
 		// changed in Update.
-		m.table.StyleFunc(func(row, col int) lipgloss.Style {
+		m.table.StyleFunc(func(row, _ int) lipgloss.Style {
 			if row == m.cursor {
 				return m.styles.Selected
 			}
@@ -505,7 +505,7 @@ func (m Model) Rows() [][]string {
 	return m.rows
 }
 
-// GetHeaders returns the current headers.
+// Headers returns the current headers.
 func (m Model) Headers() []string {
 	return m.headers
 }
