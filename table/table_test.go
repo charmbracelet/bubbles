@@ -74,8 +74,8 @@ func TestModel_FromValues(t *testing.T) {
 			[]string{"foo3", "bar3"},
 		))
 
-	if len(table.rows) != 3 {
-		t.Fatalf("expect table to have 3 rows but it has %d", len(table.rows))
+	if table.RowCount() != 3 {
+		t.Fatalf("expect table to have 3 rows but it has %d", table.RowCount())
 	}
 
 	expect := [][]string{
@@ -83,8 +83,8 @@ func TestModel_FromValues(t *testing.T) {
 		{"foo2", "bar2"},
 		{"foo3", "bar3"},
 	}
-	if !reflect.DeepEqual(table.rows, expect) {
-		t.Fatalf("\n\nwant %v\n\ngot %v", expect, table.rows)
+	if !reflect.DeepEqual(table.Rows(), expect) {
+		t.Fatalf("\n\nwant %v\n\ngot %v", expect, table.Rows())
 	}
 }
 
@@ -97,16 +97,16 @@ func TestModel_FromValues_WithTabSeparator(t *testing.T) {
 		),
 	)
 
-	if len(table.rows) != 2 {
-		t.Fatalf("expect table to have 2 rows but it has %d", len(table.rows))
+	if table.RowCount() != 2 {
+		t.Fatalf("expect table to have 2 rows but it has %d", table.RowCount())
 	}
 
 	expect := [][]string{
 		{"foo1.", "bar1"},
 		{"foo,bar,baz", "bar,2"},
 	}
-	if !reflect.DeepEqual(table.rows, expect) {
-		t.Fatalf("\n\nwant %v\n\ngot %v", expect, table.rows)
+	if !reflect.DeepEqual(table.Rows(), expect) {
+		t.Fatalf("\n\nwant %v\n\ngot %v", expect, table.Rows())
 	}
 	t.Run("new with options", func(t *testing.T) {
 		tb := New(
@@ -606,38 +606,38 @@ func TestCursorNavigation(t *testing.T) {
 func TestModel_SetRows(t *testing.T) {
 	table := New(WithHeaders("col1", "col2", "col3"))
 
-	if len(table.rows) != 0 {
-		t.Fatalf("want 0, got %d", len(table.rows))
+	if table.RowCount() != 0 {
+		t.Fatalf("want 0, got %d", table.RowCount())
 	}
 
 	table.SetRows([]string{"r1"}, []string{"r2"})
 
-	if len(table.rows) != 2 {
-		t.Fatalf("want 2, got %d", len(table.rows))
+	if table.RowCount() != 2 {
+		t.Fatalf("want 2, got %d", table.RowCount())
 	}
 
 	want := [][]string{{"r1"}, {"r2"}}
-	if !reflect.DeepEqual(table.rows, want) {
-		t.Fatalf("\n\nwant %v\n\ngot %v", want, table.rows)
+	if !reflect.DeepEqual(table.Rows(), want) {
+		t.Fatalf("\n\nwant %v\n\ngot %v", want, table.Rows())
 	}
 }
 
 func TestModel_SetHeaders(t *testing.T) {
 	table := New()
 
-	if len(table.headers) != 0 {
-		t.Fatalf("want 0, got %d", len(table.headers))
+	if len(table.Headers()) != 0 {
+		t.Fatalf("want 0, got %d", len(table.Headers()))
 	}
 
 	table.SetHeaders("Foo", "Bar")
 
-	if len(table.headers) != 2 {
-		t.Fatalf("want 2, got %d", len(table.headers))
+	if len(table.Headers()) != 2 {
+		t.Fatalf("want 2, got %d", len(table.Headers()))
 	}
 
 	want := []string{"Foo", "Bar"}
-	if !reflect.DeepEqual(table.headers, want) {
-		t.Fatalf("\n\nwant %v\n\ngot %v", want, table.headers)
+	if !reflect.DeepEqual(table.Headers(), want) {
+		t.Fatalf("\n\nwant %v\n\ngot %v", want, table.Headers())
 	}
 }
 

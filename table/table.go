@@ -16,8 +16,6 @@ type Model struct {
 	KeyMap KeyMap
 	Help   help.Model
 
-	headers      []string
-	rows         [][]string
 	cursor       int
 	focus        bool
 	styles       Styles
@@ -121,19 +119,13 @@ func DefaultStyles() Styles {
 // NewFromTemplate lets you create a table [Model] from Lip Gloss'
 // [table.Table].
 func NewFromTemplate(t *table.Table, headers []string, rows [][]string) *Model {
-	m := &Model{
+	return &Model{
 		cursor:       0,
 		KeyMap:       DefaultKeyMap(),
 		Help:         help.New(),
 		table:        t,
 		useStyleFunc: true,
 	}
-	// We can't get the rows and headers from the table, so the user needs to
-	// provide them as arguments.
-	m.rows = rows
-	m.headers = headers
-
-	return m
 }
 
 // SetBorder is a shorthand function for setting or unsetting borders on a
@@ -313,21 +305,19 @@ func WithKeyMap(km KeyMap) Option {
 
 // SetHeaders sets the table headers.
 func (m *Model) SetHeaders(headers ...string) *Model {
-	m.headers = headers
 	m.table.Headers(headers...)
 	return m
 }
 
 // SetRows sets the table rows.
 func (m *Model) SetRows(rows ...[]string) *Model {
-	m.rows = rows
 	m.table.Rows(rows...)
 	return m
 }
 
 // SetCursor sets the cursor position in the table.
 func (m *Model) SetCursor(n int) *Model {
-	m.cursor = clamp(n, 0, len(m.rows)-1)
+	m.cursor = clamp(n, 0, m.RowCount()-1)
 	return m
 }
 
@@ -347,7 +337,7 @@ func (m *Model) SetWidth(w int) *Model {
 
 // SetYOffset sets the YOffset position in the table.
 func (m *Model) SetYOffset(n int) *Model {
-	m.yOffset = clamp(n, 0, len(m.rows)-1)
+	m.yOffset = clamp(n, 0, m.RowCount()-1)
 	m.table.YOffset(m.yOffset)
 	return m
 }
@@ -377,9 +367,11 @@ func (m *Model) OverwriteStyles(s Styles) *Model {
 // OverwriteStylesFromLipgloss sets the [Model]'s style attributes from an
 // existing [lipgloss.Table].
 func (m *Model) OverwriteStylesFromLipgloss(t *table.Table) {
-	t.Rows(m.rows...)
-	t.Headers(m.headers...)
-	m.table = t
+	var (
+		previousHeaders = m.table.GetHeaders()
+		previousData    = m.table.GetData()
+	)
+	m.table = t.Headers(previousHeaders...).Data(previousData)
 	m.useStyleFunc = true
 }
 
@@ -502,12 +494,17 @@ func (m Model) Focused() bool {
 
 // Rows returns the current rows.
 func (m Model) Rows() [][]string {
-	return m.rows
+	return table.DataToMatrix(m.table.GetData())
+}
+
+// RowCount returns the number of rows in the table.
+func (m Model) RowCount() int {
+	return m.table.GetData().Rows()
 }
 
 // Headers returns the current headers.
 func (m Model) Headers() []string {
-	return m.headers
+	return m.table.GetHeaders()
 }
 
 // Cursor returns the index of the selected row.
@@ -518,11 +515,11 @@ func (m Model) Cursor() int {
 // SelectedRow returns the selected row. You can cast it to your own
 // implementation.
 func (m Model) SelectedRow() []string {
-	if m.cursor < 0 || m.cursor >= len(m.rows) {
+	if m.cursor < 0 || m.cursor >= m.RowCount() {
 		return nil
 	}
 
-	return m.rows[m.cursor]
+	return table.DataToMatrix(m.table.GetData())[m.cursor]
 }
 
 // Movement
@@ -550,7 +547,7 @@ func (m *Model) GotoTop() {
 
 // GotoBottom moves the selection to the last row.
 func (m *Model) GotoBottom() {
-	m.MoveDown(len(m.rows))
+	m.MoveDown(m.RowCount())
 }
 
 // Helpers
