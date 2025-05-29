@@ -364,14 +364,19 @@ func (m *Model) OverwriteStyles(s Styles) *Model {
 	return m
 }
 
-// OverwriteStylesFromLipgloss sets the [Model]'s style attributes from an
-// existing [lipgloss.Table].
-func (m *Model) OverwriteStylesFromLipgloss(t *table.Table) {
+// LipglossTable sets the inner [lipgloss.Table].
+func (m *Model) LipglossTable(t *table.Table) {
 	var (
 		previousHeaders = m.table.GetHeaders()
 		previousData    = m.table.GetData()
 	)
-	m.table = t.Headers(previousHeaders...).Data(previousData)
+	if len(t.GetHeaders()) == 0 {
+		t = t.Headers(previousHeaders...)
+	}
+	if t.GetData() == nil || t.GetData().Rows() == 0 {
+		t = t.Rows(table.DataToMatrix(previousData)...)
+	}
+	m.table = t
 	m.useStyleFunc = true
 }
 
