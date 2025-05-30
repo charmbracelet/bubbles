@@ -92,16 +92,6 @@ func DefaultKeyMap() KeyMap {
 // Styles contains style definitions for this table component. Load default
 // styles to your table with [DefaultStyles].
 type Styles struct {
-	border       lipgloss.Border
-	borderStyle  lipgloss.Style
-	borderTop    bool
-	borderBottom bool
-	borderLeft   bool
-	borderRight  bool
-	borderColumn bool
-	borderHeader bool
-	borderRow    bool
-
 	Header   lipgloss.Style
 	Cell     lipgloss.Style
 	Selected lipgloss.Style
@@ -152,7 +142,6 @@ func NewFromTemplate(t *table.Table) *Model {
 //
 // With more than six arguments nothing will be set.
 func (m *Model) SetBorder(s ...bool) *Model {
-	m.table.Border(m.styles.border)
 	top, right, bottom, left, rowSeparator, columnSeparator := m.whichSides(s...)
 	m.table.
 		BorderTop(top).
@@ -166,63 +155,54 @@ func (m *Model) SetBorder(s ...bool) *Model {
 
 // Border sets the kind of border to use for the table. See [lipgloss.Border].
 func (m *Model) Border(border lipgloss.Border) *Model {
-	m.styles.border = border
 	m.table.Border(border)
 	return m
 }
 
 // BorderStyle sets the style for the table border.
 func (m *Model) BorderStyle(style lipgloss.Style) *Model {
-	m.styles.borderStyle = style
 	m.table.BorderStyle(style)
 	return m
 }
 
 // BorderBottom sets the bottom border.
 func (m *Model) BorderBottom(v bool) *Model {
-	m.styles.borderBottom = v
 	m.table.BorderBottom(v)
 	return m
 }
 
 // BorderTop sets the top border.
 func (m *Model) BorderTop(v bool) *Model {
-	m.styles.borderTop = v
 	m.table.BorderTop(v)
 	return m
 }
 
 // BorderLeft sets the left border.
 func (m *Model) BorderLeft(v bool) *Model {
-	m.styles.borderLeft = v
 	m.table.BorderLeft(v)
 	return m
 }
 
 // BorderRight sets the right border.
 func (m *Model) BorderRight(v bool) *Model {
-	m.styles.borderRight = v
 	m.table.BorderRight(v)
 	return m
 }
 
 // BorderColumn sets the column border.
 func (m *Model) BorderColumn(v bool) *Model {
-	m.styles.borderColumn = v
 	m.table.BorderColumn(v)
 	return m
 }
 
 // BorderHeader sets the header border.
 func (m *Model) BorderHeader(v bool) *Model {
-	m.styles.borderHeader = v
 	m.table.BorderHeader(v)
 	return m
 }
 
 // BorderRow sets the row borders.
 func (m *Model) BorderRow(v bool) *Model {
-	m.styles.borderRow = v
 	m.table.BorderRow(v)
 	return m
 }
@@ -572,8 +552,8 @@ func clamp(v, low, high int) int {
 // 6: top -> right -> bottom -> left -> rowSeparator -> columnSeparator
 func (m Model) whichSides(s ...bool) (top, right, bottom, left, rowSeparator, columnSeparator bool) {
 	// set the separators to true unless otherwise set.
-	rowSeparator = m.styles.borderRow
-	columnSeparator = m.styles.borderColumn
+	rowSeparator = m.table.GetBorderRow()
+	columnSeparator = m.table.GetBorderColumn()
 
 	switch len(s) {
 	case 1:
@@ -612,10 +592,10 @@ func (m Model) whichSides(s ...bool) (top, right, bottom, left, rowSeparator, co
 		rowSeparator = s[4]
 		columnSeparator = s[5]
 	default:
-		top = m.styles.borderTop
-		right = m.styles.borderRight
-		bottom = m.styles.borderBottom
-		left = m.styles.borderLeft
+		top = m.table.GetBorderTop()
+		right = m.table.GetBorderRight()
+		bottom = m.table.GetBorderBottom()
+		left = m.table.GetBorderLeft()
 	}
 	return top, right, bottom, left, rowSeparator, columnSeparator
 }
