@@ -408,9 +408,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	if !m.focus {
 		return m, nil
 	}
-	table := m.table.String()
-	// XXX: make this not hard coded?
-	height := lipgloss.Height(table) - 6
+	height := m.table.VisibleRows() - 1
 
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
@@ -420,9 +418,17 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		case key.Matches(msg, m.KeyMap.LineDown):
 			m.MoveDown(1)
 		case key.Matches(msg, m.KeyMap.PageUp):
-			m.MoveUp(height)
+			if m.cursor > m.table.FirstVisibleRowIndex() {
+				m.SetCursor(m.table.FirstVisibleRowIndex())
+			} else {
+				m.MoveUp(height)
+			}
 		case key.Matches(msg, m.KeyMap.PageDown):
-			m.MoveDown(height)
+			if m.cursor < m.table.LastVisibleRowIndex() {
+				m.SetCursor(m.table.LastVisibleRowIndex())
+			} else {
+				m.MoveDown(height)
+			}
 		case key.Matches(msg, m.KeyMap.HalfPageUp):
 			m.MoveUp(height / 2) //nolint:mnd
 		case key.Matches(msg, m.KeyMap.HalfPageDown):
