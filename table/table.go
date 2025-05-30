@@ -19,7 +19,6 @@ type Model struct {
 	cursor       int
 	focus        bool
 	styles       Styles
-	yOffset      int
 	useStyleFunc bool
 
 	table *table.Table
@@ -317,8 +316,12 @@ func (m *Model) SetWidth(w int) *Model {
 
 // SetYOffset sets the YOffset position in the table.
 func (m *Model) SetYOffset(n int) *Model {
-	m.yOffset = clamp(n, 0, m.RowCount()-1)
-	m.table.YOffset(m.yOffset)
+	var (
+		minimum = 0
+		maximum = m.RowCount() - m.table.VisibleRows()
+		yOffset = clamp(n, minimum, maximum)
+	)
+	m.table.YOffset(yOffset)
 	return m
 }
 
@@ -513,16 +516,20 @@ func (m Model) SelectedRow() []string {
 // It can not go above the first row.
 func (m *Model) MoveUp(n int) {
 	m.SetCursor(m.cursor - n)
-	m.SetYOffset(m.yOffset - n)
-	m.table.YOffset(m.yOffset)
+
+	if m.cursor < m.table.FirstVisibleRowIndex() {
+		m.SetYOffset(m.table.GetYOffset() - n)
+	}
 }
 
 // MoveDown moves the selection down by any number of rows.
 // It can not go below the last row.
 func (m *Model) MoveDown(n int) {
 	m.SetCursor(m.cursor + n)
-	m.SetYOffset(m.yOffset + n)
-	m.table.YOffset(m.yOffset)
+
+	if m.cursor > m.table.LastVisibleRowIndex() {
+		m.SetYOffset(m.table.GetYOffset() + n)
+	}
 }
 
 // GotoTop moves the selection to the first row.
