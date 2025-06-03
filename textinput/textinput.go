@@ -914,7 +914,7 @@ func (m Model) validate(v []rune) error {
 //	f.Cursor.Position.X += offsetX
 //	f.Cursor.Position.Y += offsetY
 func (m Model) Cursor() *tea.Cursor {
-	if m.useVirtualCursor {
+	if m.useVirtualCursor || !m.Focused() {
 		return nil
 	}
 
