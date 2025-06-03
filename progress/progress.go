@@ -295,7 +295,7 @@ func (m Model) barView(b *strings.Builder, percent float64, textWidth int) {
 
 	if m.useRamp {
 		// Gradient fill
-		for i := 0; i < fw; i++ {
+		for i := range fw {
 			if fw == 1 {
 				// this is up for debate: in a gradient of width=1, should the
 				// single character rendered be the first color, the last color

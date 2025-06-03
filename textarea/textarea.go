@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"image/color"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -260,16 +261,8 @@ type Model struct {
 	// KeyMap encodes the keybindings recognized by the widget.
 	KeyMap KeyMap
 
-	// Styling. FocusedStyle and BlurredStyle are used to style the textarea in
-	// focused and blurred states.
-	Styles Styles
-
 	// virtualCursor manages the virtual cursor.
 	virtualCursor cursor.Model
-
-	// VirtualCursor determines whether or not to use the virtual cursor. If
-	// set to false, use [Model.Cursor] to return a real cursor for rendering.
-	VirtualCursor bool
 
 	// CharLimit is the maximum number of characters this input element will
 	// accept. If 0 or less, there's no limit.
@@ -282,6 +275,15 @@ type Model struct {
 	// MaxWidth is the maximum width of the text area in columns. If 0 or less,
 	// there's no limit.
 	MaxWidth int
+
+	// Styling. Styles are defined in [Styles]. Use [SetStyles] and [GetStyles]
+	// to work with this value publicly.
+	styles Styles
+
+	// useVirtualCursor determines whether or not to use the virtual cursor.
+	// Use [SetVirtualCursor] and [VirtualCursor] to work with this this
+	// value publicly.
+	useVirtualCursor bool
 
 	// If promptFunc is set, it replaces Prompt as a generator for
 	// prompt strings at the beginning of each line.
@@ -337,11 +339,11 @@ func New() Model {
 		MaxHeight:            defaultMaxHeight,
 		MaxWidth:             defaultMaxWidth,
 		Prompt:               lipgloss.ThickBorder().Left + " ",
-		Styles:               styles,
+		styles:               styles,
 		cache:                memoization.NewMemoCache[line, [][]rune](maxLines),
 		EndOfBufferCharacter: ' ',
 		ShowLineNumbers:      true,
-		VirtualCursor:        true,
+		useVirtualCursor:     true,
 		virtualCursor:        cur,
 		KeyMap:               DefaultKeyMap(),
 
@@ -403,21 +405,43 @@ func DefaultDarkStyles() Styles {
 	return DefaultStyles(true)
 }
 
+// Styles returns the current styles for the textarea.
+func (m Model) Styles() Styles {
+	return m.styles
+}
+
+// SetStyles updates styling for the textarea.
+func (m *Model) SetStyles(s Styles) {
+	m.styles = s
+	m.updateVirtualCursorStyle()
+}
+
+// VirtualCursor returns whether or not the virtual cursor is enabled.
+func (m Model) VirtualCursor() bool {
+	return m.useVirtualCursor
+}
+
+// SetVirtualCursor sets whether or not to use the virtual cursor.
+func (m *Model) SetVirtualCursor(v bool) {
+	m.useVirtualCursor = v
+	m.updateVirtualCursorStyle()
+}
+
 // updateVirtualCursorStyle sets styling on the virtual cursor based on the
 // textarea's style settings.
 func (m *Model) updateVirtualCursorStyle() {
-	if !m.VirtualCursor {
+	if !m.useVirtualCursor {
 		m.virtualCursor.SetMode(cursor.CursorHide)
 		return
 	}
 
-	m.virtualCursor.Style = lipgloss.NewStyle().Foreground(m.Styles.Cursor.Color)
+	m.virtualCursor.Style = lipgloss.NewStyle().Foreground(m.styles.Cursor.Color)
 
 	// By default, the blink speed of the cursor is set to a default
 	// internally.
-	if m.Styles.Cursor.Blink {
-		if m.Styles.Cursor.BlinkSpeed > 0 {
-			m.virtualCursor.BlinkSpeed = m.Styles.Cursor.BlinkSpeed
+	if m.styles.Cursor.Blink {
+		if m.styles.Cursor.BlinkSpeed > 0 {
+			m.virtualCursor.BlinkSpeed = m.styles.Cursor.BlinkSpeed
 		}
 		m.virtualCursor.SetMode(cursor.CursorBlink)
 		return
@@ -464,7 +488,7 @@ func (m *Model) insertRunesFromUserInput(runes []rune) {
 	// Split the input into lines.
 	var lines [][]rune
 	lstart := 0
-	for i := 0; i < len(runes); i++ {
+	for i := range runes {
 		if runes[i] == '\n' {
 			// Queue a line to become a new row in the text area below.
 			// Beware to clamp the max capacity of the slice, to ensure no
@@ -663,9 +687,9 @@ func (m Model) Focused() bool {
 // whether the textarea is focused or blurred.
 func (m Model) activeStyle() *StyleState {
 	if m.focus {
-		return &m.Styles.Focused
+		return &m.styles.Focused
 	}
-	return &m.Styles.Blurred
+	return &m.styles.Blurred
 }
 
 // Focus sets the focus state on the model. When the model is in focus it can
@@ -1102,7 +1126,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			}
 		case key.Matches(msg, m.KeyMap.DeleteCharacterForward):
 			if len(m.value[m.row]) > 0 && m.col < len(m.value[m.row]) {
-				m.value[m.row] = append(m.value[m.row][:m.col], m.value[m.row][m.col+1:]...)
+				m.value[m.row] = slices.Delete(m.value[m.row], m.col, m.col+1)
 			}
 			if m.col >= len(m.value[m.row]) {
 				m.mergeLineBelow(m.row)
@@ -1173,13 +1197,18 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	m.viewport = &vp
 	cmds = append(cmds, cmd)
 
-	newRow, newCol := m.cursorLineNumber(), m.col
-	m.virtualCursor, cmd = m.virtualCursor.Update(msg)
-	if (newRow != oldRow || newCol != oldCol) && m.virtualCursor.Mode() == cursor.CursorBlink {
-		m.virtualCursor.Blink = false
-		cmd = m.virtualCursor.BlinkCmd()
+	if m.useVirtualCursor {
+		m.virtualCursor, cmd = m.virtualCursor.Update(msg)
+
+		// If the cursor has moved, reset the blink state. This is a small UX
+		// nuance that makes cursor movement obvious and feel snappy.
+		newRow, newCol := m.cursorLineNumber(), m.col
+		if (newRow != oldRow || newCol != oldCol) && m.virtualCursor.Mode() == cursor.CursorBlink {
+			m.virtualCursor.IsBlinked = false
+			cmd = m.virtualCursor.Blink()
+		}
+		cmds = append(cmds, cmd)
 	}
-	cmds = append(cmds, cmd)
 
 	m.repositionView()
 
@@ -1188,7 +1217,6 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 // View renders the text area in its current state.
 func (m Model) View() string {
-	m.updateVirtualCursorStyle()
 	if m.Value() == "" && m.row == 0 && m.col == 0 && m.Placeholder != "" {
 		return m.placeholderView()
 	}
@@ -1348,7 +1376,7 @@ func (m Model) placeholderView() string {
 	// split string by new lines
 	plines := strings.Split(strings.TrimSpace(pwrap), "\n")
 
-	for i := 0; i < m.height; i++ {
+	for i := range m.height {
 		isLineNumber := len(plines) > i
 
 		lineStyle := styles.computedPlaceholder()
@@ -1390,6 +1418,11 @@ func (m Model) placeholderView() string {
 
 			// the rest of the first line
 			s.WriteString(lineStyle.Render(styles.computedPlaceholder().Render(rest)))
+
+			// extend the first line with spaces to fill the width, so that
+			// the entire line is filled when cursorline is enabled.
+			gap := strings.Repeat(" ", max(0, m.width-lipgloss.Width(plines[0])))
+			s.WriteString(lineStyle.Render(gap))
 		// remaining lines
 		case len(plines) > i:
 			// current line placeholder text
@@ -1431,7 +1464,7 @@ func Blink() tea.Msg {
 //	f.Cursor.Position.X += offsetX
 //	f.Cursor.Position.Y += offsetY
 func (m Model) Cursor() *tea.Cursor {
-	if m.VirtualCursor {
+	if m.useVirtualCursor {
 		return nil
 	}
 
@@ -1453,9 +1486,9 @@ func (m Model) Cursor() *tea.Cursor {
 		baseStyle.GetBorderTopSize()
 
 	c := tea.NewCursor(xOffset, yOffset)
-	c.Blink = m.Styles.Cursor.Blink
-	c.Color = m.Styles.Cursor.Color
-	c.Shape = m.Styles.Cursor.Shape
+	c.Blink = m.styles.Cursor.Blink
+	c.Color = m.styles.Cursor.Color
+	c.Shape = m.styles.Cursor.Shape
 	return c
 }
 

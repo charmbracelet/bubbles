@@ -185,7 +185,7 @@ func (m Model) View() string {
 
 func (m Model) dotsView() string {
 	var s string
-	for i := 0; i < m.TotalPages; i++ {
+	for i := range m.TotalPages {
 		if i == m.Page {
 			s += m.ActiveDot
 			continue
