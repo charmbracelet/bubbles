@@ -516,3 +516,10 @@ func (m Model) canSelect(file string) bool {
 	}
 	return false
 }
+
+func (M Model) HighlightedFilePath() string {
+	if len(M.files) == 0 || M.selected < 0 || M.selected >= len(M.files) {
+		return ""
+	}
+	return filepath.Join(M.CurrentDirectory, M.files[M.selected].Name())
+}
