@@ -401,7 +401,7 @@ func (m Model) View() string {
 				selected += " → " + symlinkPath
 			}
 			if disabled {
-				s.WriteString(m.Styles.DisabledSelected.Render(m.Cursor) + m.Styles.DisabledSelected.Render(selected))
+				s.WriteString(m.Styles.DisabledCursor.Render(m.Cursor) + m.Styles.DisabledSelected.Render(selected))
 			} else {
 				s.WriteString(m.Styles.Cursor.Render(m.Cursor) + m.Styles.Selected.Render(selected))
 			}
@@ -515,4 +515,12 @@ func (m Model) canSelect(file string) bool {
 		}
 	}
 	return false
+}
+
+// HighlightedPath returns the path of the currently highlighted file or directory.
+func (M Model) HighlightedPath() string {
+	if len(M.files) == 0 || M.selected < 0 || M.selected >= len(M.files) {
+		return ""
+	}
+	return filepath.Join(M.CurrentDirectory, M.files[M.selected].Name())
 }
