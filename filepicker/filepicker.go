@@ -517,7 +517,8 @@ func (m Model) canSelect(file string) bool {
 	return false
 }
 
-func (M Model) HighlightedFilePath() string {
+// HighlightedPath returns the path of the currently highlighted file or directory.
+func (M Model) HighlightedPath() string {
 	if len(M.files) == 0 || M.selected < 0 || M.selected >= len(M.files) {
 		return ""
 	}
