@@ -401,7 +401,7 @@ func (m Model) View() string {
 				selected += " → " + symlinkPath
 			}
 			if disabled {
-				s.WriteString(m.Styles.DisabledSelected.Render(m.Cursor) + m.Styles.DisabledSelected.Render(selected))
+				s.WriteString(m.Styles.DisabledCursor.Render(m.Cursor) + m.Styles.DisabledSelected.Render(selected))
 			} else {
 				s.WriteString(m.Styles.Cursor.Render(m.Cursor) + m.Styles.Selected.Render(selected))
 			}
