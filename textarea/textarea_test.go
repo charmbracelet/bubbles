@@ -6,6 +6,7 @@ import (
 	"unicode"
 
 	"github.com/MakeNowJust/heredoc"
+	"github.com/aymanbagabas/go-udiff"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
@@ -43,7 +44,7 @@ func TestVerticalScrolling(t *testing.T) {
 		"the text area.",
 	}
 	for _, line := range lines {
-		textarea.viewport.LineDown(1)
+		textarea.viewport.ScrollDown(1)
 		view = textarea.View()
 		if !strings.Contains(view, line) {
 			t.Log(view)
@@ -1671,6 +1672,26 @@ func TestView(t *testing.T) {
 				`),
 			},
 		},
+		{
+			name: "placeholder chinese character",
+			modelFunc: func(m Model) Model {
+				m.Placeholder = "输入消息..."
+				m.ShowLineNumbers = true
+				m.SetWidth(20)
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					>   1 输入消息...
+					>
+					>
+					>
+					>
+					>
+
+				`),
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -1689,6 +1710,7 @@ func TestView(t *testing.T) {
 			wantView := stripString(tt.want.view)
 
 			if view != wantView {
+				t.Log(udiff.Unified("expected", "got", wantView, view))
 				t.Fatalf("Want:\n%v\nGot:\n%v\n", wantView, view)
 			}
 

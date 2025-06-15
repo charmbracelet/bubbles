@@ -1,5 +1,4 @@
-Bubbles
-=======
+# Bubbles
 
 <p>
   <img src="https://stuff.charm.sh/bubbles/bubbles-github.png" width="233" alt="The Bubbles Logo">
@@ -11,13 +10,10 @@ Bubbles
 [![Go ReportCard](https://goreportcard.com/badge/charmbracelet/bubbles)](https://goreportcard.com/report/charmbracelet/bubbles)
 
 Some components for [Bubble Tea](https://github.com/charmbracelet/bubbletea)
-applications. These components are used in production in [Glow][glow],
-[Charm][charm] and [many other applications][otherstuff].
+applications. These components are used in production in [Glow][glow], and [many other applications][otherstuff].
 
 [glow]: https://github.com/charmbracelet/glow
-[charm]: https://github.com/charmbracelet/charm
 [otherstuff]: https://github.com/charmbracelet/bubbletea/#bubble-tea-in-the-wild
-
 
 ## Spinner
 
@@ -26,9 +22,8 @@ applications. These components are used in production in [Glow][glow],
 A spinner, useful for indicating that some kind an operation is happening.
 There are a couple default ones, but you can also pass your own ”frames.”
 
-* [Example code, basic spinner](https://github.com/charmbracelet/bubbletea/tree/master/examples/spinner/main.go)
-* [Example code, various spinners](https://github.com/charmbracelet/bubbletea/tree/master/examples/spinners/main.go)
-
+- [Example code, basic spinner](https://github.com/charmbracelet/bubbletea/blob/main/examples/spinner/main.go)
+- [Example code, various spinners](https://github.com/charmbracelet/bubbletea/blob/main/examples/spinners/main.go)
 
 ## Text Input
 
@@ -38,8 +33,8 @@ A text input field, akin to an `<input type="text">` in HTML. Supports unicode,
 pasting, in-place scrolling when the value exceeds the width of the element and
 the common, and many customization options.
 
-* [Example code, one field](https://github.com/charmbracelet/bubbletea/tree/master/examples/textinput/main.go)
-* [Example code, many fields](https://github.com/charmbracelet/bubbletea/tree/master/examples/textinputs/main.go)
+- [Example code, one field](https://github.com/charmbracelet/bubbletea/blob/main/examples/textinput/main.go)
+- [Example code, many fields](https://github.com/charmbracelet/bubbletea/blob/main/examples/textinputs/main.go)
 
 ## Text Area
 
@@ -47,11 +42,11 @@ the common, and many customization options.
 
 A text area field, akin to an `<textarea />` in HTML. Allows for input that
 spans multiple lines. Supports unicode, pasting, vertical scrolling when the
-value exceeds the width and height of the element,  and many customization
+value exceeds the width and height of the element, and many customization
 options.
 
-* [Example code, chat input](https://github.com/charmbracelet/bubbletea/tree/master/examples/chat/main.go)
-* [Example code, story time input](https://github.com/charmbracelet/bubbletea/tree/master/examples/textarea/main.go)
+- [Example code, chat input](https://github.com/charmbracelet/bubbletea/blob/main/examples/chat/main.go)
+- [Example code, story time input](https://github.com/charmbracelet/bubbletea/blob/main/examples/textarea/main.go)
 
 ## Table
 
@@ -60,7 +55,7 @@ options.
 A component for displaying and navigating tabular data (columns and rows).
 Supports vertical scrolling and many customization options.
 
-* [Example code, countries and populations](https://github.com/charmbracelet/bubbletea/tree/master/examples/table/main.go)
+- [Example code, countries and populations](https://github.com/charmbracelet/bubbletea/blob/main/examples/table/main.go)
 
 ## Progress
 
@@ -71,11 +66,10 @@ A simple, customizable progress meter, with optional animation via
 runes can be set to whatever you'd like. The percentage readout is customizable
 and can also be omitted entirely.
 
-* [Animated example](https://github.com/charmbracelet/bubbletea/blob/master/examples/progress-animated/main.go)
-* [Static example](https://github.com/charmbracelet/bubbletea/blob/master/examples/progress-static/main.go)
+- [Animated example](https://github.com/charmbracelet/bubbletea/blob/main/examples/progress-animated/main.go)
+- [Static example](https://github.com/charmbracelet/bubbletea/blob/main/examples/progress-static/main.go)
 
 [harmonica]: https://github.com/charmbracelet/harmonica
-
 
 ## Paginator
 
@@ -86,8 +80,7 @@ Supports "dot-style" pagination (similar to what you might see on iOS) and
 numeric page numbering, but you could also just use this component for the
 logic and visualize pagination however you like.
 
-* [Example code](https://github.com/charmbracelet/bubbletea/blob/master/examples/paginator/main.go)
-
+- [Example code](https://github.com/charmbracelet/bubbletea/blob/main/examples/paginator/main.go)
 
 ## Viewport
 
@@ -97,13 +90,12 @@ A viewport for vertically scrolling content. Optionally includes standard
 pager keybindings and mouse wheel support. A high performance mode is available
 for applications which make use of the alternate screen buffer.
 
-* [Example code](https://github.com/charmbracelet/bubbletea/tree/master/examples/pager/main.go)
+- [Example code](https://github.com/charmbracelet/bubbletea/blob/main/examples/pager/main.go)
 
 This component is well complemented with [Reflow][reflow] for ANSI-aware
 indenting and text wrapping.
 
 [reflow]: https://github.com/muesli/reflow
-
 
 ## List
 
@@ -114,9 +106,9 @@ Features pagination, fuzzy filtering, auto-generated help, an activity spinner,
 and status messages, all of which can be enabled and disabled as needed.
 Extrapolated from [Glow][glow].
 
-* [Example code, default list](https://github.com/charmbracelet/bubbletea/tree/master/examples/list-default/main.go)
-* [Example code, simple list](https://github.com/charmbracelet/bubbletea/tree/master/examples/list-simple/main.go)
-* [Example code, all features](https://github.com/charmbracelet/bubbletea/tree/master/examples/list-fancy/main.go)
+- [Example code, default list](https://github.com/charmbracelet/bubbletea/blob/main/examples/list-default/main.go)
+- [Example code, simple list](https://github.com/charmbracelet/bubbletea/blob/main/examples/list-simple/main.go)
+- [Example code, all features](https://github.com/charmbracelet/bubbletea/blob/main/examples/list-fancy/main.go)
 
 ## File Picker
 
@@ -126,7 +118,7 @@ A customizable component for picking a file from the file system. Navigate
 through directories and select files, optionally limit to certain file
 extensions.
 
-* [Example code](https://github.com/charmbracelet/bubbletea/tree/master/examples/file-picker/main.go)
+- [Example code](https://github.com/charmbracelet/bubbletea/blob/main/examples/file-picker/main.go)
 
 ## Timer
 
@@ -135,8 +127,7 @@ can be customized as you like.
 
 <img src="https://stuff.charm.sh/bubbles-examples/timer.gif" width="400" alt="Timer example">
 
-* [Example code](https://github.com/charmbracelet/bubbletea/blob/master/examples/timer/main.go)
-
+- [Example code](https://github.com/charmbracelet/bubbletea/blob/main/examples/timer/main.go)
 
 ## Stopwatch
 
@@ -145,8 +136,7 @@ can be customized as you like.
 A simple, flexible component for counting up. The update frequency and output
 can be customized as you see fit.
 
-* [Example code](https://github.com/charmbracelet/bubbletea/blob/master/examples/stopwatch/main.go)
-
+- [Example code](https://github.com/charmbracelet/bubbletea/blob/main/examples/stopwatch/main.go)
 
 ## Help
 
@@ -157,8 +147,7 @@ from your keybindings. It features single and multi-line modes, which the user
 can optionally toggle between. It will truncate gracefully if the terminal is
 too wide for the content.
 
-* [Example code](https://github.com/charmbracelet/bubbletea/blob/master/examples/help/main.go)
-
+- [Example code](https://github.com/charmbracelet/bubbletea/blob/main/examples/help/main.go)
 
 ## Key
 
@@ -197,42 +186,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 ```
 
+## There’s more where that came from
 
-## Additional Bubbles
-
-<!-- in alphabetical order by author -->
-
-* [76creates/stickers](https://github.com/76creates/stickers): Responsive
-  flexbox and table components.
-* [calyptia/go-bubble-table](https://github.com/calyptia/go-bubble-table): An
-  interactive, customizable, scrollable table component.
-* [erikgeiser/promptkit](https://github.com/erikgeiser/promptkit): A collection
-  of common prompts for cases like selection, text input, and confirmation.
-  Each prompt comes with sensible defaults, remappable keybindings, any many
-  customization options.
-* [evertras/bubble-table](https://github.com/Evertras/bubble-table): Interactive,
-  customizable, paginated tables.
-* [knipferrc/teacup](https://github.com/knipferrc/teacup): Various handy
-  bubbles and utilities for building Bubble Tea applications.
-* [mritd/bubbles](https://github.com/mritd/bubbles): Some general-purpose
-  bubbles. Inputs with validation, menu selection, a modified progressbar, and
-  so on.
-* [kevm/bubbleo](https://github.com/KevM/bubbleo): A set of bubbles with a
-  focus on navigation: navigation stacks, breakcrumbs, menus and so on.
-* [treilik/bubbleboxer](https://github.com/treilik/bubbleboxer): Layout
-  multiple bubbles side-by-side in a layout-tree.
-* [treilik/bubblelister](https://github.com/treilik/bubblelister): An alternate
-  list that is scrollable without pagination and has the ability to contain
-  other bubbles as list items.
-
-If you’ve built a Bubble you think should be listed here, please create a Pull
-Request. Please note that for a project to be included, it must meet the
-following requirements:
-- The README has a demo GIF.
-- The README clearly states the purpose of the bubble along with an example on how to use it. 
-- The bubble must *always* be in a working state on its `main` branch.
-
-Thank you!
+To check out community-maintained Bubbles see [Charm &
+Friends](https://github.com/charm-and-friends/additional-bubbles). Made a cool Bubble
+that you want to share?
+[PRs](https://github.com/charm-and-friends/additional-bubbles?tab=readme-ov-file#what-is-a-complete-project)
+are welcome!
 
 ## Contributing
 
@@ -244,15 +204,15 @@ See [contributing][contribute].
 
 We’d love to hear your thoughts on this project. Feel free to drop us a note!
 
-* [Twitter](https://twitter.com/charmcli)
-* [The Fediverse](https://mastodon.social/@charmcli)
-* [Discord](https://charm.sh/chat)
+- [Twitter](https://twitter.com/charmcli)
+- [The Fediverse](https://mastodon.social/@charmcli)
+- [Discord](https://charm.sh/chat)
 
 ## License
 
-[MIT](https://github.com/charmbracelet/bubbletea/raw/master/LICENSE)
+[MIT](https://github.com/charmbracelet/bubbletea/raw/main/LICENSE)
 
-***
+---
 
 Part of [Charm](https://charm.sh).
 

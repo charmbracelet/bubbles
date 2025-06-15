@@ -1,3 +1,4 @@
+// Package spinner provides a spinner component for Bubble Tea applications.
 package spinner
 
 import (

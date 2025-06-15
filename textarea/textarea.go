@@ -1,3 +1,5 @@
+// Package textarea provides a multi-line text input component for Bubble Tea
+// applications.
 package textarea
 
 import (
@@ -651,7 +653,7 @@ func (m *Model) deleteWordLeft() {
 	// Linter note: it's critical that we acquire the initial cursor position
 	// here prior to altering it via SetCursor() below. As such, moving this
 	// call into the corresponding if clause does not apply here.
-	oldCol := m.col //nolint:ifshort
+	oldCol := m.col
 
 	m.SetCursor(m.col - 1)
 	for unicode.IsSpace(m.value[m.row][m.col]) {
@@ -853,13 +855,13 @@ func (m Model) LineInfo() LineInfo {
 // repositionView repositions the view of the viewport based on the defined
 // scrolling behavior.
 func (m *Model) repositionView() {
-	min := m.viewport.YOffset
-	max := min + m.viewport.Height - 1
+	minimum := m.viewport.YOffset
+	maximum := minimum + m.viewport.Height - 1
 
-	if row := m.cursorLineNumber(); row < min {
-		m.viewport.LineUp(min - row)
-	} else if row > max {
-		m.viewport.LineDown(row - max)
+	if row := m.cursorLineNumber(); row < minimum {
+		m.viewport.ScrollUp(minimum - row)
+	} else if row > maximum {
+		m.viewport.ScrollDown(row - maximum)
 	}
 }
 
@@ -1269,11 +1271,13 @@ func (m Model) placeholderView() string {
 		case i == 0:
 			// first character of first line as cursor with character
 			m.Cursor.TextStyle = m.style.computedPlaceholder()
-			m.Cursor.SetChar(string(plines[0][0]))
+
+			ch, rest, _, _ := uniseg.FirstGraphemeClusterInString(plines[0], 0)
+			m.Cursor.SetChar(ch)
 			s.WriteString(lineStyle.Render(m.Cursor.View()))
 
 			// the rest of the first line
-			s.WriteString(lineStyle.Render(style.Render(plines[0][1:] + strings.Repeat(" ", max(0, m.width-uniseg.StringWidth(plines[0]))))))
+			s.WriteString(lineStyle.Render(style.Render(rest)))
 		// remaining lines
 		case len(plines) > i:
 			// current line placeholder text
@@ -1465,18 +1469,4 @@ func clamp(v, low, high int) int {
 		low, high = high, low
 	}
 	return min(high, max(low, v))
-}
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
 }
