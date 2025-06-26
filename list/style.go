@@ -67,7 +67,8 @@ func DefaultStyles() (s Styles) {
 		Foreground(lipgloss.AdaptiveColor{Light: "#A49FA5", Dark: "#777777"}).
 		Padding(0, 0, 1, 2) //nolint:mnd
 
-	s.StatusEmpty = lipgloss.NewStyle().Foreground(subduedColor)
+	s.StatusEmpty = lipgloss.NewStyle().Foreground(subduedColor).
+		SetString("No items.")
 
 	s.StatusBarActiveFilter = lipgloss.NewStyle().
 		Foreground(lipgloss.AdaptiveColor{Light: "#1a1a1a", Dark: "#dddddd"})
@@ -75,7 +76,8 @@ func DefaultStyles() (s Styles) {
 	s.StatusBarFilterCount = lipgloss.NewStyle().Foreground(verySubduedColor)
 
 	s.NoItems = lipgloss.NewStyle().
-		Foreground(lipgloss.AdaptiveColor{Light: "#909090", Dark: "#626262"})
+		Foreground(lipgloss.AdaptiveColor{Light: "#909090", Dark: "#626262"}).
+		SetString("No items.")
 
 	s.ArabicPagination = lipgloss.NewStyle().Foreground(subduedColor)
 
