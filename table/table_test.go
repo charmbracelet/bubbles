@@ -2,11 +2,12 @@ package table
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 
-	"github.com/charmbracelet/bubbles/help"
-	"github.com/charmbracelet/bubbles/viewport"
-	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/bubbles/v2/help"
+	"github.com/charmbracelet/bubbles/v2/viewport"
+	"github.com/charmbracelet/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/golden"
 )
@@ -25,11 +26,14 @@ func TestNew(t *testing.T) {
 		"Default": {
 			want: Model{
 				// Default fields
-				cursor:   0,
-				viewport: viewport.New(0, 20),
-				KeyMap:   DefaultKeyMap(),
-				Help:     help.New(),
-				styles:   DefaultStyles(),
+				cursor: 0,
+				viewport: viewport.New(
+					viewport.WithWidth(0),
+					viewport.WithHeight(20),
+				),
+				KeyMap: DefaultKeyMap(),
+				Help:   help.New(),
+				styles: DefaultStyles(),
 			},
 		},
 		"WithColumns": {
@@ -41,11 +45,14 @@ func TestNew(t *testing.T) {
 			},
 			want: Model{
 				// Default fields
-				cursor:   0,
-				viewport: viewport.New(0, 20),
-				KeyMap:   DefaultKeyMap(),
-				Help:     help.New(),
-				styles:   DefaultStyles(),
+				cursor: 0,
+				viewport: viewport.New(
+					viewport.WithWidth(0),
+					viewport.WithHeight(20),
+				),
+				KeyMap: DefaultKeyMap(),
+				Help:   help.New(),
+				styles: DefaultStyles(),
 
 				// Modified fields
 				cols: []Column{
@@ -67,11 +74,14 @@ func TestNew(t *testing.T) {
 			},
 			want: Model{
 				// Default fields
-				cursor:   0,
-				viewport: viewport.New(0, 20),
-				KeyMap:   DefaultKeyMap(),
-				Help:     help.New(),
-				styles:   DefaultStyles(),
+				cursor: 0,
+				viewport: viewport.New(
+					viewport.WithWidth(0),
+					viewport.WithHeight(20),
+				),
+				KeyMap: DefaultKeyMap(),
+				Help:   help.New(),
+				styles: DefaultStyles(),
 
 				// Modified fields
 				cols: []Column{
@@ -97,7 +107,10 @@ func TestNew(t *testing.T) {
 
 				// Modified fields
 				// Viewport height is 1 less than the provided height when no header is present since lipgloss.Height adds 1
-				viewport: viewport.New(0, 9),
+				viewport: viewport.New(
+					viewport.WithWidth(0),
+					viewport.WithHeight(9),
+				),
 			},
 		},
 		"WithWidth": {
@@ -113,7 +126,10 @@ func TestNew(t *testing.T) {
 
 				// Modified fields
 				// Viewport height is 1 less than the provided height when no header is present since lipgloss.Height adds 1
-				viewport: viewport.New(10, 20),
+				viewport: viewport.New(
+					viewport.WithWidth(10),
+					viewport.WithHeight(20),
+				),
 			},
 		},
 		"WithFocused": {
@@ -122,11 +138,14 @@ func TestNew(t *testing.T) {
 			},
 			want: Model{
 				// Default fields
-				cursor:   0,
-				viewport: viewport.New(0, 20),
-				KeyMap:   DefaultKeyMap(),
-				Help:     help.New(),
-				styles:   DefaultStyles(),
+				cursor: 0,
+				viewport: viewport.New(
+					viewport.WithWidth(0),
+					viewport.WithHeight(20),
+				),
+				KeyMap: DefaultKeyMap(),
+				Help:   help.New(),
+				styles: DefaultStyles(),
 
 				// Modified fields
 				focus: true,
@@ -138,10 +157,13 @@ func TestNew(t *testing.T) {
 			},
 			want: Model{
 				// Default fields
-				cursor:   0,
-				viewport: viewport.New(0, 20),
-				KeyMap:   DefaultKeyMap(),
-				Help:     help.New(),
+				cursor: 0,
+				viewport: viewport.New(
+					viewport.WithWidth(0),
+					viewport.WithHeight(20),
+				),
+				KeyMap: DefaultKeyMap(),
+				Help:   help.New(),
 
 				// Modified fields
 				styles: Styles{},
@@ -153,10 +175,13 @@ func TestNew(t *testing.T) {
 			},
 			want: Model{
 				// Default fields
-				cursor:   0,
-				viewport: viewport.New(0, 20),
-				Help:     help.New(),
-				styles:   DefaultStyles(),
+				cursor: 0,
+				viewport: viewport.New(
+					viewport.WithWidth(0),
+					viewport.WithHeight(20),
+				),
+				Help:   help.New(),
+				styles: DefaultStyles(),
 
 				// Modified fields
 				KeyMap: KeyMap{},
@@ -169,6 +194,11 @@ func TestNew(t *testing.T) {
 			tc.want.UpdateViewport()
 
 			got := New(tc.opts...)
+
+			// NOTE(@andreynering): Funcs have different references, so we need
+			// to clear them out to compare the structs.
+			tc.want.viewport.LeftGutterFunc = nil
+			got.viewport.LeftGutterFunc = nil
 
 			if !reflect.DeepEqual(tc.want, got) {
 				t.Errorf("\n\nwant %v\n\ngot %v", tc.want, got)
@@ -273,7 +303,7 @@ func TestTableAlignment(t *testing.T) {
 				{"Hobnobs", "UK", "Yes"},
 			}),
 		)
-		got := ansi.Strip(biscuits.View())
+		got := ansiStrip(biscuits.View())
 		golden.RequireEqual(t, []byte(got))
 	})
 	t.Run("With border", func(t *testing.T) {
@@ -302,9 +332,15 @@ func TestTableAlignment(t *testing.T) {
 			}),
 			WithStyles(s),
 		)
-		got := ansi.Strip(baseStyle.Render(biscuits.View()))
+		got := ansiStrip(baseStyle.Render(biscuits.View()))
 		golden.RequireEqual(t, []byte(got))
 	})
+}
+
+func ansiStrip(s string) string {
+	// Replace all \r\n with \n
+	s = strings.ReplaceAll(s, "\r\n", "\n")
+	return ansi.Strip(s)
 }
 
 func TestCursorNavigation(t *testing.T) {
@@ -685,7 +721,7 @@ func TestModel_View(t *testing.T) {
 					}),
 				)
 
-				m.viewport.Height = 2
+				m.viewport.SetHeight(2)
 
 				return m
 			},

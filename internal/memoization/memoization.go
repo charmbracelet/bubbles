@@ -1,5 +1,5 @@
-// Package memoization is an internal package that provides a simple memoization
-// for text area.
+// Package memoization implement a simple memoization cache. It's designed to
+// improve performance in textarea.
 package memoization
 
 import (
@@ -121,5 +121,5 @@ type HInt int
 
 // Hash is a method that returns the hash of the integer.
 func (h HInt) Hash() string {
-	return fmt.Sprintf("%x", sha256.Sum256([]byte(fmt.Sprintf("%d", h))))
+	return fmt.Sprintf("%x", sha256.Sum256(fmt.Appendf(nil, "%d", h)))
 }
