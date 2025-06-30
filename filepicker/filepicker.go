@@ -124,7 +124,7 @@ func DefaultStyles() Styles {
 		Permission:       lipgloss.NewStyle().Foreground(lipgloss.Color("244")),
 		Selected:         lipgloss.NewStyle().Foreground(lipgloss.Color("212")).Bold(true),
 		FileSize:         lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Width(fileSizeWidth).Align(lipgloss.Right),
-    ModTime:          lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
+		ModTime:          lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
 		EmptyDirectory:   lipgloss.NewStyle().Foreground(lipgloss.Color("240")).PaddingLeft(paddingLeft).SetString("Bummer. No Files Found."),
 	}
 }
