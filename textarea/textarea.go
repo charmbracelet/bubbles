@@ -133,6 +133,13 @@ type LineInfo struct {
 	CharOffset int
 }
 
+// PromptInfo is a struct that can be used to store information about the
+// prompt.
+type PromptInfo struct {
+	LineNumber int
+	Focused    bool
+}
+
 // CursorStyle is the style for real and virtual cursors.
 type CursorStyle struct {
 	// Style styles the cursor block.
@@ -287,7 +294,7 @@ type Model struct {
 
 	// If promptFunc is set, it replaces Prompt as a generator for
 	// prompt strings at the beginning of each line.
-	promptFunc func(line int) string
+	promptFunc func(PromptInfo) string
 
 	// promptWidth is the width of the prompt.
 	promptWidth int
@@ -1052,7 +1059,7 @@ func (m *Model) SetWidth(w int) {
 // promptWidth, it will be padded to the left. If it returns a prompt that is
 // longer, display artifacts may occur; the caller is responsible for computing
 // an adequate promptWidth.
-func (m *Model) SetPromptFunc(promptWidth int, fn func(lineIndex int) string) {
+func (m *Model) SetPromptFunc(promptWidth int, fn func(PromptInfo) string) {
 	m.promptFunc = fn
 	m.promptWidth = promptWidth
 }
@@ -1320,7 +1327,10 @@ func (m Model) promptView(displayLine int) (prompt string) {
 	if m.promptFunc == nil {
 		return prompt
 	}
-	prompt = m.promptFunc(displayLine)
+	prompt = m.promptFunc(PromptInfo{
+		LineNumber: displayLine,
+		Focused:    m.focus,
+	})
 	width := lipgloss.Width(prompt)
 	if width < m.promptWidth {
 		prompt = fmt.Sprintf("%*s%s", m.promptWidth-width, "", prompt)
