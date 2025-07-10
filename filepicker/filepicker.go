@@ -4,6 +4,7 @@ package filepicker
 
 import (
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
@@ -25,9 +26,11 @@ func nextID() int {
 
 // New returns a new filepicker model with default styling and key bindings.
 func New() Model {
+	dir, _ := os.Getwd()
 	return Model{
 		id:               nextID(),
 		CurrentDirectory: ".",
+		FS:               os.DirFS(dir),
 		Cursor:           ">",
 		AllowedTypes:     []string{},
 		selected:         0,
@@ -104,6 +107,7 @@ type Styles struct {
 	DisabledSelected lipgloss.Style
 	FileSize         lipgloss.Style
 	EmptyDirectory   lipgloss.Style
+	HelpStyle        lipgloss.Style
 }
 
 // DefaultStyles defines the default styling for the file picker.
@@ -132,6 +136,9 @@ type Model struct {
 
 	// CurrentDirectory is the directory that the user is currently in.
 	CurrentDirectory string
+
+	// FS is the filesystem the file picker can walk.
+	FS fs.FS
 
 	// AllowedTypes specifies which file types the user may select.
 	// If empty the user may select any file.
@@ -194,9 +201,9 @@ func (m *Model) popView() (int, int, int) {
 	return m.selectedStack.Pop(), m.minStack.Pop(), m.maxStack.Pop()
 }
 
-func (m Model) readDir(path string, showHidden bool) tea.Cmd {
+func (m Model) readDir(fysy fs.FS, path string, showHidden bool) tea.Cmd {
 	return func() tea.Msg {
-		dirEntries, err := os.ReadDir(path)
+		dirEntries, err := fs.ReadDir(fysy, path)
 		if err != nil {
 			return errorMsg{err}
 		}
@@ -239,7 +246,7 @@ func (m Model) Height() int {
 
 // Init initializes the file picker model.
 func (m Model) Init() tea.Cmd {
-	return m.readDir(m.CurrentDirectory, m.ShowHidden)
+	return m.readDir(m.FS, m.CurrentDirectory, m.ShowHidden)
 }
 
 // Update handles user interactions within the file picker model.
@@ -317,7 +324,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				m.minIdx = 0
 				m.maxIdx = m.Height() - 1
 			}
-			return m, m.readDir(m.CurrentDirectory, m.ShowHidden)
+			return m, m.readDir(m.FS, m.CurrentDirectory, m.ShowHidden)
 		case key.Matches(msg, m.KeyMap.Open):
 			if len(m.files) == 0 {
 				break
@@ -358,7 +365,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.selected = 0
 			m.minIdx = 0
 			m.maxIdx = m.Height() - 1
-			return m, m.readDir(m.CurrentDirectory, m.ShowHidden)
+			return m, m.readDir(m.FS, m.CurrentDirectory, m.ShowHidden)
 		}
 	}
 	return m, nil
