@@ -1767,7 +1767,7 @@ func TestWord(t *testing.T) {
 			{Code: tea.KeyLeft, Text: "left"},
 			{Code: tea.KeyLeft, Text: "left"},
 			{Code: tea.KeyLeft, Text: "left"},
-			{Code: tea.KeyLeft, Text: "right"},
+			{Code: tea.KeyRight, Text: "right"},
 		} {
 			textarea, _ = textarea.Update(k)
 			textarea.View()
