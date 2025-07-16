@@ -1762,11 +1762,8 @@ func TestWord(t *testing.T) {
 
 	t.Run("navigate", func(t *testing.T) {
 		for _, k := range []tea.KeyPressMsg{
-			{Code: tea.KeyLeft, Text: "left"},
-			{Code: tea.KeyLeft, Text: "left"},
-			{Code: tea.KeyLeft, Text: "left"},
-			{Code: tea.KeyLeft, Text: "left"},
-			{Code: tea.KeyLeft, Text: "left"},
+			{Code: tea.KeyLeft, Mod: tea.ModAlt, Text: "alt+left"},
+			{Code: tea.KeyLeft, Mod: tea.ModAlt, Text: "alt+left"},
 			{Code: tea.KeyRight, Text: "right"},
 		} {
 			textarea, _ = textarea.Update(k)
