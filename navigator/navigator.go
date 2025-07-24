@@ -21,7 +21,6 @@ func (m *Model) Init() tea.Cmd {
 }
 
 func (m *Model) Update(msg tea.Msg) tea.Cmd {
-
 	switch msg := msg.(type) {
 	case PushNavigationMsg:
 		var (
@@ -64,7 +63,6 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 }
 
 func (m *Model) View() string {
-
 	top := m.pages.Top()
 	if top == nil {
 		return ""
