@@ -1,8 +1,8 @@
 package tree
 
 import (
-	"github.com/charmbracelet/lipgloss/v2"
-	ltree "github.com/charmbracelet/lipgloss/v2/tree"
+	"charm.land/lipgloss/v2"
+	ltree "charm.land/lipgloss/v2/tree"
 )
 
 // Node is a a node in the tree.

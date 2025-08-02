@@ -1,6 +1,6 @@
 package tree
 
-import "github.com/charmbracelet/lipgloss/v2"
+import "charm.land/lipgloss/v2"
 
 // StyleFunc allows the tree to be styled per item.
 type StyleFunc func(children Nodes, i int) lipgloss.Style

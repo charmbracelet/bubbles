@@ -5,13 +5,13 @@ package tree
 import (
 	"strings"
 
-	tea "github.com/charmbracelet/bubbletea/v2"
-	"github.com/charmbracelet/lipgloss/v2"
-	ltree "github.com/charmbracelet/lipgloss/v2/tree"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
+	ltree "charm.land/lipgloss/v2/tree"
 
-	"github.com/charmbracelet/bubbles/v2/help"
-	"github.com/charmbracelet/bubbles/v2/key"
-	"github.com/charmbracelet/bubbles/v2/viewport"
+	"charm.land/bubbles/v2/help"
+	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/viewport"
 )
 
 const spacebar = " "
@@ -256,8 +256,8 @@ func (m *Model) SetNodes(t *Node) {
 	m.updateViewport(0)
 }
 
-// Additional key mappings for the full help view. This allows
-// you to add additional key mappings to the help menu without
+// SetAdditionalFullHelpKeys sets additional key mappings for the full help view.
+// This allows you to add additional key mappings to the help menu without
 // re-implementing the help component. Of course, you can also disable the
 // tree's help component and implement a new one if you need more
 // flexibility.
@@ -265,8 +265,8 @@ func (m *Model) SetAdditionalFullHelpKeys(val func() []key.Binding) {
 	m.additionalFullHelpKeys = val
 }
 
-// Additional key mappings for the short help view. This allows
-// you to add additional key mappings to the help menu without
+// SetAdditionalShortHelpKeys sets additional key mappings for the short help view.
+// This allows you to add additional key mappings to the help menu without
 // re-implementing the help component. Of course, you can also disable the
 // tree's help component and implement a new one if you need more
 // flexibility.
@@ -464,7 +464,8 @@ func (m *Model) SetHeight(height int) {
 func (m *Model) SetSize(width, height int) {
 	m.width = width
 	m.height = height
-	m.root.tree.Width(width - lipgloss.Width(m.cursorView()) - m.styles.TreeStyle.GetHorizontalFrameSize())
+	m.root.tree.Width(width - lipgloss.Width(m.cursorView()) -
+		m.styles.TreeStyle.GetHorizontalFrameSize())
 
 	m.viewport.SetWidth(width)
 	hv := 0
@@ -472,7 +473,7 @@ func (m *Model) SetSize(width, height int) {
 		hv = lipgloss.Height(m.helpView())
 	}
 	m.viewport.SetHeight(height - hv)
-	m.Help.Width = width
+	m.Help.SetWidth(width)
 }
 
 // ShortHelp returns bindings to show in the abbreviated help view.
