@@ -1032,7 +1032,9 @@ func TestView(t *testing.T) {
 		{
 			name: "set width with style",
 			modelFunc: func(m Model) Model {
-				m.Styles.Focused.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
+				s := m.Styles()
+				s.Focused.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
+				m.SetStyles(s)
 				m.Focus()
 
 				m.SetWidth(12)
@@ -1060,7 +1062,9 @@ func TestView(t *testing.T) {
 		{
 			name: "set width with style max width minus one",
 			modelFunc: func(m Model) Model {
-				m.Styles.Focused.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
+				s := m.Styles()
+				s.Focused.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
+				m.SetStyles(s)
 				m.Focus()
 
 				m.SetWidth(12)
@@ -1088,7 +1092,9 @@ func TestView(t *testing.T) {
 		{
 			name: "set width with style max width",
 			modelFunc: func(m Model) Model {
-				m.Styles.Focused.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
+				s := m.Styles()
+				s.Focused.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
+				m.SetStyles(s)
 				m.Focus()
 
 				m.SetWidth(12)
@@ -1116,7 +1122,9 @@ func TestView(t *testing.T) {
 		{
 			name: "set width with style max width plus one",
 			modelFunc: func(m Model) Model {
-				m.Styles.Focused.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
+				s := m.Styles()
+				s.Focused.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
+				m.SetStyles(s)
 				m.Focus()
 
 				m.SetWidth(12)
@@ -1144,7 +1152,9 @@ func TestView(t *testing.T) {
 		{
 			name: "set width without line numbers with style",
 			modelFunc: func(m Model) Model {
-				m.Styles.Focused.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
+				s := m.Styles()
+				s.Focused.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
+				m.SetStyles(s)
 				m.Focus()
 
 				m.ShowLineNumbers = false
@@ -1173,7 +1183,9 @@ func TestView(t *testing.T) {
 		{
 			name: "set width without line numbers with style max width minus one",
 			modelFunc: func(m Model) Model {
-				m.Styles.Focused.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
+				s := m.Styles()
+				s.Focused.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
+				m.SetStyles(s)
 				m.Focus()
 
 				m.ShowLineNumbers = false
@@ -1202,7 +1214,9 @@ func TestView(t *testing.T) {
 		{
 			name: "set width without line numbers with style max width",
 			modelFunc: func(m Model) Model {
-				m.Styles.Focused.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
+				s := m.Styles()
+				s.Focused.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
+				m.SetStyles(s)
 				m.Focus()
 
 				m.ShowLineNumbers = false
@@ -1231,7 +1245,9 @@ func TestView(t *testing.T) {
 		{
 			name: "set width without line numbers with style max width plus one",
 			modelFunc: func(m Model) Model {
-				m.Styles.Focused.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
+				s := m.Styles()
+				s.Focused.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
+				m.SetStyles(s)
 				m.Focus()
 
 				m.ShowLineNumbers = false
@@ -1671,6 +1687,26 @@ func TestView(t *testing.T) {
 				`),
 			},
 		},
+		{
+			name: "placeholder chinese character",
+			modelFunc: func(m Model) Model {
+				m.Placeholder = "输入消息..."
+				m.ShowLineNumbers = true
+				m.SetWidth(20)
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					>   1 输入消息...
+					>
+					>
+					>
+					>
+					>
+
+				`),
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -1700,6 +1736,62 @@ func TestView(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestWord(t *testing.T) {
+	textarea := newTextArea()
+
+	textarea.SetHeight(3)
+	textarea.SetWidth(20)
+	textarea.CharLimit = 500
+
+	textarea, _ = textarea.Update(nil)
+
+	t.Run("regular input", func(t *testing.T) {
+		input := "Word1 Word2 Word3 Word4"
+		for _, k := range input {
+			textarea, _ = textarea.Update(keyPress(k))
+			textarea.View()
+		}
+
+		expect := "Word4"
+		if word := textarea.Word(); word != expect {
+			t.Fatalf("Expected last word to be '%s', got '%s'", expect, word)
+		}
+	})
+
+	t.Run("navigate", func(t *testing.T) {
+		for _, k := range []tea.KeyPressMsg{
+			{Code: tea.KeyLeft, Mod: tea.ModAlt, Text: "alt+left"},
+			{Code: tea.KeyLeft, Mod: tea.ModAlt, Text: "alt+left"},
+			{Code: tea.KeyRight, Text: "right"},
+		} {
+			textarea, _ = textarea.Update(k)
+			textarea.View()
+		}
+
+		expect := "Word3"
+		if word := textarea.Word(); word != expect {
+			t.Fatalf("Expected last word to be '%s', got '%s'", expect, word)
+		}
+	})
+
+	t.Run("delete", func(t *testing.T) {
+		for _, k := range []tea.KeyPressMsg{
+			{Code: tea.KeyEnd, Text: "end"},
+			{Code: tea.KeyBackspace, Mod: tea.ModAlt, Text: "alt+backspace"},
+			{Code: tea.KeyBackspace, Mod: tea.ModAlt, Text: "alt+backspace"},
+			{Code: tea.KeyBackspace, Text: "backspace"},
+		} {
+			textarea, _ = textarea.Update(k)
+			textarea.View()
+		}
+
+		expect := "Word2"
+		if word := textarea.Word(); word != expect {
+			t.Fatalf("Expected last word to be '%s', got '%s'", expect, word)
+		}
+	})
 }
 
 func newTextArea() Model {

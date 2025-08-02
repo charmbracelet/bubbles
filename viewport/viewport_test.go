@@ -374,7 +374,7 @@ func TestRightOverscroll(t *testing.T) {
 		m := New(WithHeight(5), WithWidth(len(content)+1))
 		m.SetContent(content)
 
-		for i := 0; i < 10; i++ {
+		for range 10 {
 			m.ScrollRight(m.horizontalStep)
 		}
 
