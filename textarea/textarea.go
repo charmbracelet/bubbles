@@ -334,7 +334,7 @@ type Model struct {
 }
 
 // New creates a new model with default settings.
-func New() Model {
+func New() *Model {
 	vp := viewport.New()
 	vp.KeyMap = viewport.KeyMap{}
 	cur := cursor.New()
@@ -365,7 +365,7 @@ func New() Model {
 	m.SetHeight(defaultHeight)
 	m.SetWidth(defaultWidth)
 
-	return m
+	return &m
 }
 
 // DefaultStyles returns the default styles for focused and blurred states for
@@ -1116,7 +1116,7 @@ func (m *Model) SetHeight(h int) {
 }
 
 // Update is the Bubble Tea update loop.
-func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
+func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	if !m.focus {
 		m.virtualCursor.Blur()
 		return m, nil
@@ -1358,16 +1358,13 @@ func (m *Model) view() string {
 }
 
 // View renders the text area in its current state.
-func (m Model) View() string {
-	view := strings.TrimSpace(m.viewport.View())
-	if view == "" {
-		// XXX: This is a workaround for the case where the viewport hasn't
-		// been initialized yet like during the initial render. In that case,
-		// we need to render the view again because Update hasn't been called
-		// yet to set the content of the viewport.
-		m.viewport.SetContent(m.view())
-		view = m.viewport.View()
-	}
+func (m *Model) View() string {
+	// XXX: This is a workaround for the case where the viewport hasn't
+	// been initialized yet like during the initial render. In that case,
+	// we need to render the view again because Update hasn't been called
+	// yet to set the content of the viewport.
+	m.viewport.SetContent(m.view())
+	view := m.viewport.View()
 	styles := m.activeStyle()
 	return styles.Base.Render(view)
 }
