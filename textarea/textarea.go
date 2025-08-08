@@ -226,6 +226,14 @@ func (s StyleState) computedText() lipgloss.Style {
 	return s.Text.Inherit(s.Base).Inline(true)
 }
 
+func (s StyleState) computedSelection() lipgloss.Style {
+	// Create a selection style with inverted colors
+	return lipgloss.NewStyle().
+		Background(lipgloss.Color("7")). // Light gray background
+		Foreground(lipgloss.Color("0")). // Black text
+		Inline(true)
+}
+
 // line is the input to the text wrapping function. This is stored in a struct
 // so that it can be hashed and memoized.
 type line struct {
@@ -240,6 +248,12 @@ func (w line) Hash() string {
 }
 
 // Model is the Bubble Tea model for this text area element.
+// Position represents a position in the text area (row, col)
+type Position struct {
+	Row int
+	Col int
+}
+
 type Model struct {
 	Err error
 
@@ -331,6 +345,14 @@ type Model struct {
 
 	// rune sanitizer for input.
 	rsan runeutil.Sanitizer
+
+	// Selection state
+	selectionStart   Position // Starting position of selection
+	selectionEnd     Position // Ending position of selection
+	isSelecting      bool     // Whether we're currently selecting text
+	lastClickTime    time.Time // Time of last mouse click (for multi-click detection)
+	lastClickPos     Position  // Position of last click
+	clickCount       int       // Number of consecutive clicks (for double/triple click)
 }
 
 // New creates a new model with default settings.
@@ -1115,6 +1137,244 @@ func (m *Model) SetHeight(h int) {
 	}
 }
 
+// Selection methods
+
+// HasSelection returns true if there is currently selected text.
+func (m Model) HasSelection() bool {
+	return m.isSelecting && m.selectionStart != m.selectionEnd
+}
+
+// GetSelectedText returns the currently selected text.
+func (m Model) GetSelectedText() string {
+	if !m.HasSelection() {
+		return ""
+	}
+	
+	start := m.selectionStart
+	end := m.selectionEnd
+	
+	// Ensure start is before end
+	if start.Row > end.Row || (start.Row == end.Row && start.Col > end.Col) {
+		start, end = end, start
+	}
+	
+	var selected strings.Builder
+	
+	// Single line selection
+	if start.Row == end.Row {
+		if start.Row < len(m.value) && start.Col < len(m.value[start.Row]) {
+			endCol := min(end.Col, len(m.value[start.Row]))
+			selected.WriteString(string(m.value[start.Row][start.Col:endCol]))
+		}
+	} else {
+		// Multi-line selection
+		for row := start.Row; row <= end.Row && row < len(m.value); row++ {
+			if row == start.Row {
+				// First line: from start.Col to end of line
+				if start.Col < len(m.value[row]) {
+					selected.WriteString(string(m.value[row][start.Col:]))
+					selected.WriteByte('\n')
+				}
+			} else if row == end.Row {
+				// Last line: from beginning to end.Col
+				endCol := min(end.Col, len(m.value[row]))
+				selected.WriteString(string(m.value[row][:endCol]))
+			} else {
+				// Middle lines: entire line
+				selected.WriteString(string(m.value[row]))
+				selected.WriteByte('\n')
+			}
+		}
+	}
+	
+	return selected.String()
+}
+
+// SetSelection sets the selection range.
+func (m *Model) SetSelection(start, end Position) {
+	m.selectionStart = start
+	m.selectionEnd = end
+	m.isSelecting = true
+}
+
+// ClearSelection clears the current selection.
+func (m *Model) ClearSelection() {
+	m.isSelecting = false
+	m.selectionStart = Position{}
+	m.selectionEnd = Position{}
+}
+
+// SelectAll selects all text in the textarea.
+func (m *Model) SelectAll() {
+	m.selectionStart = Position{Row: 0, Col: 0}
+	
+	// Find the end position
+	lastRow := len(m.value) - 1
+	if lastRow < 0 {
+		lastRow = 0
+	}
+	
+	lastCol := 0
+	if lastRow < len(m.value) {
+		lastCol = len(m.value[lastRow])
+	}
+	
+	m.selectionEnd = Position{Row: lastRow, Col: lastCol}
+	m.isSelecting = true
+}
+
+// SelectWord selects the word at the given position.
+func (m *Model) SelectWord(pos Position) {
+	if pos.Row >= len(m.value) {
+		return
+	}
+	
+	line := m.value[pos.Row]
+	if pos.Col > len(line) {
+		return
+	}
+	
+	// Find word boundaries
+	start := pos.Col
+	end := pos.Col
+	
+	// Move start back to beginning of word
+	for start > 0 && !unicode.IsSpace(line[start-1]) && !unicode.IsPunct(line[start-1]) {
+		start--
+	}
+	
+	// Move end forward to end of word
+	for end < len(line) && !unicode.IsSpace(line[end]) && !unicode.IsPunct(line[end]) {
+		end++
+	}
+	
+	m.selectionStart = Position{Row: pos.Row, Col: start}
+	m.selectionEnd = Position{Row: pos.Row, Col: end}
+	m.isSelecting = true
+}
+
+// SelectLine selects the entire line at the given row.
+func (m *Model) SelectLine(row int) {
+	if row >= len(m.value) {
+		return
+	}
+	
+	m.selectionStart = Position{Row: row, Col: 0}
+	m.selectionEnd = Position{Row: row, Col: len(m.value[row])}
+	m.isSelecting = true
+}
+
+// DeleteSelection deletes the currently selected text.
+func (m *Model) DeleteSelection() {
+	if !m.HasSelection() {
+		return
+	}
+	
+	start := m.selectionStart
+	end := m.selectionEnd
+	
+	// Ensure start is before end
+	if start.Row > end.Row || (start.Row == end.Row && start.Col > end.Col) {
+		start, end = end, start
+	}
+	
+	// Delete the selected text
+	if start.Row == end.Row {
+		// Single line deletion
+		if start.Row < len(m.value) {
+			line := m.value[start.Row]
+			newLine := append(line[:start.Col], line[end.Col:]...)
+			m.value[start.Row] = newLine
+		}
+	} else {
+		// Multi-line deletion
+		// Combine the start of the first line with the end of the last line
+		var newLine []rune
+		if start.Row < len(m.value) {
+			newLine = append(newLine, m.value[start.Row][:start.Col]...)
+		}
+		if end.Row < len(m.value) && end.Col < len(m.value[end.Row]) {
+			newLine = append(newLine, m.value[end.Row][end.Col:]...)
+		}
+		
+		// Set the combined line
+		m.value[start.Row] = newLine
+		
+		// Remove the lines in between
+		if end.Row+1 <= len(m.value) {
+			m.value = append(m.value[:start.Row+1], m.value[end.Row+1:]...)
+		}
+	}
+	
+	// Move cursor to start of selection
+	m.row = start.Row
+	m.col = start.Col
+	m.SetCursorColumn(m.col)
+	
+	// Clear selection
+	m.ClearSelection()
+}
+
+// cursorToPosition converts the current cursor position to a Position.
+func (m Model) cursorToPosition() Position {
+	return Position{Row: m.row, Col: m.col}
+}
+
+// mouseToPosition converts mouse coordinates to a Position in the text.
+func (m Model) mouseToPosition(x, y int) Position {
+	// Account for viewport scrolling
+	row := y + m.viewport.YOffset()
+	
+	// Clamp row to valid range
+	if row < 0 {
+		row = 0
+	}
+	if row >= len(m.value) {
+		row = len(m.value) - 1
+		if row < 0 {
+			row = 0
+		}
+	}
+	
+	// Account for prompt width and line numbers
+	adjustedX := x - m.promptWidth
+	if m.ShowLineNumbers {
+		// Account for line number width (digits + 2 spaces padding)
+		digits := len(strconv.Itoa(m.MaxHeight))
+		adjustedX -= digits + 2
+	}
+	
+	// Clamp adjustedX to valid range
+	if adjustedX < 0 {
+		adjustedX = 0
+	}
+	
+	// Calculate column position
+	col := 0
+	if row < len(m.value) {
+		line := m.value[row]
+		// Account for character width (some characters may be wider)
+		currentX := 0
+		for i, r := range line {
+			runeWidth := rw.RuneWidth(r)
+			if currentX >= adjustedX {
+				break
+			}
+			currentX += runeWidth
+			if currentX <= adjustedX {
+				col = i + 1
+			}
+		}
+		
+		// Clamp to line length
+		if col > len(line) {
+			col = len(line)
+		}
+	}
+	
+	return Position{Row: row, Col: col}
+}
+
 // Update is the Bubble Tea update loop.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	if !m.focus {
@@ -1136,9 +1396,173 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	}
 
 	switch msg := msg.(type) {
+	case tea.MouseClickMsg:
+		// Handle mouse clicks for selection
+		now := time.Now()
+		pos := m.mouseToPosition(msg.X, msg.Y)
+		
+		// Check for multi-click
+		timeSinceLastClick := now.Sub(m.lastClickTime)
+		samePosition := m.lastClickPos.Row == pos.Row && abs(m.lastClickPos.Col-pos.Col) <= 2
+		
+		if timeSinceLastClick <= 500*time.Millisecond && samePosition {
+			m.clickCount++
+		} else {
+			m.clickCount = 1
+		}
+		
+		m.lastClickTime = now
+		m.lastClickPos = pos
+		
+		switch m.clickCount {
+		case 1:
+			// Single click - start new selection
+			m.SetSelection(pos, pos)
+			m.row = pos.Row
+			m.col = pos.Col
+			m.SetCursorColumn(m.col)
+		case 2:
+			// Double click - select word
+			m.SelectWord(pos)
+		case 3:
+			// Triple click - select line
+			m.SelectLine(pos.Row)
+			m.clickCount = 0 // Reset after triple click
+		}
+		
+	case tea.MouseMotionMsg:
+		// Handle mouse drag for selection
+		if msg.Button == tea.MouseLeft && m.isSelecting {
+			pos := m.mouseToPosition(msg.X, msg.Y)
+			m.selectionEnd = pos
+			// Update cursor position to follow mouse
+			m.row = pos.Row
+			m.col = pos.Col
+			m.SetCursorColumn(m.col)
+		}
+		
+	case tea.MouseReleaseMsg:
+		// Selection complete
+		if msg.Button == tea.MouseLeft && m.isSelecting {
+			// Selection is already set, just update cursor
+			pos := m.mouseToPosition(msg.X, msg.Y)
+			m.row = pos.Row
+			m.col = pos.Col
+			m.SetCursorColumn(m.col)
+		}
+		
 	case tea.PasteMsg:
 		m.insertRunesFromUserInput([]rune(msg))
 	case tea.KeyPressMsg:
+		// Handle selection with keyboard
+		shift := msg.Mod == tea.ModShift
+		ctrl := msg.Mod == tea.ModCtrl
+		
+		// Special case: Ctrl+A for select all
+		if ctrl && msg.String() == "a" {
+			m.SelectAll()
+			return m, nil
+		}
+		
+		// Handle Copy/Cut/Paste with selection
+		if ctrl && msg.String() == "c" && m.HasSelection() {
+			// Copy selected text
+			selected := m.GetSelectedText()
+			clipboard.WriteAll(selected)
+			return m, nil
+		}
+		
+		if ctrl && msg.String() == "x" && m.HasSelection() {
+			// Cut selected text
+			selected := m.GetSelectedText()
+			clipboard.WriteAll(selected)
+			m.DeleteSelection()
+			return m, nil
+		}
+		
+		// Delete selected text on any character input or backspace/delete
+		if m.HasSelection() {
+			switch {
+			case key.Matches(msg, m.KeyMap.DeleteCharacterBackward),
+				key.Matches(msg, m.KeyMap.DeleteCharacterForward),
+				key.Matches(msg, m.KeyMap.DeleteWordBackward),
+				key.Matches(msg, m.KeyMap.DeleteWordForward):
+				m.DeleteSelection()
+				return m, nil
+			case len(msg.Text) > 0:
+				// Replace selection with typed character
+				m.DeleteSelection()
+				// Continue to insert the character
+			}
+		}
+		
+		// Handle shift+arrow keys for selection
+		if shift {
+			// Start selection if not already selecting
+			if !m.isSelecting {
+				m.selectionStart = m.cursorToPosition()
+				m.selectionEnd = m.selectionStart
+				m.isSelecting = true
+			}
+			
+			// Process movement
+			switch {
+			case key.Matches(msg, m.KeyMap.CharacterForward):
+				m.characterRight()
+				m.selectionEnd = m.cursorToPosition()
+				return m, nil
+			case key.Matches(msg, m.KeyMap.CharacterBackward):
+				m.characterLeft(false)
+				m.selectionEnd = m.cursorToPosition()
+				return m, nil
+			case key.Matches(msg, m.KeyMap.LineNext):
+				m.CursorDown()
+				m.selectionEnd = m.cursorToPosition()
+				return m, nil
+			case key.Matches(msg, m.KeyMap.LinePrevious):
+				m.CursorUp()
+				m.selectionEnd = m.cursorToPosition()
+				return m, nil
+			case key.Matches(msg, m.KeyMap.LineEnd):
+				m.CursorEnd()
+				m.selectionEnd = m.cursorToPosition()
+				return m, nil
+			case key.Matches(msg, m.KeyMap.LineStart):
+				m.CursorStart()
+				m.selectionEnd = m.cursorToPosition()
+				return m, nil
+			case key.Matches(msg, m.KeyMap.WordForward):
+				m.wordRight()
+				m.selectionEnd = m.cursorToPosition()
+				return m, nil
+			case key.Matches(msg, m.KeyMap.WordBackward):
+				m.wordLeft()
+				m.selectionEnd = m.cursorToPosition()
+				return m, nil
+			}
+		} else {
+			// Clear selection on non-shift movement
+			if m.isSelecting {
+				switch {
+				case key.Matches(msg, m.KeyMap.CharacterForward),
+					key.Matches(msg, m.KeyMap.CharacterBackward),
+					key.Matches(msg, m.KeyMap.LineNext),
+					key.Matches(msg, m.KeyMap.LinePrevious),
+					key.Matches(msg, m.KeyMap.LineEnd),
+					key.Matches(msg, m.KeyMap.LineStart),
+					key.Matches(msg, m.KeyMap.WordForward),
+					key.Matches(msg, m.KeyMap.WordBackward):
+					m.ClearSelection()
+				}
+			}
+		}
+		
+		// Handle Escape to clear selection
+		if msg.String() == "esc" && m.HasSelection() {
+			m.ClearSelection()
+			return m, nil
+		}
+		
 		switch {
 		case key.Matches(msg, m.KeyMap.DeleteAfterCursor):
 			m.col = clamp(m.col, 0, len(m.value[m.row]))
@@ -1257,6 +1681,119 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
+// renderLineWithSelection renders a line with selection highlighting
+func (m Model) renderLineWithSelection(row, wrapOffset int, wrappedLine []rune, style lipgloss.Style, lineInfo LineInfo) string {
+	start := m.selectionStart
+	end := m.selectionEnd
+	
+	// Ensure start is before end
+	if start.Row > end.Row || (start.Row == end.Row && start.Col > end.Col) {
+		start, end = end, start
+	}
+	
+	// Check if this row is within the selection range
+	if row < start.Row || row > end.Row {
+		// No selection on this line
+		if m.row == row && lineInfo.RowOffset == wrapOffset {
+			// Cursor line without selection
+			var result strings.Builder
+			result.WriteString(style.Render(string(wrappedLine[:lineInfo.ColumnOffset])))
+			if m.col >= len(m.value[row]) && lineInfo.CharOffset >= m.width {
+				m.virtualCursor.SetChar(" ")
+				result.WriteString(m.virtualCursor.View())
+			} else {
+				m.virtualCursor.SetChar(string(wrappedLine[lineInfo.ColumnOffset]))
+				result.WriteString(style.Render(m.virtualCursor.View()))
+				result.WriteString(style.Render(string(wrappedLine[lineInfo.ColumnOffset+1:])))
+			}
+			return result.String()
+		}
+		return style.Render(string(wrappedLine))
+	}
+	
+	// Calculate selection boundaries for this line
+	lineStart := 0
+	lineEnd := len(wrappedLine)
+	
+	// Adjust for wrapped lines
+	actualCol := 0
+	if wrapOffset > 0 {
+		// This is a wrapped continuation of a line
+		// We need to calculate the actual column offset
+		wrappedLines := m.memoizedWrap(m.value[row], m.width)
+		for i := 0; i < wrapOffset && i < len(wrappedLines); i++ {
+			actualCol += len(wrappedLines[i])
+		}
+	}
+	
+	if row == start.Row {
+		// Adjust start column for wrapped line offset
+		adjustedStartCol := start.Col - actualCol
+		if adjustedStartCol > 0 && adjustedStartCol < len(wrappedLine) {
+			lineStart = adjustedStartCol
+		} else if adjustedStartCol >= len(wrappedLine) {
+			// Selection starts after this wrapped segment
+			if m.row == row && lineInfo.RowOffset == wrapOffset {
+				// Cursor line without selection
+				var result strings.Builder
+				result.WriteString(style.Render(string(wrappedLine[:lineInfo.ColumnOffset])))
+				m.virtualCursor.SetChar(string(wrappedLine[lineInfo.ColumnOffset]))
+				result.WriteString(style.Render(m.virtualCursor.View()))
+				result.WriteString(style.Render(string(wrappedLine[lineInfo.ColumnOffset+1:])))
+				return result.String()
+			}
+			return style.Render(string(wrappedLine))
+		}
+	}
+	
+	if row == end.Row {
+		// Adjust end column for wrapped line offset
+		adjustedEndCol := end.Col - actualCol
+		if adjustedEndCol >= 0 && adjustedEndCol <= len(wrappedLine) {
+			lineEnd = adjustedEndCol
+		} else if adjustedEndCol < 0 {
+			// Selection ends before this wrapped segment
+			if m.row == row && lineInfo.RowOffset == wrapOffset {
+				// Cursor line without selection
+				var result strings.Builder
+				result.WriteString(style.Render(string(wrappedLine[:lineInfo.ColumnOffset])))
+				m.virtualCursor.SetChar(string(wrappedLine[lineInfo.ColumnOffset]))
+				result.WriteString(style.Render(m.virtualCursor.View()))
+				result.WriteString(style.Render(string(wrappedLine[lineInfo.ColumnOffset+1:])))
+				return result.String()
+			}
+			return style.Render(string(wrappedLine))
+		}
+	}
+	
+	// Render the line with selection highlighting
+	var result strings.Builder
+	selectionStyle := m.activeStyle().computedSelection()
+	
+	// Render part before selection
+	if lineStart > 0 {
+		result.WriteString(style.Render(string(wrappedLine[:lineStart])))
+	}
+	
+	// Render selected part
+	if lineEnd > lineStart {
+		result.WriteString(selectionStyle.Render(string(wrappedLine[lineStart:lineEnd])))
+	}
+	
+	// Render part after selection
+	if lineEnd < len(wrappedLine) {
+		result.WriteString(style.Render(string(wrappedLine[lineEnd:])))
+	}
+	
+	// Handle cursor rendering if this is the cursor line
+	if m.row == row && lineInfo.RowOffset == wrapOffset {
+		// The cursor should be visible within the selection
+		// This is handled by the selection rendering above
+	}
+	
+	return result.String()
+}
+
 // View renders the text area in its current state.
 func (m Model) View() string {
 	if m.Value() == "" && m.row == 0 && m.col == 0 && m.Placeholder != "" {
@@ -1319,7 +1856,12 @@ func (m Model) View() string {
 				wrappedLine = []rune(strings.TrimSuffix(string(wrappedLine), " "))
 				padding -= m.width - strwidth
 			}
-			if m.row == l && lineInfo.RowOffset == wl {
+			// Render line with selection highlighting
+			if m.HasSelection() {
+				// Calculate selection range for this line
+				lineStr := m.renderLineWithSelection(l, wl, wrappedLine, style, lineInfo)
+				s.WriteString(lineStr)
+			} else if m.row == l && lineInfo.RowOffset == wl {
 				s.WriteString(style.Render(string(wrappedLine[:lineInfo.ColumnOffset])))
 				if m.col >= len(line) && lineInfo.CharOffset >= m.width {
 					m.virtualCursor.SetChar(" ")
