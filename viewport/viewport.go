@@ -222,10 +222,8 @@ func (m Model) HorizontalScrollPercent() float64 {
 	return clamp(v, 0, 1)
 }
 
-// SetContent set the pager's text content.
-// Line endings will be normalized to '\n'.
+// SetContent set the pager's text content. Line endings will be normalized to '\n'.
 func (m *Model) SetContent(s string) {
-	s = strings.ReplaceAll(s, "\r\n", "\n") // normalize line endings
 	m.SetContentLines(strings.Split(s, "\n"))
 }
 
@@ -240,12 +238,14 @@ func (m *Model) SetContentLines(lines []string) {
 		m.lines = nil
 	} else {
 		// iterate in reverse, so we can safely modify the slice.
+		var subLines []string
 		for i := len(m.lines) - 1; i >= 0; i-- {
-			m.lines[i] = strings.ReplaceAll(m.lines[i], "\r\n", "\n")
+			m.lines[i] = strings.ReplaceAll(m.lines[i], "\r\n", "\n") // normalize line endings
 
-			if j := strings.Index(m.lines[i], "\n"); j != -1 {
-				m.lines = slices.Insert(m.lines, i+1, m.lines[i][j+1:]) // append after current index.
-				m.lines[i] = m.lines[i][:j]                             // keep the part before the \n.
+			subLines = strings.Split(m.lines[i], "\n")
+			if len(subLines) > 1 {
+				m.lines = slices.Insert(m.lines, i+1, subLines[1:]...)
+				m.lines[i] = subLines[0]
 			}
 		}
 	}
@@ -268,86 +268,28 @@ func (m Model) GetContent() string {
 // lines and the real-line index for the given yoffset, as well as the virtual
 // line offset.
 func (m Model) calculateLine(yoffset int) (total, ridx, voffset int) {
-	var lineHeight int
-
 	if !m.SoftWrap {
-		for i, line := range m.lines {
-			lineHeight = max(1, lipgloss.Height(line))
-			if yoffset >= total && yoffset < total+lineHeight {
-				ridx = i
-			}
-			total += lineHeight
-		}
-		if yoffset >= total {
-			ridx = len(m.lines)
-		}
+		total = len(m.lines)
+		ridx = min(yoffset, len(m.lines))
 		return total, ridx, 0
 	}
 
-	var gutterSize float64
-	if m.LeftGutterFunc != nil {
-		gutterSize = float64(ansi.StringWidth(m.LeftGutterFunc(GutterContext{})))
-	}
-
-	maxHeight := m.maxHeight()
-	maxWidth := max(0, float64(m.maxWidth())-gutterSize)
-
-	// voffsets tracks the total size of wrapped lines AFTER the real index, which we can
-	// use to know where the virtual offset is relative to the yoffset.
-	voffsets := make([]int, 0, maxHeight)
-	offsetSize := func() (size int) {
-		for _, v := range voffsets {
-			size += v
-		}
-		return size
-	}
-
-	// yoffsetRelative is the total size of wrapped lines BEFORE the real index,
-	// which we can use to know where the virtual offset is relative to the yoffset.
-	var yoffsetRelative int
-	var foundVOffset bool
+	maxWidth := float64(m.maxWidth())
+	var lineHeight int
 
 	for i, line := range m.lines {
 		lineHeight = max(1, int(math.Ceil(float64(ansi.StringWidth(line))/maxWidth)))
 
 		if yoffset >= total && yoffset < total+lineHeight {
 			ridx = i
-
-			// Only track relative offsets before we find the real index.
-			yoffsetRelative = total - yoffset + lineHeight
-
-			if lineHeight == 1 {
-				yoffsetRelative--
-			}
+			voffset = yoffset - total
 		}
-
 		total += lineHeight
-
-		// Haven't found the real index yet, or we're done finding the virtual offset.
-		if yoffsetRelative == 0 || foundVOffset {
-			continue
-		}
-
-		// If we've found the real index, begin to calculate the virtual offset.
-		voffsets = append(voffsets, lineHeight)
-		for offsetSize() > maxHeight && len(voffsets) > 0 {
-			// Ignore the previous real index, and move the virtual offset forward by 1 ridx.
-			voffsets = voffsets[1:]
-			if len(voffsets) > 0 {
-				// It's large enough that we need to take into account potentially multiple lines.
-				voffset = max(0, voffsets[0]-yoffsetRelative)
-			} else if maxHeight <= lineHeight {
-				// The viewport height is the same, or smaller size than the line height.
-				voffset = max(0, lineHeight-yoffsetRelative)
-			}
-
-			foundVOffset = true
-		}
 	}
 
 	if yoffset >= total {
 		ridx = len(m.lines)
-		voffset = max(ridx, total-ridx)
+		voffset = 0
 	}
 
 	return total, ridx, voffset
@@ -366,6 +308,8 @@ func (m Model) maxXOffset() int {
 	return max(0, m.longestLineWidth-m.Width())
 }
 
+// maxWidth returns the maximum width of the viewport. It accounts for the frame
+// size, in addition to the gutter size.
 func (m Model) maxWidth() int {
 	var gutterSize int
 	if m.LeftGutterFunc != nil {
@@ -374,6 +318,8 @@ func (m Model) maxWidth() int {
 	return max(0, m.Width()-m.Style.GetHorizontalFrameSize()-gutterSize)
 }
 
+// maxHeight returns the maximum height of the viewport. It accounts for the frame
+// size.
 func (m Model) maxHeight() int {
 	return max(0, m.Height()-m.Style.GetVerticalFrameSize())
 }
@@ -405,7 +351,7 @@ func (m Model) visibleLines() (lines []string) {
 	}
 
 	if m.SoftWrap {
-		return m.softWrap(lines, maxWidth, maxHeight, total, voffset)
+		return m.softWrap(lines, maxWidth, maxHeight, total, ridx, voffset)
 	}
 
 	// Cut the lines to the viewport width.
@@ -454,7 +400,7 @@ func (m Model) highlightLines(lines []string, offset int) []string {
 	return lines
 }
 
-func (m Model) softWrap(lines []string, maxWidth, maxHeight, total, voffset int) []string {
+func (m Model) softWrap(lines []string, maxWidth, maxHeight, total, ridx, voffset int) []string {
 	wrappedLines := make([]string, 0, maxHeight)
 
 	var idx, lineWidth int
@@ -464,7 +410,15 @@ func (m Model) softWrap(lines []string, maxWidth, maxHeight, total, voffset int)
 		// If the line is less than or equal to the max width, it can be added
 		// as is.
 		lineWidth = ansi.StringWidth(line)
+
 		if lineWidth <= maxWidth {
+			if m.LeftGutterFunc != nil {
+				line = m.LeftGutterFunc(GutterContext{
+					Index:      i + ridx,
+					TotalLines: total,
+					Soft:       false,
+				}) + line
+			}
 			wrappedLines = append(wrappedLines, line)
 			continue
 		}
@@ -474,7 +428,7 @@ func (m Model) softWrap(lines []string, maxWidth, maxHeight, total, voffset int)
 			truncatedLine = ansi.Cut(line, idx, maxWidth+idx)
 			if m.LeftGutterFunc != nil {
 				truncatedLine = m.LeftGutterFunc(GutterContext{
-					Index:      i + m.YOffset(),
+					Index:      i + ridx,
 					TotalLines: total,
 					Soft:       idx > 0,
 				}) + truncatedLine
@@ -493,21 +447,14 @@ func (m Model) setupGutter(lines []string, total, ridx int) []string {
 		return lines
 	}
 
-	offset := max(0, ridx)
-	result := make([]string, len(lines))
-	var line []string
 	for i := range lines {
-		line = line[:0]
-		for j, realLine := range strings.Split(lines[i], "\n") {
-			line = append(line, m.LeftGutterFunc(GutterContext{
-				Index:      i + offset,
-				TotalLines: total,
-				Soft:       j > 0,
-			})+realLine)
-		}
-		result[i] = strings.Join(line, "\n")
+		lines[i] = m.LeftGutterFunc(GutterContext{
+			Index:      i + ridx,
+			TotalLines: total,
+			Soft:       false,
+		}) + lines[i]
 	}
-	return result
+	return lines
 }
 
 // SetYOffset sets the Y offset.

@@ -646,27 +646,32 @@ func TestSizing(t *testing.T) {
 		vt.SoftWrap = true
 		vt.Style = vt.Style.Border(lipgloss.RoundedBorder())
 		vt.LeftGutterFunc = func(ctx GutterContext) string {
-			if ctx.Soft {
-				return "  "
-			}
-			return fmt.Sprintf("%d ", ctx.Index)
+			return "  "
 		}
 		vt.SetContent(textContentList)
 
-		view := vt.View()
-		if w, h := lipgloss.Size(view); w != width || h != height {
+		if w, h := lipgloss.Size(vt.View()); w != width || h != height {
 			t.Errorf("view size should be %d x %d, got %d x %d", width, height, w, h)
 		}
 
 		golden.RequireEqual(withSuffix(t, "at-top"), vt.View())
 
 		vt.ScrollDown(1)
+		if w, h := lipgloss.Size(vt.View()); w != width || h != height {
+			t.Errorf("view size should be %d x %d, got %d x %d", width, height, w, h)
+		}
 		golden.RequireEqual(withSuffix(t, "scrolled-plus-1"), vt.View())
 
 		vt.ScrollDown(1)
+		if w, h := lipgloss.Size(vt.View()); w != width || h != height {
+			t.Errorf("view size should be %d x %d, got %d x %d", width, height, w, h)
+		}
 		golden.RequireEqual(withSuffix(t, "scrolled-plus-2"), vt.View())
 
 		vt.GotoBottom()
+		if w, h := lipgloss.Size(vt.View()); w != width || h != height {
+			t.Errorf("view size should be %d x %d, got %d x %d", width, height, w, h)
+		}
 		golden.RequireEqual(withSuffix(t, "at-bottom"), vt.View())
 	})
 
