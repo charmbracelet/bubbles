@@ -11,7 +11,7 @@ require (
 	github.com/charmbracelet/bubbletea v1.3.6
 	github.com/charmbracelet/harmonica v0.2.0
 	github.com/charmbracelet/lipgloss v1.1.0
-	github.com/charmbracelet/x/ansi v0.9.3
+	github.com/charmbracelet/x/ansi v0.10.1
 	github.com/charmbracelet/x/exp/golden v0.0.0-20241011142426-46044092ad91
 	github.com/dustin/go-humanize v1.0.1
 	github.com/lucasb-eyer/go-colorful v1.2.0
