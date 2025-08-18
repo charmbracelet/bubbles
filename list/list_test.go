@@ -55,6 +55,7 @@ func TestStatusBarWithoutItems(t *testing.T) {
 func TestCustomStatusBarItemName(t *testing.T) {
 	list := New([]Item{item("foo"), item("bar")}, itemDelegate{}, 10, 10)
 	list.SetStatusBarItemName("connection", "connections")
+	list.Styles.StatusEmpty = list.Styles.StatusEmpty.SetString("No connections.")
 
 	expected := "2 connections"
 	if !strings.Contains(list.statusView(), expected) {
