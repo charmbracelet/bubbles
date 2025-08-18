@@ -496,7 +496,7 @@ func (m Model) didSelectFile(msg tea.Msg) (bool, string) {
 			}
 		}
 
-		if (!isDir && m.FileAllowed) || (isDir && m.DirAllowed) && m.Path != "" {
+		if ((!isDir && m.FileAllowed) || (isDir && m.DirAllowed)) && m.Path != "" {
 			return true, m.Path
 		}
 
