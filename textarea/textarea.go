@@ -334,7 +334,7 @@ type Model struct {
 }
 
 // New creates a new model with default settings.
-func New() Model {
+func New() *Model {
 	vp := viewport.New()
 	vp.KeyMap = viewport.KeyMap{}
 	cur := cursor.New()
@@ -365,7 +365,7 @@ func New() Model {
 	m.SetHeight(defaultHeight)
 	m.SetWidth(defaultWidth)
 
-	return m
+	return &m
 }
 
 // DefaultStyles returns the default styles for focused and blurred states for
@@ -1116,7 +1116,7 @@ func (m *Model) SetHeight(h int) {
 }
 
 // Update is the Bubble Tea update loop.
-func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
+func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	if !m.focus {
 		m.virtualCursor.Blur()
 		return m, nil
@@ -1235,6 +1235,9 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		m.Err = msg
 	}
 
+	// Make sure we set the content of the viewport before updating it.
+	view := m.view()
+	m.viewport.SetContent(view)
 	vp, cmd := m.viewport.Update(msg)
 	m.viewport = &vp
 	cmds = append(cmds, cmd)
@@ -1257,9 +1260,8 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-// View renders the text area in its current state.
-func (m Model) View() string {
-	if m.Value() == "" && m.row == 0 && m.col == 0 && m.Placeholder != "" {
+func (m *Model) view() string {
+	if len(m.Value()) == 0 && m.row == 0 && m.col == 0 && m.Placeholder != "" {
 		return m.placeholderView()
 	}
 	m.virtualCursor.TextStyle = m.activeStyle().computedCursorLine()
@@ -1352,8 +1354,19 @@ func (m Model) View() string {
 		s.WriteRune('\n')
 	}
 
-	m.viewport.SetContent(s.String())
-	return styles.Base.Render(m.viewport.View())
+	return s.String()
+}
+
+// View renders the text area in its current state.
+func (m *Model) View() string {
+	// XXX: This is a workaround for the case where the viewport hasn't
+	// been initialized yet like during the initial render. In that case,
+	// we need to render the view again because Update hasn't been called
+	// yet to set the content of the viewport.
+	m.viewport.SetContent(m.view())
+	view := m.viewport.View()
+	styles := m.activeStyle()
+	return styles.Base.Render(view)
 }
 
 // promptView renders a single line of the prompt.
