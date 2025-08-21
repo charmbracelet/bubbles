@@ -591,9 +591,21 @@ func (m *Model) LineCount() int {
 	return len(m.value)
 }
 
-// Line returns the line position.
+// Line returns the row position of the cursor.
 func (m Model) Line() int {
 	return m.row
+}
+
+// ScrollYOffset returns the Y offset (top row) index of the current view, which
+// can be used to calculate the current scroll position.
+func (m Model) ScrollYOffset() int {
+	return m.viewport.YOffset()
+}
+
+// ScrollPercent returns the amount of the textarea that is currently scrolled
+// through, clamped between 0 and 1.
+func (m Model) ScrollPercent() float64 {
+	return m.viewport.ScrollPercent()
 }
 
 // CursorDown moves the cursor down by one line.
