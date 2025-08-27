@@ -705,7 +705,7 @@ func (m Model) placeholderView() string {
 		style = m.PlaceholderStyle.Inline(true).Render
 	)
 
-	p := make([]rune, m.Width+1)
+	p := make([]rune, max(len(m.Placeholder), m.Width+1))
 	copy(p, []rune(m.Placeholder))
 
 	m.Cursor.TextStyle = m.PlaceholderStyle
@@ -713,7 +713,7 @@ func (m Model) placeholderView() string {
 	v += m.Cursor.View()
 
 	// If the entire placeholder is already set and no padding is needed, finish
-	if m.Width < 1 && len(p) <= 1 {
+	if m.Width < 1 && len(m.Placeholder) <= 1 {
 		return m.PromptStyle.Render(m.Prompt) + v
 	}
 
