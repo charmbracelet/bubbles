@@ -24,6 +24,9 @@ import (
 )
 
 func clamp[T cmp.Ordered](v, low, high T) T {
+	if low > high {
+		low, high = high, low
+	}
 	return min(high, max(low, v))
 }
 
