@@ -291,6 +291,7 @@ func TestModel_RenderRow(t *testing.T) {
 func TestTableAlignment(t *testing.T) {
 	t.Run("No border", func(t *testing.T) {
 		biscuits := New(
+			WithWidth(59),
 			WithHeight(5),
 			WithColumns([]Column{
 				{Title: "Name", Width: 25},
@@ -319,6 +320,7 @@ func TestTableAlignment(t *testing.T) {
 			Bold(false)
 
 		biscuits := New(
+			WithWidth(59),
 			WithHeight(5),
 			WithColumns([]Column{
 				{Title: "Name", Width: 25},
@@ -515,15 +517,19 @@ func TestModel_View(t *testing.T) {
 		modelFunc func() Model
 		skip      bool
 	}{
-		// TODO(?): should the view/output of empty tables use the same default height? (this has height 21)
 		"Empty": {
 			modelFunc: func() Model {
-				return New()
+				return New(
+					WithWidth(60),
+					WithHeight(21),
+				)
 			},
 		},
 		"Single row and column": {
 			modelFunc: func() Model {
 				return New(
+					WithWidth(27),
+					WithHeight(21),
 					WithColumns([]Column{
 						{Title: "Name", Width: 25},
 					}),
@@ -536,6 +542,8 @@ func TestModel_View(t *testing.T) {
 		"Multiple rows and columns": {
 			modelFunc: func() Model {
 				return New(
+					WithWidth(59),
+					WithHeight(21),
 					WithColumns([]Column{
 						{Title: "Name", Width: 25},
 						{Title: "Country of Origin", Width: 16},
@@ -557,6 +565,7 @@ func TestModel_View(t *testing.T) {
 				s.Cell = lipgloss.NewStyle().Padding(2, 2)
 
 				return New(
+					WithWidth(60),
 					WithHeight(10),
 					WithColumns([]Column{
 						{Title: "Name", Width: 25},
@@ -579,6 +588,7 @@ func TestModel_View(t *testing.T) {
 				s.Cell = lipgloss.NewStyle()
 
 				return New(
+					WithWidth(53),
 					WithHeight(10),
 					WithColumns([]Column{
 						{Title: "Name", Width: 25},
@@ -594,10 +604,12 @@ func TestModel_View(t *testing.T) {
 				)
 			},
 		},
-		// TODO(?): the total height is modified with borderd headers, however not with bordered cells. Is this expected/desired?
+		// TODO(?): the total height is modified with bordered headers, however not with bordered cells. Is this expected/desired?
 		"Bordered headers": {
 			modelFunc: func() Model {
 				return New(
+					WithWidth(59),
+					WithHeight(23),
 					WithColumns([]Column{
 						{Title: "Name", Width: 25},
 						{Title: "Country of Origin", Width: 16},
@@ -618,6 +630,8 @@ func TestModel_View(t *testing.T) {
 		"Bordered cells": {
 			modelFunc: func() Model {
 				return New(
+					WithWidth(59),
+					WithHeight(21),
 					WithColumns([]Column{
 						{Title: "Name", Width: 25},
 						{Title: "Country of Origin", Width: 16},
@@ -634,9 +648,10 @@ func TestModel_View(t *testing.T) {
 				)
 			},
 		},
-		"Manual height greater than rows": {
+		"Height greater than rows": {
 			modelFunc: func() Model {
 				return New(
+					WithWidth(59),
 					WithHeight(6),
 					WithColumns([]Column{
 						{Title: "Name", Width: 25},
@@ -651,9 +666,10 @@ func TestModel_View(t *testing.T) {
 				)
 			},
 		},
-		"Manual height less than rows": {
+		"Height less than rows": {
 			modelFunc: func() Model {
 				return New(
+					WithWidth(59),
 					WithHeight(2),
 					WithColumns([]Column{
 						{Title: "Name", Width: 25},
@@ -669,10 +685,11 @@ func TestModel_View(t *testing.T) {
 			},
 		},
 		// TODO(fix): spaces are added to the right of the viewport to fill the width, but the headers end as though they are not aware of the width.
-		"Manual width greater than columns": {
+		"Width greater than columns": {
 			modelFunc: func() Model {
 				return New(
 					WithWidth(80),
+					WithHeight(21),
 					WithColumns([]Column{
 						{Title: "Name", Width: 25},
 						{Title: "Country of Origin", Width: 16},
@@ -688,10 +705,11 @@ func TestModel_View(t *testing.T) {
 		},
 		// TODO(fix): Setting the table width does not affect the total headers' width. Cells are wrapped.
 		// 	Headers are not affected. Truncation/resizing should match lipgloss.table functionality.
-		"Manual width less than columns": {
+		"Width less than columns": {
 			modelFunc: func() Model {
 				return New(
 					WithWidth(30),
+					WithHeight(15),
 					WithColumns([]Column{
 						{Title: "Name", Width: 25},
 						{Title: "Country of Origin", Width: 16},
@@ -709,6 +727,8 @@ func TestModel_View(t *testing.T) {
 		"Modified viewport height": {
 			modelFunc: func() Model {
 				m := New(
+					WithWidth(59),
+					WithHeight(15),
 					WithColumns([]Column{
 						{Title: "Name", Width: 25},
 						{Title: "Country of Origin", Width: 16},
