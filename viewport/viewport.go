@@ -337,7 +337,7 @@ func (m Model) visibleLines() (lines []string) {
 	total, ridx, voffset := m.calculateLine(m.YOffset())
 	if total > 0 {
 		bottom := clamp(ridx+maxHeight, ridx, len(m.lines))
-		lines = m.styleLines(m.lines[ridx:bottom], ridx)
+		lines = m.styleLines(slices.Clone(m.lines[ridx:bottom]), ridx)
 		lines = m.highlightLines(lines, ridx)
 	}
 
