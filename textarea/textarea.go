@@ -630,6 +630,7 @@ func (m *Model) CursorDown() {
 	m.col = nli.StartColumn
 
 	if nli.Width <= 0 {
+		m.repositionView()
 		return
 	}
 
@@ -641,6 +642,8 @@ func (m *Model) CursorDown() {
 		offset += rw.RuneWidth(m.value[m.row][m.col])
 		m.col++
 	}
+
+	m.repositionView()
 }
 
 // CursorUp moves the cursor up by one line.
@@ -665,6 +668,7 @@ func (m *Model) CursorUp() {
 	m.col = nli.StartColumn
 
 	if nli.Width <= 0 {
+		m.repositionView()
 		return
 	}
 
@@ -676,6 +680,8 @@ func (m *Model) CursorUp() {
 		offset += rw.RuneWidth(m.value[m.row][m.col])
 		m.col++
 	}
+
+	m.repositionView()
 }
 
 // SetCursorColumn moves the cursor to the given position. If the position is
@@ -1041,12 +1047,14 @@ func (m Model) Width() int {
 func (m *Model) MoveToBegin() {
 	m.row = 0
 	m.SetCursorColumn(0)
+	m.repositionView()
 }
 
 // MoveToEnd moves the cursor to the end of the input.
 func (m *Model) MoveToEnd() {
 	m.row = len(m.value) - 1
 	m.SetCursorColumn(len(m.value[m.row]))
+	m.repositionView()
 }
 
 // SetWidth sets the width of the textarea to fit exactly within the given width.
@@ -1125,6 +1133,8 @@ func (m *Model) SetHeight(h int) {
 		m.height = max(h, minHeight)
 		m.viewport.SetHeight(max(h, minHeight))
 	}
+
+	m.repositionView()
 }
 
 // Update is the Bubble Tea update loop.
