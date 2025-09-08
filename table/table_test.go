@@ -1,356 +1,501 @@
 package table
 
 import (
+	"fmt"
+	"image/color"
 	"reflect"
-	"strings"
 	"testing"
 
-	"github.com/charmbracelet/bubbles/v2/help"
-	"github.com/charmbracelet/bubbles/v2/viewport"
 	"github.com/charmbracelet/lipgloss/v2"
+	"github.com/charmbracelet/lipgloss/v2/table"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/golden"
 )
 
-var testCols = []Column{
-	{Title: "col1", Width: 10},
-	{Title: "col2", Width: 10},
-	{Title: "col3", Width: 10},
-}
-
-func TestNew(t *testing.T) {
-	tests := map[string]struct {
-		opts []Option
-		want Model
-	}{
-		"Default": {
-			want: Model{
-				// Default fields
-				cursor: 0,
-				viewport: viewport.New(
-					viewport.WithWidth(0),
-					viewport.WithHeight(20),
-				),
-				KeyMap: DefaultKeyMap(),
-				Help:   help.New(),
-				styles: DefaultStyles(),
-			},
-		},
-		"WithColumns": {
-			opts: []Option{
-				WithColumns([]Column{
-					{Title: "Foo", Width: 1},
-					{Title: "Bar", Width: 2},
-				}),
-			},
-			want: Model{
-				// Default fields
-				cursor: 0,
-				viewport: viewport.New(
-					viewport.WithWidth(0),
-					viewport.WithHeight(20),
-				),
-				KeyMap: DefaultKeyMap(),
-				Help:   help.New(),
-				styles: DefaultStyles(),
-
-				// Modified fields
-				cols: []Column{
-					{Title: "Foo", Width: 1},
-					{Title: "Bar", Width: 2},
-				},
-			},
-		},
-		"WithColumns; WithRows": {
-			opts: []Option{
-				WithColumns([]Column{
-					{Title: "Foo", Width: 1},
-					{Title: "Bar", Width: 2},
-				}),
-				WithRows([]Row{
-					{"1", "Foo"},
-					{"2", "Bar"},
-				}),
-			},
-			want: Model{
-				// Default fields
-				cursor: 0,
-				viewport: viewport.New(
-					viewport.WithWidth(0),
-					viewport.WithHeight(20),
-				),
-				KeyMap: DefaultKeyMap(),
-				Help:   help.New(),
-				styles: DefaultStyles(),
-
-				// Modified fields
-				cols: []Column{
-					{Title: "Foo", Width: 1},
-					{Title: "Bar", Width: 2},
-				},
-				rows: []Row{
-					{"1", "Foo"},
-					{"2", "Bar"},
-				},
-			},
-		},
-		"WithHeight": {
-			opts: []Option{
-				WithHeight(10),
-			},
-			want: Model{
-				// Default fields
-				cursor: 0,
-				KeyMap: DefaultKeyMap(),
-				Help:   help.New(),
-				styles: DefaultStyles(),
-
-				// Modified fields
-				// Viewport height is 1 less than the provided height when no header is present since lipgloss.Height adds 1
-				viewport: viewport.New(
-					viewport.WithWidth(0),
-					viewport.WithHeight(9),
-				),
-			},
-		},
-		"WithWidth": {
-			opts: []Option{
-				WithWidth(10),
-			},
-			want: Model{
-				// Default fields
-				cursor: 0,
-				KeyMap: DefaultKeyMap(),
-				Help:   help.New(),
-				styles: DefaultStyles(),
-
-				// Modified fields
-				// Viewport height is 1 less than the provided height when no header is present since lipgloss.Height adds 1
-				viewport: viewport.New(
-					viewport.WithWidth(10),
-					viewport.WithHeight(20),
-				),
-			},
-		},
-		"WithFocused": {
-			opts: []Option{
-				WithFocused(true),
-			},
-			want: Model{
-				// Default fields
-				cursor: 0,
-				viewport: viewport.New(
-					viewport.WithWidth(0),
-					viewport.WithHeight(20),
-				),
-				KeyMap: DefaultKeyMap(),
-				Help:   help.New(),
-				styles: DefaultStyles(),
-
-				// Modified fields
-				focus: true,
-			},
-		},
-		"WithStyles": {
-			opts: []Option{
-				WithStyles(Styles{}),
-			},
-			want: Model{
-				// Default fields
-				cursor: 0,
-				viewport: viewport.New(
-					viewport.WithWidth(0),
-					viewport.WithHeight(20),
-				),
-				KeyMap: DefaultKeyMap(),
-				Help:   help.New(),
-
-				// Modified fields
-				styles: Styles{},
-			},
-		},
-		"WithKeyMap": {
-			opts: []Option{
-				WithKeyMap(KeyMap{}),
-			},
-			want: Model{
-				// Default fields
-				cursor: 0,
-				viewport: viewport.New(
-					viewport.WithWidth(0),
-					viewport.WithHeight(20),
-				),
-				Help:   help.New(),
-				styles: DefaultStyles(),
-
-				// Modified fields
-				KeyMap: KeyMap{},
-			},
-		},
+var (
+	niceMargins = lipgloss.NewStyle().Padding(0, 1)
+	headers     = []string{"Rank", "City", "Country", "Population"}
+	rows        = [][]string{
+		{"1", "Tokyo", "Japan", "37,274,000"},
+		{"2", "Delhi", "India", "32,065,760"},
+		{"3", "Shanghai", "China", "28,516,904"},
+		{"4", "Dhaka", "Bangladesh", "22,478,116"},
+		{"5", "São Paulo", "Brazil", "22,429,800"},
+		{"6", "Mexico City", "Mexico", "22,085,140"},
+		{"7", "Cairo", "Egypt", "21,750,020"},
+		{"8", "Beijing", "China", "21,333,332"},
+		{"9", "Mumbai", "India", "20,961,472"},
+		{"10", "Osaka", "Japan", "19,059,856"},
+		{"11", "Chongqing", "China", "16,874,740"},
+		{"12", "Karachi", "Pakistan", "16,839,950"},
+		{"13", "Istanbul", "Turkey", "15,636,243"},
+		{"14", "Kinshasa", "DR Congo", "15,628,085"},
+		{"15", "Lagos", "Nigeria", "15,387,639"},
+		{"16", "Buenos Aires", "Argentina", "15,369,919"},
 	}
+)
 
-	for name, tc := range tests {
-		t.Run(name, func(t *testing.T) {
-			tc.want.UpdateViewport()
+// Tests
 
-			got := New(tc.opts...)
-
-			// NOTE(@andreynering): Funcs have different references, so we need
-			// to clear them out to compare the structs.
-			tc.want.viewport.LeftGutterFunc = nil
-			got.viewport.LeftGutterFunc = nil
-
-			if !reflect.DeepEqual(tc.want, got) {
-				t.Errorf("\n\nwant %v\n\ngot %v", tc.want, got)
-			}
-		})
+func TestNewBash(t *testing.T) {
+	headers := []string{"Rank", "City", "Country", "Population"}
+	rows := [][]string{
+		{"1", "Tokyo", "Japan", "37,274,000"},
+		{"2", "Delhi", "India", "32,065,760"},
+		{"3", "Shanghai", "China", "28,516,904"},
+		{"4", "Dhaka", "Bangladesh", "22,478,116"},
+		{"5", "São Paulo", "Brazil", "22,429,800"},
+		{"6", "Mexico City", "Mexico", "22,085,140"},
+		{"7", "Cairo", "Egypt", "21,750,020"},
+		{"8", "Beijing", "China", "21,333,332"},
+		{"9", "Mumbai", "India", "20,961,472"},
+		{"10", "Osaka", "Japan", "19,059,856"},
 	}
+	t.Run("new with options", func(t *testing.T) {
+		tb := New(
+			WithHeaders(headers...),
+			WithRows(rows...),
+			WithHeight(10),
+		)
+		tb.View()
+	})
+	t.Run("new, no options", func(t *testing.T) {
+		tb := New().SetHeaders(headers...).SetRows(rows...)
+		tb.View()
+	})
 }
 
 func TestModel_FromValues(t *testing.T) {
-	input := "foo1,bar1\nfoo2,bar2\nfoo3,bar3"
-	table := New(WithColumns([]Column{{Title: "Foo"}, {Title: "Bar"}}))
-	table.FromValues(input, ",")
+	table := New(
+		WithHeaders("Foo", "Bar"),
+		WithRows(
+			[]string{"foo1", "bar1"},
+			[]string{"foo2", "bar2"},
+			[]string{"foo3", "bar3"},
+		))
 
-	if len(table.rows) != 3 {
-		t.Fatalf("expect table to have 3 rows but it has %d", len(table.rows))
+	if table.RowCount() != 3 {
+		t.Fatalf("expect table to have 3 rows but it has %d", table.RowCount())
 	}
 
-	expect := []Row{
+	expect := [][]string{
 		{"foo1", "bar1"},
 		{"foo2", "bar2"},
 		{"foo3", "bar3"},
 	}
-	if !reflect.DeepEqual(table.rows, expect) {
-		t.Fatalf("\n\nwant %v\n\ngot %v", expect, table.rows)
+	if !reflect.DeepEqual(table.Rows(), expect) {
+		t.Fatalf("\n\nwant %v\n\ngot %v", expect, table.Rows())
 	}
 }
 
 func TestModel_FromValues_WithTabSeparator(t *testing.T) {
-	input := "foo1.\tbar1\nfoo,bar,baz\tbar,2"
-	table := New(WithColumns([]Column{{Title: "Foo"}, {Title: "Bar"}}))
-	table.FromValues(input, "\t")
+	table := New(
+		WithHeaders("Foo", "Bar"),
+		WithRows(
+			[]string{"foo1.", "bar1"},
+			[]string{"foo,bar,baz", "bar,2"},
+		),
+	)
 
-	if len(table.rows) != 2 {
-		t.Fatalf("expect table to have 2 rows but it has %d", len(table.rows))
+	if table.RowCount() != 2 {
+		t.Fatalf("expect table to have 2 rows but it has %d", table.RowCount())
 	}
 
-	expect := []Row{
+	expect := [][]string{
 		{"foo1.", "bar1"},
 		{"foo,bar,baz", "bar,2"},
 	}
-	if !reflect.DeepEqual(table.rows, expect) {
-		t.Fatalf("\n\nwant %v\n\ngot %v", expect, table.rows)
+	if !reflect.DeepEqual(table.Rows(), expect) {
+		t.Fatalf("\n\nwant %v\n\ngot %v", expect, table.Rows())
 	}
+	t.Run("new with options", func(t *testing.T) {
+		tb := New(
+			WithHeaders(headers...),
+			WithRows(rows...),
+			WithHeight(10),
+		)
+		tb.View()
+	})
+	t.Run("new, no options", func(t *testing.T) {
+		tb := New().SetHeaders(headers...).SetRows(rows...)
+		tb.View()
+	})
 }
 
-func TestModel_RenderRow(t *testing.T) {
+func TestTableAlignment(t *testing.T) {
+	headers := []string{
+		"Name",
+		"Country of Origin",
+		"Dunk-able",
+	}
+	rows := [][]string{
+		{"Chocolate Digestives", "UK", "Yes"},
+		{"Tim Tams", "Australia", "No"},
+		{"Hobnobs", "UK", "Yes"},
+	}
+	t.Run("NoBorder", func(t *testing.T) {
+		biscuits := New(
+			WithHeaders(headers...),
+			WithRows(rows...),
+		).
+			// Remove default border.
+			SetBorder(false).
+			// Remove default border under header.
+			BorderHeader(false).
+			// Strip styles.
+			SetStyleFunc(func(_, _ int) lipgloss.Style {
+				return niceMargins
+			})
+		golden.RequireEqual(t, []byte(biscuits.View()))
+	})
+	t.Run("WithBorder", func(t *testing.T) {
+		biscuits := New(
+			WithHeaders(headers...),
+			WithRows(rows...),
+		).
+			// Strip styles
+			SetStyleFunc(func(_, _ int) lipgloss.Style {
+				return niceMargins
+			})
+		golden.RequireEqual(t, []byte(biscuits.View()))
+	})
+}
+
+// Test Styles
+
+func TestOverwriteStyles(t *testing.T) {
 	tests := []struct {
-		name     string
-		table    *Model
-		expected string
+		name   string
+		styles Styles
 	}{
-		{
-			name: "simple row",
-			table: &Model{
-				rows:   []Row{{"Foooooo", "Baaaaar", "Baaaaaz"}},
-				cols:   testCols,
-				styles: Styles{Cell: lipgloss.NewStyle()},
-			},
-			expected: "Foooooo   Baaaaar   Baaaaaz   ",
-		},
-		{
-			name: "simple row with truncations",
-			table: &Model{
-				rows:   []Row{{"Foooooooooo", "Baaaaaaaaar", "Quuuuuuuuux"}},
-				cols:   testCols,
-				styles: Styles{Cell: lipgloss.NewStyle()},
-			},
-			expected: "Foooooooo…Baaaaaaaa…Quuuuuuuu…",
-		},
-		{
-			name: "simple row avoiding truncations",
-			table: &Model{
-				rows:   []Row{{"Fooooooooo", "Baaaaaaaar", "Quuuuuuuux"}},
-				cols:   testCols,
-				styles: Styles{Cell: lipgloss.NewStyle()},
-			},
-			expected: "FoooooooooBaaaaaaaarQuuuuuuuux",
-		},
+		{"ClearStyles", Styles{
+			Selected: lipgloss.NewStyle(),
+			Header:   lipgloss.NewStyle(),
+			Cell:     lipgloss.NewStyle(),
+		}},
+		{"NewStyles", Styles{
+			Selected: niceMargins.Foreground(lipgloss.Color("68")),
+			Header:   niceMargins,
+			Cell:     niceMargins,
+		}},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			row := tc.table.renderRow(0)
-			if row != tc.expected {
-				t.Fatalf("\n\nWant: \n%s\n\nGot:  \n%s\n", tc.expected, row)
-			}
+			tb := New(
+				WithHeaders(headers...),
+				WithRows(rows...),
+				WithFocused(true),
+				WithHeight(10),
+			)
+			tb.OverwriteStyles(tc.styles)
+			golden.RequireEqual(t, []byte(tb.View()))
 		})
 	}
 }
 
-func TestTableAlignment(t *testing.T) {
-	t.Run("No border", func(t *testing.T) {
-		biscuits := New(
-			WithHeight(5),
-			WithColumns([]Column{
-				{Title: "Name", Width: 25},
-				{Title: "Country of Origin", Width: 16},
-				{Title: "Dunk-able", Width: 12},
-			}),
-			WithRows([]Row{
-				{"Chocolate Digestives", "UK", "Yes"},
-				{"Tim Tams", "Australia", "No"},
-				{"Hobnobs", "UK", "Yes"},
-			}),
-		)
-		got := ansiStrip(biscuits.View())
-		golden.RequireEqual(t, []byte(got))
-	})
-	t.Run("With border", func(t *testing.T) {
-		baseStyle := lipgloss.NewStyle().
-			BorderStyle(lipgloss.NormalBorder()).
-			BorderForeground(lipgloss.Color("240"))
+func TestSetStyles(t *testing.T) {
+	tests := []struct {
+		name   string
+		styles Styles
+	}{
+		{"EmptyStyles", Styles{
+			Selected: lipgloss.NewStyle(),
+			Header:   lipgloss.NewStyle(),
+			Cell:     lipgloss.NewStyle(),
+		}},
+		{"NewStyles", Styles{
+			Selected: niceMargins.Background(lipgloss.Color("68")),
+			Header:   niceMargins,
+			Cell:     niceMargins,
+		}},
+	}
 
-		s := DefaultStyles()
-		s.Header = s.Header.
-			BorderStyle(lipgloss.NormalBorder()).
-			BorderForeground(lipgloss.Color("240")).
-			BorderBottom(true).
-			Bold(false)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			table := New(
+				WithHeaders(headers...),
+				WithRows(rows...),
+				WithFocused(true),
+				WithHeight(10),
+			)
 
-		biscuits := New(
-			WithHeight(5),
-			WithColumns([]Column{
-				{Title: "Name", Width: 25},
-				{Title: "Country of Origin", Width: 16},
-				{Title: "Dunk-able", Width: 12},
-			}),
-			WithRows([]Row{
-				{"Chocolate Digestives", "UK", "Yes"},
-				{"Tim Tams", "Australia", "No"},
-				{"Hobnobs", "UK", "Yes"},
-			}),
-			WithStyles(s),
+			table.SetStyles(tc.styles)
+			golden.RequireEqual(t, []byte(table.View()))
+		})
+	}
+}
+
+func TestSetStyleFunc(t *testing.T) {
+	t.Run("ClearStylesWithStyleFunc", func(t *testing.T) {
+		tb := New(
+			WithHeaders(headers...),
+			WithRows(rows...),
+			WithFocused(true),
+			WithHeight(10),
 		)
-		got := ansiStrip(baseStyle.Render(biscuits.View()))
-		golden.RequireEqual(t, []byte(got))
+		tb.SetStyleFunc(table.StyleFunc(func(row, col int) lipgloss.Style {
+			if row == tb.Cursor() {
+				return niceMargins.Background(lipgloss.Color("68"))
+			}
+			return niceMargins
+		}))
+		golden.RequireEqual(t, []byte(tb.View()))
 	})
 }
 
-func ansiStrip(s string) string {
-	// Replace all \r\n with \n
-	s = strings.ReplaceAll(s, "\r\n", "\n")
-	return ansi.Strip(s)
+func TestSetBorder(t *testing.T) {
+	tests := []struct {
+		name    string
+		borders []bool
+	}{
+		{"UnsetAllBorders", []bool{false}},
+		{"SetAllBorders", []bool{true}},
+		{"VerticalBordersOnly", []bool{true, false}},
+		{"NoTopBorder", []bool{false, true, true}},
+		{"NoLeftBorder", []bool{true, true, true, false}},
+		{"RowSeparatorAndNoRightBorder", []bool{true, false, true, true, true}},
+		{"SetRowAndColumnSeparators", []bool{false, false, false, false, true, true}},
+		{"InvalidNumberOfArguments", []bool{true, false, false, false, false, true, true}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			tb := New(
+				WithHeaders(headers...),
+				WithRows(rows...),
+				WithFocused(true),
+				WithHeight(10),
+			).SetBorder(tc.borders...)
+			golden.RequireEqual(t, []byte(tb.View()))
+		})
+	}
+}
+
+func TestNewFromTemplate(t *testing.T) {
+	// Using Pokemon example from https://github.com/charmbracelet/lipgloss.
+	baseStyle := lipgloss.NewStyle().Padding(0, 1)
+	headerStyle := baseStyle.Foreground(lipgloss.Color("252")).Bold(true)
+	selectedStyle := baseStyle.Foreground(lipgloss.Color("#01BE85")).Background(lipgloss.Color("#00432F"))
+	typeColors := map[string]color.Color{
+		"Bug":      lipgloss.Color("#D7FF87"),
+		"Electric": lipgloss.Color("#FDFF90"),
+		"Fire":     lipgloss.Color("#FF7698"),
+		"Flying":   lipgloss.Color("#FF87D7"),
+		"Grass":    lipgloss.Color("#75FBAB"),
+		"Ground":   lipgloss.Color("#FF875F"),
+		"Normal":   lipgloss.Color("#929292"),
+		"Poison":   lipgloss.Color("#7D5AFC"),
+		"Water":    lipgloss.Color("#00E2C7"),
+	}
+	dimTypeColors := map[string]color.Color{
+		"Bug":      lipgloss.Color("#97AD64"),
+		"Electric": lipgloss.Color("#FCFF5F"),
+		"Fire":     lipgloss.Color("#BA5F75"),
+		"Flying":   lipgloss.Color("#C97AB2"),
+		"Grass":    lipgloss.Color("#59B980"),
+		"Ground":   lipgloss.Color("#C77252"),
+		"Normal":   lipgloss.Color("#727272"),
+		"Poison":   lipgloss.Color("#634BD0"),
+		"Water":    lipgloss.Color("#439F8E"),
+	}
+
+	pokemonHeaders := []string{"#", "Name", "Type 1", "Type 2", "Japanese", "Official Rom."}
+	pokemonData := [][]string{
+		{"1", "Bulbasaur", "Grass", "Poison", "フシギダネ", "Fushigidane"},
+		{"2", "Ivysaur", "Grass", "Poison", "フシギソウ", "Fushigisou"},
+		{"3", "Venusaur", "Grass", "Poison", "フシギバナ", "Fushigibana"},
+		{"4", "Charmander", "Fire", "", "ヒトカゲ", "Hitokage"},
+		{"5", "Charmeleon", "Fire", "", "リザード", "Lizardo"},
+		{"6", "Charizard", "Fire", "Flying", "リザードン", "Lizardon"},
+		{"7", "Squirtle", "Water", "", "ゼニガメ", "Zenigame"},
+		{"8", "Wartortle", "Water", "", "カメール", "Kameil"},
+		{"9", "Blastoise", "Water", "", "カメックス", "Kamex"},
+		{"10", "Caterpie", "Bug", "", "キャタピー", "Caterpie"},
+		{"11", "Metapod", "Bug", "", "トランセル", "Trancell"},
+		{"12", "Butterfree", "Bug", "Flying", "バタフリー", "Butterfree"},
+		{"13", "Weedle", "Bug", "Poison", "ビードル", "Beedle"},
+		{"14", "Kakuna", "Bug", "Poison", "コクーン", "Cocoon"},
+		{"15", "Beedrill", "Bug", "Poison", "スピアー", "Spear"},
+		{"16", "Pidgey", "Normal", "Flying", "ポッポ", "Poppo"},
+		{"17", "Pidgeotto", "Normal", "Flying", "ピジョン", "Pigeon"},
+		{"18", "Pidgeot", "Normal", "Flying", "ピジョット", "Pigeot"},
+		{"19", "Rattata", "Normal", "", "コラッタ", "Koratta"},
+		{"20", "Raticate", "Normal", "", "ラッタ", "Ratta"},
+		{"21", "Spearow", "Normal", "Flying", "オニスズメ", "Onisuzume"},
+		{"22", "Fearow", "Normal", "Flying", "オニドリル", "Onidrill"},
+		{"23", "Ekans", "Poison", "", "アーボ", "Arbo"},
+		{"24", "Arbok", "Poison", "", "アーボック", "Arbok"},
+		{"25", "Pikachu", "Electric", "", "ピカチュウ", "Pikachu"},
+		{"26", "Raichu", "Electric", "", "ライチュウ", "Raichu"},
+		{"27", "Sandshrew", "Ground", "", "サンド", "Sand"},
+		{"28", "Sandslash", "Ground", "", "サンドパン", "Sandpan"},
+	}
+
+	lipglossTable := table.New().
+		Border(lipgloss.NormalBorder()).
+		BorderStyle(lipgloss.NewStyle().Foreground(lipgloss.Color("238"))).
+		Headers(pokemonHeaders...).
+		Width(80).
+		Rows(pokemonData...).
+		StyleFunc(func(row, col int) lipgloss.Style {
+			if row == table.HeaderRow {
+				return headerStyle
+			}
+
+			if pokemonData[row][1] == "Pikachu" {
+				return selectedStyle
+			}
+
+			even := row%2 == 0
+
+			switch col {
+			case 2, 3: // Type 1 + 2
+				c := typeColors
+				if even {
+					c = dimTypeColors
+				}
+
+				color := c[fmt.Sprint(pokemonData[row][col])]
+				return baseStyle.Foreground(color)
+			}
+
+			if even {
+				return baseStyle.Foreground(lipgloss.Color("245"))
+			}
+			return baseStyle.Foreground(lipgloss.Color("252"))
+		})
+
+	bubblesTable := NewFromTemplate(lipglossTable)
+	golden.RequireEqual(t, []byte(bubblesTable.View()))
+}
+
+func TestLipglossTable(t *testing.T) {
+	var (
+		baseStyle   = lipgloss.NewStyle().Padding(0, 1)
+		headerStyle = baseStyle.Foreground(lipgloss.Color("252")).Bold(true)
+		borderStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("238"))
+		styleFunc   = func(row, col int) lipgloss.Style {
+			if row == table.HeaderRow {
+				return headerStyle
+			}
+			if row%2 == 0 {
+				return baseStyle.Foreground(lipgloss.Color("245"))
+			}
+			return baseStyle.Foreground(lipgloss.Color("252"))
+		}
+	)
+
+	t.Run("WithoutPreviousData", func(t *testing.T) {
+		lipglossTable := table.New().
+			Border(lipgloss.NormalBorder()).
+			BorderStyle(borderStyle).
+			Width(80).
+			StyleFunc(styleFunc)
+		bubblesTable := New().SetHeaders(headers...).SetRows(rows...)
+		bubblesTable.LipglossTable(lipglossTable)
+		golden.RequireEqual(t, []byte(bubblesTable.View()))
+	})
+
+	t.Run("WithPreviousData", func(t *testing.T) {
+		lipglossTable := table.New().
+			Border(lipgloss.NormalBorder()).
+			BorderStyle(borderStyle).
+			Width(80).
+			StyleFunc(styleFunc).
+			Headers(headers...).
+			Rows(rows...)
+		bubblesTable := New()
+		bubblesTable.LipglossTable(lipglossTable)
+		golden.RequireEqual(t, []byte(bubblesTable.View()))
+	})
+}
+
+// Examples
+
+func ExampleOption() {
+	niceMargins := lipgloss.NewStyle().Padding(0, 1)
+	headers := []string{"Rank", "City", "Country", "Population"}
+	rows := [][]string{
+		{"1", "Tokyo", "Japan", "37,274,000"},
+		{"2", "Delhi", "India", "32,065,760"},
+		{"3", "Shanghai", "China", "28,516,904"},
+		{"4", "Dhaka", "Bangladesh", "22,478,116"},
+		{"5", "São Paulo", "Brazil", "22,429,800"},
+		{"6", "Mexico City", "Mexico", "22,085,140"},
+		{"7", "Cairo", "Egypt", "21,750,020"},
+		{"8", "Beijing", "China", "21,333,332"},
+		{"9", "Mumbai", "India", "20,961,472"},
+		{"10", "Osaka", "Japan", "19,059,856"},
+	}
+	t := New(
+		WithHeaders(headers...),
+		WithRows(rows...),
+		WithFocused(true),
+		WithHeight(10),
+	).OverwriteStyles(Styles{
+		Selected: niceMargins,
+		Header:   niceMargins,
+		Cell:     niceMargins,
+	})
+	fmt.Println(t.View())
+	// Output:
+	//┌───────────────────────────────────────────┐
+	//│ Rank  City         Country     Population │
+	//├───────────────────────────────────────────┤
+	//│ 1     Tokyo        Japan       37,274,000 │
+	//│ 2     Delhi        India       32,065,760 │
+	//│ 3     Shanghai     China       28,516,904 │
+	//│ 4     Dhaka        Bangladesh  22,478,116 │
+	//│ 5     São Paulo    Brazil      22,429,800 │
+	//│ …     …            …           …          │
+	//└───────────────────────────────────────────┘
+}
+
+func ExampleModel_SetRows() {
+	niceMargins := lipgloss.NewStyle().Padding(0, 1)
+	headers := []string{"Rank", "City", "Country", "Population"}
+	rows := [][]string{
+		{"1", "Tokyo", "Japan", "37,274,000"},
+		{"2", "Delhi", "India", "32,065,760"},
+		{"3", "Shanghai", "China", "28,516,904"},
+		{"4", "Dhaka", "Bangladesh", "22,478,116"},
+		{"5", "São Paulo", "Brazil", "22,429,800"},
+		{"6", "Mexico City", "Mexico", "22,085,140"},
+		{"7", "Cairo", "Egypt", "21,750,020"},
+		{"8", "Beijing", "China", "21,333,332"},
+		{"9", "Mumbai", "India", "20,961,472"},
+		{"10", "Osaka", "Japan", "19,059,856"},
+	}
+	tb := New().
+		SetHeaders(headers...).
+		SetRows(rows...).
+		SetHeight(10).
+		OverwriteStyles(Styles{
+			Selected: niceMargins,
+			Header:   niceMargins,
+			Cell:     niceMargins,
+		})
+	fmt.Println(tb.View())
+	// Output:
+	//┌───────────────────────────────────────────┐
+	//│ Rank  City         Country     Population │
+	//├───────────────────────────────────────────┤
+	//│ 1     Tokyo        Japan       37,274,000 │
+	//│ 2     Delhi        India       32,065,760 │
+	//│ 3     Shanghai     China       28,516,904 │
+	//│ 4     Dhaka        Bangladesh  22,478,116 │
+	//│ 5     São Paulo    Brazil      22,429,800 │
+	//│ …     …            …           …          │
+	//└───────────────────────────────────────────┘
 }
 
 func TestCursorNavigation(t *testing.T) {
 	tests := map[string]struct {
-		rows   []Row
+		rows   [][]string
 		action func(*Model)
 		want   int
 	}{
 		"New": {
-			rows: []Row{
+			rows: [][]string{
 				{"r1"},
 				{"r2"},
 				{"r3"},
@@ -359,7 +504,7 @@ func TestCursorNavigation(t *testing.T) {
 			want:   0,
 		},
 		"MoveDown": {
-			rows: []Row{
+			rows: [][]string{
 				{"r1"},
 				{"r2"},
 				{"r3"},
@@ -371,7 +516,7 @@ func TestCursorNavigation(t *testing.T) {
 			want: 2,
 		},
 		"MoveUp": {
-			rows: []Row{
+			rows: [][]string{
 				{"r1"},
 				{"r2"},
 				{"r3"},
@@ -384,7 +529,7 @@ func TestCursorNavigation(t *testing.T) {
 			want: 1,
 		},
 		"GotoBottom": {
-			rows: []Row{
+			rows: [][]string{
 				{"r1"},
 				{"r2"},
 				{"r3"},
@@ -396,7 +541,7 @@ func TestCursorNavigation(t *testing.T) {
 			want: 3,
 		},
 		"GotoTop": {
-			rows: []Row{
+			rows: [][]string{
 				{"r1"},
 				{"r2"},
 				{"r3"},
@@ -409,7 +554,7 @@ func TestCursorNavigation(t *testing.T) {
 			want: 0,
 		},
 		"SetCursor": {
-			rows: []Row{
+			rows: [][]string{
 				{"r1"},
 				{"r2"},
 				{"r3"},
@@ -421,7 +566,7 @@ func TestCursorNavigation(t *testing.T) {
 			want: 2,
 		},
 		"MoveDown with overflow": {
-			rows: []Row{
+			rows: [][]string{
 				{"r1"},
 				{"r2"},
 				{"r3"},
@@ -433,7 +578,7 @@ func TestCursorNavigation(t *testing.T) {
 			want: 3,
 		},
 		"MoveUp with overflow": {
-			rows: []Row{
+			rows: [][]string{
 				{"r1"},
 				{"r2"},
 				{"r3"},
@@ -446,7 +591,7 @@ func TestCursorNavigation(t *testing.T) {
 			want: 0,
 		},
 		"Blur does not stop movement": {
-			rows: []Row{
+			rows: [][]string{
 				{"r1"},
 				{"r2"},
 				{"r3"},
@@ -462,8 +607,11 @@ func TestCursorNavigation(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			table := New(WithColumns(testCols), WithRows(tc.rows))
-			tc.action(&table)
+			table := New(
+				WithHeaders("col1", "col2", "col3"),
+				WithRows(tc.rows...),
+			)
+			tc.action(table)
 
 			if table.Cursor() != tc.want {
 				t.Errorf("want %d, got %d", tc.want, table.Cursor())
@@ -473,257 +621,191 @@ func TestCursorNavigation(t *testing.T) {
 }
 
 func TestModel_SetRows(t *testing.T) {
-	table := New(WithColumns(testCols))
+	table := New(WithHeaders("col1", "col2", "col3"))
 
-	if len(table.rows) != 0 {
-		t.Fatalf("want 0, got %d", len(table.rows))
+	if table.RowCount() != 0 {
+		t.Fatalf("want 0, got %d", table.RowCount())
 	}
 
-	table.SetRows([]Row{{"r1"}, {"r2"}})
+	table.SetRows([]string{"r1"}, []string{"r2"})
 
-	if len(table.rows) != 2 {
-		t.Fatalf("want 2, got %d", len(table.rows))
+	if table.RowCount() != 2 {
+		t.Fatalf("want 2, got %d", table.RowCount())
 	}
 
-	want := []Row{{"r1"}, {"r2"}}
-	if !reflect.DeepEqual(table.rows, want) {
-		t.Fatalf("\n\nwant %v\n\ngot %v", want, table.rows)
+	want := [][]string{{"r1"}, {"r2"}}
+	if !reflect.DeepEqual(table.Rows(), want) {
+		t.Fatalf("\n\nwant %v\n\ngot %v", want, table.Rows())
 	}
 }
 
-func TestModel_SetColumns(t *testing.T) {
+func TestModel_SetHeaders(t *testing.T) {
 	table := New()
 
-	if len(table.cols) != 0 {
-		t.Fatalf("want 0, got %d", len(table.cols))
+	if len(table.Headers()) != 0 {
+		t.Fatalf("want 0, got %d", len(table.Headers()))
 	}
 
-	table.SetColumns([]Column{{Title: "Foo"}, {Title: "Bar"}})
+	table.SetHeaders("Foo", "Bar")
 
-	if len(table.cols) != 2 {
-		t.Fatalf("want 2, got %d", len(table.cols))
+	if len(table.Headers()) != 2 {
+		t.Fatalf("want 2, got %d", len(table.Headers()))
 	}
 
-	want := []Column{{Title: "Foo"}, {Title: "Bar"}}
-	if !reflect.DeepEqual(table.cols, want) {
-		t.Fatalf("\n\nwant %v\n\ngot %v", want, table.cols)
+	want := []string{"Foo", "Bar"}
+	if !reflect.DeepEqual(table.Headers(), want) {
+		t.Fatalf("\n\nwant %v\n\ngot %v", want, table.Headers())
 	}
 }
 
 func TestModel_View(t *testing.T) {
 	tests := map[string]struct {
-		modelFunc func() Model
+		modelFunc func() *Model
 		skip      bool
 	}{
-		// TODO(?): should the view/output of empty tables use the same default height? (this has height 21)
 		"Empty": {
-			modelFunc: func() Model {
+			modelFunc: func() *Model {
 				return New()
 			},
 		},
-		"Single row and column": {
-			modelFunc: func() Model {
+		"SingleRowAndColumn": {
+			modelFunc: func() *Model {
 				return New(
-					WithColumns([]Column{
-						{Title: "Name", Width: 25},
-					}),
-					WithRows([]Row{
-						{"Chocolate Digestives"},
-					}),
+					WithHeaders("Name"),
+					WithRows(
+						[]string{"Chocolate Digestives"},
+					),
 				)
 			},
 		},
-		"Multiple rows and columns": {
-			modelFunc: func() Model {
+		"MultipleRowsAndColumns": {
+			modelFunc: func() *Model {
 				return New(
-					WithColumns([]Column{
-						{Title: "Name", Width: 25},
-						{Title: "Country of Origin", Width: 16},
-						{Title: "Dunk-able", Width: 12},
-					}),
-					WithRows([]Row{
-						{"Chocolate Digestives", "UK", "Yes"},
-						{"Tim Tams", "Australia", "No"},
-						{"Hobnobs", "UK", "Yes"},
-					}),
+					WithHeaders("Name", "Country of Origin", "Dunk-able"),
+					WithRows(
+						[]string{"Chocolate Digestives", "UK", "Yes"},
+						[]string{"Tim Tams", "Australia", "No"},
+						[]string{"Hobnobs", "UK", "Yes"},
+					),
 				)
 			},
 		},
-		// TODO(fix): since the table height is tied to the viewport height, adding vertical padding to the headers' height directly increases the table height.
-		"Extra padding": {
-			modelFunc: func() Model {
+		"ExtraPadding": {
+			modelFunc: func() *Model {
 				s := DefaultStyles()
 				s.Header = lipgloss.NewStyle().Padding(2, 2)
 				s.Cell = lipgloss.NewStyle().Padding(2, 2)
 
 				return New(
-					WithHeight(10),
-					WithColumns([]Column{
-						{Title: "Name", Width: 25},
-						{Title: "Country of Origin", Width: 16},
-						{Title: "Dunk-able", Width: 12},
-					}),
-					WithRows([]Row{
-						{"Chocolate Digestives", "UK", "Yes"},
-						{"Tim Tams", "Australia", "No"},
-						{"Hobnobs", "UK", "Yes"},
-					}),
+					WithHeaders("Name", "Country of Origin", "Dunk-able"),
+					WithRows(
+						[]string{"Chocolate Digestives", "UK", "Yes"},
+						[]string{"Tim Tams", "Australia", "No"},
+						[]string{"Hobnobs", "UK", "Yes"},
+					),
 					WithStyles(s),
 				)
 			},
 		},
-		"No padding": {
-			modelFunc: func() Model {
+		"NoPadding": {
+			modelFunc: func() *Model {
 				s := DefaultStyles()
 				s.Header = lipgloss.NewStyle()
 				s.Cell = lipgloss.NewStyle()
 
 				return New(
 					WithHeight(10),
-					WithColumns([]Column{
-						{Title: "Name", Width: 25},
-						{Title: "Country of Origin", Width: 16},
-						{Title: "Dunk-able", Width: 12},
-					}),
-					WithRows([]Row{
-						{"Chocolate Digestives", "UK", "Yes"},
-						{"Tim Tams", "Australia", "No"},
-						{"Hobnobs", "UK", "Yes"},
-					}),
+					WithHeaders("Name", "Country of Origin", "Dunk-able"),
+					WithRows(
+						[]string{"Chocolate Digestives", "UK", "Yes"},
+						[]string{"Tim Tams", "Australia", "No"},
+						[]string{"Hobnobs", "UK", "Yes"},
+					),
 					WithStyles(s),
 				)
 			},
 		},
-		// TODO(?): the total height is modified with borderd headers, however not with bordered cells. Is this expected/desired?
-		"Bordered headers": {
-			modelFunc: func() Model {
+		"BorderedHeaders": {
+			modelFunc: func() *Model {
 				return New(
-					WithColumns([]Column{
-						{Title: "Name", Width: 25},
-						{Title: "Country of Origin", Width: 16},
-						{Title: "Dunk-able", Width: 12},
-					}),
-					WithRows([]Row{
-						{"Chocolate Digestives", "UK", "Yes"},
-						{"Tim Tams", "Australia", "No"},
-						{"Hobnobs", "UK", "Yes"},
-					}),
+					WithHeaders("Name", "Country of Origin", "Dunk-able"),
+					WithRows(
+						[]string{"Chocolate Digestives", "UK", "Yes"},
+						[]string{"Tim Tams", "Australia", "No"},
+						[]string{"Hobnobs", "UK", "Yes"},
+					),
 					WithStyles(Styles{
 						Header: lipgloss.NewStyle().BorderStyle(lipgloss.NormalBorder()),
 					}),
 				)
 			},
 		},
-		// TODO(fix): Headers are not horizontally aligned with cells due to the border adding width to the cells.
-		"Bordered cells": {
-			modelFunc: func() Model {
+		"BorderedCells": {
+			modelFunc: func() *Model {
 				return New(
-					WithColumns([]Column{
-						{Title: "Name", Width: 25},
-						{Title: "Country of Origin", Width: 16},
-						{Title: "Dunk-able", Width: 12},
-					}),
-					WithRows([]Row{
-						{"Chocolate Digestives", "UK", "Yes"},
-						{"Tim Tams", "Australia", "No"},
-						{"Hobnobs", "UK", "Yes"},
-					}),
+					WithHeaders("Name", "Country of Origin", "Dunk-able"),
+					WithRows(
+						[]string{"Chocolate Digestives", "UK", "Yes"},
+						[]string{"Tim Tams", "Australia", "No"},
+						[]string{"Hobnobs", "UK", "Yes"},
+					),
 					WithStyles(Styles{
 						Cell: lipgloss.NewStyle().BorderStyle(lipgloss.NormalBorder()),
 					}),
 				)
 			},
 		},
-		"Manual height greater than rows": {
-			modelFunc: func() Model {
+		// FIXME(@andreynering): Fix in Lip Gloss? Potentially add extra empty lines to the bottom of the table.
+		"ManualHeightGreaterThanRows": {
+			modelFunc: func() *Model {
 				return New(
-					WithHeight(6),
-					WithColumns([]Column{
-						{Title: "Name", Width: 25},
-						{Title: "Country of Origin", Width: 16},
-						{Title: "Dunk-able", Width: 12},
-					}),
-					WithRows([]Row{
-						{"Chocolate Digestives", "UK", "Yes"},
-						{"Tim Tams", "Australia", "No"},
-						{"Hobnobs", "UK", "Yes"},
-					}),
+					WithHeight(15),
+					WithHeaders("Name", "Country of Origin", "Dunk-able"),
+					WithRows(
+						[]string{"Chocolate Digestives", "UK", "Yes"},
+						[]string{"Tim Tams", "Australia", "No"},
+						[]string{"Hobnobs", "UK", "Yes"},
+					),
 				)
 			},
 		},
-		"Manual height less than rows": {
-			modelFunc: func() Model {
+		"ManualHeightLessThanRows": {
+			modelFunc: func() *Model {
 				return New(
 					WithHeight(2),
-					WithColumns([]Column{
-						{Title: "Name", Width: 25},
-						{Title: "Country of Origin", Width: 16},
-						{Title: "Dunk-able", Width: 12},
-					}),
-					WithRows([]Row{
-						{"Chocolate Digestives", "UK", "Yes"},
-						{"Tim Tams", "Australia", "No"},
-						{"Hobnobs", "UK", "Yes"},
-					}),
+					WithHeaders("Name", "Country of Origin", "Dunk-able"),
+					WithRows(
+						[]string{"Chocolate Digestives", "UK", "Yes"},
+						[]string{"Tim Tams", "Australia", "No"},
+						[]string{"Hobnobs", "UK", "Yes"},
+					),
 				)
 			},
 		},
-		// TODO(fix): spaces are added to the right of the viewport to fill the width, but the headers end as though they are not aware of the width.
-		"Manual width greater than columns": {
-			modelFunc: func() Model {
+		"ManualWidthGreaterThanColumns": {
+			modelFunc: func() *Model {
 				return New(
 					WithWidth(80),
-					WithColumns([]Column{
-						{Title: "Name", Width: 25},
-						{Title: "Country of Origin", Width: 16},
-						{Title: "Dunk-able", Width: 12},
-					}),
-					WithRows([]Row{
-						{"Chocolate Digestives", "UK", "Yes"},
-						{"Tim Tams", "Australia", "No"},
-						{"Hobnobs", "UK", "Yes"},
-					}),
+					WithHeaders("Name", "Country of Origin", "Dunk-able"),
+					WithRows(
+						[]string{"Chocolate Digestives", "UK", "Yes"},
+						[]string{"Tim Tams", "Australia", "No"},
+						[]string{"Hobnobs", "UK", "Yes"},
+					),
 				)
 			},
 		},
-		// TODO(fix): Setting the table width does not affect the total headers' width. Cells are wrapped.
-		// 	Headers are not affected. Truncation/resizing should match lipgloss.table functionality.
-		"Manual width less than columns": {
-			modelFunc: func() Model {
+		"ManualWidthLessThanColumns": {
+			modelFunc: func() *Model {
 				return New(
 					WithWidth(30),
-					WithColumns([]Column{
-						{Title: "Name", Width: 25},
-						{Title: "Country of Origin", Width: 16},
-						{Title: "Dunk-able", Width: 12},
-					}),
-					WithRows([]Row{
-						{"Chocolate Digestives", "UK", "Yes"},
-						{"Tim Tams", "Australia", "No"},
-						{"Hobnobs", "UK", "Yes"},
-					}),
+					WithHeaders("Name", "Country of Origin", "Dunk-able"),
+					WithRows(
+						[]string{"Chocolate Digestives", "UK", "Yes"},
+						[]string{"Tim Tams", "Australia", "No"},
+						[]string{"Hobnobs", "UK", "Yes"},
+					),
 				)
-			},
-			skip: true,
-		},
-		"Modified viewport height": {
-			modelFunc: func() Model {
-				m := New(
-					WithColumns([]Column{
-						{Title: "Name", Width: 25},
-						{Title: "Country of Origin", Width: 16},
-						{Title: "Dunk-able", Width: 12},
-					}),
-					WithRows([]Row{
-						{"Chocolate Digestives", "UK", "Yes"},
-						{"Tim Tams", "Australia", "No"},
-						{"Hobnobs", "UK", "Yes"},
-					}),
-				)
-
-				m.viewport.SetHeight(2)
-
-				return m
 			},
 		},
 	}
@@ -736,9 +818,7 @@ func TestModel_View(t *testing.T) {
 
 			table := tc.modelFunc()
 
-			got := ansi.Strip(table.View())
-
-			golden.RequireEqual(t, []byte(got))
+			golden.RequireEqual(t, []byte(table.View()))
 		})
 	}
 }
@@ -754,16 +834,12 @@ func TestModel_View_CenteredInABox(t *testing.T) {
 	table := New(
 		WithHeight(6),
 		WithWidth(80),
-		WithColumns([]Column{
-			{Title: "Name", Width: 25},
-			{Title: "Country of Origin", Width: 16},
-			{Title: "Dunk-able", Width: 12},
-		}),
-		WithRows([]Row{
-			{"Chocolate Digestives", "UK", "Yes"},
-			{"Tim Tams", "Australia", "No"},
-			{"Hobnobs", "UK", "Yes"},
-		}),
+		WithHeaders("Name", "Country of Origin", "Dunk-able"),
+		WithRows(
+			[]string{"Chocolate Digestives", "UK", "Yes"},
+			[]string{"Tim Tams", "Australia", "No"},
+			[]string{"Hobnobs", "UK", "Yes"},
+		),
 	)
 
 	tableView := ansi.Strip(table.View())
