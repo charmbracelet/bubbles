@@ -207,6 +207,9 @@ type Model struct {
 func New(items []Item, delegate ItemDelegate, width, height int) Model {
 	styles := DefaultStyles()
 
+	// Ensure help text does not exceed list width
+	styles.HelpStyle = styles.HelpStyle.Width(width)
+
 	sp := spinner.New()
 	sp.Spinner = spinner.Line
 	sp.Style = styles.Spinner
