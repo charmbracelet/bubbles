@@ -58,6 +58,8 @@ type KeyMap struct {
 	LineNext                key.Binding
 	LinePrevious            key.Binding
 	LineStart               key.Binding
+	PageUp                  key.Binding
+	PageDown                key.Binding
 	Paste                   key.Binding
 	WordBackward            key.Binding
 	WordForward             key.Binding
@@ -90,6 +92,8 @@ func DefaultKeyMap() KeyMap {
 		DeleteCharacterForward:  key.NewBinding(key.WithKeys("delete", "ctrl+d"), key.WithHelp("delete", "delete character forward")),
 		LineStart:               key.NewBinding(key.WithKeys("home", "ctrl+a"), key.WithHelp("home", "line start")),
 		LineEnd:                 key.NewBinding(key.WithKeys("end", "ctrl+e"), key.WithHelp("end", "line end")),
+		PageUp:                  key.NewBinding(key.WithKeys("pgup"), key.WithHelp("pgup", "page up")),
+		PageDown:                key.NewBinding(key.WithKeys("pgdown"), key.WithHelp("pgdown", "page down")),
 		Paste:                   key.NewBinding(key.WithKeys("ctrl+v"), key.WithHelp("ctrl+v", "paste")),
 		InputBegin:              key.NewBinding(key.WithKeys("alt+<", "ctrl+home"), key.WithHelp("alt+<", "input begin")),
 		InputEnd:                key.NewBinding(key.WithKeys("alt+>", "ctrl+end"), key.WithHelp("alt+>", "input end")),
@@ -608,22 +612,44 @@ func (m Model) ScrollPercent() float64 {
 	return m.viewport.ScrollPercent()
 }
 
-// CursorDown moves the cursor down by one line.
-// Returns whether or not the cursor blink should be reset.
-func (m *Model) CursorDown() {
+// setCursorLineRelative moves the cursor by the given number of lines. Negative
+// values move the cursor up, positive values move the cursor down.
+func (m *Model) setCursorLineRelative(delta int) {
+	if delta == 0 {
+		return
+	}
+
 	li := m.LineInfo()
 	charOffset := max(m.lastCharOffset, li.CharOffset)
 	m.lastCharOffset = charOffset
 
-	if li.RowOffset+1 >= li.Height && m.row < len(m.value)-1 {
-		m.row++
-		m.col = 0
+	// 2 columns to account for the trailing space wrapping.
+	const trailingSpace = 2
+
+	if delta > 0 { //nolint:nestif
+		// Moving down.
+		for range delta {
+			if li.RowOffset+1 >= li.Height && m.row < len(m.value)-1 {
+				m.row++
+				m.col = 0
+			} else {
+				// Move the cursor to the start of the next virtual line.
+				m.col = min(li.StartColumn+li.Width+trailingSpace, len(m.value[m.row])-1)
+			}
+			li = m.LineInfo()
+		}
 	} else {
-		// Move the cursor to the start of the next line so that we can get
-		// the line information. We need to add 2 columns to account for the
-		// trailing space wrapping.
-		const trailingSpace = 2
-		m.col = min(li.StartColumn+li.Width+trailingSpace, len(m.value[m.row])-1)
+		// Moving up.
+		for range -delta {
+			if li.RowOffset <= 0 && m.row > 0 {
+				m.row--
+				m.col = len(m.value[m.row])
+			} else {
+				// Move the cursor to the end of the previous line.
+				m.col = li.StartColumn - trailingSpace
+			}
+			li = m.LineInfo()
+		}
 	}
 
 	nli := m.LineInfo()
@@ -642,46 +668,17 @@ func (m *Model) CursorDown() {
 		offset += rw.RuneWidth(m.value[m.row][m.col])
 		m.col++
 	}
-
 	m.repositionView()
+}
+
+// CursorDown moves the cursor down by one line.
+func (m *Model) CursorDown() {
+	m.setCursorLineRelative(1)
 }
 
 // CursorUp moves the cursor up by one line.
 func (m *Model) CursorUp() {
-	li := m.LineInfo()
-	charOffset := max(m.lastCharOffset, li.CharOffset)
-	m.lastCharOffset = charOffset
-
-	if li.RowOffset <= 0 && m.row > 0 {
-		m.row--
-		m.col = len(m.value[m.row])
-	} else {
-		// Move the cursor to the end of the previous line.
-		// This can be done by moving the cursor to the start of the line and
-		// then subtracting 2 to account for the trailing space we keep on
-		// soft-wrapped lines.
-		const trailingSpace = 2
-		m.col = li.StartColumn - trailingSpace
-	}
-
-	nli := m.LineInfo()
-	m.col = nli.StartColumn
-
-	if nli.Width <= 0 {
-		m.repositionView()
-		return
-	}
-
-	offset := 0
-	for offset < charOffset {
-		if m.col >= len(m.value[m.row]) || offset >= nli.CharWidth-1 {
-			break
-		}
-		offset += rw.RuneWidth(m.value[m.row][m.col])
-		m.col++
-	}
-
-	m.repositionView()
+	m.setCursorLineRelative(-1)
 }
 
 // SetCursorColumn moves the cursor to the given position. If the position is
@@ -1057,6 +1054,32 @@ func (m *Model) MoveToEnd() {
 	m.repositionView()
 }
 
+// PageUp moves the cursor up by one page. First call snaps to the first visible
+// line, subsequent calls move up by a full page.
+func (m *Model) PageUp() {
+	// If not on the first visible line, snap to it.
+	if offset := m.viewport.YOffset() - m.cursorLineNumber(); offset < 0 {
+		m.setCursorLineRelative(offset)
+		return
+	}
+
+	// Already on first visible line, move up by a full page.
+	m.setCursorLineRelative(-m.height)
+}
+
+// PageDown moves the cursor down by one page. First call snaps to the last
+// visible line, subsequent calls move down by a full page.
+func (m *Model) PageDown() {
+	// If not on the last visible line, snap to it.
+	if offset := m.cursorLineNumber() - m.viewport.YOffset(); offset < m.height-1 {
+		m.setCursorLineRelative(m.height - 1 - offset)
+		return
+	}
+
+	// Already on last visible line, move down by a full page.
+	m.setCursorLineRelative(m.height)
+}
+
 // SetWidth sets the width of the textarea to fit exactly within the given width.
 // This means that the textarea will account for the width of the prompt and
 // whether or not line numbers are being shown.
@@ -1237,6 +1260,10 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			m.MoveToBegin()
 		case key.Matches(msg, m.KeyMap.InputEnd):
 			m.MoveToEnd()
+		case key.Matches(msg, m.KeyMap.PageUp):
+			m.PageUp()
+		case key.Matches(msg, m.KeyMap.PageDown):
+			m.PageDown()
 		case key.Matches(msg, m.KeyMap.LowercaseWordForward):
 			m.lowercaseRight()
 		case key.Matches(msg, m.KeyMap.UppercaseWordForward):

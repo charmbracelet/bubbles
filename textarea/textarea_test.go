@@ -1,6 +1,7 @@
 package textarea
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"unicode"
@@ -1707,6 +1708,185 @@ func TestView(t *testing.T) {
 					>
 
 				`),
+			},
+		},
+		{
+			name: "page up moves to beginning when near top",
+			modelFunc: func(m *Model) *Model {
+				m.ShowLineNumbers = true
+				m.SetHeight(4)
+				m.SetWidth(20)
+
+				lines := make([]string, 10)
+				for i := range 10 {
+					lines[i] = fmt.Sprintf("Line %d", i+1)
+				}
+				m.SetValue(strings.Join(lines, "\n"))
+				m.viewport.SetContent(m.view()) // force setting of viewport content.
+
+				m.row = 3
+				m.col = 0
+				m.viewport.SetYOffset(0)
+				m.PageUp()
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					>   1 Line 1
+					>   2 Line 2
+					>   3 Line 3
+					>   4 Line 4
+				`),
+				cursorRow: 0,
+			},
+		},
+		{
+			name: "page up snaps to first visible line when not on it",
+			modelFunc: func(m *Model) *Model {
+				m.ShowLineNumbers = true
+				m.SetHeight(4)
+				m.SetWidth(20)
+
+				lines := make([]string, 10)
+				for i := range 10 {
+					lines[i] = fmt.Sprintf("Line %d", i+1)
+				}
+				m.SetValue(strings.Join(lines, "\n"))
+				m.viewport.SetContent(m.view()) // force setting of viewport content.
+
+				m.row = 5
+				m.col = 0
+				m.viewport.SetYOffset(3)
+				m.PageUp()
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					>   4 Line 4
+					>   5 Line 5
+					>   6 Line 6
+					>   7 Line 7
+				`),
+				cursorRow: 3,
+			},
+		},
+		{
+			name: "page up moves up by full page when on first visible line",
+			modelFunc: func(m *Model) *Model {
+				m.ShowLineNumbers = true
+				m.SetHeight(3)
+				m.SetWidth(20)
+
+				lines := make([]string, 10)
+				for i := range 10 {
+					lines[i] = fmt.Sprintf("Line %d", i+1)
+				}
+				m.SetValue(strings.Join(lines, "\n"))
+				m.viewport.SetContent(m.view()) // force setting of viewport content.
+
+				m.row = 5
+				m.col = 0
+				m.viewport.SetYOffset(5)
+				m.PageUp()
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					>   3 Line 3
+					>   4 Line 4
+					>   5 Line 5
+				`),
+				cursorRow: 2,
+			},
+		},
+		{
+			name: "page down moves to end when near bottom",
+			modelFunc: func(m *Model) *Model {
+				m.SetHeight(3)
+				m.SetWidth(20)
+
+				lines := make([]string, 10)
+				for i := range 10 {
+					lines[i] = fmt.Sprintf("Line %d", i+1)
+				}
+				m.SetValue(strings.Join(lines, "\n"))
+				m.viewport.SetContent(m.view()) // force setting of viewport content.
+
+				m.row = 8
+				m.col = 0
+				m.viewport.SetYOffset(7)
+				m.PageDown()
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					>   8 Line 8
+					>   9 Line 9
+					>  10 Line 10
+				`),
+				cursorRow: 9,
+			},
+		},
+		{
+			name: "page down snaps to last visible line when not on it",
+			modelFunc: func(m *Model) *Model {
+				m.SetHeight(3)
+				m.SetWidth(20)
+
+				lines := make([]string, 10)
+				for i := range 10 {
+					lines[i] = fmt.Sprintf("Line %d", i+1)
+				}
+				m.SetValue(strings.Join(lines, "\n"))
+				m.viewport.SetContent(m.view()) // force setting of viewport content.
+
+				m.row = 3
+				m.col = 0
+				m.viewport.SetYOffset(3)
+				m.PageDown()
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					>   4 Line 4
+					>   5 Line 5
+					>   6 Line 6
+				`),
+				cursorRow: 5,
+			},
+		},
+		{
+			name: "page down moves down by full page when on last visible line",
+			modelFunc: func(m *Model) *Model {
+				m.SetHeight(3)
+				m.SetWidth(20)
+
+				lines := make([]string, 10)
+				for i := range 10 {
+					lines[i] = fmt.Sprintf("Line %d", i+1)
+				}
+				m.SetValue(strings.Join(lines, "\n"))
+				m.viewport.SetContent(m.view()) // force setting of viewport content.
+
+				m.row = 4
+				m.col = 0
+				m.viewport.SetYOffset(2)
+				m.PageDown()
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					>   6 Line 6
+					>   7 Line 7
+					>   8 Line 8
+				`),
+				cursorRow: 7,
 			},
 		},
 	}
