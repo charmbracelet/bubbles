@@ -1,7 +1,9 @@
 package viewport
 
 import (
+	"cmp"
 	"math"
+	"slices"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/v2/key"
@@ -87,7 +89,9 @@ type Model struct {
 	// LeftGutterFunc allows to define a [GutterFunc] that adds a column into
 	// the left of the viewport, which is kept when horizontal scrolling.
 	// This can be used for things like line numbers, selection indicators,
-	// show statuses, etc.
+	// show statuses, etc. It is expected that the real-width (as measured by
+	// [lipgloss.Width]) of the returned value is always consistent, regardless
+	// of index, soft wrapping, etc.
 	LeftGutterFunc GutterFunc
 
 	initialized      bool
@@ -131,9 +135,14 @@ var NoGutter = func(GutterContext) string { return "" }
 
 // GutterContext provides context to a [GutterFunc].
 type GutterContext struct {
-	Index      int
+	// Index is the line index of the line which the gutter is being rendered for.
+	Index int
+
+	// TotalLines is the total number of lines in the viewport.
 	TotalLines int
-	Soft       bool
+
+	// Soft is whether or not the line is soft wrapped.
+	Soft bool
 }
 
 func (m *Model) setInitialValues() {
@@ -189,15 +198,15 @@ func (m Model) PastBottom() bool {
 
 // ScrollPercent returns the amount scrolled as a float between 0 and 1.
 func (m Model) ScrollPercent() float64 {
-	count := m.lineCount()
-	if m.Height() >= count {
+	total, _, _ := m.calculateLine(0)
+	if m.Height() >= total {
 		return 1.0
 	}
 	y := float64(m.YOffset())
 	h := float64(m.Height())
-	t := float64(count)
+	t := float64(total)
 	v := y / (t - h)
-	return math.Max(0.0, math.Min(1.0, v))
+	return clamp(v, 0, 1)
 }
 
 // HorizontalScrollPercent returns the amount horizontally scrolled as a float
@@ -210,26 +219,37 @@ func (m Model) HorizontalScrollPercent() float64 {
 	h := float64(m.Width())
 	t := float64(m.longestLineWidth)
 	v := y / (t - h)
-	return math.Max(0.0, math.Min(1.0, v))
+	return clamp(v, 0, 1)
 }
 
-// SetContent set the pager's text content.
-// Line endings will be normalized to '\n'.
+// SetContent set the pager's text content. Line endings will be normalized to '\n'.
 func (m *Model) SetContent(s string) {
-	s = strings.ReplaceAll(s, "\r\n", "\n") // normalize line endings
 	m.SetContentLines(strings.Split(s, "\n"))
 }
 
 // SetContentLines allows to set the lines to be shown instead of the content.
-// If a given line has a \n in it, it'll be considered a [Model.SoftWrap].
-// See also [Model.SetContent].
+// If a given line has a \n in it, it will still be split into multiple lines
+// similar to that of [Model.SetContent]. See also [Model.SetContent].
 func (m *Model) SetContentLines(lines []string) {
 	// if there's no content, set content to actual nil instead of one empty
 	// line.
 	m.lines = lines
 	if len(m.lines) == 1 && ansi.StringWidth(m.lines[0]) == 0 {
 		m.lines = nil
+	} else {
+		// iterate in reverse, so we can safely modify the slice.
+		var subLines []string
+		for i := len(m.lines) - 1; i >= 0; i-- {
+			m.lines[i] = strings.ReplaceAll(m.lines[i], "\r\n", "\n") // normalize line endings
+
+			subLines = strings.Split(m.lines[i], "\n")
+			if len(subLines) > 1 {
+				m.lines = slices.Insert(m.lines, i+1, subLines[1:]...)
+				m.lines[i] = subLines[0]
+			}
+		}
 	}
+
 	m.longestLineWidth = maxLineWidth(m.lines)
 	m.ClearHighlights()
 
@@ -244,59 +264,42 @@ func (m Model) GetContent() string {
 	return strings.Join(m.lines, "\n")
 }
 
-// calculateLine taking soft wraping into account, returns the total viewable
-// lines and the real-line index for the given yoffset.
-func (m Model) calculateLine(yoffset int) (total, idx int) {
+// calculateLine taking soft wrapping into account, returns the total viewable
+// lines and the real-line index for the given yoffset, as well as the virtual
+// line offset.
+func (m Model) calculateLine(yoffset int) (total, ridx, voffset int) {
 	if !m.SoftWrap {
-		for i, line := range m.lines {
-			adjust := max(1, lipgloss.Height(line))
-			if yoffset >= total && yoffset < total+adjust {
-				idx = i
-			}
-			total += adjust
-		}
-		if yoffset >= total {
-			idx = len(m.lines)
-		}
-		return total, idx
+		total = len(m.lines)
+		ridx = min(yoffset, len(m.lines))
+		return total, ridx, 0
 	}
 
-	maxWidth := m.maxWidth()
-	var gutterSize int
-	if m.LeftGutterFunc != nil {
-		gutterSize = lipgloss.Width(m.LeftGutterFunc(GutterContext{}))
-	}
+	maxWidth := float64(m.maxWidth())
+	var lineHeight int
+
 	for i, line := range m.lines {
-		adjust := max(1, lipgloss.Width(line)/(maxWidth-gutterSize))
-		if yoffset >= total && yoffset < total+adjust {
-			idx = i
+		lineHeight = max(1, int(math.Ceil(float64(ansi.StringWidth(line))/maxWidth)))
+
+		if yoffset >= total && yoffset < total+lineHeight {
+			ridx = i
+			voffset = yoffset - total
 		}
-		total += adjust
+		total += lineHeight
 	}
+
 	if yoffset >= total {
-		idx = len(m.lines)
+		ridx = len(m.lines)
+		voffset = 0
 	}
-	return total, idx
-}
 
-// lineToIndex taking soft wrappign into account, return the real line index
-// for the given line.
-func (m Model) lineToIndex(y int) int {
-	_, idx := m.calculateLine(y)
-	return idx
-}
-
-// lineCount taking soft wrapping into account, return the total viewable line
-// count (real lines + soft wrapped line).
-func (m Model) lineCount() int {
-	total, _ := m.calculateLine(0)
-	return total
+	return total, ridx, voffset
 }
 
 // maxYOffset returns the maximum possible value of the y-offset based on the
 // viewport's content and set height.
 func (m Model) maxYOffset() int {
-	return max(0, m.lineCount()-m.Height()+m.Style.GetVerticalFrameSize())
+	total, _, _ := m.calculateLine(0)
+	return max(0, total-m.Height()+m.Style.GetVerticalFrameSize())
 }
 
 // maxXOffset returns the maximum possible value of the x-offset based on the
@@ -305,18 +308,20 @@ func (m Model) maxXOffset() int {
 	return max(0, m.longestLineWidth-m.Width())
 }
 
+// maxWidth returns the maximum width of the viewport. It accounts for the frame
+// size, in addition to the gutter size.
 func (m Model) maxWidth() int {
 	var gutterSize int
 	if m.LeftGutterFunc != nil {
-		gutterSize = lipgloss.Width(m.LeftGutterFunc(GutterContext{}))
+		gutterSize = ansi.StringWidth(m.LeftGutterFunc(GutterContext{}))
 	}
-	return m.Width() -
-		m.Style.GetHorizontalFrameSize() -
-		gutterSize
+	return max(0, m.Width()-m.Style.GetHorizontalFrameSize()-gutterSize)
 }
 
+// maxHeight returns the maximum height of the viewport. It accounts for the frame
+// size.
 func (m Model) maxHeight() int {
-	return m.Height() - m.Style.GetVerticalFrameSize()
+	return max(0, m.Height()-m.Style.GetVerticalFrameSize())
 }
 
 // visibleLines returns the lines that should currently be visible in the
@@ -325,14 +330,15 @@ func (m Model) visibleLines() (lines []string) {
 	maxHeight := m.maxHeight()
 	maxWidth := m.maxWidth()
 
-	if m.lineCount() > 0 {
-		pos := m.lineToIndex(m.YOffset())
-		top := max(0, pos)
-		bottom := clamp(pos+maxHeight, top, len(m.lines))
-		lines = make([]string, bottom-top)
-		copy(lines, m.lines[top:bottom])
-		lines = m.styleLines(lines, top)
-		lines = m.highlightLines(lines, top)
+	if maxHeight == 0 || maxWidth == 0 {
+		return nil
+	}
+
+	total, ridx, voffset := m.calculateLine(m.YOffset())
+	if total > 0 {
+		bottom := clamp(ridx+maxHeight, ridx, len(m.lines))
+		lines = m.styleLines(slices.Clone(m.lines[ridx:bottom]), ridx)
+		lines = m.highlightLines(lines, ridx)
 	}
 
 	for m.FillHeight && len(lines) < maxHeight {
@@ -341,21 +347,18 @@ func (m Model) visibleLines() (lines []string) {
 
 	// if longest line fit within width, no need to do anything else.
 	if (m.xOffset == 0 && m.longestLineWidth <= maxWidth) || maxWidth == 0 {
-		return m.setupGutter(lines)
+		return m.setupGutter(lines, total, ridx)
 	}
 
 	if m.SoftWrap {
-		return m.softWrap(lines, maxWidth)
+		return m.softWrap(lines, maxWidth, maxHeight, total, ridx, voffset)
 	}
 
-	for i, line := range lines {
-		sublines := strings.Split(line, "\n") // will only have more than 1 if caller used [Model.SetContentLines].
-		for j := range sublines {
-			sublines[j] = ansi.Cut(sublines[j], m.xOffset, m.xOffset+maxWidth)
-		}
-		lines[i] = strings.Join(sublines, "\n")
+	// Cut the lines to the viewport width.
+	for i := range lines {
+		lines[i] = ansi.Cut(lines[i], m.xOffset, m.xOffset+maxWidth)
 	}
-	return m.setupGutter(lines)
+	return m.setupGutter(lines, total, ridx)
 }
 
 // styleLines styles the lines using [Model.StyleLineFunc].
@@ -397,16 +400,35 @@ func (m Model) highlightLines(lines []string, offset int) []string {
 	return lines
 }
 
-func (m Model) softWrap(lines []string, maxWidth int) []string {
-	var wrappedLines []string
-	total := m.TotalLineCount()
+func (m Model) softWrap(lines []string, maxWidth, maxHeight, total, ridx, voffset int) []string {
+	wrappedLines := make([]string, 0, maxHeight)
+
+	var idx, lineWidth int
+	var truncatedLine string
+
 	for i, line := range lines {
-		idx := 0
-		for ansi.StringWidth(line) >= idx {
-			truncatedLine := ansi.Cut(line, idx, maxWidth+idx)
+		// If the line is less than or equal to the max width, it can be added
+		// as is.
+		lineWidth = ansi.StringWidth(line)
+
+		if lineWidth <= maxWidth {
+			if m.LeftGutterFunc != nil {
+				line = m.LeftGutterFunc(GutterContext{
+					Index:      i + ridx,
+					TotalLines: total,
+					Soft:       false,
+				}) + line
+			}
+			wrappedLines = append(wrappedLines, line)
+			continue
+		}
+
+		idx = 0
+		for lineWidth > idx {
+			truncatedLine = ansi.Cut(line, idx, maxWidth+idx)
 			if m.LeftGutterFunc != nil {
 				truncatedLine = m.LeftGutterFunc(GutterContext{
-					Index:      i + m.YOffset(),
+					Index:      i + ridx,
 					TotalLines: total,
 					Soft:       idx > 0,
 				}) + truncatedLine
@@ -415,30 +437,24 @@ func (m Model) softWrap(lines []string, maxWidth int) []string {
 			idx += maxWidth
 		}
 	}
-	return wrappedLines
+
+	return wrappedLines[voffset:min(voffset+maxHeight, len(wrappedLines))]
 }
 
-// setupGutter sets up the left gutter using [Moddel.LeftGutterFunc].
-func (m Model) setupGutter(lines []string) []string {
+// setupGutter sets up the left gutter using [Model.LeftGutterFunc].
+func (m Model) setupGutter(lines []string, total, ridx int) []string {
 	if m.LeftGutterFunc == nil {
 		return lines
 	}
 
-	offset := max(0, m.lineToIndex(m.YOffset()))
-	total := m.TotalLineCount()
-	result := make([]string, len(lines))
 	for i := range lines {
-		var line []string
-		for j, realLine := range strings.Split(lines[i], "\n") {
-			line = append(line, m.LeftGutterFunc(GutterContext{
-				Index:      i + offset,
-				TotalLines: total,
-				Soft:       j > 0,
-			})+realLine)
-		}
-		result[i] = strings.Join(line, "\n")
+		lines[i] = m.LeftGutterFunc(GutterContext{
+			Index:      i + ridx,
+			TotalLines: total,
+			Soft:       false,
+		}) + lines[i]
 	}
-	return result
+	return lines
 }
 
 // SetYOffset sets the Y offset.
@@ -461,8 +477,6 @@ func (m *Model) EnsureVisible(line, colstart, colend int) {
 	if line < m.YOffset() || line >= m.YOffset()+m.maxHeight() {
 		m.SetYOffset(line)
 	}
-
-	m.visibleLines()
 }
 
 // PageDown moves the view down by the number of lines in the viewport.
@@ -470,7 +484,6 @@ func (m *Model) PageDown() {
 	if m.AtBottom() {
 		return
 	}
-
 	m.ScrollDown(m.Height())
 }
 
@@ -479,7 +492,6 @@ func (m *Model) PageUp() {
 	if m.AtTop() {
 		return
 	}
-
 	m.ScrollUp(m.Height())
 }
 
@@ -488,7 +500,6 @@ func (m *Model) HalfPageDown() {
 	if m.AtBottom() {
 		return
 	}
-
 	m.ScrollDown(m.Height() / 2) //nolint:mnd
 }
 
@@ -497,7 +508,6 @@ func (m *Model) HalfPageUp() {
 	if m.AtTop() {
 		return
 	}
-
 	m.ScrollUp(m.Height() / 2) //nolint:mnd
 }
 
@@ -506,25 +516,22 @@ func (m *Model) ScrollDown(n int) {
 	if m.AtBottom() || n == 0 || len(m.lines) == 0 {
 		return
 	}
-
 	// Make sure the number of lines by which we're going to scroll isn't
 	// greater than the number of lines we actually have left before we reach
 	// the bottom.
 	m.SetYOffset(m.YOffset() + n)
-	m.hiIdx = m.findNearedtMatch()
+	m.hiIdx = m.findNearestMatch()
 }
 
-// ScrollUp moves the view up by the given number of lines. Returns the new
-// lines to show.
+// ScrollUp moves the view up by the given number of lines.
 func (m *Model) ScrollUp(n int) {
 	if m.AtTop() || n == 0 || len(m.lines) == 0 {
 		return
 	}
-
 	// Make sure the number of lines by which we're going to scroll isn't
 	// greater than the number of lines we are from the top.
 	m.SetYOffset(m.YOffset() - n)
-	m.hiIdx = m.findNearedtMatch()
+	m.hiIdx = m.findNearestMatch()
 }
 
 // SetHorizontalStep sets the amount of cells that the viewport moves in the
@@ -558,7 +565,8 @@ func (m *Model) ScrollRight(n int) {
 
 // TotalLineCount returns the total number of lines (both hidden and visible) within the viewport.
 func (m Model) TotalLineCount() int {
-	return m.lineCount()
+	total, _, _ := m.calculateLine(0)
+	return total
 }
 
 // VisibleLineCount returns the number of the visible lines within the viewport.
@@ -571,16 +579,15 @@ func (m *Model) GotoTop() (lines []string) {
 	if m.AtTop() {
 		return nil
 	}
-
 	m.SetYOffset(0)
-	m.hiIdx = m.findNearedtMatch()
+	m.hiIdx = m.findNearestMatch()
 	return m.visibleLines()
 }
 
 // GotoBottom sets the viewport to the bottom position.
 func (m *Model) GotoBottom() (lines []string) {
 	m.SetYOffset(m.maxYOffset())
-	m.hiIdx = m.findNearedtMatch()
+	m.hiIdx = m.findNearestMatch()
 	return m.visibleLines()
 }
 
@@ -597,7 +604,7 @@ func (m *Model) SetHighlights(matches [][]int) {
 		return
 	}
 	m.highlights = parseMatches(m.GetContent(), matches)
-	m.hiIdx = m.findNearedtMatch()
+	m.hiIdx = m.findNearestMatch()
 	m.showHighlight()
 }
 
@@ -620,7 +627,6 @@ func (m *Model) HighlightNext() {
 	if m.highlights == nil {
 		return
 	}
-
 	m.hiIdx = (m.hiIdx + 1) % len(m.highlights)
 	m.showHighlight()
 }
@@ -630,12 +636,11 @@ func (m *Model) HighlightPrevious() {
 	if m.highlights == nil {
 		return
 	}
-
 	m.hiIdx = (m.hiIdx - 1 + len(m.highlights)) % len(m.highlights)
 	m.showHighlight()
 }
 
-func (m Model) findNearedtMatch() int {
+func (m Model) findNearestMatch() int {
 	for i, match := range m.highlights {
 		if match.lineStart >= m.YOffset() {
 			return i
@@ -725,20 +730,23 @@ func (m Model) View() string {
 	if sh := m.Style.GetHeight(); sh != 0 {
 		h = min(h, sh)
 	}
+
+	if w == 0 || h == 0 {
+		return ""
+	}
+
 	contentWidth := w - m.Style.GetHorizontalFrameSize()
 	contentHeight := h - m.Style.GetVerticalFrameSize()
 	contents := lipgloss.NewStyle().
-		Width(contentWidth).      // pad to width.
-		Height(contentHeight).    // pad to height.
-		MaxHeight(contentHeight). // truncate height if taller.
-		MaxWidth(contentWidth).   // truncate width if wider.
+		Width(contentWidth).   // pad to width.
+		Height(contentHeight). // pad to height.
 		Render(strings.Join(m.visibleLines(), "\n"))
 	return m.Style.
 		UnsetWidth().UnsetHeight(). // Style size already applied in contents.
 		Render(contents)
 }
 
-func clamp(v, low, high int) int {
+func clamp[T cmp.Ordered](v, low, high T) T {
 	if high < low {
 		low, high = high, low
 	}
@@ -748,7 +756,7 @@ func clamp(v, low, high int) int {
 func maxLineWidth(lines []string) int {
 	result := 0
 	for _, line := range lines {
-		result = max(result, lipgloss.Width(line))
+		result = max(result, ansi.StringWidth(line))
 	}
 	return result
 }
