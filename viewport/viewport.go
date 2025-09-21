@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/bubbles/v2/key"
+	"github.com/charmbracelet/bubbles/v2/scrollbar"
 	tea "github.com/charmbracelet/bubbletea/v2"
 	"github.com/charmbracelet/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
@@ -26,7 +27,8 @@ type Option func(*Model)
 // viewport. Pass as an argument to [New].
 func WithWidth(w int) Option {
 	return func(m *Model) {
-		m.width = w
+		m.actualWidth = w
+		m.calculateScrollbar()
 	}
 }
 
@@ -34,7 +36,8 @@ func WithWidth(w int) Option {
 // viewport. Pass as an argument to [New].
 func WithHeight(h int) Option {
 	return func(m *Model) {
-		m.height = h
+		m.actualHeight = h
+		m.calculateScrollbar()
 	}
 }
 
@@ -50,8 +53,11 @@ func New(opts ...Option) (m Model) {
 
 // Model is the Bubble Tea model for this viewport element.
 type Model struct {
-	width  int
-	height int
+	actualWidth    int // Actual width of the viewport. Should not be used directly in most cases.
+	actualHeight   int // Actual height of the viewport. Should not be used directly in most cases.
+	renderedWidth  int // Rendered width of the viewport (accounting for space for the scrollbar).
+	renderedHeight int // Rendered height of the viewport (accounting for space for the scrollbar).
+
 	KeyMap KeyMap
 
 	// Whether or not to wrap text. If false, it'll allow horizontal scrolling
@@ -67,6 +73,13 @@ type Model struct {
 
 	// The number of lines the mouse wheel will scroll. By default, this is 3.
 	MouseWheelDelta int
+
+	xscrollbarEnabled bool
+	xscrollbarRender  bool
+	xscrollbar        scrollbar.Model
+	yscrollbarEnabled bool
+	yscrollbarRender  bool
+	yscrollbar        scrollbar.Model
 
 	// yOffset is the vertical scroll position.
 	yOffset int
@@ -161,22 +174,33 @@ func (m Model) Init() tea.Cmd {
 
 // Height returns the height of the viewport.
 func (m Model) Height() int {
-	return m.height
+	return m.actualHeight
 }
 
 // SetHeight sets the height of the viewport.
 func (m *Model) SetHeight(h int) {
-	m.height = h
+	m.SetDimensions(m.actualWidth, h)
 }
 
 // Width returns the width of the viewport.
 func (m Model) Width() int {
-	return m.width
+	return m.actualWidth
 }
 
 // SetWidth sets the width of the viewport.
 func (m *Model) SetWidth(w int) {
-	m.width = w
+	m.SetDimensions(w, m.actualHeight)
+}
+
+// SetDimensions sets the width and height of the viewport at the same time,
+// and is more efficient than calling [Model.SetWidth] and [Model.SetHeight]
+// separately.
+func (m *Model) SetDimensions(w, h int) {
+	m.actualWidth = w
+	m.actualHeight = h
+	m.ensureYOffsetInBounds()
+	m.ensureXOffsetInBounds()
+	m.calculateScrollbar()
 }
 
 // AtTop returns whether or not the viewport is at the very top position.
@@ -199,11 +223,11 @@ func (m Model) PastBottom() bool {
 // ScrollPercent returns the amount scrolled as a float between 0 and 1.
 func (m Model) ScrollPercent() float64 {
 	total, _, _ := m.calculateLine(0)
-	if m.Height() >= total {
+	if m.renderedHeight >= total {
 		return 1.0
 	}
 	y := float64(m.YOffset())
-	h := float64(m.Height())
+	h := float64(m.renderedHeight)
 	t := float64(total)
 	v := y / (t - h)
 	return clamp(v, 0, 1)
@@ -212,11 +236,11 @@ func (m Model) ScrollPercent() float64 {
 // HorizontalScrollPercent returns the amount horizontally scrolled as a float
 // between 0 and 1.
 func (m Model) HorizontalScrollPercent() float64 {
-	if m.xOffset >= m.longestLineWidth-m.Width() {
+	if m.xOffset >= m.longestLineWidth-m.renderedWidth {
 		return 1.0
 	}
 	y := float64(m.xOffset)
-	h := float64(m.Width())
+	h := float64(m.renderedWidth)
 	t := float64(m.longestLineWidth)
 	v := y / (t - h)
 	return clamp(v, 0, 1)
@@ -252,6 +276,7 @@ func (m *Model) SetContentLines(lines []string) {
 
 	m.longestLineWidth = maxLineWidth(m.lines)
 	m.ClearHighlights()
+	m.calculateScrollbar()
 
 	if m.YOffset() > m.maxYOffset() {
 		m.GotoBottom()
@@ -299,13 +324,13 @@ func (m Model) calculateLine(yoffset int) (total, ridx, voffset int) {
 // viewport's content and set height.
 func (m Model) maxYOffset() int {
 	total, _, _ := m.calculateLine(0)
-	return max(0, total-m.Height()+m.Style.GetVerticalFrameSize())
+	return max(0, total-m.renderedHeight+m.Style.GetVerticalFrameSize())
 }
 
 // maxXOffset returns the maximum possible value of the x-offset based on the
 // viewport's content and set width.
 func (m Model) maxXOffset() int {
-	return max(0, m.longestLineWidth-m.Width())
+	return max(0, m.longestLineWidth-m.renderedWidth)
 }
 
 // maxWidth returns the maximum width of the viewport. It accounts for the frame
@@ -315,13 +340,13 @@ func (m Model) maxWidth() int {
 	if m.LeftGutterFunc != nil {
 		gutterSize = ansi.StringWidth(m.LeftGutterFunc(GutterContext{}))
 	}
-	return max(0, m.Width()-m.Style.GetHorizontalFrameSize()-gutterSize)
+	return max(0, m.renderedWidth-m.Style.GetHorizontalFrameSize()-gutterSize)
 }
 
 // maxHeight returns the maximum height of the viewport. It accounts for the frame
 // size.
 func (m Model) maxHeight() int {
-	return max(0, m.Height()-m.Style.GetVerticalFrameSize())
+	return max(0, m.renderedHeight-m.Style.GetVerticalFrameSize())
 }
 
 // visibleLines returns the lines that should currently be visible in the
@@ -457,9 +482,21 @@ func (m Model) setupGutter(lines []string, total, ridx int) []string {
 	return lines
 }
 
+// setYOffset sets the Y offset. It does not calculate the scrollbar, so that can
+// be done separately in an aggregated manner.
+func (m *Model) setYOffset(n int) {
+	m.yOffset = clamp(n, 0, m.maxYOffset())
+}
+
 // SetYOffset sets the Y offset.
 func (m *Model) SetYOffset(n int) {
-	m.yOffset = clamp(n, 0, m.maxYOffset())
+	m.setYOffset(n)
+	m.calculateScrollbar()
+}
+
+// ensureYOffsetInBounds ensures that the Y offset is within the bounds of the viewport.
+func (m *Model) ensureYOffsetInBounds() {
+	m.yOffset = clamp(m.yOffset, 0, m.maxYOffset())
 }
 
 // YOffset returns the current Y offset - the vertical scroll position.
@@ -469,14 +506,15 @@ func (m *Model) YOffset() int { return m.yOffset }
 func (m *Model) EnsureVisible(line, colstart, colend int) {
 	maxWidth := m.maxWidth()
 	if colend <= maxWidth {
-		m.SetXOffset(0)
+		m.setXOffset(0)
 	} else {
-		m.SetXOffset(colstart - m.horizontalStep) // put one step to the left, feels more natural
+		m.setXOffset(colstart - m.horizontalStep) // put one step to the left, feels more natural
 	}
 
 	if line < m.YOffset() || line >= m.YOffset()+m.maxHeight() {
-		m.SetYOffset(line)
+		m.setYOffset(line)
 	}
+	m.calculateScrollbar()
 }
 
 // PageDown moves the view down by the number of lines in the viewport.
@@ -484,7 +522,7 @@ func (m *Model) PageDown() {
 	if m.AtBottom() {
 		return
 	}
-	m.ScrollDown(m.Height())
+	m.ScrollDown(m.renderedHeight)
 }
 
 // PageUp moves the view up by one height of the viewport.
@@ -492,7 +530,7 @@ func (m *Model) PageUp() {
 	if m.AtTop() {
 		return
 	}
-	m.ScrollUp(m.Height())
+	m.ScrollUp(m.renderedHeight)
 }
 
 // HalfPageDown moves the view down by half the height of the viewport.
@@ -500,7 +538,7 @@ func (m *Model) HalfPageDown() {
 	if m.AtBottom() {
 		return
 	}
-	m.ScrollDown(m.Height() / 2) //nolint:mnd
+	m.ScrollDown(m.renderedHeight / 2) //nolint:mnd
 }
 
 // HalfPageUp moves the view up by half the height of the viewport.
@@ -508,7 +546,7 @@ func (m *Model) HalfPageUp() {
 	if m.AtTop() {
 		return
 	}
-	m.ScrollUp(m.Height() / 2) //nolint:mnd
+	m.ScrollUp(m.renderedHeight / 2) //nolint:mnd
 }
 
 // ScrollDown moves the view down by the given number of lines.
@@ -544,13 +582,24 @@ func (m *Model) SetHorizontalStep(n int) {
 // XOffset returns the current X offset - the horizontal scroll position.
 func (m *Model) XOffset() int { return m.xOffset }
 
-// SetXOffset sets the X offset.
-// No-op when soft wrap is enabled.
-func (m *Model) SetXOffset(n int) {
+// setXOffset sets the X offset. It does not calculate the scrollbar, so that can
+// be done separately in an aggregated manner.
+func (m *Model) setXOffset(n int) {
 	if m.SoftWrap {
 		return
 	}
 	m.xOffset = clamp(n, 0, m.maxXOffset())
+}
+
+// SetXOffset sets the X offset. No-op when soft wrap is enabled.
+func (m *Model) SetXOffset(n int) {
+	m.setXOffset(n)
+	m.calculateScrollbar()
+}
+
+// ensureXOffsetInBounds ensures that the X offset is within the bounds of the viewport.
+func (m *Model) ensureXOffsetInBounds() {
+	m.xOffset = clamp(m.xOffset, 0, m.maxXOffset())
 }
 
 // ScrollLeft moves the viewport to the left by the given number of columns.
@@ -723,7 +772,7 @@ func (m Model) updateAsModel(msg tea.Msg) Model {
 
 // View renders the viewport into a string.
 func (m Model) View() string {
-	w, h := m.Width(), m.Height()
+	w, h := m.renderedWidth, m.renderedHeight
 	if sw := m.Style.GetWidth(); sw != 0 {
 		w = min(w, sw)
 	}
@@ -741,8 +790,13 @@ func (m Model) View() string {
 		Width(contentWidth).   // pad to width.
 		Height(contentHeight). // pad to height.
 		Render(strings.Join(m.visibleLines(), "\n"))
+
+	if m.xscrollbarEnabled || m.yscrollbarEnabled {
+		return m.viewWithScrollbars(contents)
+	}
+
 	return m.Style.
-		UnsetWidth().UnsetHeight(). // Style size already applied in contents.
+		UnsetWidth().UnsetHeight().
 		Render(contents)
 }
 
