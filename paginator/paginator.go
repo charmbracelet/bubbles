@@ -7,8 +7,8 @@ package paginator
 import (
 	"fmt"
 
-	"github.com/charmbracelet/bubbles/key"
-	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/bubbles/v2/key"
+	tea "github.com/charmbracelet/bubbletea/v2"
 )
 
 // Type specifies the way we render pagination.
@@ -28,9 +28,11 @@ type KeyMap struct {
 
 // DefaultKeyMap is the default set of key bindings for navigating and acting
 // upon the paginator.
-var DefaultKeyMap = KeyMap{
-	PrevPage: key.NewBinding(key.WithKeys("pgup", "left", "h")),
-	NextPage: key.NewBinding(key.WithKeys("pgdown", "right", "l")),
+func DefaultKeyMap() KeyMap {
+	return KeyMap{
+		PrevPage: key.NewBinding(key.WithKeys("pgup", "left", "h")),
+		NextPage: key.NewBinding(key.WithKeys("pgdown", "right", "l")),
+	}
 }
 
 // Model is the Bubble Tea model for this user interface.
@@ -52,17 +54,6 @@ type Model struct {
 
 	// KeyMap encodes the keybindings recognized by the widget.
 	KeyMap KeyMap
-
-	// Deprecated: customize [KeyMap] instead.
-	UsePgUpPgDownKeys bool
-	// Deprecated: customize [KeyMap] instead.
-	UseLeftRightKeys bool
-	// Deprecated: customize [KeyMap] instead.
-	UseUpDownKeys bool
-	// Deprecated: customize [KeyMap] instead.
-	UseHLKeys bool
-	// Deprecated: customize [KeyMap] instead.
-	UseJKKeys bool
 }
 
 // SetTotalPages is a helper function for calculating the total number of pages
@@ -140,7 +131,7 @@ func New(opts ...Option) Model {
 		Page:         0,
 		PerPage:      1,
 		TotalPages:   1,
-		KeyMap:       DefaultKeyMap,
+		KeyMap:       DefaultKeyMap(),
 		ActiveDot:    "•",
 		InactiveDot:  "○",
 		ArabicFormat: "%d/%d",
@@ -152,11 +143,6 @@ func New(opts ...Option) Model {
 
 	return m
 }
-
-// NewModel creates a new model with defaults.
-//
-// Deprecated: use [New] instead.
-var NewModel = New
 
 // WithTotalPages sets the total pages.
 func WithTotalPages(totalPages int) Option {
@@ -175,7 +161,7 @@ func WithPerPage(perPage int) Option {
 // Update is the Tea update function which binds keystrokes to pagination.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		switch {
 		case key.Matches(msg, m.KeyMap.NextPage):
 			m.NextPage()
@@ -199,7 +185,7 @@ func (m Model) View() string {
 
 func (m Model) dotsView() string {
 	var s string
-	for i := 0; i < m.TotalPages; i++ {
+	for i := range m.TotalPages {
 		if i == m.Page {
 			s += m.ActiveDot
 			continue

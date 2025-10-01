@@ -1,14 +1,14 @@
 package textarea
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"unicode"
 
 	"github.com/MakeNowJust/heredoc"
-	"github.com/aymanbagabas/go-udiff"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	tea "github.com/charmbracelet/bubbletea/v2"
+	"github.com/charmbracelet/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 )
 
@@ -30,8 +30,8 @@ func TestVerticalScrolling(t *testing.T) {
 
 	view := textarea.View()
 
-	// The view should contain the first "line" of the input.
-	if !strings.Contains(view, "This is a really") {
+	// The view should contain the end of "line" of the input.
+	if !strings.Contains(view, "the text area.") {
 		t.Log(view)
 		t.Error("Text area did not render the input")
 	}
@@ -39,17 +39,19 @@ func TestVerticalScrolling(t *testing.T) {
 	// But we should be able to scroll to see the next line.
 	// Let's scroll down for each line to view the full input.
 	lines := []string{
+		"This is a really",
 		"long line that",
 		"should wrap around",
 		"the text area.",
 	}
+	textarea.viewport.GotoTop()
 	for _, line := range lines {
-		textarea.viewport.ScrollDown(1)
 		view = textarea.View()
 		if !strings.Contains(view, line) {
 			t.Log(view)
 			t.Error("Text area did not render the correct scrolled input")
 		}
+		textarea.viewport.ScrollDown(1)
 	}
 }
 
@@ -235,7 +237,7 @@ func TestVerticalNavigationKeepsCursorHorizontalPosition(t *testing.T) {
 		t.Fatal("Expected cursor to be on the fourth character because there are two double width runes on the first line.")
 	}
 
-	downMsg := tea.KeyMsg{Type: tea.KeyDown, Alt: false, Runes: []rune{}}
+	downMsg := tea.KeyPressMsg{Code: tea.KeyDown}
 	textarea, _ = textarea.Update(downMsg)
 
 	lineInfo = textarea.LineInfo()
@@ -274,7 +276,7 @@ func TestVerticalNavigationShouldRememberPositionWhileTraversing(t *testing.T) {
 	}
 
 	// Let's go up.
-	upMsg := tea.KeyMsg{Type: tea.KeyUp, Alt: false, Runes: []rune{}}
+	upMsg := tea.KeyPressMsg{Code: tea.KeyUp}
 	textarea, _ = textarea.Update(upMsg)
 
 	// We should be at the end of the second line.
@@ -293,7 +295,7 @@ func TestVerticalNavigationShouldRememberPositionWhileTraversing(t *testing.T) {
 	}
 
 	// Let's go down, twice.
-	downMsg := tea.KeyMsg{Type: tea.KeyDown, Alt: false, Runes: []rune{}}
+	downMsg := tea.KeyPressMsg{Code: tea.KeyDown}
 	textarea, _ = textarea.Update(downMsg)
 	textarea, _ = textarea.Update(downMsg)
 
@@ -309,7 +311,7 @@ func TestVerticalNavigationShouldRememberPositionWhileTraversing(t *testing.T) {
 	// work.
 
 	textarea, _ = textarea.Update(upMsg)
-	leftMsg := tea.KeyMsg{Type: tea.KeyLeft, Alt: false, Runes: []rune{}}
+	leftMsg := tea.KeyPressMsg{Code: tea.KeyLeft}
 	textarea, _ = textarea.Update(leftMsg)
 
 	if textarea.col != 4 || textarea.row != 1 {
@@ -337,7 +339,7 @@ func TestView(t *testing.T) {
 
 	tests := []struct {
 		name      string
-		modelFunc func(Model) Model
+		modelFunc func(*Model) *Model
 		want      want
 	}{
 		{
@@ -355,7 +357,7 @@ func TestView(t *testing.T) {
 		},
 		{
 			name: "single line",
-			modelFunc: func(m Model) Model {
+			modelFunc: func(m *Model) *Model {
 				m.SetValue("the first line")
 
 				return m
@@ -375,7 +377,7 @@ func TestView(t *testing.T) {
 		},
 		{
 			name: "multiple lines",
-			modelFunc: func(m Model) Model {
+			modelFunc: func(m *Model) *Model {
 				m.SetValue("the first line\nthe second line\nthe third line")
 
 				return m
@@ -395,7 +397,7 @@ func TestView(t *testing.T) {
 		},
 		{
 			name: "single line without line numbers",
-			modelFunc: func(m Model) Model {
+			modelFunc: func(m *Model) *Model {
 				m.SetValue("the first line")
 				m.ShowLineNumbers = false
 
@@ -416,7 +418,7 @@ func TestView(t *testing.T) {
 		},
 		{
 			name: "multipline lines without line numbers",
-			modelFunc: func(m Model) Model {
+			modelFunc: func(m *Model) *Model {
 				m.SetValue("the first line\nthe second line\nthe third line")
 				m.ShowLineNumbers = false
 
@@ -437,7 +439,7 @@ func TestView(t *testing.T) {
 		},
 		{
 			name: "single line and custom end of buffer character",
-			modelFunc: func(m Model) Model {
+			modelFunc: func(m *Model) *Model {
 				m.SetValue("the first line")
 				m.EndOfBufferCharacter = '*'
 
@@ -458,7 +460,7 @@ func TestView(t *testing.T) {
 		},
 		{
 			name: "multiple lines and custom end of buffer character",
-			modelFunc: func(m Model) Model {
+			modelFunc: func(m *Model) *Model {
 				m.SetValue("the first line\nthe second line\nthe third line")
 				m.EndOfBufferCharacter = '*'
 
@@ -479,7 +481,7 @@ func TestView(t *testing.T) {
 		},
 		{
 			name: "single line without line numbers and custom end of buffer character",
-			modelFunc: func(m Model) Model {
+			modelFunc: func(m *Model) *Model {
 				m.SetValue("the first line")
 				m.ShowLineNumbers = false
 				m.EndOfBufferCharacter = '*'
@@ -501,7 +503,7 @@ func TestView(t *testing.T) {
 		},
 		{
 			name: "multiple lines without line numbers and custom end of buffer character",
-			modelFunc: func(m Model) Model {
+			modelFunc: func(m *Model) *Model {
 				m.SetValue("the first line\nthe second line\nthe third line")
 				m.ShowLineNumbers = false
 				m.EndOfBufferCharacter = '*'
@@ -523,7 +525,7 @@ func TestView(t *testing.T) {
 		},
 		{
 			name: "single line and custom prompt",
-			modelFunc: func(m Model) Model {
+			modelFunc: func(m *Model) *Model {
 				m.SetValue("the first line")
 				m.Prompt = "* "
 
@@ -544,7 +546,7 @@ func TestView(t *testing.T) {
 		},
 		{
 			name: "multiple lines and custom prompt",
-			modelFunc: func(m Model) Model {
+			modelFunc: func(m *Model) *Model {
 				m.SetValue("the first line\nthe second line\nthe third line")
 				m.Prompt = "* "
 
@@ -565,7 +567,7 @@ func TestView(t *testing.T) {
 		},
 		{
 			name: "type single line",
-			modelFunc: func(m Model) Model {
+			modelFunc: func(m *Model) *Model {
 				input := "foo"
 				m = sendString(m, input)
 
@@ -586,7 +588,7 @@ func TestView(t *testing.T) {
 		},
 		{
 			name: "type multiple lines",
-			modelFunc: func(m Model) Model {
+			modelFunc: func(m *Model) *Model {
 				input := "foo\nbar\nbaz"
 				m = sendString(m, input)
 
@@ -607,7 +609,7 @@ func TestView(t *testing.T) {
 		},
 		{
 			name: "softwrap",
-			modelFunc: func(m Model) Model {
+			modelFunc: func(m *Model) *Model {
 				m.ShowLineNumbers = false
 				m.Prompt = ""
 				m.SetWidth(5)
@@ -632,7 +634,7 @@ func TestView(t *testing.T) {
 		},
 		{
 			name: "single line character limit",
-			modelFunc: func(m Model) Model {
+			modelFunc: func(m *Model) *Model {
 				m.CharLimit = 7
 
 				input := "foo bar baz"
@@ -655,7 +657,7 @@ func TestView(t *testing.T) {
 		},
 		{
 			name: "multiple lines character limit",
-			modelFunc: func(m Model) Model {
+			modelFunc: func(m *Model) *Model {
 				m.CharLimit = 19
 
 				input := "foo bar baz\nfoo bar baz"
@@ -678,7 +680,7 @@ func TestView(t *testing.T) {
 		},
 		{
 			name: "set width",
-			modelFunc: func(m Model) Model {
+			modelFunc: func(m *Model) *Model {
 				m.SetWidth(10)
 
 				input := "12"
@@ -701,7 +703,7 @@ func TestView(t *testing.T) {
 		},
 		{
 			name: "set width max length text minus one",
-			modelFunc: func(m Model) Model {
+			modelFunc: func(m *Model) *Model {
 				m.SetWidth(10)
 
 				input := "123"
@@ -724,7 +726,7 @@ func TestView(t *testing.T) {
 		},
 		{
 			name: "set width max length text",
-			modelFunc: func(m Model) Model {
+			modelFunc: func(m *Model) *Model {
 				m.SetWidth(10)
 
 				input := "1234"
@@ -747,7 +749,7 @@ func TestView(t *testing.T) {
 		},
 		{
 			name: "set width max length text plus one",
-			modelFunc: func(m Model) Model {
+			modelFunc: func(m *Model) *Model {
 				m.SetWidth(10)
 
 				input := "12345"
@@ -770,7 +772,7 @@ func TestView(t *testing.T) {
 		},
 		{
 			name: "set width set max width minus one",
-			modelFunc: func(m Model) Model {
+			modelFunc: func(m *Model) *Model {
 				m.MaxWidth = 10
 				m.SetWidth(11)
 
@@ -794,7 +796,7 @@ func TestView(t *testing.T) {
 		},
 		{
 			name: "set width set max width",
-			modelFunc: func(m Model) Model {
+			modelFunc: func(m *Model) *Model {
 				m.MaxWidth = 10
 				m.SetWidth(11)
 
@@ -818,7 +820,7 @@ func TestView(t *testing.T) {
 		},
 		{
 			name: "set width set max width plus one",
-			modelFunc: func(m Model) Model {
+			modelFunc: func(m *Model) *Model {
 				m.MaxWidth = 10
 				m.SetWidth(11)
 
@@ -842,7 +844,7 @@ func TestView(t *testing.T) {
 		},
 		{
 			name: "set width min width minus one",
-			modelFunc: func(m Model) Model {
+			modelFunc: func(m *Model) *Model {
 				m.SetWidth(6)
 
 				input := "123"
@@ -865,7 +867,7 @@ func TestView(t *testing.T) {
 		},
 		{
 			name: "set width min width",
-			modelFunc: func(m Model) Model {
+			modelFunc: func(m *Model) *Model {
 				m.SetWidth(7)
 
 				input := "123"
@@ -888,7 +890,7 @@ func TestView(t *testing.T) {
 		},
 		{
 			name: "set width min width no line numbers",
-			modelFunc: func(m Model) Model {
+			modelFunc: func(m *Model) *Model {
 				m.ShowLineNumbers = false
 				m.SetWidth(0)
 
@@ -912,7 +914,7 @@ func TestView(t *testing.T) {
 		},
 		{
 			name: "set width min width no line numbers no prompt",
-			modelFunc: func(m Model) Model {
+			modelFunc: func(m *Model) *Model {
 				m.ShowLineNumbers = false
 				m.Prompt = ""
 				m.SetWidth(0)
@@ -937,7 +939,7 @@ func TestView(t *testing.T) {
 		},
 		{
 			name: "set width min width plus one",
-			modelFunc: func(m Model) Model {
+			modelFunc: func(m *Model) *Model {
 				m.SetWidth(8)
 
 				input := "123"
@@ -960,7 +962,7 @@ func TestView(t *testing.T) {
 		},
 		{
 			name: "set width without line numbers max length text minus one",
-			modelFunc: func(m Model) Model {
+			modelFunc: func(m *Model) *Model {
 				m.ShowLineNumbers = false
 				m.SetWidth(6)
 
@@ -984,7 +986,7 @@ func TestView(t *testing.T) {
 		},
 		{
 			name: "set width without line numbers max length text",
-			modelFunc: func(m Model) Model {
+			modelFunc: func(m *Model) *Model {
 				m.ShowLineNumbers = false
 				m.SetWidth(6)
 
@@ -1008,7 +1010,7 @@ func TestView(t *testing.T) {
 		},
 		{
 			name: "set width without line numbers max length text plus one",
-			modelFunc: func(m Model) Model {
+			modelFunc: func(m *Model) *Model {
 				m.ShowLineNumbers = false
 				m.SetWidth(6)
 
@@ -1032,8 +1034,10 @@ func TestView(t *testing.T) {
 		},
 		{
 			name: "set width with style",
-			modelFunc: func(m Model) Model {
-				m.FocusedStyle.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
+			modelFunc: func(m *Model) *Model {
+				s := m.Styles()
+				s.Focused.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
+				m.SetStyles(s)
 				m.Focus()
 
 				m.SetWidth(12)
@@ -1060,8 +1064,10 @@ func TestView(t *testing.T) {
 		},
 		{
 			name: "set width with style max width minus one",
-			modelFunc: func(m Model) Model {
-				m.FocusedStyle.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
+			modelFunc: func(m *Model) *Model {
+				s := m.Styles()
+				s.Focused.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
+				m.SetStyles(s)
 				m.Focus()
 
 				m.SetWidth(12)
@@ -1088,8 +1094,10 @@ func TestView(t *testing.T) {
 		},
 		{
 			name: "set width with style max width",
-			modelFunc: func(m Model) Model {
-				m.FocusedStyle.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
+			modelFunc: func(m *Model) *Model {
+				s := m.Styles()
+				s.Focused.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
+				m.SetStyles(s)
 				m.Focus()
 
 				m.SetWidth(12)
@@ -1116,8 +1124,10 @@ func TestView(t *testing.T) {
 		},
 		{
 			name: "set width with style max width plus one",
-			modelFunc: func(m Model) Model {
-				m.FocusedStyle.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
+			modelFunc: func(m *Model) *Model {
+				s := m.Styles()
+				s.Focused.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
+				m.SetStyles(s)
 				m.Focus()
 
 				m.SetWidth(12)
@@ -1144,8 +1154,10 @@ func TestView(t *testing.T) {
 		},
 		{
 			name: "set width without line numbers with style",
-			modelFunc: func(m Model) Model {
-				m.FocusedStyle.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
+			modelFunc: func(m *Model) *Model {
+				s := m.Styles()
+				s.Focused.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
+				m.SetStyles(s)
 				m.Focus()
 
 				m.ShowLineNumbers = false
@@ -1173,8 +1185,10 @@ func TestView(t *testing.T) {
 		},
 		{
 			name: "set width without line numbers with style max width minus one",
-			modelFunc: func(m Model) Model {
-				m.FocusedStyle.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
+			modelFunc: func(m *Model) *Model {
+				s := m.Styles()
+				s.Focused.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
+				m.SetStyles(s)
 				m.Focus()
 
 				m.ShowLineNumbers = false
@@ -1202,8 +1216,10 @@ func TestView(t *testing.T) {
 		},
 		{
 			name: "set width without line numbers with style max width",
-			modelFunc: func(m Model) Model {
-				m.FocusedStyle.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
+			modelFunc: func(m *Model) *Model {
+				s := m.Styles()
+				s.Focused.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
+				m.SetStyles(s)
 				m.Focus()
 
 				m.ShowLineNumbers = false
@@ -1231,8 +1247,10 @@ func TestView(t *testing.T) {
 		},
 		{
 			name: "set width without line numbers with style max width plus one",
-			modelFunc: func(m Model) Model {
-				m.FocusedStyle.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
+			modelFunc: func(m *Model) *Model {
+				s := m.Styles()
+				s.Focused.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
+				m.SetStyles(s)
 				m.Focus()
 
 				m.ShowLineNumbers = false
@@ -1260,7 +1278,7 @@ func TestView(t *testing.T) {
 		},
 		{
 			name: "placeholder min width",
-			modelFunc: func(m Model) Model {
+			modelFunc: func(m *Model) *Model {
 				m.SetWidth(0)
 
 				return m
@@ -1278,7 +1296,7 @@ func TestView(t *testing.T) {
 		},
 		{
 			name: "placeholder single line",
-			modelFunc: func(m Model) Model {
+			modelFunc: func(m *Model) *Model {
 				m.Placeholder = "placeholder the first line"
 				m.ShowLineNumbers = false
 
@@ -1297,7 +1315,7 @@ func TestView(t *testing.T) {
 		},
 		{
 			name: "placeholder multiple lines",
-			modelFunc: func(m Model) Model {
+			modelFunc: func(m *Model) *Model {
 				m.Placeholder = "placeholder the first line\nplaceholder the second line\nplaceholder the third line"
 				m.ShowLineNumbers = false
 
@@ -1316,7 +1334,7 @@ func TestView(t *testing.T) {
 		},
 		{
 			name: "placeholder single line with line numbers",
-			modelFunc: func(m Model) Model {
+			modelFunc: func(m *Model) *Model {
 				m.Placeholder = "placeholder the first line"
 				m.ShowLineNumbers = true
 
@@ -1335,7 +1353,7 @@ func TestView(t *testing.T) {
 		},
 		{
 			name: "placeholder multiple lines with line numbers",
-			modelFunc: func(m Model) Model {
+			modelFunc: func(m *Model) *Model {
 				m.Placeholder = "placeholder the first line\nplaceholder the second line\nplaceholder the third line"
 				m.ShowLineNumbers = true
 
@@ -1354,7 +1372,7 @@ func TestView(t *testing.T) {
 		},
 		{
 			name: "placeholder single line with end of buffer character",
-			modelFunc: func(m Model) Model {
+			modelFunc: func(m *Model) *Model {
 				m.Placeholder = "placeholder the first line"
 				m.ShowLineNumbers = false
 				m.EndOfBufferCharacter = '*'
@@ -1374,7 +1392,7 @@ func TestView(t *testing.T) {
 		},
 		{
 			name: "placeholder multiple lines with with end of buffer character",
-			modelFunc: func(m Model) Model {
+			modelFunc: func(m *Model) *Model {
 				m.Placeholder = "placeholder the first line\nplaceholder the second line\nplaceholder the third line"
 				m.ShowLineNumbers = false
 				m.EndOfBufferCharacter = '*'
@@ -1394,7 +1412,7 @@ func TestView(t *testing.T) {
 		},
 		{
 			name: "placeholder single line with line numbers and end of buffer character",
-			modelFunc: func(m Model) Model {
+			modelFunc: func(m *Model) *Model {
 				m.Placeholder = "placeholder the first line"
 				m.ShowLineNumbers = true
 				m.EndOfBufferCharacter = '*'
@@ -1414,7 +1432,7 @@ func TestView(t *testing.T) {
 		},
 		{
 			name: "placeholder multiple lines with line numbers and end of buffer character",
-			modelFunc: func(m Model) Model {
+			modelFunc: func(m *Model) *Model {
 				m.Placeholder = "placeholder the first line\nplaceholder the second line\nplaceholder the third line"
 				m.ShowLineNumbers = true
 				m.EndOfBufferCharacter = '*'
@@ -1434,7 +1452,7 @@ func TestView(t *testing.T) {
 		},
 		{
 			name: "placeholder single line that is longer than max width",
-			modelFunc: func(m Model) Model {
+			modelFunc: func(m *Model) *Model {
 				m.Placeholder = "placeholder the first line that is longer than the max width"
 				m.SetWidth(40)
 				m.ShowLineNumbers = false
@@ -1454,7 +1472,7 @@ func TestView(t *testing.T) {
 		},
 		{
 			name: "placeholder multiple lines that are longer than max width",
-			modelFunc: func(m Model) Model {
+			modelFunc: func(m *Model) *Model {
 				m.Placeholder = "placeholder the first line that is longer than the max width\nplaceholder the second line that is longer than the max width"
 				m.ShowLineNumbers = false
 				m.SetWidth(40)
@@ -1474,7 +1492,7 @@ func TestView(t *testing.T) {
 		},
 		{
 			name: "placeholder single line that is longer than max width with line numbers",
-			modelFunc: func(m Model) Model {
+			modelFunc: func(m *Model) *Model {
 				m.Placeholder = "placeholder the first line that is longer than the max width"
 				m.ShowLineNumbers = true
 				m.SetWidth(40)
@@ -1494,7 +1512,7 @@ func TestView(t *testing.T) {
 		},
 		{
 			name: "placeholder multiple lines that are longer than max width with line numbers",
-			modelFunc: func(m Model) Model {
+			modelFunc: func(m *Model) *Model {
 				m.Placeholder = "placeholder the first line that is longer than the max width\nplaceholder the second line that is longer than the max width"
 				m.ShowLineNumbers = true
 				m.SetWidth(40)
@@ -1514,7 +1532,7 @@ func TestView(t *testing.T) {
 		},
 		{
 			name: "placeholder single line that is longer than max width at limit",
-			modelFunc: func(m Model) Model {
+			modelFunc: func(m *Model) *Model {
 				m.Placeholder = "123456789012345678"
 				m.ShowLineNumbers = false
 				m.SetWidth(20)
@@ -1534,7 +1552,7 @@ func TestView(t *testing.T) {
 		},
 		{
 			name: "placeholder single line that is longer than max width at limit plus one",
-			modelFunc: func(m Model) Model {
+			modelFunc: func(m *Model) *Model {
 				m.Placeholder = "1234567890123456789"
 				m.ShowLineNumbers = false
 				m.SetWidth(20)
@@ -1554,7 +1572,7 @@ func TestView(t *testing.T) {
 		},
 		{
 			name: "placeholder single line that is longer than max width with line numbers at limit",
-			modelFunc: func(m Model) Model {
+			modelFunc: func(m *Model) *Model {
 				m.Placeholder = "12345678901234"
 				m.ShowLineNumbers = true
 				m.SetWidth(20)
@@ -1574,7 +1592,7 @@ func TestView(t *testing.T) {
 		},
 		{
 			name: "placeholder single line that is longer than max width with line numbers at limit plus one",
-			modelFunc: func(m Model) Model {
+			modelFunc: func(m *Model) *Model {
 				m.Placeholder = "123456789012345"
 				m.ShowLineNumbers = true
 				m.SetWidth(20)
@@ -1594,7 +1612,7 @@ func TestView(t *testing.T) {
 		},
 		{
 			name: "placeholder multiple lines that are longer than max width at limit",
-			modelFunc: func(m Model) Model {
+			modelFunc: func(m *Model) *Model {
 				m.Placeholder = "123456789012345678\n123456789012345678"
 				m.ShowLineNumbers = false
 				m.SetWidth(20)
@@ -1614,7 +1632,7 @@ func TestView(t *testing.T) {
 		},
 		{
 			name: "placeholder multiple lines that are longer than max width at limit plus one",
-			modelFunc: func(m Model) Model {
+			modelFunc: func(m *Model) *Model {
 				m.Placeholder = "1234567890123456789\n1234567890123456789"
 				m.ShowLineNumbers = false
 				m.SetWidth(20)
@@ -1634,7 +1652,7 @@ func TestView(t *testing.T) {
 		},
 		{
 			name: "placeholder multiple lines that are longer than max width with line numbers at limit",
-			modelFunc: func(m Model) Model {
+			modelFunc: func(m *Model) *Model {
 				m.Placeholder = "12345678901234\n12345678901234"
 				m.ShowLineNumbers = true
 				m.SetWidth(20)
@@ -1654,7 +1672,7 @@ func TestView(t *testing.T) {
 		},
 		{
 			name: "placeholder multiple lines that are longer than max width with line numbers at limit plus one",
-			modelFunc: func(m Model) Model {
+			modelFunc: func(m *Model) *Model {
 				m.Placeholder = "123456789012345\n123456789012345"
 				m.ShowLineNumbers = true
 				m.SetWidth(20)
@@ -1674,7 +1692,7 @@ func TestView(t *testing.T) {
 		},
 		{
 			name: "placeholder chinese character",
-			modelFunc: func(m Model) Model {
+			modelFunc: func(m *Model) *Model {
 				m.Placeholder = "输入消息..."
 				m.ShowLineNumbers = true
 				m.SetWidth(20)
@@ -1692,11 +1710,188 @@ func TestView(t *testing.T) {
 				`),
 			},
 		},
+		{
+			name: "page up moves to beginning when near top",
+			modelFunc: func(m *Model) *Model {
+				m.ShowLineNumbers = true
+				m.SetHeight(4)
+				m.SetWidth(20)
+
+				lines := make([]string, 10)
+				for i := range 10 {
+					lines[i] = fmt.Sprintf("Line %d", i+1)
+				}
+				m.SetValue(strings.Join(lines, "\n"))
+				m.viewport.SetContent(m.view()) // force setting of viewport content.
+
+				m.row = 3
+				m.col = 0
+				m.viewport.SetYOffset(0)
+				m.PageUp()
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					>   1 Line 1
+					>   2 Line 2
+					>   3 Line 3
+					>   4 Line 4
+				`),
+				cursorRow: 0,
+			},
+		},
+		{
+			name: "page up snaps to first visible line when not on it",
+			modelFunc: func(m *Model) *Model {
+				m.ShowLineNumbers = true
+				m.SetHeight(4)
+				m.SetWidth(20)
+
+				lines := make([]string, 10)
+				for i := range 10 {
+					lines[i] = fmt.Sprintf("Line %d", i+1)
+				}
+				m.SetValue(strings.Join(lines, "\n"))
+				m.viewport.SetContent(m.view()) // force setting of viewport content.
+
+				m.row = 5
+				m.col = 0
+				m.viewport.SetYOffset(3)
+				m.PageUp()
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					>   4 Line 4
+					>   5 Line 5
+					>   6 Line 6
+					>   7 Line 7
+				`),
+				cursorRow: 3,
+			},
+		},
+		{
+			name: "page up moves up by full page when on first visible line",
+			modelFunc: func(m *Model) *Model {
+				m.ShowLineNumbers = true
+				m.SetHeight(3)
+				m.SetWidth(20)
+
+				lines := make([]string, 10)
+				for i := range 10 {
+					lines[i] = fmt.Sprintf("Line %d", i+1)
+				}
+				m.SetValue(strings.Join(lines, "\n"))
+				m.viewport.SetContent(m.view()) // force setting of viewport content.
+
+				m.row = 5
+				m.col = 0
+				m.viewport.SetYOffset(5)
+				m.PageUp()
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					>   3 Line 3
+					>   4 Line 4
+					>   5 Line 5
+				`),
+				cursorRow: 2,
+			},
+		},
+		{
+			name: "page down moves to end when near bottom",
+			modelFunc: func(m *Model) *Model {
+				m.SetHeight(3)
+				m.SetWidth(20)
+
+				lines := make([]string, 10)
+				for i := range 10 {
+					lines[i] = fmt.Sprintf("Line %d", i+1)
+				}
+				m.SetValue(strings.Join(lines, "\n"))
+				m.viewport.SetContent(m.view()) // force setting of viewport content.
+
+				m.row = 8
+				m.col = 0
+				m.viewport.SetYOffset(7)
+				m.PageDown()
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					>   8 Line 8
+					>   9 Line 9
+					>  10 Line 10
+				`),
+				cursorRow: 9,
+			},
+		},
+		{
+			name: "page down snaps to last visible line when not on it",
+			modelFunc: func(m *Model) *Model {
+				m.SetHeight(3)
+				m.SetWidth(20)
+
+				lines := make([]string, 10)
+				for i := range 10 {
+					lines[i] = fmt.Sprintf("Line %d", i+1)
+				}
+				m.SetValue(strings.Join(lines, "\n"))
+				m.viewport.SetContent(m.view()) // force setting of viewport content.
+
+				m.row = 3
+				m.col = 0
+				m.viewport.SetYOffset(3)
+				m.PageDown()
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					>   4 Line 4
+					>   5 Line 5
+					>   6 Line 6
+				`),
+				cursorRow: 5,
+			},
+		},
+		{
+			name: "page down moves down by full page when on last visible line",
+			modelFunc: func(m *Model) *Model {
+				m.SetHeight(3)
+				m.SetWidth(20)
+
+				lines := make([]string, 10)
+				for i := range 10 {
+					lines[i] = fmt.Sprintf("Line %d", i+1)
+				}
+				m.SetValue(strings.Join(lines, "\n"))
+				m.viewport.SetContent(m.view()) // force setting of viewport content.
+
+				m.row = 4
+				m.col = 0
+				m.viewport.SetYOffset(2)
+				m.PageDown()
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					>   6 Line 6
+					>   7 Line 7
+					>   8 Line 8
+				`),
+				cursorRow: 7,
+			},
+		},
 	}
 
 	for _, tt := range tests {
-		tt := tt
-
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -1710,7 +1905,6 @@ func TestView(t *testing.T) {
 			wantView := stripString(tt.want.view)
 
 			if view != wantView {
-				t.Log(udiff.Unified("expected", "got", wantView, view))
 				t.Fatalf("Want:\n%v\nGot:\n%v\n", wantView, view)
 			}
 
@@ -1724,7 +1918,63 @@ func TestView(t *testing.T) {
 	}
 }
 
-func newTextArea() Model {
+func TestWord(t *testing.T) {
+	textarea := newTextArea()
+
+	textarea.SetHeight(3)
+	textarea.SetWidth(20)
+	textarea.CharLimit = 500
+
+	textarea, _ = textarea.Update(nil)
+
+	t.Run("regular input", func(t *testing.T) {
+		input := "Word1 Word2 Word3 Word4"
+		for _, k := range input {
+			textarea, _ = textarea.Update(keyPress(k))
+			textarea.View()
+		}
+
+		expect := "Word4"
+		if word := textarea.Word(); word != expect {
+			t.Fatalf("Expected last word to be '%s', got '%s'", expect, word)
+		}
+	})
+
+	t.Run("navigate", func(t *testing.T) {
+		for _, k := range []tea.KeyPressMsg{
+			{Code: tea.KeyLeft, Mod: tea.ModAlt, Text: "alt+left"},
+			{Code: tea.KeyLeft, Mod: tea.ModAlt, Text: "alt+left"},
+			{Code: tea.KeyRight, Text: "right"},
+		} {
+			textarea, _ = textarea.Update(k)
+			textarea.View()
+		}
+
+		expect := "Word3"
+		if word := textarea.Word(); word != expect {
+			t.Fatalf("Expected last word to be '%s', got '%s'", expect, word)
+		}
+	})
+
+	t.Run("delete", func(t *testing.T) {
+		for _, k := range []tea.KeyPressMsg{
+			{Code: tea.KeyEnd, Text: "end"},
+			{Code: tea.KeyBackspace, Mod: tea.ModAlt, Text: "alt+backspace"},
+			{Code: tea.KeyBackspace, Mod: tea.ModAlt, Text: "alt+backspace"},
+			{Code: tea.KeyBackspace, Text: "backspace"},
+		} {
+			textarea, _ = textarea.Update(k)
+			textarea.View()
+		}
+
+		expect := "Word2"
+		if word := textarea.Word(); word != expect {
+			t.Fatalf("Expected last word to be '%s', got '%s'", expect, word)
+		}
+	})
+}
+
+func newTextArea() *Model {
 	textarea := New()
 
 	textarea.Prompt = "> "
@@ -1738,10 +1988,10 @@ func newTextArea() Model {
 }
 
 func keyPress(key rune) tea.Msg {
-	return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{key}, Alt: false}
+	return tea.KeyPressMsg{Code: key, Text: string(key)}
 }
 
-func sendString(m Model, str string) Model {
+func sendString(m *Model, str string) *Model {
 	for _, k := range []rune(str) {
 		m, _ = m.Update(keyPress(k))
 	}

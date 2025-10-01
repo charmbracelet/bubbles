@@ -174,7 +174,7 @@ var DefaultKeyMap = KeyMap{
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
     switch msg := msg.(type) {
-    case tea.KeyMsg:
+    case tea.KeyPressMsg:
         switch {
         case key.Matches(msg, DefaultKeyMap.Up):
             // The user pressed up

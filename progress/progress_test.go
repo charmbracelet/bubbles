@@ -4,15 +4,14 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/muesli/termenv"
+	"github.com/charmbracelet/lipgloss/v2"
 )
 
 const (
-	AnsiReset = "\x1b[0m"
+	AnsiReset = "\x1b[m"
 )
 
 func TestGradient(t *testing.T) {
-
 	colA := "#FF0000"
 	colB := "#00FF00"
 
@@ -21,7 +20,7 @@ func TestGradient(t *testing.T) {
 
 	for _, scale := range []bool{false, true} {
 		opts := []Option{
-			WithColorProfile(termenv.TrueColor), WithoutPercentage(),
+			WithoutPercentage(),
 		}
 		if scale {
 			descr = "progress bar with scaled gradient"
@@ -36,14 +35,14 @@ func TestGradient(t *testing.T) {
 
 			// build the expected colors by colorizing an empty string and then cutting off the following reset sequence
 			sb := strings.Builder{}
-			sb.WriteString(termenv.String("").Foreground(p.color(colA)).String())
+			sb.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color(colA)).String())
 			expFirst := strings.Split(sb.String(), AnsiReset)[0]
 			sb.Reset()
-			sb.WriteString(termenv.String("").Foreground(p.color(colB)).String())
+			sb.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color(colB)).String())
 			expLast := strings.Split(sb.String(), AnsiReset)[0]
 
 			for _, width := range []int{3, 5, 50} {
-				p.Width = width
+				p.SetWidth(width)
 				res := p.ViewAs(1.0)
 
 				// extract colors from the progrss bar by splitting at p.Full+AnsiReset, leaving us with just the color sequences
@@ -62,5 +61,4 @@ func TestGradient(t *testing.T) {
 			}
 		})
 	}
-
 }
