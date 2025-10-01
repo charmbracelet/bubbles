@@ -40,6 +40,24 @@ type (
 	pasteErrMsg struct{ error }
 )
 
+// WrapMode describes how to line-wrap text.
+type WrapMode int
+
+// Available wrap modes.
+const (
+	WordWrap WrapMode = iota
+	RuneWrap
+)
+
+// String returns the wrap mode in a human-readable format. This method is
+// provisional and for informational purposes only.
+func (w WrapMode) String() string {
+	return [...]string{
+		"word",
+		"rune",
+	}[w]
+}
+
 // KeyMap is the key bindings for different actions within the textarea.
 type KeyMap struct {
 	CharacterBackward       key.Binding
@@ -174,13 +192,14 @@ func (s Style) computedText() lipgloss.Style {
 // line is the input to the text wrapping function. This is stored in a struct
 // so that it can be hashed and memoized.
 type line struct {
-	runes []rune
-	width int
+	runes    []rune
+	width    int
+	wrapMode WrapMode
 }
 
 // Hash returns a hash of the line.
 func (w line) Hash() string {
-	v := fmt.Sprintf("%s:%d", string(w.runes), w.width)
+	v := fmt.Sprintf("%s:%d:%d", string(w.runes), w.width, w.wrapMode)
 	return fmt.Sprintf("%x", sha256.Sum256([]byte(v)))
 }
 
@@ -237,6 +256,9 @@ type Model struct {
 	// MaxWidth is the maximum width of the text area in columns. If 0 or less,
 	// there's no limit.
 	MaxWidth int
+
+	// wrapMode determines line-wrapping behavior.
+	wrapMode WrapMode
 
 	// If promptFunc is set, it replaces Prompt as a generator for
 	// prompt strings at the beginning of each line.
@@ -300,6 +322,7 @@ func New() Model {
 		ShowLineNumbers:      true,
 		Cursor:               cur,
 		KeyMap:               DefaultKeyMap,
+		wrapMode:             WordWrap,
 
 		value: make([][]rune, minHeight, maxLines),
 		focus: false,
@@ -954,6 +977,14 @@ func (m *Model) SetHeight(h int) {
 	}
 }
 
+// SetWrapMode sets the model's wrap mode.
+func (m *Model) SetWrapMode(mode WrapMode) {
+	if mode < WordWrap || mode > RuneWrap {
+		return
+	}
+	m.wrapMode = mode
+}
+
 // Update is the Bubble Tea update loop.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	if !m.focus {
@@ -1304,11 +1335,11 @@ func Blink() tea.Msg {
 }
 
 func (m Model) memoizedWrap(runes []rune, width int) [][]rune {
-	input := line{runes: runes, width: width}
+	input := line{runes: runes, width: width, wrapMode: m.wrapMode}
 	if v, ok := m.cache.Get(input); ok {
 		return v
 	}
-	v := wrap(runes, width)
+	v := wrap(runes, width, m.wrapMode)
 	m.cache.Set(input, v)
 	return v
 }
@@ -1395,7 +1426,23 @@ func Paste() tea.Msg {
 	return pasteMsg(str)
 }
 
-func wrap(runes []rune, width int) [][]rune {
+func wrap(runes []rune, width int, mode WrapMode) [][]rune {
+	if mode == RuneWrap {
+		wrapped := ansi.Hardwrap(string(runes), width, true)
+		wrappedSplit := strings.Split(wrapped, "\n")
+
+		lines := [][]rune{}
+		for i, s := range wrappedSplit {
+			if i == len(wrappedSplit)-1 {
+				s += " "
+			}
+
+			lines = append(lines, []rune(s))
+		}
+
+		return lines
+	}
+
 	var (
 		lines  = [][]rune{{}}
 		word   = []rune{}
