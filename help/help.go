@@ -142,7 +142,7 @@ func (m Model) ShortHelpView(bindings []key.Binding) string {
 		w := lipgloss.Width(str)
 
 		// Tail
-		if tail, ok := m.shouldAddItem(totalWidth, w); !ok {
+		if tail, ok := m.shouldAddItem(m.Styles.ShortWhitespace, totalWidth, w); !ok {
 			if tail != "" {
 				b.WriteString(tail)
 			}
@@ -208,7 +208,7 @@ func (m Model) FullHelpView(groups [][]key.Binding) string {
 		w := lipgloss.Width(col)
 
 		// Tail
-		if tail, ok := m.shouldAddItem(totalWidth, w); !ok {
+		if tail, ok := m.shouldAddItem(m.Styles.FullWhitespace, totalWidth, w); !ok {
 			if tail != "" {
 				out = append(out, tail)
 			}
@@ -222,10 +222,10 @@ func (m Model) FullHelpView(groups [][]key.Binding) string {
 	return lipgloss.JoinHorizontal(lipgloss.Top, out...)
 }
 
-func (m Model) shouldAddItem(totalWidth, width int) (tail string, ok bool) {
+func (m Model) shouldAddItem(spaceStyle lipgloss.Style, totalWidth, width int) (tail string, ok bool) {
 	// If there's room for an ellipsis, print that.
 	if m.Width > 0 && totalWidth+width > m.Width {
-		tail = " " + m.Styles.Ellipsis.Inline(true).Render(m.Ellipsis)
+		tail = spaceStyle.Inline(true).Render(" ") + m.Styles.Ellipsis.Inline(true).Render(m.Ellipsis)
 
 		if totalWidth+lipgloss.Width(tail) < m.Width {
 			return tail, false
