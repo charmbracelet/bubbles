@@ -652,7 +652,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		m.updateSuggestions()
 
 	case tea.PasteMsg:
-		m.insertRunesFromUserInput([]rune(msg))
+		m.insertRunesFromUserInput([]rune(msg.Content))
 
 	case pasteMsg:
 		m.insertRunesFromUserInput([]rune(msg))

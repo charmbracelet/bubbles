@@ -1182,7 +1182,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.PasteMsg:
-		m.insertRunesFromUserInput([]rune(msg))
+		m.insertRunesFromUserInput([]rune(msg.Content))
 	case tea.KeyPressMsg:
 		switch {
 		case key.Matches(msg, m.KeyMap.DeleteAfterCursor):
