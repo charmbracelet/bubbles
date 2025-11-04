@@ -1,3 +1,5 @@
+charm.land/bubbletea/v2 v2.0.0-beta.6.0.20251104195021-b8645799fe45 h1:fTulbdntGS0fp4xLeDO1+myFIwJNBNXO0pZ6SHs1oM0=
+charm.land/bubbletea/v2 v2.0.0-beta.6.0.20251104195021-b8645799fe45/go.mod h1:001PaYn0OSAHMEEZ5d2Oh3E6hA6vs5LtYvQOAZgIiao=
 github.com/MakeNowJust/heredoc v1.0.0 h1:cXCdzVdstXyiTqTvfqk9SDHpKNjxuom+DOlyEeQ4pzQ=
 github.com/MakeNowJust/heredoc v1.0.0/go.mod h1:mG5amYoWBHf8vpLOuehzbGGw0EHxpZZ6lCpQ4fNJ8LE=
 github.com/atotto/clipboard v0.1.4 h1:EH0zSVneZPSuFR11BlR9YppQTVDbh5+16AmcJi4g1z4=

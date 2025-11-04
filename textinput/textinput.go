@@ -12,7 +12,7 @@ import (
 	"github.com/charmbracelet/bubbles/v2/cursor"
 	"github.com/charmbracelet/bubbles/v2/internal/runeutil"
 	"github.com/charmbracelet/bubbles/v2/key"
-	tea "github.com/charmbracelet/bubbletea/v2"
+	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/lipgloss/v2"
 	rw "github.com/mattn/go-runewidth"
 	"github.com/rivo/uniseg"
