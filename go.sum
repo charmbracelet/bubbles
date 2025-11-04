@@ -6,8 +6,10 @@ github.com/atotto/clipboard v0.1.4 h1:EH0zSVneZPSuFR11BlR9YppQTVDbh5+16AmcJi4g1z
 github.com/atotto/clipboard v0.1.4/go.mod h1:ZY9tmq7sm5xIbd9bOK4onWV4S6X0u6GY7Vn0Yu86PYI=
 github.com/aymanbagabas/go-udiff v0.3.1 h1:LV+qyBQ2pqe0u42ZsUEtPiCaUoqgA9gYRDs3vj1nolY=
 github.com/aymanbagabas/go-udiff v0.3.1/go.mod h1:G0fsKmG+P6ylD0r6N/KgQD/nWzgfnl8ZBcNLgcbrw8E=
-github.com/charmbracelet/bubbletea/v2 v2.0.0-beta.6.0.20251104190126-b947ade70df8 h1:zUTPH5J8DdRvAmbPhEBdvvSVfhaqvVFnwLfNW4uw+z8=
-github.com/charmbracelet/bubbletea/v2 v2.0.0-beta.6.0.20251104190126-b947ade70df8/go.mod h1:Qvc8pF5sbO95/94cnuscL8XVs1uEDWhsKMn2vReZWK4=
+github.com/charmbracelet/bubbles/v2 v2.0.0-beta.1 h1:swACzss0FjnyPz1enfX56GKkLiuKg5FlyVmOLIlU2kE=
+github.com/charmbracelet/bubbles/v2 v2.0.0-beta.1/go.mod h1:6HamsBKWqEC/FVHuQMHgQL+knPyvHH55HwJDHl/adMw=
+github.com/charmbracelet/bubbletea/v2 v2.0.0-beta.1 h1:RvpXiXuPAuaKCHPCsE/lK5+zztnNDTSCa0CpeeIKdDU=
+github.com/charmbracelet/bubbletea/v2 v2.0.0-beta.1/go.mod h1:qbcZLI5z8R49v9xBdU5V5Dh5D2uccx8wSwBqxQyErqc=
 github.com/charmbracelet/colorprofile v0.3.2 h1:9J27WdztfJQVAQKX2WOlSSRB+5gaKqqITmrvb1uTIiI=
 github.com/charmbracelet/colorprofile v0.3.2/go.mod h1:mTD5XzNeWHj8oqHb+S1bssQb7vIHbepiebQ2kPKVKbI=
 github.com/charmbracelet/harmonica v0.2.0 h1:8NxJWRWg/bzKqqEaaeFNipOu77YR5t8aSwG4pgaUBiQ=
@@ -18,8 +20,12 @@ github.com/charmbracelet/ultraviolet v0.0.0-20251104185819-20e68c88fe84 h1:v0Lpf
 github.com/charmbracelet/ultraviolet v0.0.0-20251104185819-20e68c88fe84/go.mod h1:v1E3tTRQE3uaU0K1BrF/kgjAMGEPhkIYebanPBZ6Sdo=
 github.com/charmbracelet/x/ansi v0.10.3 h1:3WoV9XN8uMEnFRZZ+vBPRy59TaIWa+gJodS4Vg5Fut0=
 github.com/charmbracelet/x/ansi v0.10.3/go.mod h1:uQt8bOrq/xgXjlGcFMc8U2WYbnxyjrKhnvTQluvfCaE=
+github.com/charmbracelet/x/cellbuf v0.0.13 h1:/KBBKHuVRbq1lYx5BzEHBAFBP8VcQzJejZ/IA3iR28k=
+github.com/charmbracelet/x/cellbuf v0.0.13/go.mod h1:xe0nKWGd3eJgtqZRaN9RjMtK7xUYchjzPr7q6kcvCCs=
 github.com/charmbracelet/x/exp/golden v0.0.0-20250806222409-83e3a29d542f h1:pk6gmGpCE7F3FcjaOEKYriCvpmIN4+6OS/RD0vm4uIA=
 github.com/charmbracelet/x/exp/golden v0.0.0-20250806222409-83e3a29d542f/go.mod h1:IfZAMTHB6XkZSeXUqriemErjAWCCzT0LwjKFYCZyw0I=
+github.com/charmbracelet/x/input v0.3.4 h1:Mujmnv/4DaitU0p+kIsrlfZl/UlmeLKw1wAP3e1fMN0=
+github.com/charmbracelet/x/input v0.3.4/go.mod h1:JI8RcvdZWQIhn09VzeK3hdp4lTz7+yhiEdpEQtZN+2c=
 github.com/charmbracelet/x/term v0.2.2 h1:xVRT/S2ZcKdhhOuSP4t5cLi5o+JxklsoEObBSgfgZRk=
 github.com/charmbracelet/x/term v0.2.2/go.mod h1:kF8CY5RddLWrsgVwpw4kAa6TESp6EB5y3uxGLeCqzAI=
 github.com/charmbracelet/x/termios v0.1.1 h1:o3Q2bT8eqzGnGPOYheoYS8eEleT5ZVNYNy8JawjaNZY=
