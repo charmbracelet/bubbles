@@ -9,9 +9,9 @@ import (
 	"unicode"
 
 	"github.com/atotto/clipboard"
-	"github.com/charmbracelet/bubbles/v2/cursor"
-	"github.com/charmbracelet/bubbles/v2/internal/runeutil"
-	"github.com/charmbracelet/bubbles/v2/key"
+	"charm.land/bubbles/v2/cursor"
+	"charm.land/bubbles/v2/internal/runeutil"
+	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/lipgloss/v2"
 	rw "github.com/mattn/go-runewidth"

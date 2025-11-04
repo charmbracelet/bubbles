@@ -4,7 +4,7 @@ package help
 import (
 	"strings"
 
-	"github.com/charmbracelet/bubbles/v2/key"
+	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/lipgloss/v2"
 )

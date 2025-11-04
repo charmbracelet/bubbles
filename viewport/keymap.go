@@ -2,7 +2,7 @@
 // Tea.
 package viewport
 
-import "github.com/charmbracelet/bubbles/v2/key"
+import "charm.land/bubbles/v2/key"
 
 // KeyMap defines the keybindings for the viewport. Note that you don't
 // necessary need to use keybindings at all; the viewport can be controlled

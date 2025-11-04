@@ -7,7 +7,7 @@ package paginator
 import (
 	"fmt"
 
-	"github.com/charmbracelet/bubbles/v2/key"
+	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 )
 

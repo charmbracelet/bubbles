@@ -1,7 +1,7 @@
 package list
 
 import (
-	"github.com/charmbracelet/bubbles/v2/textinput"
+	"charm.land/bubbles/v2/textinput"
 	"github.com/charmbracelet/lipgloss/v2"
 )
 
