@@ -18,8 +18,8 @@ import (
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
-	"github.com/atotto/clipboard"
 	"charm.land/lipgloss/v2"
+	"github.com/atotto/clipboard"
 	"github.com/charmbracelet/x/ansi"
 	rw "github.com/mattn/go-runewidth"
 	"github.com/rivo/uniseg"
@@ -1161,7 +1161,7 @@ func (m *Model) SetHeight(h int) {
 }
 
 // Update is the Bubble Tea update loop.
-func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
+func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	if !m.focus {
 		m.virtualCursor.Blur()
 		return m, nil
@@ -1407,7 +1407,7 @@ func (m *Model) view() string {
 }
 
 // View renders the text area in its current state.
-func (m *Model) View() string {
+func (m Model) View() string {
 	// XXX: This is a workaround for the case where the viewport hasn't
 	// been initialized yet like during the initial render. In that case,
 	// we need to render the view again because Update hasn't been called
