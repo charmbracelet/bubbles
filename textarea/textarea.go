@@ -338,7 +338,7 @@ type Model struct {
 }
 
 // New creates a new model with default settings.
-func New() *Model {
+func New() Model {
 	vp := viewport.New()
 	vp.KeyMap = viewport.KeyMap{}
 	cur := cursor.New()
@@ -369,7 +369,7 @@ func New() *Model {
 	m.SetHeight(defaultHeight)
 	m.SetWidth(defaultWidth)
 
-	return &m
+	return m
 }
 
 // DefaultStyles returns the default styles for focused and blurred states for
