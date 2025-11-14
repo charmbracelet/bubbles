@@ -870,14 +870,14 @@ func (m Model) Width() int {
 	return m.width
 }
 
-// moveToBegin moves the cursor to the beginning of the input.
-func (m *Model) moveToBegin() {
+// MoveToBegin moves the cursor to the beginning of the input.
+func (m *Model) MoveToBegin() {
 	m.row = 0
 	m.SetCursor(0)
 }
 
-// moveToEnd moves the cursor to the end of the input.
-func (m *Model) moveToEnd() {
+// MoveToEnd moves the cursor to the end of the input.
+func (m *Model) MoveToEnd() {
 	m.row = len(m.value) - 1
 	m.SetCursor(len(m.value[m.row]))
 }
@@ -1049,9 +1049,9 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		case key.Matches(msg, m.KeyMap.WordBackward):
 			m.wordLeft()
 		case key.Matches(msg, m.KeyMap.InputBegin):
-			m.moveToBegin()
+			m.MoveToBegin()
 		case key.Matches(msg, m.KeyMap.InputEnd):
-			m.moveToEnd()
+			m.MoveToEnd()
 		case key.Matches(msg, m.KeyMap.LowercaseWordForward):
 			m.lowercaseRight()
 		case key.Matches(msg, m.KeyMap.UppercaseWordForward):
