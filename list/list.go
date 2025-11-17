@@ -697,7 +697,7 @@ func (m *Model) SetSize(width, height int) {
 
 	m.width = width
 	m.height = height
-	m.Help.Width = width
+	m.Help.SetWidth(width)
 	m.FilterInput.SetWidth(width - promptWidth - lipgloss.Width(m.spinnerView()))
 	m.updatePagination()
 	m.updateKeybindings()

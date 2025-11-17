@@ -30,7 +30,7 @@ func TestFullHelp(t *testing.T) {
 
 	for _, w := range []int{20, 30, 40} {
 		t.Run(fmt.Sprintf("full help %d width", w), func(t *testing.T) {
-			m.Width = w
+			m.SetWidth(w)
 			s := m.FullHelpView(kb)
 			s = ansi.Strip(s)
 			golden.RequireEqual(t, []byte(s))

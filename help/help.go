@@ -75,7 +75,6 @@ func DefaultLightStyles() Styles {
 
 // Model contains the state of the help view.
 type Model struct {
-	Width   int
 	ShowAll bool // if true, render the "full" help menu
 
 	ShortSeparator string
@@ -86,6 +85,8 @@ type Model struct {
 	Ellipsis string
 
 	Styles Styles
+
+	width int
 }
 
 // New creates a new help view with some useful defaults.
@@ -109,6 +110,16 @@ func (m Model) View(k KeyMap) string {
 		return m.FullHelpView(k.FullHelp())
 	}
 	return m.ShortHelpView(k.ShortHelp())
+}
+
+// SetWidth sets the maximum width for the help view.
+func (m *Model) SetWidth(w int) {
+	m.width = w
+}
+
+// Width returns the maximum width for the help view.
+func (m Model) Width() int {
+	return m.width
 }
 
 // ShortHelpView renders a single line help view from a slice of keybindings.
@@ -223,10 +234,10 @@ func (m Model) FullHelpView(groups [][]key.Binding) string {
 
 func (m Model) shouldAddItem(totalWidth, width int) (tail string, ok bool) {
 	// If there's room for an ellipsis, print that.
-	if m.Width > 0 && totalWidth+width > m.Width {
+	if m.width > 0 && totalWidth+width > m.width {
 		tail = " " + m.Styles.Ellipsis.Inline(true).Render(m.Ellipsis)
 
-		if totalWidth+lipgloss.Width(tail) < m.Width {
+		if totalWidth+lipgloss.Width(tail) < m.width {
 			return tail, false
 		}
 	}
