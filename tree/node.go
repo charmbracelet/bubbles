@@ -28,6 +28,21 @@ type Node struct {
 	opts itemOptions
 }
 
+// Indicator returns the rendered open/closed symbol
+func (t *Node) Indicator() string {
+	char := ""
+	if t.open {
+		char = t.opts.openCharacter
+	} else {
+		char = t.opts.closedCharacter
+	}
+	if char != "" {
+		char += " "
+	}
+
+	return t.opts.styles.OpenIndicatorStyle.Render(char)
+}
+
 // IsSelected returns whether this item is selected.
 func (t *Node) IsSelected() bool {
 	return t.yOffset == t.opts.treeYOffset
@@ -80,37 +95,51 @@ type itemOptions struct {
 
 // Used to print the Node's tree.
 func (t *Node) String() string {
-	s := t.opts.styles.OpenIndicatorStyle
-	if t.open {
-		return s.Render(t.opts.openCharacter+" ") + t.tree.String()
-	}
-	return s.Render(t.opts.closedCharacter+" ") + t.tree.String()
+	return t.tree.String()
 }
 
 func (t *Node) getStyle() lipgloss.Style {
 	s := t.opts.styles
-	if t.yOffset == t.opts.treeYOffset {
+	if t.yOffset == t.opts.treeYOffset && s.selectedNodeFunc != nil {
 		return s.selectedNodeFunc(Nodes{t}, 0)
-	} else if t.yOffset == 0 {
+	} else if t.yOffset == 0 && s.rootNodeFunc != nil {
 		return s.rootNodeFunc(Nodes{t}, 0)
-	} else if t.isRoot {
+	} else if t.isRoot && s.parentNodeFunc != nil {
 		return s.parentNodeFunc(Nodes{t}, 0)
+	} else if s.nodeFunc != nil {
+		return s.nodeFunc(Nodes{t}, 0)
 	}
 
-	return s.nodeFunc(Nodes{t}, 0)
+	return lipgloss.NewStyle()
+}
+
+func (t *Node) getEnumeratorStyle() lipgloss.Style {
+	s := t.opts.styles
+	if t.yOffset == t.opts.treeYOffset && s.selectedEnumeratorFunc != nil {
+		return s.selectedEnumeratorFunc(Nodes{t}, 0)
+	} else if s.enumeratorFunc != nil {
+		return s.enumeratorFunc(Nodes{t}, 0)
+	}
+
+	return lipgloss.NewStyle()
+}
+
+func (t *Node) getIndenterStyle() lipgloss.Style {
+	s := t.opts.styles
+	if s.indenterFunc != nil {
+		return s.indenterFunc(Nodes{t}, 0)
+	}
+
+	return lipgloss.NewStyle()
 }
 
 // Value returns the root name of this node.
 func (t *Node) Value() string {
-	s := t.opts.styles
 	ns := t.getStyle()
 	v := ns.Render(t.tree.Value())
 
 	if t.isRoot {
-		if t.open {
-			return s.OpenIndicatorStyle.Render(t.opts.openCharacter+" ") + v
-		}
-		return s.OpenIndicatorStyle.Render(t.opts.closedCharacter+" ") + v
+		return lipgloss.JoinHorizontal(lipgloss.Top, t.Indicator(), v)
 	}
 
 	// Leaf.
@@ -145,7 +174,8 @@ func (t *Node) ChildNodes() []*Node {
 
 // AllNodes returns all descendant nodes as a flat list.
 func (t *Node) AllNodes() []*Node {
-	res := []*Node{t}
+	res := make([]*Node, 0)
+	res = append(res, t)
 	children := t.tree.Children()
 	for i := 0; i < children.Length(); i++ {
 		child := children.At(i)
@@ -259,8 +289,14 @@ func (t *Node) EnumeratorStyle(style lipgloss.Style) *Node {
 //		    }
 //		    return lipgloss.NewStyle().Foreground(dimColor)
 //		})
-func (t *Node) EnumeratorStyleFunc(f func(children ltree.Children, i int) lipgloss.Style) *Node {
-	t.tree.EnumeratorStyleFunc(f)
+func (t *Node) EnumeratorStyleFunc(f StyleFunc) *Node {
+	t.tree.EnumeratorStyleFunc(func(children ltree.Children, i int) lipgloss.Style {
+		c := make(Nodes, children.Length())
+		for i := 0; i < children.Length(); i++ {
+			c[i] = children.At(i).(*Node)
+		}
+		return f(c, i)
+	})
 	return t
 }
 
@@ -282,8 +318,14 @@ func (t *Node) IndenterStyle(style lipgloss.Style) *Node {
 //		    }
 //		    return lipgloss.NewStyle().Foreground(dimColor)
 //		})
-func (t *Node) IndenterStyleFunc(f func(children ltree.Children, i int) lipgloss.Style) *Node {
-	t.tree.IndenterStyleFunc(f)
+func (t *Node) IndenterStyleFunc(f StyleFunc) *Node {
+	t.tree.IndenterStyleFunc(func(children ltree.Children, i int) lipgloss.Style {
+		c := make(Nodes, children.Length())
+		for i := 0; i < children.Length(); i++ {
+			c[i] = children.At(i).(*Node)
+		}
+		return f(c, i)
+	})
 	return t
 }
 

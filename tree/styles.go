@@ -29,8 +29,18 @@ type Styles struct {
 
 	CursorStyle lipgloss.Style
 
-	EnumeratorStyle    lipgloss.Style
-	IndenterStyle      lipgloss.Style
+	enumeratorFunc      StyleFunc
+	EnumeratorStyle     lipgloss.Style
+	EnumeratorStyleFunc StyleFunc
+
+	selectedEnumeratorFunc      StyleFunc
+	SelectedEnumeratorStyle     lipgloss.Style
+	SelectedEnumeratorStyleFunc StyleFunc
+
+	indenterFunc      StyleFunc
+	IndenterStyle     lipgloss.Style
+	IndenterStyleFunc StyleFunc
+
 	OpenIndicatorStyle lipgloss.Style
 }
 
@@ -68,7 +78,20 @@ func DefaultStyles(isDark bool) (s Styles) {
 	s.CursorStyle = lipgloss.NewStyle().PaddingRight(1).Foreground(lipgloss.Color("212")).Bold(true)
 
 	s.EnumeratorStyle = lipgloss.NewStyle().Foreground(verySubduedColor)
+	s.enumeratorFunc = func(children Nodes, i int) lipgloss.Style {
+		return s.EnumeratorStyle
+	}
+
+	s.SelectedEnumeratorStyle = s.EnumeratorStyle
+	s.selectedEnumeratorFunc = func(children Nodes, i int) lipgloss.Style {
+		return s.SelectedEnumeratorStyle
+	}
+
 	s.IndenterStyle = lipgloss.NewStyle().Foreground(verySubduedColor)
+	s.indenterFunc = func(children Nodes, i int) lipgloss.Style {
+		return s.IndenterStyle
+	}
+
 	s.OpenIndicatorStyle = lipgloss.NewStyle().Foreground(subduedColor)
 
 	return s
