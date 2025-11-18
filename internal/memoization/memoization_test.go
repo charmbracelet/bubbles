@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"os"
+	"slices"
 	"testing"
 )
 
@@ -17,8 +18,8 @@ const (
 type cacheAction struct {
 	actionType    actionType
 	key           HString
-	value         interface{}
-	expectedValue interface{}
+	value         any
+	expectedValue any
 }
 
 type testCase struct {
@@ -121,7 +122,7 @@ func TestCache(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cache := NewMemoCache[HString, interface{}](tt.capacity)
+			cache := NewMemoCache[HString, any](tt.capacity)
 			for _, action := range tt.actions {
 				switch action.actionType {
 				case set:
@@ -174,7 +175,7 @@ func FuzzCache(f *testing.F) {
 				// If the key is already in accessOrder, we remove it and append it again later
 				for index, accessedKey := range accessOrder {
 					if accessedKey == key {
-						accessOrder = append(accessOrder[:index], accessOrder[index+1:]...)
+						accessOrder = slices.Delete(accessOrder, index, index+1)
 						break
 					}
 				}
@@ -206,7 +207,7 @@ func FuzzCache(f *testing.F) {
 					// If the key was accessed, move it to the end of the accessOrder to represent recent use
 					for index, accessedKey := range accessOrder {
 						if accessedKey == key {
-							accessOrder = append(accessOrder[:index], accessOrder[index+1:]...)
+							accessOrder = slices.Delete(accessOrder, index, index+1)
 							accessOrder = append(accessOrder, key)
 							break
 						}

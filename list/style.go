@@ -1,8 +1,8 @@
 package list
 
 import (
-	"github.com/charmbracelet/bubbles/v2/textinput"
-	"github.com/charmbracelet/lipgloss/v2"
+	"charm.land/bubbles/v2/textinput"
+	"charm.land/lipgloss/v2"
 )
 
 const (

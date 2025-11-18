@@ -10,11 +10,9 @@
 [![Go ReportCard](https://goreportcard.com/badge/charmbracelet/bubbles)](https://goreportcard.com/report/charmbracelet/bubbles)
 
 Some components for [Bubble Tea](https://github.com/charmbracelet/bubbletea)
-applications. These components are used in production in [Glow][glow],
-[Charm][charm] and [many other applications][otherstuff].
+applications. These components are used in production in [Glow][glow], and [many other applications][otherstuff].
 
 [glow]: https://github.com/charmbracelet/glow
-[charm]: https://github.com/charmbracelet/charm
 [otherstuff]: https://github.com/charmbracelet/bubbletea/#bubble-tea-in-the-wild
 
 ## Spinner
@@ -218,6 +216,6 @@ We’d love to hear your thoughts on this project. Feel free to drop us a note!
 
 Part of [Charm](https://charm.sh).
 
-<a href="https://charm.sh/"><img alt="The Charm logo" src="https://stuff.charm.sh/charm-badge.jpg" width="400"></a>
+<a href="https://charm.sh/"><img alt="The Charm logo" src="https://stuff.charm.sh/charm-banner-next.jpg" width="400"></a>
 
 Charm热爱开源 • Charm loves open source
