@@ -464,7 +464,8 @@ func (m *Model) SetHeight(height int) {
 func (m *Model) SetSize(width, height int) {
 	m.width = width
 	m.height = height
-	m.root.tree.Width(width - lipgloss.Width(m.cursorView()) - m.styles.TreeStyle.GetHorizontalFrameSize())
+	m.root.tree.Width(width - lipgloss.Width(m.cursorView()) -
+		m.styles.TreeStyle.GetHorizontalFrameSize())
 
 	m.viewport.SetWidth(width)
 	hv := 0
