@@ -17,6 +17,9 @@ import (
 	"github.com/dustin/go-humanize"
 )
 
+// DefaultModTimeLayout is the default layout used to format modification time for a given file.
+const DefaultModTimeLayout = "Jan _2 15:04"
+
 var lastID int64
 
 func nextID() int {
@@ -34,6 +37,7 @@ func New() Model {
 		ShowPermissions:  true,
 		ShowSize:         true,
 		ShowHidden:       false,
+		ModTimeLayout:    DefaultModTimeLayout,
 		DirAllowed:       false,
 		FileAllowed:      true,
 		AutoHeight:       true,
@@ -103,6 +107,7 @@ type Styles struct {
 	Selected         lipgloss.Style
 	DisabledSelected lipgloss.Style
 	FileSize         lipgloss.Style
+	ModTime          lipgloss.Style
 	EmptyDirectory   lipgloss.Style
 }
 
@@ -119,6 +124,7 @@ func DefaultStyles() Styles {
 		Permission:       lipgloss.NewStyle().Foreground(lipgloss.Color("244")),
 		Selected:         lipgloss.NewStyle().Foreground(lipgloss.Color("212")).Bold(true),
 		FileSize:         lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Width(fileSizeWidth).Align(lipgloss.Right),
+		ModTime:          lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
 		EmptyDirectory:   lipgloss.NewStyle().Foreground(lipgloss.Color("240")).PaddingLeft(paddingLeft).SetString("Bummer. No Files Found."),
 	}
 }
@@ -141,6 +147,8 @@ type Model struct {
 	files           []os.DirEntry
 	ShowPermissions bool
 	ShowSize        bool
+	ShowModTime     bool
+	ModTimeLayout   string
 	ShowHidden      bool
 	DirAllowed      bool
 	FileAllowed     bool
@@ -396,6 +404,9 @@ func (m Model) View() string {
 			if m.ShowSize {
 				selected += fmt.Sprintf("%"+strconv.Itoa(m.Styles.FileSize.GetWidth())+"s", size)
 			}
+			if m.ShowModTime {
+				selected += " " + info.ModTime().Format(m.ModTimeLayout)
+			}
 			selected += " " + name
 			if isSymlink {
 				selected += " → " + symlinkPath
@@ -428,6 +439,9 @@ func (m Model) View() string {
 		}
 		if m.ShowSize {
 			s.WriteString(m.Styles.FileSize.Render(size))
+		}
+		if m.ShowModTime {
+			s.WriteString(" " + m.Styles.ModTime.Render(info.ModTime().Format(m.ModTimeLayout)))
 		}
 		s.WriteString(" " + fileName)
 		s.WriteRune('\n')
