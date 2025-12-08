@@ -240,8 +240,11 @@ func (m *Model) SetContentLines(lines []string) {
 		// iterate in reverse, so we can safely modify the slice.
 		var subLines []string
 		for i := len(m.lines) - 1; i >= 0; i-- {
-			m.lines[i] = strings.ReplaceAll(m.lines[i], "\r\n", "\n") // normalize line endings
+			if !strings.ContainsAny(m.lines[i], "\r\n") {
+				continue
+			}
 
+			m.lines[i] = strings.ReplaceAll(m.lines[i], "\r\n", "\n") // normalize line endings
 			subLines = strings.Split(m.lines[i], "\n")
 			if len(subLines) > 1 {
 				m.lines = slices.Insert(m.lines, i+1, subLines[1:]...)
