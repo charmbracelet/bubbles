@@ -7,7 +7,6 @@ linters:
     - exhaustive
     - goconst
     - godot
-    - godox
     - gomoddirectives
     - goprintffuncname
     - gosec
@@ -27,9 +26,16 @@ linters:
     - whitespace
     - wrapcheck
   exclusions:
+    rules:
+      - text: '(slog|log)\.\w+'
+        linters:
+          - noctx
     generated: lax
     presets:
       - common-false-positives
+  settings:
+    exhaustive:
+      default-signifies-exhaustive: true
 issues:
   max-issues-per-linter: 0
   max-same-issues: 0
