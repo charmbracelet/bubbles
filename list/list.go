@@ -150,6 +150,7 @@ type Model struct {
 	showStatusBar    bool
 	showPagination   bool
 	showHelp         bool
+	showNoItems      bool
 	filteringEnabled bool
 
 	itemNameSingular string
@@ -229,6 +230,7 @@ func New(items []Item, delegate ItemDelegate, width, height int) Model {
 		showStatusBar:         true,
 		showPagination:        true,
 		showHelp:              true,
+		showNoItems:           true,
 		itemNameSingular:      "item",
 		itemNamePlural:        "items",
 		filteringEnabled:      true,
@@ -276,6 +278,12 @@ func (m Model) FilteringEnabled() bool {
 // SetShowTitle shows or hides the title bar.
 func (m *Model) SetShowTitle(v bool) {
 	m.showTitle = v
+	m.updatePagination()
+}
+
+// SetShowNoItems shows or hides the no item message.
+func (m *Model) SetShowNoItems(v bool) {
+	m.showNoItems = v
 	m.updatePagination()
 }
 
@@ -1219,7 +1227,11 @@ func (m Model) populatedView() string {
 		if m.filterState == Filtering {
 			return ""
 		}
-		return m.Styles.NoItems.Render("No " + m.itemNamePlural + ".")
+		if m.showNoItems {
+			return m.Styles.NoItems.Render("No " + m.itemNamePlural + ".")
+		} else {
+			return ""
+		}
 	}
 
 	if len(items) > 0 {
