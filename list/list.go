@@ -143,6 +143,14 @@ func (f FilterState) String() string {
 	}[f]
 }
 
+// The location to render the status message
+type StatusMessageLocation int
+
+const (
+	InTitle StatusMessageLocation = iota
+	InStatusBar
+)
+
 // Model contains the state of this component.
 type Model struct {
 	showTitle        bool
@@ -189,8 +197,9 @@ type Model struct {
 	// 1 second.
 	StatusMessageLifetime time.Duration
 
-	statusMessage      string
-	statusMessageTimer *time.Timer
+	statusMessage         string
+	StatusMessageLocation StatusMessageLocation
+	statusMessageTimer    *time.Timer
 
 	// The master set of items we're working with.
 	items []Item
@@ -1118,7 +1127,7 @@ func (m Model) titleView() string {
 		view += m.Styles.Title.Render(m.Title)
 
 		// Status message
-		if m.filterState != Filtering {
+		if m.filterState != Filtering && m.StatusMessageLocation == InTitle {
 			view += "  " + m.statusMessage
 			view = ansi.Truncate(view, m.width-spinnerWidth, ellipsis)
 		}
@@ -1182,6 +1191,10 @@ func (m Model) statusView() string {
 	if numFiltered > 0 {
 		status += m.Styles.DividerDot.String()
 		status += m.Styles.StatusBarFilterCount.Render(fmt.Sprintf("%d filtered", numFiltered))
+	}
+	if m.StatusMessageLocation == InStatusBar && m.statusMessage != "" {
+		status += m.Styles.DividerDot.String()
+		status += m.statusMessage
 	}
 
 	return m.Styles.StatusBar.Render(status)
