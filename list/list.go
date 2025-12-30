@@ -50,7 +50,10 @@ type ItemDelegate interface {
 	// Height is the height of the list item.
 	Height() int
 
-	// Spacing is the size of the horizontal gap between list items in cells.
+	// Width is the width of the list item.
+	Width() int
+
+	// Spacing is the size of the vertical (1:1 ratio) and horizontal (1:2 ratio) gap between list items in cells.
 	Spacing() int
 
 	// Update is the update loop for items. All messages in the list's update
@@ -145,12 +148,13 @@ func (f FilterState) String() string {
 
 // Model contains the state of this component.
 type Model struct {
-	showTitle        bool
-	showFilter       bool
-	showStatusBar    bool
-	showPagination   bool
-	showHelp         bool
-	filteringEnabled bool
+	showTitle         bool
+	showFilter        bool
+	showStatusBar     bool
+	showPagination    bool
+	showHelp          bool
+	horizontalEnabled bool
+	filteringEnabled  bool
 
 	itemNameSingular string
 	itemNamePlural   string
@@ -232,6 +236,7 @@ func New(items []Item, delegate ItemDelegate, width, height int) Model {
 		itemNameSingular:      "item",
 		itemNamePlural:        "items",
 		filteringEnabled:      true,
+		horizontalEnabled:     false,
 		KeyMap:                DefaultKeyMap(),
 		Filter:                DefaultFilter,
 		Styles:                styles,
@@ -271,6 +276,19 @@ func (m *Model) SetFilteringEnabled(v bool) {
 // FilteringEnabled returns whether or not filtering is enabled.
 func (m Model) FilteringEnabled() bool {
 	return m.filteringEnabled
+}
+
+// SetHorizontalEnabled enables or disables horizontal.
+func (m *Model) SetHorizontalEnabled(v bool) {
+	m.horizontalEnabled = v
+
+	m.updatePagination()
+	m.updateKeybindings()
+}
+
+// HorizontalEnabled returns whether or not horizontal is enabled.
+func (m Model) HorizontalEnabled() bool {
+	return m.horizontalEnabled
 }
 
 // SetShowTitle shows or hides the title bar.
@@ -519,7 +537,11 @@ func (m Model) Cursor() int {
 // CursorUp moves the cursor up. This can also move the state to the previous
 // page.
 func (m *Model) CursorUp() {
-	m.cursor--
+	if m.horizontalEnabled {
+		m.cursor -= m.columnsPerPage()
+	} else {
+		m.cursor--
+	}
 
 	// If we're at the start, stop
 	if m.cursor < 0 && m.Paginator.OnFirstPage() {
@@ -547,7 +569,11 @@ func (m *Model) CursorUp() {
 func (m *Model) CursorDown() {
 	maxCursorIndex := m.maxCursorIndex()
 
-	m.cursor++
+	if m.horizontalEnabled {
+		m.cursor += m.columnsPerPage()
+	} else {
+		m.cursor++
+	}
 
 	// We're still within bounds of the current page, so no need to do anything.
 	if m.cursor <= maxCursorIndex {
@@ -566,6 +592,78 @@ func (m *Model) CursorDown() {
 	// if infinite scrolling is enabled, go to the first item.
 	if m.InfiniteScrolling {
 		m.GoToStart()
+	}
+}
+
+// CursorLeft moves the cursor to the left. This can also move the state to the previous
+// page.
+func (m *Model) CursorLeft() {
+	if !m.horizontalEnabled {
+		return
+	}
+
+	m.cursor--
+
+	// If we're at the start, stop
+	if m.cursor < 0 && m.Paginator.Page == 0 {
+		// if infinite scrolling is enabled, go to the last item
+		if m.InfiniteScrolling {
+			m.Paginator.Page = m.Paginator.TotalPages - 1
+			m.cursor = m.Paginator.ItemsOnPage(len(m.VisibleItems())) - 1
+			return
+		}
+
+		m.cursor = 0
+		return
+	}
+
+	// Move the cursor as normal
+	if m.cursor >= 0 {
+		return
+	}
+
+	// Go to the previous page
+	m.Paginator.PrevPage()
+	m.cursor = m.Paginator.ItemsOnPage(len(m.VisibleItems())) - 1
+}
+
+// CursorRight moves the cursor to the right. This can also advance the state to the
+// next page.
+func (m *Model) CursorRight() {
+	if !m.horizontalEnabled {
+		return
+	}
+
+	itemsOnPage := m.Paginator.ItemsOnPage(len(m.VisibleItems()))
+
+	m.cursor++
+
+	// If we're at the end, stop
+	if m.cursor < itemsOnPage {
+		return
+	}
+
+	// Go to the next page
+	if !m.Paginator.OnLastPage() {
+		m.Paginator.NextPage()
+		m.cursor = 0
+		return
+	}
+
+	// During filtering the cursor position can exceed the number of
+	// itemsOnPage. It's more intuitive to start the cursor at the
+	// topmost position when moving it down in this scenario.
+	if m.cursor > itemsOnPage {
+		m.cursor = 0
+		return
+	}
+
+	m.cursor = itemsOnPage - 1
+
+	// if infinite scrolling is enabled, go to the first item
+	if m.InfiniteScrolling {
+		m.Paginator.Page = 0
+		m.cursor = 0
 	}
 }
 
@@ -736,6 +834,12 @@ func (m *Model) updateKeybindings() {
 	case Filtering:
 		m.KeyMap.CursorUp.SetEnabled(false)
 		m.KeyMap.CursorDown.SetEnabled(false)
+
+		if m.horizontalEnabled {
+			m.KeyMap.CursorLeft.SetEnabled(false)
+			m.KeyMap.CursorRight.SetEnabled(false)
+		}
+
 		m.KeyMap.NextPage.SetEnabled(false)
 		m.KeyMap.PrevPage.SetEnabled(false)
 		m.KeyMap.GoToStart.SetEnabled(false)
@@ -752,6 +856,11 @@ func (m *Model) updateKeybindings() {
 		hasItems := len(m.items) != 0
 		m.KeyMap.CursorUp.SetEnabled(hasItems)
 		m.KeyMap.CursorDown.SetEnabled(hasItems)
+
+		if m.horizontalEnabled {
+			m.KeyMap.CursorLeft.SetEnabled(hasItems)
+			m.KeyMap.CursorRight.SetEnabled(hasItems)
+		}
 
 		hasPages := m.Paginator.TotalPages > 1
 		m.KeyMap.NextPage.SetEnabled(hasPages)
@@ -781,6 +890,7 @@ func (m *Model) updateKeybindings() {
 func (m *Model) updatePagination() {
 	index := m.Index()
 	availHeight := m.height
+	availWidth := m.width
 
 	if m.showTitle || (m.showFilter && m.filteringEnabled) {
 		availHeight -= lipgloss.Height(m.titleView())
@@ -795,7 +905,14 @@ func (m *Model) updatePagination() {
 		availHeight -= lipgloss.Height(m.helpView())
 	}
 
-	m.Paginator.PerPage = max(1, availHeight/(m.delegate.Height()+m.delegate.Spacing()))
+	if m.horizontalEnabled {
+		availRows := availHeight / (m.delegate.Height() + m.delegate.Spacing())
+		availColumns := availWidth / (m.delegate.Width() + (m.delegate.Spacing() * 2))
+
+		m.Paginator.PerPage = max(1, availRows*availColumns)
+	} else {
+		m.Paginator.PerPage = max(1, availHeight/(m.delegate.Height()+m.delegate.Spacing()))
+	}
 
 	if pages := len(m.VisibleItems()); pages < 1 {
 		m.Paginator.SetTotalPages(1)
@@ -874,6 +991,12 @@ func (m *Model) handleBrowsing(msg tea.Msg) tea.Cmd {
 
 		case key.Matches(msg, m.KeyMap.CursorDown):
 			m.CursorDown()
+
+		case key.Matches(msg, m.KeyMap.CursorLeft):
+			m.CursorLeft()
+
+		case key.Matches(msg, m.KeyMap.CursorRight):
+			m.CursorRight()
 
 		case key.Matches(msg, m.KeyMap.PrevPage):
 			m.Paginator.PrevPage()
@@ -979,6 +1102,10 @@ func (m Model) ShortHelp() []key.Binding {
 		m.KeyMap.CursorDown,
 	}
 
+	if m.horizontalEnabled {
+		kb = append(kb, m.KeyMap.CursorLeft, m.KeyMap.CursorRight)
+	}
+
 	filtering := m.filterState == Filtering
 
 	// If the delegate implements the help.KeyMap interface add the short help
@@ -1018,6 +1145,10 @@ func (m Model) FullHelp() [][]key.Binding {
 		m.KeyMap.GoToEnd,
 	}}
 
+	if m.horizontalEnabled {
+		kb = append(kb, [][]key.Binding{{m.KeyMap.CursorLeft, m.KeyMap.CursorRight}}...)
+	}
+
 	filtering := m.filterState == Filtering
 
 	// If the delegate implements the help.KeyMap interface add full help
@@ -1052,6 +1183,7 @@ func (m Model) View() string {
 	var (
 		sections    []string
 		availHeight = m.height
+		availWidth  = m.width
 	)
 
 	if m.showTitle || (m.showFilter && m.filteringEnabled) {
@@ -1078,7 +1210,7 @@ func (m Model) View() string {
 		availHeight -= lipgloss.Height(help)
 	}
 
-	content := lipgloss.NewStyle().Height(availHeight).Render(m.populatedView())
+	content := lipgloss.NewStyle().Height(availHeight).Width(availWidth).Render(m.populatedView())
 	sections = append(sections, content)
 
 	if m.showPagination {
@@ -1209,6 +1341,16 @@ func (m Model) paginationView() string {
 	return style.Render(s)
 }
 
+// rowsPerPage returns the amount of rows that fits into current height.
+func (m Model) rowsPerPage() int {
+	return m.height / (m.delegate.Height() + m.delegate.Spacing())
+}
+
+// columnsPerPage returns the amount of columns that fits into current width.
+func (m Model) columnsPerPage() int {
+	return m.width / (m.delegate.Width() + (m.delegate.Spacing() * 2))
+}
+
 func (m Model) populatedView() string {
 	items := m.VisibleItems()
 
@@ -1224,26 +1366,67 @@ func (m Model) populatedView() string {
 
 	if len(items) > 0 {
 		start, end := m.Paginator.GetSliceBounds(len(items))
-		docs := items[start:end]
+		itms := items[start:end]
 
-		for i, item := range docs {
-			m.delegate.Render(&b, m, i+start, item)
-			if i != len(docs)-1 {
-				fmt.Fprint(&b, strings.Repeat("\n", m.delegate.Spacing()+1))
+		if m.horizontalEnabled {
+			rowsPerPage := m.rowsPerPage()
+			columnsPerPage := m.columnsPerPage()
+
+			var br strings.Builder
+
+			i := 0
+
+			for range rowsPerPage {
+				var r string
+
+				for range columnsPerPage {
+					br.Reset()
+
+					// handle last page
+					if len(itms) < rowsPerPage*columnsPerPage {
+						if i < len(itms) {
+							m.delegate.Render(&br, m, i+start, itms[i])
+						} else {
+							fmt.Fprint(&br, " ")
+						}
+					} else {
+						// render items
+						m.delegate.Render(&br, m, i+start, itms[i])
+					}
+
+					if i%columnsPerPage == 0 {
+						r = lipgloss.JoinHorizontal(lipgloss.Left, r, br.String())
+					} else {
+						r = lipgloss.JoinHorizontal(lipgloss.Left, r, strings.Repeat(" ", m.delegate.Spacing()*2), br.String())
+					}
+
+					i++
+				}
+
+				fmt.Fprint(&b, r, "\n")
+			}
+		} else {
+			for i, item := range itms {
+				m.delegate.Render(&b, m, i+start, item)
+				if i != len(itms)-1 {
+					fmt.Fprint(&b, strings.Repeat("\n", m.delegate.Spacing()+1))
+				}
 			}
 		}
 	}
 
-	// If there aren't enough items to fill up this page (always the last page)
-	// then we need to add some newlines to fill up the space where items would
-	// have been.
-	itemsOnPage := m.Paginator.ItemsOnPage(len(items))
-	if itemsOnPage < m.Paginator.PerPage {
-		n := (m.Paginator.PerPage - itemsOnPage) * (m.delegate.Height() + m.delegate.Spacing())
-		if len(items) == 0 {
-			n -= m.delegate.Height() - 1
+	if !m.horizontalEnabled {
+		// If there aren't enough items to fill up this page (always the last page)
+		// then we need to add some newlines to fill up the space where items would
+		// have been.
+		itemsOnPage := m.Paginator.ItemsOnPage(len(items))
+		if itemsOnPage < m.Paginator.PerPage {
+			n := (m.Paginator.PerPage - itemsOnPage) * (m.delegate.Height() + m.delegate.Spacing())
+			if len(items) == 0 {
+				n -= m.delegate.Height() - 1
+			}
+			fmt.Fprint(&b, strings.Repeat("\n", n))
 		}
-		fmt.Fprint(&b, strings.Repeat("\n", n))
 	}
 
 	return b.String()
