@@ -781,6 +781,7 @@ func (m *Model) updateKeybindings() {
 func (m *Model) updatePagination() {
 	index := m.Index()
 	availHeight := m.height
+	const paginationDefaultHeight = 1
 
 	if m.showTitle || (m.showFilter && m.filteringEnabled) {
 		availHeight -= lipgloss.Height(m.titleView())
@@ -789,18 +790,31 @@ func (m *Model) updatePagination() {
 		availHeight -= lipgloss.Height(m.statusView())
 	}
 	if m.showPagination {
-		availHeight -= lipgloss.Height(m.paginationView())
+		// First assume that pagination will not needed
+		availHeight -= paginationDefaultHeight
 	}
 	if m.showHelp {
 		availHeight -= lipgloss.Height(m.helpView())
 	}
 
-	m.Paginator.PerPage = max(1, availHeight/(m.delegate.Height()+m.delegate.Spacing()))
+	updatePages := func(availHeight int) {
+		m.Paginator.PerPage = max(1, availHeight/(m.delegate.Height()+m.delegate.Spacing()))
 
-	if pages := len(m.VisibleItems()); pages < 1 {
-		m.Paginator.SetTotalPages(1)
-	} else {
-		m.Paginator.SetTotalPages(pages)
+		if pages := len(m.VisibleItems()); pages < 1 {
+			m.Paginator.SetTotalPages(1)
+		} else {
+			m.Paginator.SetTotalPages(pages)
+		}
+	}
+
+	updatePages(availHeight)
+
+	// If pagination is needed, recompute items alignment
+	paginationHeight := lipgloss.Height(m.paginationView())
+	if m.showPagination && 2 < paginationHeight {
+		availHeight += paginationDefaultHeight
+		availHeight -= paginationHeight
+		updatePages(availHeight)
 	}
 
 	// Restore index
