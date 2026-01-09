@@ -595,9 +595,14 @@ func (m *Model) LineCount() int {
 	return len(m.value)
 }
 
-// Line returns the row position of the cursor.
+// Line returns the 0-indexed row position of the cursor.
 func (m Model) Line() int {
 	return m.row
+}
+
+// Column returns the 0-indexed column position of the cursor.
+func (m Model) Column() int {
+	return m.col
 }
 
 // ScrollYOffset returns the Y offset (top row) index of the current view, which
