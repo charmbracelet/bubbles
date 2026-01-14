@@ -697,6 +697,7 @@ func (m Model) View() string {
 
 	if pos < len(value) { //nolint:nestif
 		char := m.echoTransform(string(value[pos]))
+		m.virtualCursor.TextStyle = styles.Text
 		m.virtualCursor.SetChar(char)
 		v += m.virtualCursor.View()                            // cursor and text under it
 		v += styleText(m.echoTransform(string(value[pos+1:]))) // text after cursor
@@ -710,10 +711,12 @@ func (m Model) View() string {
 				v += m.virtualCursor.View()
 				v += m.completionView(1)
 			} else {
+				m.virtualCursor.TextStyle = styles.Text
 				m.virtualCursor.SetChar(" ")
 				v += m.virtualCursor.View()
 			}
 		} else {
+			m.virtualCursor.TextStyle = styles.Text
 			m.virtualCursor.SetChar(" ")
 			v += m.virtualCursor.View()
 		}
