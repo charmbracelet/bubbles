@@ -121,5 +121,5 @@ type HInt int
 
 // Hash is a method that returns the hash of the integer.
 func (h HInt) Hash() string {
-	return fmt.Sprintf("%x", sha256.Sum256([]byte(fmt.Sprintf("%d", h))))
+	return fmt.Sprintf("%x", sha256.Sum256(fmt.Appendf(nil, "%d", h)))
 }

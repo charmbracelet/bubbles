@@ -4,11 +4,11 @@ package table
 import (
 	"strings"
 
-	"github.com/charmbracelet/bubbles/v2/help"
-	"github.com/charmbracelet/bubbles/v2/key"
-	"github.com/charmbracelet/bubbles/v2/viewport"
-	tea "github.com/charmbracelet/bubbletea/v2"
-	"github.com/charmbracelet/lipgloss/v2"
+	"charm.land/bubbles/v2/help"
+	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/viewport"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/mattn/go-runewidth"
 )
 
@@ -305,6 +305,11 @@ func (m Model) Columns() []Column {
 // SetRows sets a new rows state.
 func (m *Model) SetRows(r []Row) {
 	m.rows = r
+
+	if m.cursor > len(m.rows)-1 {
+		m.cursor = len(m.rows) - 1
+	}
+
 	m.UpdateViewport()
 }
 
