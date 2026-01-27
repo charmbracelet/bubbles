@@ -216,12 +216,13 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 func (m Model) View() string {
 	treeView := m.viewport.View()
 
-	var help string
+	var sections []string
+	sections = append(sections, treeView)
 	if m.showHelp {
-		help = m.helpView()
+		sections = append(sections, m.helpView())
 	}
 
-	return lipgloss.JoinVertical(lipgloss.Left, treeView, help)
+	return lipgloss.JoinVertical(lipgloss.Left, sections...)
 }
 
 // SetScrollOff sets the minimal number of lines to keep visible above and below the selected node.
@@ -618,6 +619,16 @@ func setYOffsets(t *Node) {
 			above += child.Size() - 1
 		}
 	}
+}
+
+// ViewportYOffset returns the vertical offset of the tree's viewport.
+func (m *Model) ViewportYOffset() int {
+	return m.viewport.YOffset()
+}
+
+// SetViewportYOffset sets the vertical offset of the tree's viewport
+func (m *Model) SetViewportYOffset(yoffset int) {
+	m.viewport.SetYOffset(yoffset)
 }
 
 // YOffset returns the vertical offset of the selected node.
