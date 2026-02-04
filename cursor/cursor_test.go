@@ -22,7 +22,7 @@ import (
 // A race on “m.blinkTag” will occur if:
 //  1. [Model.BlinkCmd] is called e.g. by calling [Model.Focus] from
 //     ["github.com/charmbracelet/bubbletea".Model.Update];
-//  2. ["github.com/charmbracelet/bubbletea".handleCommands] is kept sufficiently busy that it does not recieve and
+//  2. ["github.com/charmbracelet/bubbletea".handleCommands] is kept sufficiently busy that it does not receive and
 //     execute the [Model.BlinkCmd] e.g. by other long running command or commands;
 //  3. at least [Mode.BlinkSpeed] time elapses;
 //  4. [Model.BlinkCmd] is called again;
