@@ -6,6 +6,7 @@ package paginator
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
@@ -198,15 +199,9 @@ func (m Model) View() string {
 }
 
 func (m Model) dotsView() string {
-	var s string
-	for i := 0; i < m.TotalPages; i++ {
-		if i == m.Page {
-			s += m.ActiveDot
-			continue
-		}
-		s += m.InactiveDot
-	}
-	return s
+	return strings.Repeat(m.InactiveDot, m.Page) +
+		m.ActiveDot +
+		strings.Repeat(m.InactiveDot, m.TotalPages-m.Page-1)
 }
 
 func (m Model) arabicView() string {
