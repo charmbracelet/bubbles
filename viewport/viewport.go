@@ -147,6 +147,9 @@ func (m Model) visibleLines() (lines []string) {
 	if len(m.lines) > 0 {
 		top := max(0, m.YOffset)
 		bottom := clamp(m.YOffset+h, top, len(m.lines))
+		if top >= bottom {
+			return nil
+		}
 		lines = m.lines[top:bottom]
 	}
 

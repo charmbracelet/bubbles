@@ -201,6 +201,38 @@ func TestVisibleLines(t *testing.T) {
 		}
 	})
 
+	t.Run("negative height should not panic", func(t *testing.T) {
+		t.Parallel()
+
+		m := New(10, 10)
+		m.SetContent(strings.Join(defaultList, "\n"))
+		m.YOffset = 5
+		m.Height = -4
+
+		// This should not panic
+		list := m.visibleLines()
+
+		if list != nil {
+			t.Errorf("list should be nil with negative height, got %d items", len(list))
+		}
+	})
+
+	t.Run("zero height should not panic", func(t *testing.T) {
+		t.Parallel()
+
+		m := New(10, 10)
+		m.SetContent(strings.Join(defaultList, "\n"))
+		m.YOffset = 5
+		m.Height = 0
+
+		// This should not panic
+		list := m.visibleLines()
+
+		if list != nil {
+			t.Errorf("list should be nil with zero height, got %d items", len(list))
+		}
+	})
+
 	t.Run("empty list: with indent", func(t *testing.T) {
 		t.Parallel()
 
