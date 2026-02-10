@@ -21,12 +21,12 @@ import (
 //
 // A race on “m.blinkTag” will occur if:
 //  1. [Model.Blink] is called e.g. by calling [Model.Focus] from
-//     ["github.com/charmbracelet/bubbletea".Model.Update];
-//  2. ["github.com/charmbracelet/bubbletea".handleCommands] is kept sufficiently busy that it does not recieve and
-//     execute the [Model.Blink] e.g. by other long running command or commands;
+//     ["charm.land/bubbletea/v2".Model.Update];
+//  2. ["charm.land/bubbletea/v2".handleCommands] is kept sufficiently busy that it does not receive and
+//     execute the [Model.BlinkCmd] e.g. by other long running command or commands;
 //  3. at least [Mode.BlinkSpeed] time elapses;
 //  4. [Model.Blink] is called again;
-//  5. ["github.com/charmbracelet/bubbletea".handleCommands] gets around to receiving and executing the original
+//  5. ["charm.land/bubbletea/v2".handleCommands] gets around to receiving and executing the original
 //     closure.
 //
 // Even if this did not formally race, the value of the tag fetched would be semantically incorrect (likely being the
