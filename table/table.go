@@ -266,11 +266,11 @@ func (m Model) HelpView() string {
 func (m *Model) UpdateViewport() {
 	renderedRows := make([]string, 0, len(m.rows))
 
-	// Render only rows from: m.cursor-m.viewport.Height to: m.cursor+m.viewport.Height
+	// Render only rows from: m.cursor-(m.viewport.Height-1) to: m.cursor+m.viewport.Height
 	// Constant runtime, independent of number of rows in a table.
 	// Limits the number of renderedRows to a maximum of 2*m.viewport.Height
 	if m.cursor >= 0 {
-		m.start = clamp(m.cursor-m.viewport.Height, 0, m.cursor)
+		m.start = clamp(m.cursor-(m.viewport.Height-1), 0, m.cursor)
 	} else {
 		m.start = 0
 	}
@@ -358,14 +358,6 @@ func (m *Model) SetCursor(n int) {
 // It can not go above the first row.
 func (m *Model) MoveUp(n int) {
 	m.cursor = clamp(m.cursor-n, 0, len(m.rows)-1)
-	switch {
-	case m.start == 0:
-		m.viewport.SetYOffset(clamp(m.viewport.YOffset, 0, m.cursor))
-	case m.start < m.viewport.Height:
-		m.viewport.YOffset = (clamp(clamp(m.viewport.YOffset+n, 0, m.cursor), 0, m.viewport.Height))
-	case m.viewport.YOffset >= 1:
-		m.viewport.YOffset = clamp(m.viewport.YOffset+n, 1, m.viewport.Height)
-	}
 	m.UpdateViewport()
 }
 
@@ -374,16 +366,6 @@ func (m *Model) MoveUp(n int) {
 func (m *Model) MoveDown(n int) {
 	m.cursor = clamp(m.cursor+n, 0, len(m.rows)-1)
 	m.UpdateViewport()
-
-	switch {
-	case m.end == len(m.rows) && m.viewport.YOffset > 0:
-		m.viewport.SetYOffset(clamp(m.viewport.YOffset-n, 1, m.viewport.Height))
-	case m.cursor > (m.end-m.start)/2 && m.viewport.YOffset > 0:
-		m.viewport.SetYOffset(clamp(m.viewport.YOffset-n, 1, m.cursor))
-	case m.viewport.YOffset > 1:
-	case m.cursor > m.viewport.YOffset+m.viewport.Height-1:
-		m.viewport.SetYOffset(clamp(m.viewport.YOffset+1, 0, 1))
-	}
 }
 
 // GotoTop moves the selection to the first row.
