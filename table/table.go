@@ -432,17 +432,44 @@ func (m *Model) renderRow(r int) string {
 			continue
 		}
 		style := lipgloss.NewStyle().Width(m.cols[i].Width).MaxWidth(m.cols[i].Width).Inline(true)
-		renderedCell := m.styles.Cell.Render(style.Render(runewidth.Truncate(value, m.cols[i].Width, "…")))
+		cellContent := style.Render(runewidth.Truncate(value, m.cols[i].Width, "…"))
+		cellStyle := m.styles.Cell
+		if r == m.cursor {
+			// borrows necessary selected row styling
+			cellStyle = m.getSelRowCellStyle()
+		}
+		renderedCell := cellStyle.Render(cellContent)
 		s = append(s, renderedCell)
 	}
 
 	row := lipgloss.JoinHorizontal(lipgloss.Top, s...)
 
 	if r == m.cursor {
-		return m.styles.Selected.Render(row)
+		// if not unset, these styles will break cell styling
+		return m.styles.Selected.
+			UnsetUnderline().
+			UnsetUnderlineSpaces().
+			UnsetStrikethrough().
+			UnsetStrikethroughSpaces().
+			Render(row)
 	}
 
 	return row
+}
+
+func (m Model) getSelRowCellStyle() lipgloss.Style {
+	s := m.styles.Selected
+	return m.styles.Cell.Foreground(s.GetForeground()).
+		Background(s.GetBackground()).
+		Italic(s.GetItalic()).
+		Bold(s.GetBold()).
+		Blink(s.GetBlink()).
+		Reverse(s.GetReverse()).
+		Faint(s.GetFaint()).
+		Underline(s.GetUnderline()).
+		UnderlineSpaces(s.GetUnderlineSpaces()).
+		Strikethrough(s.GetStrikethrough()).
+		StrikethroughSpaces(s.GetStrikethroughSpaces())
 }
 
 func clamp(v, low, high int) int {
