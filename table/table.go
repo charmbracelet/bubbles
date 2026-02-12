@@ -6,7 +6,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/mattn/go-runewidth"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
@@ -419,7 +419,7 @@ func (m Model) headersView() string {
 			continue
 		}
 		style := lipgloss.NewStyle().Width(col.Width).MaxWidth(col.Width).Inline(true)
-		renderedCell := style.Render(runewidth.Truncate(col.Title, col.Width, "…"))
+		renderedCell := style.Render(ansi.Truncate(col.Title, col.Width, "…"))
 		s = append(s, m.styles.Header.Render(renderedCell))
 	}
 	return lipgloss.JoinHorizontal(lipgloss.Top, s...)
@@ -432,7 +432,7 @@ func (m *Model) renderRow(r int) string {
 			continue
 		}
 		style := lipgloss.NewStyle().Width(m.cols[i].Width).MaxWidth(m.cols[i].Width).Inline(true)
-		renderedCell := m.styles.Cell.Render(style.Render(runewidth.Truncate(value, m.cols[i].Width, "…")))
+		renderedCell := m.styles.Cell.Render(style.Render(ansi.Truncate(value, m.cols[i].Width, "…")))
 		s = append(s, renderedCell)
 	}
 
