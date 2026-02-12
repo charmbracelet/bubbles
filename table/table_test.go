@@ -288,6 +288,21 @@ func TestModel_RenderRow(t *testing.T) {
 	}
 }
 
+func TestModel_RenderRow_AnsiWidth(t *testing.T) {
+	value := "\x1b[31mABCDEFGH\x1b[0m"
+	table := &Model{
+		rows:   []Row{{value}},
+		cols:   []Column{{Title: "col1", Width: 8}},
+		styles: Styles{Cell: lipgloss.NewStyle()},
+	}
+
+	got := ansi.Strip(table.renderRow(0))
+	want := "ABCDEFGH"
+	if got != want {
+		t.Fatalf("\n\nWant: \n%s\n\nGot:  \n%s\n", want, got)
+	}
+}
+
 func TestTableAlignment(t *testing.T) {
 	t.Run("No border", func(t *testing.T) {
 		biscuits := New(
