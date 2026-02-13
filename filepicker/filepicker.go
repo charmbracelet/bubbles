@@ -3,6 +3,7 @@
 package filepicker
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -462,6 +463,41 @@ func (m Model) DidSelectDisabledFile(msg tea.Msg) (bool, string) {
 		return true, path
 	}
 	return false, ""
+}
+
+func (m Model) GetFileUnderCursor() (string, error) {
+	if len(m.files) == 0 {
+		return "", errors.New("no files")
+	}
+
+	if m.selected < 0 || m.selected >= len(m.files) {
+		return "", errors.New("invalid selection index")
+	}
+
+	f := m.files[m.selected]
+	info, err := f.Info()
+	if err != nil {
+		return "", err
+	}
+	isSymlink := info.Mode()&os.ModeSymlink != 0
+	isDir := f.IsDir()
+
+	if isSymlink {
+		symlinkPath, _ := filepath.EvalSymlinks(filepath.Join(m.CurrentDirectory, f.Name()))
+		info, err := os.Stat(symlinkPath)
+		if err != nil {
+			return "", err
+		}
+		if info.IsDir() {
+			isDir = true
+		}
+	}
+
+	if isDir {
+		return "", errors.New("cannot select a directory")
+	}
+
+	return filepath.Join(m.CurrentDirectory, f.Name()), nil
 }
 
 func (m Model) didSelectFile(msg tea.Msg) (bool, string) {
