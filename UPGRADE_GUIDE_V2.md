@@ -5,9 +5,9 @@ This guide covers every breaking change when migrating from Bubbles v1 (`github.
 > **Companion upgrades required.** Bubbles v2 requires Bubble Tea v2 and Lip Gloss v2. Upgrade all three together:
 >
 > ```sh
-> go get charm.land/bubbletea/v2
-> go get charm.land/bubbles/v2
-> go get charm.land/lipgloss/v2
+> go get charm.land/bubbletea/v2@latest
+> go get charm.land/bubbles/v2@latest
+> go get charm.land/lipgloss/v2@latest
 > ```
 
 ---
