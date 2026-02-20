@@ -346,7 +346,7 @@ func (m *Model) handleOverflow() {
 
 		for i < len(runes) && w <= m.Width {
 			w += rw.RuneWidth(runes[i])
-			if w <= m.Width+1 {
+			if w <= m.Width {
 				i++
 			}
 		}
@@ -361,7 +361,7 @@ func (m *Model) handleOverflow() {
 
 		for i > 0 && w < m.Width {
 			w += rw.RuneWidth(runes[i])
-			if w <= m.Width {
+			if w <= m.Width-1 {
 				i--
 			}
 		}
@@ -680,7 +680,14 @@ func (m Model) View() string {
 				v += m.Cursor.View()
 			}
 		} else {
-			m.Cursor.SetChar(" ")
+			char := " "
+			if m.pos < len(m.value) {
+				char = m.echoTransform(string(m.value[m.pos]))
+			}
+			if len(v) >= m.Width {
+				v = v[1:]
+			}
+			m.Cursor.SetChar(char)
 			v += m.Cursor.View()
 		}
 	}
