@@ -1,7 +1,11 @@
 # Bubbles
 
 <p>
-  <img src="https://stuff.charm.sh/bubbles/bubbles-github.png" width="233" alt="The Bubbles Logo">
+    <picture>
+        <source media="(prefers-color-scheme: light)" srcset="https://stuff.charm.sh/bubbles/bubbles-v2-header-light.png" width="308">
+        <source media="(prefers-color-scheme: dark)" srcset="https://stuff.charm.sh/bubbles/bubbles-v2-header-dark.png" width="312">
+        <img src="https://stuff.charm.sh/bubbles/bubbles-v2-header-light.png" width="308" />
+    </picture>
 </p>
 
 [![Latest Release](https://img.shields.io/github/release/charmbracelet/bubbles.svg)](https://github.com/charmbracelet/bubbles/releases)
