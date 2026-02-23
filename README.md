@@ -8,9 +8,14 @@
 [![Go ReportCard](https://goreportcard.com/badge/charmbracelet/bubbles)](https://goreportcard.com/report/charmbracelet/bubbles)
 
 Some components for [Bubble Tea](https://github.com/charmbracelet/bubbletea)
-applications. These components are used in production in [Glow][glow], and [many other applications][otherstuff].
+applications. These components are used in production in [Crush][crush], and [many other applications][otherstuff].
 
-[glow]: https://github.com/charmbracelet/glow
+> [!TIP]
+>
+> Upgrading from v1? Check out the [upgrade guide](./UPGRADE_GUIDE_V2.md), or
+> point your LLM at it and let it go to town.
+
+[crush]: https://github.com/charmbracelet/crush
 [otherstuff]: https://github.com/charmbracelet/bubbletea/#bubble-tea-in-the-wild
 
 ## Spinner
@@ -186,11 +191,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 ## There’s more where that came from
 
-To check out community-maintained Bubbles see [Charm &
-Friends](https://github.com/charm-and-friends/additional-bubbles). Made a cool Bubble
-that you want to share?
-[PRs](https://github.com/charm-and-friends/additional-bubbles?tab=readme-ov-file#what-is-a-complete-project)
-are welcome!
+To check out community-maintained Bubbles see [Charm & Friends][charmandfriends].
+Made a cool Bubble that you want to share? [PRs][prs] are welcome!
+
+[charmandfriends]:
+[prs]: https://github.com/charm-and-friends/additional-bubbles?tab=readme-ov-file#what-is-a-complete-project
 
 ## Contributing
 
@@ -212,7 +217,7 @@ We’d love to hear your thoughts on this project. Feel free to drop us a note!
 
 ---
 
-Part of [Charm](https://charm.sh).
+Part of [Charm](https://charm.land).
 
 <a href="https://charm.sh/"><img alt="The Charm logo" src="https://stuff.charm.sh/charm-banner-next.jpg" width="400"></a>
 
