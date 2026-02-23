@@ -1,12 +1,6 @@
 # Bubbles
 
-<p>
-    <picture>
-        <source media="(prefers-color-scheme: light)" srcset="https://stuff.charm.sh/bubbles/bubbles-v2-header-light.png" width="308">
-        <source media="(prefers-color-scheme: dark)" srcset="https://stuff.charm.sh/bubbles/bubbles-v2-header-dark.png" width="312">
-        <img src="https://stuff.charm.sh/bubbles/bubbles-v2-header-light.png" width="308" />
-    </picture>
-</p>
+<img src="https://github.com/user-attachments/assets/a38a1cbc-b2e4-4a92-bfad-0090f0c1b48d" width="350" />
 
 [![Latest Release](https://img.shields.io/github/release/charmbracelet/bubbles.svg)](https://github.com/charmbracelet/bubbles/releases)
 [![GoDoc](https://godoc.org/github.com/golang/gddo?status.svg)](https://pkg.go.dev/github.com/charmbracelet/bubbles)
