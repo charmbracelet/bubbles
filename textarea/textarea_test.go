@@ -606,7 +606,7 @@ func TestView(t *testing.T) {
 			},
 		},
 		{
-			name: "softwrap",
+			name: "softwrap-word",
 			modelFunc: func(m Model) Model {
 				m.ShowLineNumbers = false
 				m.Prompt = ""
@@ -628,6 +628,31 @@ func TestView(t *testing.T) {
 				`),
 				cursorRow: 2,
 				cursorCol: 3,
+			},
+		},
+		{
+			name: "softwrap-rune",
+			modelFunc: func(m Model) Model {
+				m.ShowLineNumbers = false
+				m.Prompt = ""
+				m.SetWidth(5)
+				m.SetWrapMode(RuneWrap)
+
+				input := "foobarbaz"
+				m = sendString(m, input)
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					fooba
+					rbaz
+
+
+
+				`),
+				cursorRow: 1,
+				cursorCol: 4,
 			},
 		},
 		{
