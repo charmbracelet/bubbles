@@ -403,7 +403,7 @@ func (m *Model) GotoBottom() {
 // default for getting all the rows and the given separator for the fields on
 // each row.
 func (m *Model) FromValues(value, separator string) {
-	rows := []Row{}
+	rows := []Row{} //nolint:prealloc
 	for _, line := range strings.Split(value, "\n") {
 		r := Row{}
 		for _, field := range strings.Split(line, separator) {

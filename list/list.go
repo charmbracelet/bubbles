@@ -851,8 +851,6 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 // Updates for when a user is browsing the list.
 func (m *Model) handleBrowsing(msg tea.Msg) tea.Cmd {
-	var cmds []tea.Cmd
-
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
 		switch {
@@ -904,11 +902,9 @@ func (m *Model) handleBrowsing(msg tea.Msg) tea.Cmd {
 	}
 
 	cmd := m.delegate.Update(msg, m)
-	cmds = append(cmds, cmd)
-
 	m.cursor = clamp(m.cursor, 0, m.maxCursorIndex())
 
-	return tea.Batch(cmds...)
+	return cmd
 }
 
 // Updates for when a user is in the filter editing interface.

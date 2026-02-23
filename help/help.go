@@ -175,7 +175,6 @@ func (m Model) FullHelpView(groups [][]key.Binding) string {
 
 	// Linter note: at this time we don't think it's worth the additional
 	// code complexity involved in preallocating this slice.
-	//nolint:prealloc
 	var (
 		out []string
 

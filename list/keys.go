@@ -1,4 +1,4 @@
-package list
+package list //nolint:revive
 
 import "charm.land/bubbles/v2/key"
 
