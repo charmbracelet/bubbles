@@ -377,7 +377,10 @@ func (m Model) View() string {
 		}
 
 		var symlinkPath string
-		info, _ := f.Info()
+		info, err := f.Info()
+		if err != nil {
+			continue
+		}
 		isSymlink := info.Mode()&os.ModeSymlink != 0
 		size := strings.Replace(humanize.Bytes(uint64(info.Size())), " ", "", 1) //nolint:gosec
 		name := f.Name()
