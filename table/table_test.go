@@ -2,11 +2,12 @@ package table
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 
-	"github.com/charmbracelet/bubbles/help"
-	"github.com/charmbracelet/bubbles/viewport"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/help"
+	"charm.land/bubbles/v2/viewport"
+	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/golden"
 )
@@ -25,11 +26,14 @@ func TestNew(t *testing.T) {
 		"Default": {
 			want: Model{
 				// Default fields
-				cursor:   0,
-				viewport: viewport.New(0, 20),
-				KeyMap:   DefaultKeyMap(),
-				Help:     help.New(),
-				styles:   DefaultStyles(),
+				cursor: 0,
+				viewport: viewport.New(
+					viewport.WithWidth(0),
+					viewport.WithHeight(20),
+				),
+				KeyMap: DefaultKeyMap(),
+				Help:   help.New(),
+				styles: DefaultStyles(),
 			},
 		},
 		"WithColumns": {
@@ -41,11 +45,14 @@ func TestNew(t *testing.T) {
 			},
 			want: Model{
 				// Default fields
-				cursor:   0,
-				viewport: viewport.New(0, 20),
-				KeyMap:   DefaultKeyMap(),
-				Help:     help.New(),
-				styles:   DefaultStyles(),
+				cursor: 0,
+				viewport: viewport.New(
+					viewport.WithWidth(0),
+					viewport.WithHeight(20),
+				),
+				KeyMap: DefaultKeyMap(),
+				Help:   help.New(),
+				styles: DefaultStyles(),
 
 				// Modified fields
 				cols: []Column{
@@ -67,11 +74,14 @@ func TestNew(t *testing.T) {
 			},
 			want: Model{
 				// Default fields
-				cursor:   0,
-				viewport: viewport.New(0, 20),
-				KeyMap:   DefaultKeyMap(),
-				Help:     help.New(),
-				styles:   DefaultStyles(),
+				cursor: 0,
+				viewport: viewport.New(
+					viewport.WithWidth(0),
+					viewport.WithHeight(20),
+				),
+				KeyMap: DefaultKeyMap(),
+				Help:   help.New(),
+				styles: DefaultStyles(),
 
 				// Modified fields
 				cols: []Column{
@@ -97,7 +107,10 @@ func TestNew(t *testing.T) {
 
 				// Modified fields
 				// Viewport height is 1 less than the provided height when no header is present since lipgloss.Height adds 1
-				viewport: viewport.New(0, 9),
+				viewport: viewport.New(
+					viewport.WithWidth(0),
+					viewport.WithHeight(9),
+				),
 			},
 		},
 		"WithWidth": {
@@ -113,7 +126,10 @@ func TestNew(t *testing.T) {
 
 				// Modified fields
 				// Viewport height is 1 less than the provided height when no header is present since lipgloss.Height adds 1
-				viewport: viewport.New(10, 20),
+				viewport: viewport.New(
+					viewport.WithWidth(10),
+					viewport.WithHeight(20),
+				),
 			},
 		},
 		"WithFocused": {
@@ -122,11 +138,14 @@ func TestNew(t *testing.T) {
 			},
 			want: Model{
 				// Default fields
-				cursor:   0,
-				viewport: viewport.New(0, 20),
-				KeyMap:   DefaultKeyMap(),
-				Help:     help.New(),
-				styles:   DefaultStyles(),
+				cursor: 0,
+				viewport: viewport.New(
+					viewport.WithWidth(0),
+					viewport.WithHeight(20),
+				),
+				KeyMap: DefaultKeyMap(),
+				Help:   help.New(),
+				styles: DefaultStyles(),
 
 				// Modified fields
 				focus: true,
@@ -138,10 +157,13 @@ func TestNew(t *testing.T) {
 			},
 			want: Model{
 				// Default fields
-				cursor:   0,
-				viewport: viewport.New(0, 20),
-				KeyMap:   DefaultKeyMap(),
-				Help:     help.New(),
+				cursor: 0,
+				viewport: viewport.New(
+					viewport.WithWidth(0),
+					viewport.WithHeight(20),
+				),
+				KeyMap: DefaultKeyMap(),
+				Help:   help.New(),
 
 				// Modified fields
 				styles: Styles{},
@@ -153,10 +175,13 @@ func TestNew(t *testing.T) {
 			},
 			want: Model{
 				// Default fields
-				cursor:   0,
-				viewport: viewport.New(0, 20),
-				Help:     help.New(),
-				styles:   DefaultStyles(),
+				cursor: 0,
+				viewport: viewport.New(
+					viewport.WithWidth(0),
+					viewport.WithHeight(20),
+				),
+				Help:   help.New(),
+				styles: DefaultStyles(),
 
 				// Modified fields
 				KeyMap: KeyMap{},
@@ -169,6 +194,11 @@ func TestNew(t *testing.T) {
 			tc.want.UpdateViewport()
 
 			got := New(tc.opts...)
+
+			// NOTE(@andreynering): Funcs have different references, so we need
+			// to clear them out to compare the structs.
+			tc.want.viewport.LeftGutterFunc = nil
+			got.viewport.LeftGutterFunc = nil
 
 			if !reflect.DeepEqual(tc.want, got) {
 				t.Errorf("\n\nwant %v\n\ngot %v", tc.want, got)
@@ -258,9 +288,25 @@ func TestModel_RenderRow(t *testing.T) {
 	}
 }
 
+func TestModel_RenderRow_AnsiWidth(t *testing.T) {
+	value := "\x1b[31mABCDEFGH\x1b[0m"
+	table := &Model{
+		rows:   []Row{{value}},
+		cols:   []Column{{Title: "col1", Width: 8}},
+		styles: Styles{Cell: lipgloss.NewStyle()},
+	}
+
+	got := ansi.Strip(table.renderRow(0))
+	want := "ABCDEFGH"
+	if got != want {
+		t.Fatalf("\n\nWant: \n%s\n\nGot:  \n%s\n", want, got)
+	}
+}
+
 func TestTableAlignment(t *testing.T) {
 	t.Run("No border", func(t *testing.T) {
 		biscuits := New(
+			WithWidth(59),
 			WithHeight(5),
 			WithColumns([]Column{
 				{Title: "Name", Width: 25},
@@ -273,7 +319,7 @@ func TestTableAlignment(t *testing.T) {
 				{"Hobnobs", "UK", "Yes"},
 			}),
 		)
-		got := ansi.Strip(biscuits.View())
+		got := ansiStrip(biscuits.View())
 		golden.RequireEqual(t, []byte(got))
 	})
 	t.Run("With border", func(t *testing.T) {
@@ -289,6 +335,7 @@ func TestTableAlignment(t *testing.T) {
 			Bold(false)
 
 		biscuits := New(
+			WithWidth(59),
 			WithHeight(5),
 			WithColumns([]Column{
 				{Title: "Name", Width: 25},
@@ -302,9 +349,15 @@ func TestTableAlignment(t *testing.T) {
 			}),
 			WithStyles(s),
 		)
-		got := ansi.Strip(baseStyle.Render(biscuits.View()))
+		got := ansiStrip(baseStyle.Render(biscuits.View()))
 		golden.RequireEqual(t, []byte(got))
 	})
+}
+
+func ansiStrip(s string) string {
+	// Replace all \r\n with \n
+	s = strings.ReplaceAll(s, "\r\n", "\n")
+	return ansi.Strip(s)
 }
 
 func TestCursorNavigation(t *testing.T) {
@@ -479,15 +532,19 @@ func TestModel_View(t *testing.T) {
 		modelFunc func() Model
 		skip      bool
 	}{
-		// TODO(?): should the view/output of empty tables use the same default height? (this has height 21)
 		"Empty": {
 			modelFunc: func() Model {
-				return New()
+				return New(
+					WithWidth(60),
+					WithHeight(21),
+				)
 			},
 		},
 		"Single row and column": {
 			modelFunc: func() Model {
 				return New(
+					WithWidth(27),
+					WithHeight(21),
 					WithColumns([]Column{
 						{Title: "Name", Width: 25},
 					}),
@@ -500,6 +557,8 @@ func TestModel_View(t *testing.T) {
 		"Multiple rows and columns": {
 			modelFunc: func() Model {
 				return New(
+					WithWidth(59),
+					WithHeight(21),
 					WithColumns([]Column{
 						{Title: "Name", Width: 25},
 						{Title: "Country of Origin", Width: 16},
@@ -521,6 +580,7 @@ func TestModel_View(t *testing.T) {
 				s.Cell = lipgloss.NewStyle().Padding(2, 2)
 
 				return New(
+					WithWidth(60),
 					WithHeight(10),
 					WithColumns([]Column{
 						{Title: "Name", Width: 25},
@@ -543,6 +603,7 @@ func TestModel_View(t *testing.T) {
 				s.Cell = lipgloss.NewStyle()
 
 				return New(
+					WithWidth(53),
 					WithHeight(10),
 					WithColumns([]Column{
 						{Title: "Name", Width: 25},
@@ -558,10 +619,12 @@ func TestModel_View(t *testing.T) {
 				)
 			},
 		},
-		// TODO(?): the total height is modified with borderd headers, however not with bordered cells. Is this expected/desired?
+		// TODO(?): the total height is modified with bordered headers, however not with bordered cells. Is this expected/desired?
 		"Bordered headers": {
 			modelFunc: func() Model {
 				return New(
+					WithWidth(59),
+					WithHeight(23),
 					WithColumns([]Column{
 						{Title: "Name", Width: 25},
 						{Title: "Country of Origin", Width: 16},
@@ -582,6 +645,8 @@ func TestModel_View(t *testing.T) {
 		"Bordered cells": {
 			modelFunc: func() Model {
 				return New(
+					WithWidth(59),
+					WithHeight(21),
 					WithColumns([]Column{
 						{Title: "Name", Width: 25},
 						{Title: "Country of Origin", Width: 16},
@@ -598,9 +663,10 @@ func TestModel_View(t *testing.T) {
 				)
 			},
 		},
-		"Manual height greater than rows": {
+		"Height greater than rows": {
 			modelFunc: func() Model {
 				return New(
+					WithWidth(59),
 					WithHeight(6),
 					WithColumns([]Column{
 						{Title: "Name", Width: 25},
@@ -615,9 +681,10 @@ func TestModel_View(t *testing.T) {
 				)
 			},
 		},
-		"Manual height less than rows": {
+		"Height less than rows": {
 			modelFunc: func() Model {
 				return New(
+					WithWidth(59),
 					WithHeight(2),
 					WithColumns([]Column{
 						{Title: "Name", Width: 25},
@@ -633,10 +700,11 @@ func TestModel_View(t *testing.T) {
 			},
 		},
 		// TODO(fix): spaces are added to the right of the viewport to fill the width, but the headers end as though they are not aware of the width.
-		"Manual width greater than columns": {
+		"Width greater than columns": {
 			modelFunc: func() Model {
 				return New(
 					WithWidth(80),
+					WithHeight(21),
 					WithColumns([]Column{
 						{Title: "Name", Width: 25},
 						{Title: "Country of Origin", Width: 16},
@@ -652,10 +720,11 @@ func TestModel_View(t *testing.T) {
 		},
 		// TODO(fix): Setting the table width does not affect the total headers' width. Cells are wrapped.
 		// 	Headers are not affected. Truncation/resizing should match lipgloss.table functionality.
-		"Manual width less than columns": {
+		"Width less than columns": {
 			modelFunc: func() Model {
 				return New(
 					WithWidth(30),
+					WithHeight(15),
 					WithColumns([]Column{
 						{Title: "Name", Width: 25},
 						{Title: "Country of Origin", Width: 16},
@@ -673,6 +742,8 @@ func TestModel_View(t *testing.T) {
 		"Modified viewport height": {
 			modelFunc: func() Model {
 				m := New(
+					WithWidth(59),
+					WithHeight(15),
 					WithColumns([]Column{
 						{Title: "Name", Width: 25},
 						{Title: "Country of Origin", Width: 16},
@@ -685,7 +756,7 @@ func TestModel_View(t *testing.T) {
 					}),
 				)
 
-				m.viewport.Height = 2
+				m.viewport.SetHeight(2)
 
 				return m
 			},

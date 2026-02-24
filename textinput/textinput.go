@@ -4,17 +4,16 @@ package textinput
 
 import (
 	"reflect"
+	"slices"
 	"strings"
-	"time"
 	"unicode"
 
+	"charm.land/bubbles/v2/cursor"
+	"charm.land/bubbles/v2/internal/runeutil"
+	"charm.land/bubbles/v2/key"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/atotto/clipboard"
-	"github.com/charmbracelet/bubbles/cursor"
-	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/runeutil"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
-	"github.com/charmbracelet/x/ansi"
 	rw "github.com/mattn/go-runewidth"
 	"github.com/rivo/uniseg"
 )
@@ -66,23 +65,25 @@ type KeyMap struct {
 
 // DefaultKeyMap is the default set of key bindings for navigating and acting
 // upon the textinput.
-var DefaultKeyMap = KeyMap{
-	CharacterForward:        key.NewBinding(key.WithKeys("right", "ctrl+f")),
-	CharacterBackward:       key.NewBinding(key.WithKeys("left", "ctrl+b")),
-	WordForward:             key.NewBinding(key.WithKeys("alt+right", "ctrl+right", "alt+f")),
-	WordBackward:            key.NewBinding(key.WithKeys("alt+left", "ctrl+left", "alt+b")),
-	DeleteWordBackward:      key.NewBinding(key.WithKeys("alt+backspace", "ctrl+w")),
-	DeleteWordForward:       key.NewBinding(key.WithKeys("alt+delete", "alt+d")),
-	DeleteAfterCursor:       key.NewBinding(key.WithKeys("ctrl+k")),
-	DeleteBeforeCursor:      key.NewBinding(key.WithKeys("ctrl+u")),
-	DeleteCharacterBackward: key.NewBinding(key.WithKeys("backspace", "ctrl+h")),
-	DeleteCharacterForward:  key.NewBinding(key.WithKeys("delete", "ctrl+d")),
-	LineStart:               key.NewBinding(key.WithKeys("home", "ctrl+a")),
-	LineEnd:                 key.NewBinding(key.WithKeys("end", "ctrl+e")),
-	Paste:                   key.NewBinding(key.WithKeys("ctrl+v")),
-	AcceptSuggestion:        key.NewBinding(key.WithKeys("tab")),
-	NextSuggestion:          key.NewBinding(key.WithKeys("down", "ctrl+n")),
-	PrevSuggestion:          key.NewBinding(key.WithKeys("up", "ctrl+p")),
+func DefaultKeyMap() KeyMap {
+	return KeyMap{
+		CharacterForward:        key.NewBinding(key.WithKeys("right", "ctrl+f")),
+		CharacterBackward:       key.NewBinding(key.WithKeys("left", "ctrl+b")),
+		WordForward:             key.NewBinding(key.WithKeys("alt+right", "ctrl+right", "alt+f")),
+		WordBackward:            key.NewBinding(key.WithKeys("alt+left", "ctrl+left", "alt+b")),
+		DeleteWordBackward:      key.NewBinding(key.WithKeys("alt+backspace", "ctrl+w")),
+		DeleteWordForward:       key.NewBinding(key.WithKeys("alt+delete", "alt+d")),
+		DeleteAfterCursor:       key.NewBinding(key.WithKeys("ctrl+k")),
+		DeleteBeforeCursor:      key.NewBinding(key.WithKeys("ctrl+u")),
+		DeleteCharacterBackward: key.NewBinding(key.WithKeys("backspace", "ctrl+h")),
+		DeleteCharacterForward:  key.NewBinding(key.WithKeys("delete", "ctrl+d")),
+		LineStart:               key.NewBinding(key.WithKeys("home", "ctrl+a")),
+		LineEnd:                 key.NewBinding(key.WithKeys("end", "ctrl+e")),
+		Paste:                   key.NewBinding(key.WithKeys("ctrl+v")),
+		AcceptSuggestion:        key.NewBinding(key.WithKeys("tab")),
+		NextSuggestion:          key.NewBinding(key.WithKeys("down", "ctrl+n")),
+		PrevSuggestion:          key.NewBinding(key.WithKeys("up", "ctrl+p")),
+	}
 }
 
 // Model is the Bubble Tea model for this text input element.
@@ -94,31 +95,26 @@ type Model struct {
 	Placeholder   string
 	EchoMode      EchoMode
 	EchoCharacter rune
-	Cursor        cursor.Model
 
-	// Deprecated: use [cursor.BlinkSpeed] instead.
-	BlinkSpeed time.Duration
+	// useVirtualCursor determines whether or not to use the virtual cursor. If
+	// set to false, use [Model.Cursor] to return a real cursor for rendering.
+	useVirtualCursor bool
 
-	// Styles. These will be applied as inline styles.
-	//
-	// For an introduction to styling with Lip Gloss see:
-	// https://github.com/charmbracelet/lipgloss
-	PromptStyle      lipgloss.Style
-	TextStyle        lipgloss.Style
-	PlaceholderStyle lipgloss.Style
-	CompletionStyle  lipgloss.Style
-
-	// Deprecated: use Cursor.Style instead.
-	CursorStyle lipgloss.Style
+	// Virtual cursor manager.
+	virtualCursor cursor.Model
 
 	// CharLimit is the maximum amount of characters this input element will
 	// accept. If 0 or less, there's no limit.
 	CharLimit int
 
+	// Styling. FocusedStyle and BlurredStyle are used to style the textarea in
+	// focused and blurred states.
+	styles Styles
+
 	// Width is the maximum number of characters that can be displayed at once.
 	// It essentially treats the text field like a horizontally scrolling
 	// viewport. If 0 or less this setting is ignored.
-	Width int
+	width int
 
 	// KeyMap encodes the keybindings recognized by the widget.
 	KeyMap KeyMap
@@ -159,27 +155,56 @@ type Model struct {
 
 // New creates a new model with default settings.
 func New() Model {
-	return Model{
+	m := Model{
 		Prompt:           "> ",
 		EchoCharacter:    '*',
 		CharLimit:        0,
-		PlaceholderStyle: lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
+		styles:           DefaultDarkStyles(),
 		ShowSuggestions:  false,
-		CompletionStyle:  lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
-		Cursor:           cursor.New(),
-		KeyMap:           DefaultKeyMap,
-
-		suggestions: [][]rune{},
-		value:       nil,
-		focus:       false,
-		pos:         0,
+		useVirtualCursor: true,
+		virtualCursor:    cursor.New(),
+		KeyMap:           DefaultKeyMap(),
+		suggestions:      [][]rune{},
+		value:            nil,
+		focus:            false,
+		pos:              0,
 	}
+	m.updateVirtualCursorStyle()
+	return m
 }
 
-// NewModel creates a new model with default settings.
-//
-// Deprecated: Use [New] instead.
-var NewModel = New
+// VirtualCursor returns whether the model is using a virtual cursor.
+func (m Model) VirtualCursor() bool {
+	return m.useVirtualCursor
+}
+
+// SetVirtualCursor sets whether the model should use a virtual cursor. If
+// disabled, use [Model.Cursor] to return a real cursor for rendering.
+func (m *Model) SetVirtualCursor(v bool) {
+	m.useVirtualCursor = v
+	m.updateVirtualCursorStyle()
+}
+
+// Styles returns the current set of styles.
+func (m Model) Styles() Styles {
+	return m.styles
+}
+
+// SetStyles sets the styles for the text input.
+func (m *Model) SetStyles(s Styles) {
+	m.styles = s
+	m.updateVirtualCursorStyle()
+}
+
+// Width returns the width of the text input.
+func (m Model) Width() int {
+	return m.width
+}
+
+// SetWidth sets the width of the text input.
+func (m *Model) SetWidth(w int) {
+	m.width = w
+}
 
 // SetValue sets the value of the text input.
 func (m *Model) SetValue(s string) {
@@ -242,14 +267,14 @@ func (m Model) Focused() bool {
 // receive keyboard input and the cursor will be shown.
 func (m *Model) Focus() tea.Cmd {
 	m.focus = true
-	return m.Cursor.Focus()
+	return m.virtualCursor.Focus()
 }
 
 // Blur removes the focus state on the model.  When the model is blurred it can
 // not receive keyboard input and the cursor will be hidden.
 func (m *Model) Blur() {
 	m.focus = false
-	m.Cursor.Blur()
+	m.virtualCursor.Blur()
 }
 
 // Reset sets the input to its default state with no input.
@@ -328,7 +353,7 @@ func (m *Model) insertRunesFromUserInput(v []rune) {
 // If a max width is defined, perform some logic to treat the visible area
 // as a horizontally scrolling viewport.
 func (m *Model) handleOverflow() {
-	if m.Width <= 0 || uniseg.StringWidth(string(m.value)) <= m.Width {
+	if m.Width() <= 0 || uniseg.StringWidth(string(m.value)) <= m.Width() {
 		m.offset = 0
 		m.offsetRight = len(m.value)
 		return
@@ -344,9 +369,9 @@ func (m *Model) handleOverflow() {
 		i := 0
 		runes := m.value[m.offset:]
 
-		for i < len(runes) && w <= m.Width {
+		for i < len(runes) && w <= m.Width() {
 			w += rw.RuneWidth(runes[i])
-			if w <= m.Width+1 {
+			if w <= m.Width()+1 {
 				i++
 			}
 		}
@@ -359,9 +384,9 @@ func (m *Model) handleOverflow() {
 		runes := m.value[:m.offsetRight]
 		i := len(runes) - 1
 
-		for i > 0 && w < m.Width {
+		for i > 0 && w < m.Width() {
 			w += rw.RuneWidth(runes[i])
-			if w <= m.Width {
+			if w <= m.Width() {
 				i--
 			}
 		}
@@ -558,7 +583,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	}
 
 	// Need to check for completion before, because key is configurable and might be double assigned
-	keyMsg, ok := msg.(tea.KeyMsg)
+	keyMsg, ok := msg.(tea.KeyPressMsg)
 	if ok && key.Matches(keyMsg, m.KeyMap.AcceptSuggestion) {
 		if m.canAcceptSuggestion() {
 			m.value = append(m.value, m.matchedSuggestions[m.currentSuggestionIndex][len(m.value):]...)
@@ -571,7 +596,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	oldPos := m.pos
 
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		switch {
 		case key.Matches(msg, m.KeyMap.DeleteWordBackward):
 			m.deleteWordBackward()
@@ -600,7 +625,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.CursorStart()
 		case key.Matches(msg, m.KeyMap.DeleteCharacterForward):
 			if len(m.value) > 0 && m.pos < len(m.value) {
-				m.value = append(m.value[:m.pos], m.value[m.pos+1:]...)
+				m.value = slices.Delete(m.value, m.pos, m.pos+1)
 				m.Err = m.validate(m.value)
 			}
 		case key.Matches(msg, m.KeyMap.LineEnd):
@@ -619,12 +644,15 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.previousSuggestion()
 		default:
 			// Input one or more regular characters.
-			m.insertRunesFromUserInput(msg.Runes)
+			m.insertRunesFromUserInput([]rune(msg.Text))
 		}
 
 		// Check again if can be completed
 		// because value might be something that does not match the completion prefix
 		m.updateSuggestions()
+
+	case tea.PasteMsg:
+		m.insertRunesFromUserInput([]rune(msg.Content))
 
 	case pasteMsg:
 		m.insertRunesFromUserInput([]rune(msg))
@@ -636,12 +664,16 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	var cmds []tea.Cmd
 	var cmd tea.Cmd
 
-	m.Cursor, cmd = m.Cursor.Update(msg)
-	cmds = append(cmds, cmd)
+	if m.useVirtualCursor {
+		m.virtualCursor, cmd = m.virtualCursor.Update(msg)
+		cmds = append(cmds, cmd)
 
-	if oldPos != m.pos && m.Cursor.Mode() == cursor.CursorBlink {
-		m.Cursor.Blink = false
-		cmds = append(cmds, m.Cursor.BlinkCmd())
+		// If the cursor position changed, reset the blink state. This is a
+		// small UX nuance that makes cursor movement obvious and feel snappy.
+		if oldPos != m.pos && m.virtualCursor.Mode() == cursor.CursorBlink {
+			m.virtualCursor.IsBlinked = false
+			cmds = append(cmds, m.virtualCursor.Blink())
+		}
 	}
 
 	m.handleOverflow()
@@ -655,7 +687,9 @@ func (m Model) View() string {
 		return m.placeholderView()
 	}
 
-	styleText := m.TextStyle.Inline(true).Render
+	styles := m.activeStyle()
+
+	styleText := styles.Text.Inline(true).Render
 
 	value := m.value[m.offset:m.offsetRight]
 	pos := max(0, m.pos-m.offset)
@@ -663,72 +697,86 @@ func (m Model) View() string {
 
 	if pos < len(value) { //nolint:nestif
 		char := m.echoTransform(string(value[pos]))
-		m.Cursor.SetChar(char)
-		v += m.Cursor.View()                                   // cursor and text under it
+		m.virtualCursor.SetChar(char)
+		v += m.virtualCursor.View()                            // cursor and text under it
 		v += styleText(m.echoTransform(string(value[pos+1:]))) // text after cursor
 		v += m.completionView(0)                               // suggested completion
 	} else {
 		if m.focus && m.canAcceptSuggestion() {
 			suggestion := m.matchedSuggestions[m.currentSuggestionIndex]
 			if len(value) < len(suggestion) {
-				m.Cursor.TextStyle = m.CompletionStyle
-				m.Cursor.SetChar(m.echoTransform(string(suggestion[pos])))
-				v += m.Cursor.View()
+				m.virtualCursor.TextStyle = styles.Suggestion
+				m.virtualCursor.SetChar(m.echoTransform(string(suggestion[pos])))
+				v += m.virtualCursor.View()
 				v += m.completionView(1)
 			} else {
-				m.Cursor.SetChar(" ")
-				v += m.Cursor.View()
+				m.virtualCursor.SetChar(" ")
+				v += m.virtualCursor.View()
 			}
 		} else {
-			m.Cursor.SetChar(" ")
-			v += m.Cursor.View()
+			m.virtualCursor.SetChar(" ")
+			v += m.virtualCursor.View()
 		}
 	}
 
 	// If a max width and background color were set fill the empty spaces with
 	// the background color.
 	valWidth := uniseg.StringWidth(string(value))
-	if m.Width > 0 && valWidth <= m.Width {
-		padding := max(0, m.Width-valWidth)
-		if valWidth+padding <= m.Width && pos < len(value) {
+	if m.Width() > 0 && valWidth <= m.Width() {
+		padding := max(0, m.Width()-valWidth)
+		if valWidth+padding <= m.Width() && pos < len(value) {
 			padding++
 		}
 		v += styleText(strings.Repeat(" ", padding))
 	}
 
-	return m.PromptStyle.Render(m.Prompt) + v
+	return m.promptView() + v
+}
+
+func (m Model) promptView() string {
+	return m.activeStyle().Prompt.Render(m.Prompt)
 }
 
 // placeholderView returns the prompt and placeholder view, if any.
 func (m Model) placeholderView() string {
 	var (
-		v     string
-		style = m.PlaceholderStyle.Inline(true).Render
-		p     = m.PromptStyle.Render(m.Prompt)
+		v      string
+		styles = m.activeStyle()
+		render = styles.Placeholder.Render
 	)
 
-	m.Cursor.TextStyle = m.PlaceholderStyle
-	first, rest, _, _ := uniseg.FirstGraphemeClusterInString(m.Placeholder, 0)
-	m.Cursor.SetChar(first)
-	v += m.Cursor.View()
+	p := make([]rune, m.Width()+1)
+	copy(p, []rune(m.Placeholder))
+
+	m.virtualCursor.TextStyle = styles.Placeholder
+	m.virtualCursor.SetChar(string(p[:1]))
+	v += m.virtualCursor.View()
 
 	// If the entire placeholder is already set and no padding is needed, finish
-	if m.Width < 1 && uniseg.StringWidth(rest) <= 1 {
-		return m.PromptStyle.Render(m.Prompt) + v
+	if m.Width() < 1 && len(p) <= 1 {
+		return styles.Prompt.Render(m.Prompt) + v
 	}
 
 	// If Width is set then size placeholder accordingly
-	if m.Width > 0 {
-		width := m.Width - lipgloss.Width(p) - lipgloss.Width(v)
-		placeholderRest := ansi.Truncate(rest, width, "…")
-		availWidth := max(0, width-lipgloss.Width(placeholderRest))
-		v += style(placeholderRest) + strings.Repeat(" ", availWidth)
+	if m.Width() > 0 {
+		// available width is width - len + cursor offset of 1
+		minWidth := lipgloss.Width(m.Placeholder)
+		availWidth := m.Width() - minWidth + 1
+
+		// if width < len, 'subtract'(add) number to len and dont add padding
+		if availWidth < 0 {
+			minWidth += availWidth
+			availWidth = 0
+		}
+		// append placeholder[len] - cursor, append padding
+		v += render(string(p[1:minWidth]))
+		v += render(strings.Repeat(" ", availWidth))
 	} else {
 		// if there is no width, the placeholder can be any length
-		v += style(rest)
+		v += render(string(p[1:]))
 	}
 
-	return p + v
+	return styles.Prompt.Render(m.Prompt) + v
 }
 
 // Blink is a command used to initialize cursor blinking.
@@ -752,52 +800,15 @@ func clamp(v, low, high int) int {
 	return min(high, max(low, v))
 }
 
-// Deprecated.
-
-// Deprecated: use [cursor.Mode].
-//
-//nolint:revive
-type CursorMode int
-
-//nolint:revive
-const (
-	// Deprecated: use [cursor.CursorBlink].
-	CursorBlink = CursorMode(cursor.CursorBlink)
-	// Deprecated: use [cursor.CursorStatic].
-	CursorStatic = CursorMode(cursor.CursorStatic)
-	// Deprecated: use [cursor.CursorHide].
-	CursorHide = CursorMode(cursor.CursorHide)
-)
-
-func (c CursorMode) String() string {
-	return cursor.Mode(c).String()
-}
-
-// Deprecated: use [cursor.Mode].
-//
-//nolint:revive
-func (m Model) CursorMode() CursorMode {
-	return CursorMode(m.Cursor.Mode())
-}
-
-// Deprecated: use cursor.SetMode().
-//
-//nolint:revive
-func (m *Model) SetCursorMode(mode CursorMode) tea.Cmd {
-	return m.Cursor.SetMode(cursor.Mode(mode))
-}
-
 func (m Model) completionView(offset int) string {
-	var (
-		value = m.value
-		style = m.PlaceholderStyle.Inline(true).Render
-	)
-
-	if m.canAcceptSuggestion() {
-		suggestion := m.matchedSuggestions[m.currentSuggestionIndex]
-		if len(value) < len(suggestion) {
-			return style(string(suggestion[len(value)+offset:]))
-		}
+	if !m.canAcceptSuggestion() {
+		return ""
+	}
+	value := m.value
+	suggestion := m.matchedSuggestions[m.currentSuggestionIndex]
+	if len(value) < len(suggestion) {
+		return m.activeStyle().Suggestion.Inline(true).
+			Render(string(suggestion[len(value)+offset:]))
 	}
 	return ""
 }
@@ -887,4 +898,71 @@ func (m Model) validate(v []rune) error {
 		return m.Validate(string(v))
 	}
 	return nil
+}
+
+// Cursor returns a [tea.Cursor] for rendering a real cursor in a Bubble Tea
+// program. This requires that [Model.VirtualCursor] is set to false.
+//
+// Note that you will almost certainly also need to adjust the offset cursor
+// position per the textarea's per the textarea's position in the terminal.
+//
+// Example:
+//
+//	// In your top-level View function:
+//	f := tea.NewFrame(m.textarea.View())
+//	f.Cursor = m.textarea.Cursor()
+//	f.Cursor.Position.X += offsetX
+//	f.Cursor.Position.Y += offsetY
+func (m Model) Cursor() *tea.Cursor {
+	if m.useVirtualCursor || !m.Focused() {
+		return nil
+	}
+
+	w := lipgloss.Width
+
+	promptWidth := w(m.promptView())
+	xOffset := m.Position() +
+		promptWidth
+	if m.width > 0 {
+		xOffset = min(xOffset, m.width+promptWidth)
+	}
+
+	style := m.styles.Cursor
+	c := tea.NewCursor(xOffset, 0)
+	c.Blink = style.Blink
+	c.Color = style.Color
+	c.Shape = style.Shape
+	return c
+}
+
+// updateVirtualCursorStyle sets styling on the virtual cursor based on the
+// textarea's style settings.
+func (m *Model) updateVirtualCursorStyle() {
+	if !m.useVirtualCursor {
+		// Hide the virtual cursor if we're using a real cursor.
+		m.virtualCursor.SetMode(cursor.CursorHide)
+		return
+	}
+
+	m.virtualCursor.Style = lipgloss.NewStyle().Foreground(m.styles.Cursor.Color)
+
+	// By default, the blink speed of the cursor is set to a default
+	// internally.
+	if m.styles.Cursor.Blink {
+		if m.styles.Cursor.BlinkSpeed > 0 {
+			m.virtualCursor.BlinkSpeed = m.styles.Cursor.BlinkSpeed
+		}
+		m.virtualCursor.SetMode(cursor.CursorBlink)
+		return
+	}
+	m.virtualCursor.SetMode(cursor.CursorStatic)
+}
+
+// activeStyle returns the appropriate set of styles to use depending on
+// whether the textarea is focused or blurred.
+func (m Model) activeStyle() *StyleState {
+	if m.focus {
+		return &m.styles.Focused
+	}
+	return &m.styles.Blurred
 }

@@ -4,9 +4,9 @@ package help
 import (
 	"strings"
 
-	"github.com/charmbracelet/bubbles/key"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/key"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 )
 
 // KeyMap is a map of keybindings used to generate help. Since it's an
@@ -42,9 +42,39 @@ type Styles struct {
 	FullSeparator lipgloss.Style
 }
 
+// DefaultStyles returns a set of default styles for the help bubble. Light or
+// dark styles can be selected by passing true or false to the isDark
+// parameter.
+func DefaultStyles(isDark bool) Styles {
+	lightDark := lipgloss.LightDark(isDark)
+
+	keyStyle := lipgloss.NewStyle().Foreground(lightDark(lipgloss.Color("#909090"), lipgloss.Color("#626262")))
+	descStyle := lipgloss.NewStyle().Foreground(lightDark(lipgloss.Color("#B2B2B2"), lipgloss.Color("#4A4A4A")))
+	sepStyle := lipgloss.NewStyle().Foreground(lightDark(lipgloss.Color("#DADADA"), lipgloss.Color("#3C3C3C")))
+
+	return Styles{
+		ShortKey:       keyStyle,
+		ShortDesc:      descStyle,
+		ShortSeparator: sepStyle,
+		Ellipsis:       sepStyle,
+		FullKey:        keyStyle,
+		FullDesc:       descStyle,
+		FullSeparator:  sepStyle,
+	}
+}
+
+// DefaultDarkStyles returns a set of default styles for dark backgrounds.
+func DefaultDarkStyles() Styles {
+	return DefaultStyles(true)
+}
+
+// DefaultLightStyles returns a set of default styles for light backgrounds.
+func DefaultLightStyles() Styles {
+	return DefaultStyles(false)
+}
+
 // Model contains the state of the help view.
 type Model struct {
-	Width   int
 	ShowAll bool // if true, render the "full" help menu
 
 	ShortSeparator string
@@ -55,45 +85,19 @@ type Model struct {
 	Ellipsis string
 
 	Styles Styles
+
+	width int
 }
 
 // New creates a new help view with some useful defaults.
 func New() Model {
-	keyStyle := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{
-		Light: "#909090",
-		Dark:  "#626262",
-	})
-
-	descStyle := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{
-		Light: "#B2B2B2",
-		Dark:  "#4A4A4A",
-	})
-
-	sepStyle := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{
-		Light: "#DDDADA",
-		Dark:  "#3C3C3C",
-	})
-
 	return Model{
 		ShortSeparator: " • ",
 		FullSeparator:  "    ",
 		Ellipsis:       "…",
-		Styles: Styles{
-			ShortKey:       keyStyle,
-			ShortDesc:      descStyle,
-			ShortSeparator: sepStyle,
-			Ellipsis:       sepStyle,
-			FullKey:        keyStyle,
-			FullDesc:       descStyle,
-			FullSeparator:  sepStyle,
-		},
+		Styles:         DefaultDarkStyles(),
 	}
 }
-
-// NewModel creates a new help view with some useful defaults.
-//
-// Deprecated: use [New] instead.
-var NewModel = New
 
 // Update helps satisfy the Bubble Tea Model interface. It's a no-op.
 func (m Model) Update(_ tea.Msg) (Model, tea.Cmd) {
@@ -106,6 +110,16 @@ func (m Model) View(k KeyMap) string {
 		return m.FullHelpView(k.FullHelp())
 	}
 	return m.ShortHelpView(k.ShortHelp())
+}
+
+// SetWidth sets the maximum width for the help view.
+func (m *Model) SetWidth(w int) {
+	m.width = w
+}
+
+// Width returns the maximum width for the help view.
+func (m Model) Width() int {
+	return m.width
 }
 
 // ShortHelpView renders a single line help view from a slice of keybindings.
@@ -161,7 +175,6 @@ func (m Model) FullHelpView(groups [][]key.Binding) string {
 
 	// Linter note: at this time we don't think it's worth the additional
 	// code complexity involved in preallocating this slice.
-	//nolint:prealloc
 	var (
 		out []string
 
@@ -220,10 +233,10 @@ func (m Model) FullHelpView(groups [][]key.Binding) string {
 
 func (m Model) shouldAddItem(totalWidth, width int) (tail string, ok bool) {
 	// If there's room for an ellipsis, print that.
-	if m.Width > 0 && totalWidth+width > m.Width {
+	if m.width > 0 && totalWidth+width > m.width {
 		tail = " " + m.Styles.Ellipsis.Inline(true).Render(m.Ellipsis)
 
-		if totalWidth+lipgloss.Width(tail) < m.Width {
+		if totalWidth+lipgloss.Width(tail) < m.width {
 			return tail, false
 		}
 	}
