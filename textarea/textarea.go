@@ -6,19 +6,20 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"image/color"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
 	"unicode"
 
+	"charm.land/bubbles/v2/cursor"
+	"charm.land/bubbles/v2/internal/memoization"
+	"charm.land/bubbles/v2/internal/runeutil"
+	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/viewport"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/atotto/clipboard"
-	"github.com/charmbracelet/bubbles/v2/cursor"
-	"github.com/charmbracelet/bubbles/v2/internal/memoization"
-	"github.com/charmbracelet/bubbles/v2/internal/runeutil"
-	"github.com/charmbracelet/bubbles/v2/key"
-	"github.com/charmbracelet/bubbles/v2/viewport"
-	tea "github.com/charmbracelet/bubbletea/v2"
-	"github.com/charmbracelet/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 	rw "github.com/mattn/go-runewidth"
 	"github.com/rivo/uniseg"
@@ -57,6 +58,8 @@ type KeyMap struct {
 	LineNext                key.Binding
 	LinePrevious            key.Binding
 	LineStart               key.Binding
+	PageUp                  key.Binding
+	PageDown                key.Binding
 	Paste                   key.Binding
 	WordBackward            key.Binding
 	WordForward             key.Binding
@@ -89,6 +92,8 @@ func DefaultKeyMap() KeyMap {
 		DeleteCharacterForward:  key.NewBinding(key.WithKeys("delete", "ctrl+d"), key.WithHelp("delete", "delete character forward")),
 		LineStart:               key.NewBinding(key.WithKeys("home", "ctrl+a"), key.WithHelp("home", "line start")),
 		LineEnd:                 key.NewBinding(key.WithKeys("end", "ctrl+e"), key.WithHelp("end", "line end")),
+		PageUp:                  key.NewBinding(key.WithKeys("pgup"), key.WithHelp("pgup", "page up")),
+		PageDown:                key.NewBinding(key.WithKeys("pgdown"), key.WithHelp("pgdown", "page down")),
 		Paste:                   key.NewBinding(key.WithKeys("ctrl+v"), key.WithHelp("ctrl+v", "paste")),
 		InputBegin:              key.NewBinding(key.WithKeys("alt+<", "ctrl+home"), key.WithHelp("alt+<", "input begin")),
 		InputEnd:                key.NewBinding(key.WithKeys("alt+>", "ctrl+end"), key.WithHelp("alt+>", "input end")),
@@ -130,6 +135,13 @@ type LineInfo struct {
 	// ColumnOffset, but will be different there are double-width runes before
 	// the cursor.
 	CharOffset int
+}
+
+// PromptInfo is a struct that can be used to store information about the
+// prompt.
+type PromptInfo struct {
+	LineNumber int
+	Focused    bool
 }
 
 // CursorStyle is the style for real and virtual cursors.
@@ -260,16 +272,8 @@ type Model struct {
 	// KeyMap encodes the keybindings recognized by the widget.
 	KeyMap KeyMap
 
-	// Styling. FocusedStyle and BlurredStyle are used to style the textarea in
-	// focused and blurred states.
-	Styles Styles
-
 	// virtualCursor manages the virtual cursor.
 	virtualCursor cursor.Model
-
-	// VirtualCursor determines whether or not to use the virtual cursor. If
-	// set to false, use [Model.Cursor] to return a real cursor for rendering.
-	VirtualCursor bool
 
 	// CharLimit is the maximum number of characters this input element will
 	// accept. If 0 or less, there's no limit.
@@ -283,9 +287,18 @@ type Model struct {
 	// there's no limit.
 	MaxWidth int
 
+	// Styling. Styles are defined in [Styles]. Use [SetStyles] and [GetStyles]
+	// to work with this value publicly.
+	styles Styles
+
+	// useVirtualCursor determines whether or not to use the virtual cursor.
+	// Use [SetVirtualCursor] and [VirtualCursor] to work with this this
+	// value publicly.
+	useVirtualCursor bool
+
 	// If promptFunc is set, it replaces Prompt as a generator for
 	// prompt strings at the beginning of each line.
-	promptFunc func(line int) string
+	promptFunc func(PromptInfo) string
 
 	// promptWidth is the width of the prompt.
 	promptWidth int
@@ -337,11 +350,11 @@ func New() Model {
 		MaxHeight:            defaultMaxHeight,
 		MaxWidth:             defaultMaxWidth,
 		Prompt:               lipgloss.ThickBorder().Left + " ",
-		Styles:               styles,
+		styles:               styles,
 		cache:                memoization.NewMemoCache[line, [][]rune](maxLines),
 		EndOfBufferCharacter: ' ',
 		ShowLineNumbers:      true,
-		VirtualCursor:        true,
+		useVirtualCursor:     true,
 		virtualCursor:        cur,
 		KeyMap:               DefaultKeyMap(),
 
@@ -403,21 +416,43 @@ func DefaultDarkStyles() Styles {
 	return DefaultStyles(true)
 }
 
+// Styles returns the current styles for the textarea.
+func (m Model) Styles() Styles {
+	return m.styles
+}
+
+// SetStyles updates styling for the textarea.
+func (m *Model) SetStyles(s Styles) {
+	m.styles = s
+	m.updateVirtualCursorStyle()
+}
+
+// VirtualCursor returns whether or not the virtual cursor is enabled.
+func (m Model) VirtualCursor() bool {
+	return m.useVirtualCursor
+}
+
+// SetVirtualCursor sets whether or not to use the virtual cursor.
+func (m *Model) SetVirtualCursor(v bool) {
+	m.useVirtualCursor = v
+	m.updateVirtualCursorStyle()
+}
+
 // updateVirtualCursorStyle sets styling on the virtual cursor based on the
 // textarea's style settings.
 func (m *Model) updateVirtualCursorStyle() {
-	if !m.VirtualCursor {
+	if !m.useVirtualCursor {
 		m.virtualCursor.SetMode(cursor.CursorHide)
 		return
 	}
 
-	m.virtualCursor.Style = lipgloss.NewStyle().Foreground(m.Styles.Cursor.Color)
+	m.virtualCursor.Style = lipgloss.NewStyle().Foreground(m.styles.Cursor.Color)
 
 	// By default, the blink speed of the cursor is set to a default
 	// internally.
-	if m.Styles.Cursor.Blink {
-		if m.Styles.Cursor.BlinkSpeed > 0 {
-			m.virtualCursor.BlinkSpeed = m.Styles.Cursor.BlinkSpeed
+	if m.styles.Cursor.Blink {
+		if m.styles.Cursor.BlinkSpeed > 0 {
+			m.virtualCursor.BlinkSpeed = m.styles.Cursor.BlinkSpeed
 		}
 		m.virtualCursor.SetMode(cursor.CursorBlink)
 		return
@@ -464,7 +499,7 @@ func (m *Model) insertRunesFromUserInput(runes []rune) {
 	// Split the input into lines.
 	var lines [][]rune
 	lstart := 0
-	for i := 0; i < len(runes); i++ {
+	for i := range runes {
 		if runes[i] == '\n' {
 			// Queue a line to become a new row in the text area below.
 			// Beware to clamp the max capacity of the slice, to ensure no
@@ -560,33 +595,73 @@ func (m *Model) LineCount() int {
 	return len(m.value)
 }
 
-// Line returns the line position.
+// Line returns the 0-indexed row position of the cursor.
 func (m Model) Line() int {
 	return m.row
 }
 
-// CursorDown moves the cursor down by one line.
-// Returns whether or not the cursor blink should be reset.
-func (m *Model) CursorDown() {
+// Column returns the 0-indexed column position of the cursor.
+func (m Model) Column() int {
+	return m.col
+}
+
+// ScrollYOffset returns the Y offset (top row) index of the current view, which
+// can be used to calculate the current scroll position.
+func (m Model) ScrollYOffset() int {
+	return m.viewport.YOffset()
+}
+
+// ScrollPercent returns the amount of the textarea that is currently scrolled
+// through, clamped between 0 and 1.
+func (m Model) ScrollPercent() float64 {
+	return m.viewport.ScrollPercent()
+}
+
+// setCursorLineRelative moves the cursor by the given number of lines. Negative
+// values move the cursor up, positive values move the cursor down.
+func (m *Model) setCursorLineRelative(delta int) {
+	if delta == 0 {
+		return
+	}
+
 	li := m.LineInfo()
 	charOffset := max(m.lastCharOffset, li.CharOffset)
 	m.lastCharOffset = charOffset
 
-	if li.RowOffset+1 >= li.Height && m.row < len(m.value)-1 {
-		m.row++
-		m.col = 0
+	// 2 columns to account for the trailing space wrapping.
+	const trailingSpace = 2
+
+	if delta > 0 { //nolint:nestif
+		// Moving down.
+		for range delta {
+			if li.RowOffset+1 >= li.Height && m.row < len(m.value)-1 {
+				m.row++
+				m.col = 0
+			} else {
+				// Move the cursor to the start of the next virtual line.
+				m.col = min(li.StartColumn+li.Width+trailingSpace, len(m.value[m.row])-1)
+			}
+			li = m.LineInfo()
+		}
 	} else {
-		// Move the cursor to the start of the next line so that we can get
-		// the line information. We need to add 2 columns to account for the
-		// trailing space wrapping.
-		const trailingSpace = 2
-		m.col = min(li.StartColumn+li.Width+trailingSpace, len(m.value[m.row])-1)
+		// Moving up.
+		for range -delta {
+			if li.RowOffset <= 0 && m.row > 0 {
+				m.row--
+				m.col = len(m.value[m.row])
+			} else {
+				// Move the cursor to the end of the previous line.
+				m.col = li.StartColumn - trailingSpace
+			}
+			li = m.LineInfo()
+		}
 	}
 
 	nli := m.LineInfo()
 	m.col = nli.StartColumn
 
 	if nli.Width <= 0 {
+		m.repositionView()
 		return
 	}
 
@@ -598,41 +673,17 @@ func (m *Model) CursorDown() {
 		offset += rw.RuneWidth(m.value[m.row][m.col])
 		m.col++
 	}
+	m.repositionView()
+}
+
+// CursorDown moves the cursor down by one line.
+func (m *Model) CursorDown() {
+	m.setCursorLineRelative(1)
 }
 
 // CursorUp moves the cursor up by one line.
 func (m *Model) CursorUp() {
-	li := m.LineInfo()
-	charOffset := max(m.lastCharOffset, li.CharOffset)
-	m.lastCharOffset = charOffset
-
-	if li.RowOffset <= 0 && m.row > 0 {
-		m.row--
-		m.col = len(m.value[m.row])
-	} else {
-		// Move the cursor to the end of the previous line.
-		// This can be done by moving the cursor to the start of the line and
-		// then subtracting 2 to account for the trailing space we keep on
-		// soft-wrapped lines.
-		const trailingSpace = 2
-		m.col = li.StartColumn - trailingSpace
-	}
-
-	nli := m.LineInfo()
-	m.col = nli.StartColumn
-
-	if nli.Width <= 0 {
-		return
-	}
-
-	offset := 0
-	for offset < charOffset {
-		if m.col >= len(m.value[m.row]) || offset >= nli.CharWidth-1 {
-			break
-		}
-		offset += rw.RuneWidth(m.value[m.row][m.col])
-		m.col++
-	}
+	m.setCursorLineRelative(-1)
 }
 
 // SetCursorColumn moves the cursor to the given position. If the position is
@@ -663,9 +714,9 @@ func (m Model) Focused() bool {
 // whether the textarea is focused or blurred.
 func (m Model) activeStyle() *StyleState {
 	if m.focus {
-		return &m.Styles.Focused
+		return &m.styles.Focused
 	}
-	return &m.Styles.Blurred
+	return &m.styles.Blurred
 }
 
 // Focus sets the focus state on the model. When the model is in focus it can
@@ -689,6 +740,41 @@ func (m *Model) Reset() {
 	m.row = 0
 	m.viewport.GotoTop()
 	m.SetCursorColumn(0)
+}
+
+// Word returns the word at the cursor position.
+// A word is delimited by spaces or line-breaks.
+func (m *Model) Word() string {
+	line := m.value[m.row]
+	col := m.col - 1
+
+	if col < 0 {
+		return ""
+	}
+
+	// If cursor is beyond the line, return empty string
+	if col >= len(line) {
+		return ""
+	}
+
+	// If cursor is on a space, return empty string
+	if unicode.IsSpace(line[col]) {
+		return ""
+	}
+
+	// Find the start of the word by moving left
+	start := col
+	for start > 0 && !unicode.IsSpace(line[start-1]) {
+		start--
+	}
+
+	// Find the end of the word by moving right
+	end := col
+	for end < len(line) && !unicode.IsSpace(line[end]) {
+		end++
+	}
+
+	return string(line[start:end])
 }
 
 // san initializes or retrieves the rune sanitizer.
@@ -743,7 +829,7 @@ func (m *Model) deleteWordLeft() {
 	// Linter note: it's critical that we acquire the initial cursor position
 	// here prior to altering it via SetCursor() below. As such, moving this
 	// call into the corresponding if clause does not apply here.
-	oldCol := m.col //nolint:ifshort
+	oldCol := m.col
 
 	m.SetCursorColumn(m.col - 1)
 	for unicode.IsSpace(m.value[m.row][m.col]) {
@@ -959,16 +1045,44 @@ func (m Model) Width() int {
 	return m.width
 }
 
-// moveToBegin moves the cursor to the beginning of the input.
-func (m *Model) moveToBegin() {
+// MoveToBegin moves the cursor to the beginning of the input.
+func (m *Model) MoveToBegin() {
 	m.row = 0
 	m.SetCursorColumn(0)
+	m.repositionView()
 }
 
-// moveToEnd moves the cursor to the end of the input.
-func (m *Model) moveToEnd() {
+// MoveToEnd moves the cursor to the end of the input.
+func (m *Model) MoveToEnd() {
 	m.row = len(m.value) - 1
 	m.SetCursorColumn(len(m.value[m.row]))
+	m.repositionView()
+}
+
+// PageUp moves the cursor up by one page. First call snaps to the first visible
+// line, subsequent calls move up by a full page.
+func (m *Model) PageUp() {
+	// If not on the first visible line, snap to it.
+	if offset := m.viewport.YOffset() - m.cursorLineNumber(); offset < 0 {
+		m.setCursorLineRelative(offset)
+		return
+	}
+
+	// Already on first visible line, move up by a full page.
+	m.setCursorLineRelative(-m.height)
+}
+
+// PageDown moves the cursor down by one page. First call snaps to the last
+// visible line, subsequent calls move down by a full page.
+func (m *Model) PageDown() {
+	// If not on the last visible line, snap to it.
+	if offset := m.cursorLineNumber() - m.viewport.YOffset(); offset < m.height-1 {
+		m.setCursorLineRelative(m.height - 1 - offset)
+		return
+	}
+
+	// Already on last visible line, move down by a full page.
+	m.setCursorLineRelative(m.height)
 }
 
 // SetWidth sets the width of the textarea to fit exactly within the given width.
@@ -1028,7 +1142,7 @@ func (m *Model) SetWidth(w int) {
 // promptWidth, it will be padded to the left. If it returns a prompt that is
 // longer, display artifacts may occur; the caller is responsible for computing
 // an adequate promptWidth.
-func (m *Model) SetPromptFunc(promptWidth int, fn func(lineIndex int) string) {
+func (m *Model) SetPromptFunc(promptWidth int, fn func(PromptInfo) string) {
 	m.promptFunc = fn
 	m.promptWidth = promptWidth
 }
@@ -1047,6 +1161,8 @@ func (m *Model) SetHeight(h int) {
 		m.height = max(h, minHeight)
 		m.viewport.SetHeight(max(h, minHeight))
 	}
+
+	m.repositionView()
 }
 
 // Update is the Bubble Tea update loop.
@@ -1071,7 +1187,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.PasteMsg:
-		m.insertRunesFromUserInput([]rune(msg))
+		m.insertRunesFromUserInput([]rune(msg.Content))
 	case tea.KeyPressMsg:
 		switch {
 		case key.Matches(msg, m.KeyMap.DeleteAfterCursor):
@@ -1102,7 +1218,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			}
 		case key.Matches(msg, m.KeyMap.DeleteCharacterForward):
 			if len(m.value[m.row]) > 0 && m.col < len(m.value[m.row]) {
-				m.value[m.row] = append(m.value[m.row][:m.col], m.value[m.row][m.col+1:]...)
+				m.value[m.row] = slices.Delete(m.value[m.row], m.col, m.col+1)
 			}
 			if m.col >= len(m.value[m.row]) {
 				m.mergeLineBelow(m.row)
@@ -1146,9 +1262,13 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		case key.Matches(msg, m.KeyMap.WordBackward):
 			m.wordLeft()
 		case key.Matches(msg, m.KeyMap.InputBegin):
-			m.moveToBegin()
+			m.MoveToBegin()
 		case key.Matches(msg, m.KeyMap.InputEnd):
-			m.moveToEnd()
+			m.MoveToEnd()
+		case key.Matches(msg, m.KeyMap.PageUp):
+			m.PageUp()
+		case key.Matches(msg, m.KeyMap.PageDown):
+			m.PageDown()
 		case key.Matches(msg, m.KeyMap.LowercaseWordForward):
 			m.lowercaseRight()
 		case key.Matches(msg, m.KeyMap.UppercaseWordForward):
@@ -1169,27 +1289,33 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		m.Err = msg
 	}
 
+	// Make sure we set the content of the viewport before updating it.
+	view := m.view()
+	m.viewport.SetContent(view)
 	vp, cmd := m.viewport.Update(msg)
 	m.viewport = &vp
 	cmds = append(cmds, cmd)
 
-	newRow, newCol := m.cursorLineNumber(), m.col
-	m.virtualCursor, cmd = m.virtualCursor.Update(msg)
-	if (newRow != oldRow || newCol != oldCol) && m.virtualCursor.Mode() == cursor.CursorBlink {
-		m.virtualCursor.Blink = false
-		cmd = m.virtualCursor.BlinkCmd()
+	if m.useVirtualCursor {
+		m.virtualCursor, cmd = m.virtualCursor.Update(msg)
+
+		// If the cursor has moved, reset the blink state. This is a small UX
+		// nuance that makes cursor movement obvious and feel snappy.
+		newRow, newCol := m.cursorLineNumber(), m.col
+		if (newRow != oldRow || newCol != oldCol) && m.virtualCursor.Mode() == cursor.CursorBlink {
+			m.virtualCursor.IsBlinked = false
+			cmd = m.virtualCursor.Blink()
+		}
+		cmds = append(cmds, cmd)
 	}
-	cmds = append(cmds, cmd)
 
 	m.repositionView()
 
 	return m, tea.Batch(cmds...)
 }
 
-// View renders the text area in its current state.
-func (m Model) View() string {
-	m.updateVirtualCursorStyle()
-	if m.Value() == "" && m.row == 0 && m.col == 0 && m.Placeholder != "" {
+func (m *Model) view() string {
+	if len(m.Value()) == 0 && m.row == 0 && m.col == 0 && m.Placeholder != "" {
 		return m.placeholderView()
 	}
 	m.virtualCursor.TextStyle = m.activeStyle().computedCursorLine()
@@ -1282,8 +1408,19 @@ func (m Model) View() string {
 		s.WriteRune('\n')
 	}
 
-	m.viewport.SetContent(s.String())
-	return styles.Base.Render(m.viewport.View())
+	return s.String()
+}
+
+// View renders the text area in its current state.
+func (m Model) View() string {
+	// XXX: This is a workaround for the case where the viewport hasn't
+	// been initialized yet like during the initial render. In that case,
+	// we need to render the view again because Update hasn't been called
+	// yet to set the content of the viewport.
+	m.viewport.SetContent(m.view())
+	view := m.viewport.View()
+	styles := m.activeStyle()
+	return styles.Base.Render(view)
 }
 
 // promptView renders a single line of the prompt.
@@ -1292,7 +1429,10 @@ func (m Model) promptView(displayLine int) (prompt string) {
 	if m.promptFunc == nil {
 		return prompt
 	}
-	prompt = m.promptFunc(displayLine)
+	prompt = m.promptFunc(PromptInfo{
+		LineNumber: displayLine,
+		Focused:    m.focus,
+	})
 	width := lipgloss.Width(prompt)
 	if width < m.promptWidth {
 		prompt = fmt.Sprintf("%*s%s", m.promptWidth-width, "", prompt)
@@ -1348,7 +1488,7 @@ func (m Model) placeholderView() string {
 	// split string by new lines
 	plines := strings.Split(strings.TrimSpace(pwrap), "\n")
 
-	for i := 0; i < m.height; i++ {
+	for i := range m.height {
 		isLineNumber := len(plines) > i
 
 		lineStyle := styles.computedPlaceholder()
@@ -1383,14 +1523,18 @@ func (m Model) placeholderView() string {
 		case i == 0:
 			// first character of first line as cursor with character
 			m.virtualCursor.TextStyle = styles.computedPlaceholder()
-			m.virtualCursor.SetChar(string(plines[0][0]))
+
+			ch, rest, _, _ := uniseg.FirstGraphemeClusterInString(plines[0], 0)
+			m.virtualCursor.SetChar(ch)
 			s.WriteString(lineStyle.Render(m.virtualCursor.View()))
 
 			// the rest of the first line
-			placeholderTail := plines[0][1:]
-			gap := strings.Repeat(" ", max(0, m.width-uniseg.StringWidth(plines[0])))
-			renderedPlaceholder := styles.computedPlaceholder().Render(placeholderTail + gap)
-			s.WriteString(lineStyle.Render(renderedPlaceholder))
+			s.WriteString(lineStyle.Render(styles.computedPlaceholder().Render(rest)))
+
+			// extend the first line with spaces to fill the width, so that
+			// the entire line is filled when cursorline is enabled.
+			gap := strings.Repeat(" ", max(0, m.width-lipgloss.Width(plines[0])))
+			s.WriteString(lineStyle.Render(gap))
 		// remaining lines
 		case len(plines) > i:
 			// current line placeholder text
@@ -1432,7 +1576,7 @@ func Blink() tea.Msg {
 //	f.Cursor.Position.X += offsetX
 //	f.Cursor.Position.Y += offsetY
 func (m Model) Cursor() *tea.Cursor {
-	if m.VirtualCursor {
+	if m.useVirtualCursor || !m.Focused() {
 		return nil
 	}
 
@@ -1454,9 +1598,9 @@ func (m Model) Cursor() *tea.Cursor {
 		baseStyle.GetBorderTopSize()
 
 	c := tea.NewCursor(xOffset, yOffset)
-	c.Blink = m.Styles.Cursor.Blink
-	c.Color = m.Styles.Cursor.Color
-	c.Shape = m.Styles.Cursor.Shape
+	c.Blink = m.styles.Cursor.Blink
+	c.Color = m.styles.Cursor.Color
+	c.Shape = m.styles.Cursor.Shape
 	return c
 }
 

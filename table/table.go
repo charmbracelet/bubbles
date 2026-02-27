@@ -4,12 +4,12 @@ package table
 import (
 	"strings"
 
-	"github.com/charmbracelet/bubbles/v2/help"
-	"github.com/charmbracelet/bubbles/v2/key"
-	"github.com/charmbracelet/bubbles/v2/viewport"
-	tea "github.com/charmbracelet/bubbletea/v2"
-	"github.com/charmbracelet/lipgloss/v2"
-	"github.com/mattn/go-runewidth"
+	"charm.land/bubbles/v2/help"
+	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/viewport"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 )
 
 // Model defines a state for the table widget.
@@ -305,6 +305,11 @@ func (m Model) Columns() []Column {
 // SetRows sets a new rows state.
 func (m *Model) SetRows(r []Row) {
 	m.rows = r
+
+	if m.cursor > len(m.rows)-1 {
+		m.cursor = len(m.rows) - 1
+	}
+
 	m.UpdateViewport()
 }
 
@@ -398,7 +403,7 @@ func (m *Model) GotoBottom() {
 // default for getting all the rows and the given separator for the fields on
 // each row.
 func (m *Model) FromValues(value, separator string) {
-	rows := []Row{}
+	rows := []Row{} //nolint:prealloc
 	for _, line := range strings.Split(value, "\n") {
 		r := Row{}
 		for _, field := range strings.Split(line, separator) {
@@ -417,7 +422,7 @@ func (m Model) headersView() string {
 			continue
 		}
 		style := lipgloss.NewStyle().Width(col.Width).MaxWidth(col.Width).Inline(true)
-		renderedCell := style.Render(runewidth.Truncate(col.Title, col.Width, "…"))
+		renderedCell := style.Render(ansi.Truncate(col.Title, col.Width, "…"))
 		s = append(s, m.styles.Header.Render(renderedCell))
 	}
 	return lipgloss.JoinHorizontal(lipgloss.Top, s...)
@@ -430,7 +435,7 @@ func (m *Model) renderRow(r int) string {
 			continue
 		}
 		style := lipgloss.NewStyle().Width(m.cols[i].Width).MaxWidth(m.cols[i].Width).Inline(true)
-		renderedCell := m.styles.Cell.Render(style.Render(runewidth.Truncate(value, m.cols[i].Width, "…")))
+		renderedCell := m.styles.Cell.Render(style.Render(ansi.Truncate(value, m.cols[i].Width, "…")))
 		s = append(s, renderedCell)
 	}
 
