@@ -189,6 +189,104 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 ```
 
+## navigator
+
+A component dedicated to navigation
+
+```go
+package main
+
+import (
+	"fmt"
+	"sync/atomic"
+
+	"github.com/charmbracelet/bubbles/navigator"
+	tea "github.com/charmbracelet/bubbletea"
+)
+
+var (
+	initCount  atomic.Int64
+	enterCount atomic.Int64
+	leaveCount atomic.Int64
+)
+
+type splash struct {
+	Index int
+}
+
+func (splash) Init() tea.Cmd {
+	return func() tea.Msg {
+		initCount.Add(1)
+		return nil
+	}
+}
+func (splash) OnEntering() tea.Cmd {
+	return func() tea.Msg {
+		enterCount.Add(1)
+		return nil
+	}
+}
+func (splash) OnLeaving() tea.Cmd {
+	return func() tea.Msg {
+		leaveCount.Add(1)
+		return nil
+	}
+}
+func (m splash) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	return m, nil
+}
+func (m splash) View() string {
+	return fmt.Sprintf("splash:%d", m.Index)
+}
+
+type viewManager struct {
+	nav navigator.Model
+	k   string
+}
+
+func (m viewManager) Init() tea.Cmd {
+	return m.nav.Init()
+}
+
+func (m viewManager) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+
+	var cmds []tea.Cmd
+
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		m.k = msg.String()
+		switch msg.String() {
+		case "ctrl+c":
+			return m, tea.Quit
+		case "n":
+			cmds = append(cmds, navigator.PushCmd(splash{Index: int(enterCount.Load())}))
+		case "m":
+			cmds = append(cmds, navigator.PopCmd())
+		}
+	}
+
+	cmds = append(cmds, m.nav.Update(msg))
+
+	return m, tea.Batch(cmds...)
+}
+
+func (m viewManager) View() string {
+	return fmt.Sprintf(
+		"%s\nkey:%s\ninit:%d enter:%d leave:%d",
+		m.nav.View(),
+		m.k,
+		initCount.Load(),
+		enterCount.Load(),
+		leaveCount.Load(),
+	)
+}
+
+func main() {
+	m := viewManager{nav: navigator.New(splash{})}
+	tea.NewProgram(m).Run()
+}
+```
+
 ## There’s more where that came from
 
 To check out community-maintained Bubbles see [Charm & Friends][charmandfriends].
