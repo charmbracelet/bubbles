@@ -14,6 +14,7 @@ type KeyMap struct {
 	GoToEnd     key.Binding
 	Filter      key.Binding
 	ClearFilter key.Binding
+	Select      key.Binding
 
 	// Keybindings used when setting a filter.
 	CancelWhileFiltering key.Binding
@@ -65,6 +66,10 @@ func DefaultKeyMap() KeyMap {
 		ClearFilter: key.NewBinding(
 			key.WithKeys("esc"),
 			key.WithHelp("esc", "clear filter"),
+		),
+		Select: key.NewBinding(
+			key.WithKeys("v"),
+			key.WithHelp("v", "select"),
 		),
 
 		// Filtering.
