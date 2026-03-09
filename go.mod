@@ -3,7 +3,7 @@ module charm.land/bubbles/v2
 go 1.24.2
 
 require (
-	charm.land/bubbletea/v2 v2.0.0
+	charm.land/bubbletea/v2 v2.0.1
 	charm.land/lipgloss/v2 v2.0.0
 	github.com/MakeNowJust/heredoc v1.0.0
 	github.com/atotto/clipboard v0.1.4
@@ -11,7 +11,7 @@ require (
 	github.com/charmbracelet/x/ansi v0.11.6
 	github.com/charmbracelet/x/exp/golden v0.0.0-20250806222409-83e3a29d542f
 	github.com/dustin/go-humanize v1.0.1
-	github.com/mattn/go-runewidth v0.0.20
+	github.com/mattn/go-runewidth v0.0.21
 	github.com/rivo/uniseg v0.4.7
 	github.com/sahilm/fuzzy v0.1.1
 )
