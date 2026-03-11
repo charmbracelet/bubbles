@@ -290,7 +290,7 @@ func (m *Model) SetSuggestions(suggestions []string) {
 		m.suggestions[i] = []rune(s)
 	}
 
-	m.updateSuggestions()
+	m.UpdateSuggestions()
 }
 
 // rsan initializes or retrieves the rune sanitizer.
@@ -649,7 +649,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 		// Check again if can be completed
 		// because value might be something that does not match the completion prefix
-		m.updateSuggestions()
+		m.UpdateSuggestions()
 
 	case tea.PasteMsg:
 		m.insertRunesFromUserInput([]rune(msg.Content))
@@ -851,8 +851,8 @@ func (m *Model) canAcceptSuggestion() bool {
 	return len(m.matchedSuggestions) > 0
 }
 
-// updateSuggestions refreshes the list of matching suggestions.
-func (m *Model) updateSuggestions() {
+// UpdateSuggestions refreshes the list of matching suggestions.
+func (m *Model) UpdateSuggestions() {
 	if !m.ShowSuggestions {
 		return
 	}
