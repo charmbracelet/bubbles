@@ -1683,10 +1683,13 @@ func (m *Model) recalculateHeight() {
 	if minH < 1 {
 		minH = minHeight
 	}
-	h := m.totalVisualLines()
-	h = max(h, minH)
+	total := m.totalVisualLines()
+	h := max(total, minH)
 	if m.MaxHeight > 0 {
 		h = min(h, m.MaxHeight)
+	}
+	if maxOffset := total - h; m.viewport.YOffset() > maxOffset {
+		m.viewport.SetYOffset(max(0, maxOffset))
 	}
 	m.SetHeight(h)
 }

@@ -2313,6 +2313,83 @@ func TestMaxContentHeight_PasteCapped(t *testing.T) {
 	}
 }
 
+func TestDynamicHeight_ShrinksWhenScrolledAndLinesDeleted(t *testing.T) {
+	ta := newDynamicTextArea(1, 5)
+	ta.MaxContentHeight = 10
+
+	enter := tea.KeyPressMsg{Code: tea.KeyEnter}
+	// Type 8 lines so we exceed MaxHeight (5) and start scrolling
+	for range 7 {
+		ta, _ = ta.Update(keyPress('x'))
+		ta, _ = ta.Update(enter)
+	}
+	ta, _ = ta.Update(keyPress('x'))
+
+	if ta.Height() != 5 {
+		t.Fatalf("expected height 5 (capped at MaxHeight), got %d", ta.Height())
+	}
+	if ta.LineCount() != 8 {
+		t.Fatalf("expected 8 lines, got %d", ta.LineCount())
+	}
+
+	// Now delete lines from the bottom by selecting all on current line and backspacing
+	backspace := tea.KeyPressMsg{Code: tea.KeyBackspace}
+	for ta.LineCount() > 4 {
+		ta.CursorEnd()
+		for len(ta.value[ta.row]) > 0 {
+			ta, _ = ta.Update(backspace)
+		}
+		ta, _ = ta.Update(backspace) // merge with previous line
+	}
+
+	// Now we have 4 lines, which is less than MaxHeight (5).
+	// Height should shrink to 4.
+	if ta.Height() != 4 {
+		t.Errorf("expected height to shrink to 4 (matching content), got %d", ta.Height())
+	}
+	if ta.viewport.YOffset() != 0 {
+		t.Errorf("expected yOffset 0 after shrinking, got %d", ta.viewport.YOffset())
+	}
+}
+
+func TestDynamicHeight_ShrinksWhenScrolledNoMaxContent(t *testing.T) {
+	// DynamicHeight with MaxHeight but no MaxContentHeight
+	ta := newDynamicTextArea(1, 99)
+
+	enter := tea.KeyPressMsg{Code: tea.KeyEnter}
+	// Type 8 lines
+	for range 7 {
+		ta, _ = ta.Update(keyPress('x'))
+		ta, _ = ta.Update(enter)
+	}
+	ta, _ = ta.Update(keyPress('x'))
+
+	if ta.Height() != 8 {
+		t.Fatalf("expected height 8, got %d", ta.Height())
+	}
+
+	// Manually set a smaller MaxHeight to simulate scrolling scenario
+	ta.MaxHeight = 5
+	ta, _ = ta.Update(nil)
+
+	// Now delete lines from the bottom
+	backspace := tea.KeyPressMsg{Code: tea.KeyBackspace}
+	for ta.LineCount() > 3 {
+		ta.CursorEnd()
+		for len(ta.value[ta.row]) > 0 {
+			ta, _ = ta.Update(backspace)
+		}
+		ta, _ = ta.Update(backspace)
+	}
+
+	if ta.Height() != 3 {
+		t.Errorf("expected height to shrink to 3 (matching content), got %d", ta.Height())
+	}
+	if ta.viewport.YOffset() != 0 {
+		t.Errorf("expected yOffset 0 after shrinking, got %d", ta.viewport.YOffset())
+	}
+}
+
 func newTextArea() Model {
 	textarea := New()
 
