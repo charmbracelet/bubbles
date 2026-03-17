@@ -543,11 +543,7 @@ func (m *Model) insertRunesFromUserInput(runes []rune) {
 
 	// Obey MaxContentHeight in visual rows when set.
 	if m.MaxContentHeight > 0 {
-		current := m.totalVisualLines()
-		if current >= m.MaxContentHeight {
-			return
-		}
-		budget := m.MaxContentHeight - current
+		budget := m.MaxContentHeight - m.totalVisualLines()
 		// Trim lines from the end until we fit within the budget.
 		for len(lines) > 1 && m.visualLinesForInsert(lines) > budget {
 			lines = lines[:len(lines)-1]
