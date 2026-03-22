@@ -1031,6 +1031,13 @@ func (m Model) LineInfo() LineInfo {
 // repositionView repositions the view of the viewport based on the defined
 // scrolling behavior.
 func (m *Model) repositionView() {
+	// Hosts sometimes auto-resize the textarea to exactly fit the current
+	// number of soft-wrapped rows. When that happens, an old viewport offset can
+	// hide the first wrapped row even though the entire buffer now fits.
+	if m.totalLineCount() <= m.viewport.Height() {
+		m.viewport.GotoTop()
+		return
+	}
 	minimum := m.viewport.YOffset()
 	maximum := minimum + m.viewport.Height() - 1
 	if row := m.cursorLineNumber(); row < minimum {
@@ -1038,6 +1045,19 @@ func (m *Model) repositionView() {
 	} else if row > maximum {
 		m.viewport.ScrollDown(row - maximum)
 	}
+}
+
+func (m Model) totalLineCount() int {
+	total := 0
+	for i := range m.value {
+		wrapped := m.memoizedWrap(m.value[i], m.width)
+		if len(wrapped) == 0 {
+			total++
+			continue
+		}
+		total += len(wrapped)
+	}
+	return total
 }
 
 // Width returns the width of the textarea.
