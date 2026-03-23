@@ -1679,10 +1679,7 @@ func (m *Model) recalculateHeight() {
 	if !m.DynamicHeight {
 		return
 	}
-	minH := m.MinHeight
-	if minH < 1 {
-		minH = minHeight
-	}
+	minH := max(m.MinHeight, minHeight)
 	total := m.totalVisualLines()
 	h := max(total, minH)
 	if m.MaxHeight > 0 {
