@@ -4,23 +4,31 @@
 package list
 
 import (
+	"cmp"
 	"fmt"
 	"io"
 	"sort"
 	"strings"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea/v2"
-	"github.com/charmbracelet/lipgloss/v2"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/sahilm/fuzzy"
 
-	"github.com/charmbracelet/bubbles/v2/help"
-	"github.com/charmbracelet/bubbles/v2/key"
-	"github.com/charmbracelet/bubbles/v2/paginator"
-	"github.com/charmbracelet/bubbles/v2/spinner"
-	"github.com/charmbracelet/bubbles/v2/textinput"
+	"charm.land/bubbles/v2/help"
+	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/paginator"
+	"charm.land/bubbles/v2/spinner"
+	"charm.land/bubbles/v2/textinput"
 )
+
+func clamp[T cmp.Ordered](v, low, high T) T {
+	if low > high {
+		low, high = high, low
+	}
+	return min(high, max(low, v))
+}
 
 // Item is an item that appears in the list.
 type Item interface {
@@ -277,8 +285,7 @@ func (m *Model) SetFilterText(filter string) {
 	fmm, _ := msg.(FilterMatchesMsg)
 	m.filteredItems = filteredItems(fmm)
 	m.filterState = FilterApplied
-	m.Paginator.Page = 0
-	m.cursor = 0
+	m.GoToStart()
 	m.FilterInput.CursorEnd()
 	m.updatePagination()
 	m.updateKeybindings()
@@ -286,8 +293,7 @@ func (m *Model) SetFilterText(filter string) {
 
 // SetFilterState allows setting the filtering state manually.
 func (m *Model) SetFilterState(state FilterState) {
-	m.Paginator.Page = 0
-	m.cursor = 0
+	m.GoToStart()
 	m.filterState = state
 	m.FilterInput.CursorEnd()
 	m.FilterInput.Focus()
@@ -511,14 +517,12 @@ func (m *Model) CursorUp() {
 	m.cursor--
 
 	// If we're at the start, stop
-	if m.cursor < 0 && m.Paginator.Page == 0 {
+	if m.cursor < 0 && m.Paginator.OnFirstPage() {
 		// if infinite scrolling is enabled, go to the last item
 		if m.InfiniteScrolling {
-			m.Paginator.Page = m.Paginator.TotalPages - 1
-			m.cursor = m.Paginator.ItemsOnPage(len(m.VisibleItems())) - 1
+			m.GoToEnd()
 			return
 		}
-
 		m.cursor = 0
 		return
 	}
@@ -530,18 +534,18 @@ func (m *Model) CursorUp() {
 
 	// Go to the previous page
 	m.Paginator.PrevPage()
-	m.cursor = m.Paginator.ItemsOnPage(len(m.VisibleItems())) - 1
+	m.cursor = m.maxCursorIndex()
 }
 
 // CursorDown moves the cursor down. This can also advance the state to the
 // next page.
 func (m *Model) CursorDown() {
-	itemsOnPage := m.Paginator.ItemsOnPage(len(m.VisibleItems()))
+	maxCursorIndex := m.maxCursorIndex()
 
 	m.cursor++
 
-	// If we're at the end, stop
-	if m.cursor < itemsOnPage {
+	// We're still within bounds of the current page, so no need to do anything.
+	if m.cursor <= maxCursorIndex {
 		return
 	}
 
@@ -552,31 +556,40 @@ func (m *Model) CursorDown() {
 		return
 	}
 
-	// During filtering the cursor position can exceed the number of
-	// itemsOnPage. It's more intuitive to start the cursor at the
-	// topmost position when moving it down in this scenario.
-	if m.cursor > itemsOnPage {
-		m.cursor = 0
-		return
-	}
+	m.cursor = max(0, maxCursorIndex)
 
-	m.cursor = itemsOnPage - 1
-
-	// if infinite scrolling is enabled, go to the first item
+	// if infinite scrolling is enabled, go to the first item.
 	if m.InfiniteScrolling {
-		m.Paginator.Page = 0
-		m.cursor = 0
+		m.GoToStart()
 	}
+}
+
+// GoToStart moves to the first page, and first item on the first page.
+func (m *Model) GoToStart() {
+	m.Paginator.Page = 0
+	m.cursor = 0
+}
+
+// GoToEnd moves to the last page, and last item on the last page.
+func (m *Model) GoToEnd() {
+	m.Paginator.Page = max(0, m.Paginator.TotalPages-1)
+	m.cursor = m.maxCursorIndex()
 }
 
 // PrevPage moves to the previous page, if available.
 func (m *Model) PrevPage() {
 	m.Paginator.PrevPage()
+	m.cursor = clamp(m.cursor, 0, m.maxCursorIndex())
 }
 
 // NextPage moves to the next page, if available.
 func (m *Model) NextPage() {
 	m.Paginator.NextPage()
+	m.cursor = clamp(m.cursor, 0, m.maxCursorIndex())
+}
+
+func (m *Model) maxCursorIndex() int {
+	return max(0, m.Paginator.ItemsOnPage(len(m.VisibleItems()))-1)
 }
 
 // FilterState returns the current filter state.
@@ -668,29 +681,26 @@ func (m *Model) NewStatusMessage(s string) tea.Cmd {
 	}
 }
 
-// SetSize sets the width and height of this component.
-func (m *Model) SetSize(width, height int) {
-	m.setSize(width, height)
-}
-
 // SetWidth sets the width of this component.
 func (m *Model) SetWidth(v int) {
-	m.setSize(v, m.height)
+	m.SetSize(v, m.height)
 }
 
 // SetHeight sets the height of this component.
 func (m *Model) SetHeight(v int) {
-	m.setSize(m.width, v)
+	m.SetSize(m.width, v)
 }
 
-func (m *Model) setSize(width, height int) {
+// SetSize sets the width and height of this component.
+func (m *Model) SetSize(width, height int) {
 	promptWidth := lipgloss.Width(m.Styles.Title.Render(m.FilterInput.Prompt))
 
 	m.width = width
 	m.height = height
-	m.Help.Width = width
+	m.Help.SetWidth(width)
 	m.FilterInput.SetWidth(width - promptWidth - lipgloss.Width(m.spinnerView()))
 	m.updatePagination()
+	m.updateKeybindings()
 }
 
 func (m *Model) resetFiltering() {
@@ -841,9 +851,6 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 // Updates for when a user is browsing the list.
 func (m *Model) handleBrowsing(msg tea.Msg) tea.Cmd {
-	var cmds []tea.Cmd
-	numItems := len(m.VisibleItems())
-
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
 		switch {
@@ -868,12 +875,10 @@ func (m *Model) handleBrowsing(msg tea.Msg) tea.Cmd {
 			m.Paginator.NextPage()
 
 		case key.Matches(msg, m.KeyMap.GoToStart):
-			m.Paginator.Page = 0
-			m.cursor = 0
+			m.GoToStart()
 
 		case key.Matches(msg, m.KeyMap.GoToEnd):
-			m.Paginator.Page = m.Paginator.TotalPages - 1
-			m.cursor = m.Paginator.ItemsOnPage(numItems) - 1
+			m.GoToEnd()
 
 		case key.Matches(msg, m.KeyMap.Filter):
 			m.hideStatusMessage()
@@ -881,8 +886,7 @@ func (m *Model) handleBrowsing(msg tea.Msg) tea.Cmd {
 				// Populate filter with all items only if the filter is empty.
 				m.filteredItems = m.itemsAsFilterItems()
 			}
-			m.Paginator.Page = 0
-			m.cursor = 0
+			m.GoToStart()
 			m.filterState = Filtering
 			m.FilterInput.CursorEnd()
 			m.FilterInput.Focus()
@@ -898,15 +902,9 @@ func (m *Model) handleBrowsing(msg tea.Msg) tea.Cmd {
 	}
 
 	cmd := m.delegate.Update(msg, m)
-	cmds = append(cmds, cmd)
+	m.cursor = clamp(m.cursor, 0, m.maxCursorIndex())
 
-	// Keep the index in bounds when paginating
-	itemsOnPage := m.Paginator.ItemsOnPage(len(m.VisibleItems()))
-	if m.cursor > itemsOnPage-1 {
-		m.cursor = max(0, itemsOnPage-1)
-	}
-
-	return tea.Batch(cmds...)
+	return cmd
 }
 
 // Updates for when a user is in the filter editing interface.

@@ -4,8 +4,8 @@ import (
 	"image/color"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea/v2"
-	"github.com/charmbracelet/lipgloss/v2"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 )
 
 // DefaultStyles returns the default styles for focused and blurred states for
