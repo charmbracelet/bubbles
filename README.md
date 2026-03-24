@@ -1,14 +1,14 @@
 # Bubbles
 
-<img src="https://github.com/user-attachments/assets/b89fa46e-d451-4b33-a009-c68d4765520f" width="350" />
+<img src="https://github.com/user-attachments/assets/b89fa46e-d451-4b33-a009-c68d4765520f" width="350"  alt="Charm Bubbles Logo"/>
 
 [![Latest Release](https://img.shields.io/github/release/charmbracelet/bubbles.svg)](https://github.com/charmbracelet/bubbles/releases)
 [![GoDoc](https://godoc.org/github.com/golang/gddo?status.svg)](https://pkg.go.dev/github.com/charmbracelet/bubbles)
 [![Build Status](https://github.com/charmbracelet/bubbles/workflows/build/badge.svg)](https://github.com/charmbracelet/bubbles/actions)
 [![Go ReportCard](https://goreportcard.com/badge/charmbracelet/bubbles)](https://goreportcard.com/report/charmbracelet/bubbles)
 
-Primatives for [Bubble Tea](https://github.com/charmbracelet/bubbletea)
-applications. These components are used in production in [Crush][crush], and [many other applications][otherstuff].
+Primitives for [Bubble Tea](https://github.com/charmbracelet/bubbletea) applications.
+These components are used in production in [Crush][crush], and [many other applications][otherstuff].
 
 > [!TIP]
 >
@@ -16,6 +16,7 @@ applications. These components are used in production in [Crush][crush], and [ma
 > point your LLM at it and let it go to town.
 
 [crush]: https://github.com/charmbracelet/crush
+
 [otherstuff]: https://github.com/charmbracelet/bubbletea/#bubble-tea-in-the-wild
 
 ## Spinner
@@ -107,7 +108,7 @@ indenting and text wrapping.
 A customizable, batteries-included component for browsing a set of items.
 Features pagination, fuzzy filtering, auto-generated help, an activity spinner,
 and status messages, all of which can be enabled and disabled as needed.
-Extrapolated from [Glow][glow].
+Extrapolated from [Glow](https://github.com/charmbracelet/glow).
 
 - [Example code, default list](https://github.com/charmbracelet/bubbletea/blob/main/examples/list-default/main.go)
 - [Example code, simple list](https://github.com/charmbracelet/bubbletea/blob/main/examples/list-simple/main.go)
@@ -158,36 +159,7 @@ A non-visual component for managing keybindings. It’s useful for allowing user
 to remap keybindings as well as generating help views corresponding to your
 keybindings.
 
-```go
-type KeyMap struct {
-    Up key.Binding
-    Down key.Binding
-}
-
-var DefaultKeyMap = KeyMap{
-    Up: key.NewBinding(
-        key.WithKeys("k", "up"),        // actual keybindings
-        key.WithHelp("↑/k", "move up"), // corresponding help text
-    ),
-    Down: key.NewBinding(
-        key.WithKeys("j", "down"),
-        key.WithHelp("↓/j", "move down"),
-    ),
-}
-
-func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-    switch msg := msg.(type) {
-    case tea.KeyPressMsg:
-        switch {
-        case key.Matches(msg, DefaultKeyMap.Up):
-            // The user pressed up
-        case key.Matches(msg, DefaultKeyMap.Down):
-            // The user pressed down
-        }
-    }
-    return m, nil
-}
-```
+- [Example code](https://github.com/charmbracelet/bubbles/blob/main/key/key.go#L6-L34)
 
 ## There’s more where that came from
 
@@ -195,6 +167,7 @@ To check out community-maintained Bubbles see [Charm & Friends][charmandfriends]
 Made a cool Bubble that you want to share? [PRs][prs] are welcome!
 
 [charmandfriends]: https://github.com/charm-and-friends/additional-bubbles
+
 [prs]: https://github.com/charm-and-friends/additional-bubbles?tab=readme-ov-file#what-is-a-complete-project
 
 ## Contributing
