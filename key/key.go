@@ -83,10 +83,31 @@ func WithDisabled() BindingOpt {
 	}
 }
 
+// Equal returns whether a target Binding is equal to this Binding by comparing the various attributes.
+// Use EqualKeys, EqualHelp, and EqualDisabled to compare the attributes individually.
 func (b Binding) Equal(o Binding) bool {
-	keysEqual := slices.Equal(slices.Sorted(slices.Values(b.keys)), slices.Sorted(slices.Values(o.keys)))
-	helpsEqual := b.help == o.help
-	if keysEqual && helpsEqual {
+	return b.EqualKeys(o) && b.EqualHelp(o) && b.EqualDisabled(o)
+}
+
+// EqualKeys returns whether a target Binding is equal to this Binding by comparing the key values.
+func (b Binding) EqualKeys(o Binding) bool {
+	if keysEqual := slices.Equal(slices.Sorted(slices.Values(b.keys)), slices.Sorted(slices.Values(o.keys))); keysEqual {
+		return true
+	}
+	return false
+}
+
+// EqualHelp returns whether a target Binding is equal to this Binding by comparing the help values.
+func (b Binding) EqualHelp(o Binding) bool {
+	if helpsEqual := b.help == o.help; helpsEqual {
+		return true
+	}
+	return false
+}
+
+// EqualDisabled returns whether a target Binding is equal to this Binding by comparing the disabled value.
+func (b Binding) EqualDisabled(o Binding) bool {
+	if disabledEqual := b.disabled == o.disabled; disabledEqual {
 		return true
 	}
 	return false
