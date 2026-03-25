@@ -1,42 +1,47 @@
-// Package key provides some types and functions for generating user-definable
-// keymappings useful in Bubble Tea components. There are a few different ways
-// you can define a keymapping with this package. Here's one example:
-//
-//	type KeyMap struct {
-//	    Up key.Binding
-//	    Down key.Binding
-//	}
-//
-//	var DefaultKeyMap = KeyMap{
-//	    Up: key.NewBinding(
-//	        key.WithKeys("k", "up"),        // actual keybindings
-//	        key.WithHelp("↑/k", "move up"), // corresponding help text
-//	    ),
-//	    Down: key.NewBinding(
-//	        key.WithKeys("j", "down"),
-//	        key.WithHelp("↓/j", "move down"),
-//	    ),
-//	}
-//
-//	func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-//	    switch msg := msg.(type) {
-//	    case tea.KeyPressMsg:
-//	        switch {
-//	        case key.Matches(msg, DefaultKeyMap.Up):
-//	            // The user pressed up
-//	        case key.Matches(msg, DefaultKeyMap.Down):
-//	            // The user pressed down
-//	        }
-//	    }
-//
-//	    // ...
-//	}
-//
-// The help information, which is not used in the example above, can be used
-// to render help text for keystrokes in your views.
+/*
+Package key provides some types and functions for generating user-definable keymappings useful in Bubble Tea components.
+There are a few different ways you can define a keymapping with this package.
+Here's one example:
+
+	type KeyMap struct {
+	    Up key.Binding
+	    Down key.Binding
+	}
+
+	var DefaultKeyMap = KeyMap{
+	    Up: key.NewBinding(
+	        key.WithKeys("k", "up"),        // actual keybindings
+	        key.WithHelp("↑/k", "move up"), // corresponding help text
+	    ),
+	    Down: key.NewBinding(
+	        key.WithKeys("j", "down"),
+	        key.WithHelp("↓/j", "move down"),
+	    ),
+	}
+
+	func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	    switch msg := msg.(type) {
+	    case tea.KeyPressMsg:
+	        switch {
+	        case key.Matches(msg, DefaultKeyMap.Up):
+	            // The user pressed up
+	        case key.Matches(msg, DefaultKeyMap.Down):
+	            // The user pressed down
+	        }
+	    }
+
+	    // ...
+	}
+
+The help information, which is not used in the example above, can be used
+to render help text for keystrokes in your views.
+*/
 package key
 
-import "fmt"
+import (
+	"fmt"
+	"slices"
+)
 
 // Binding describes a set of keybindings and, optionally, their associated
 // help text.
@@ -80,6 +85,36 @@ func WithDisabled() BindingOpt {
 	}
 }
 
+// Equal returns whether a target Binding is equal to this Binding by comparing the various attributes.
+// Use EqualKeys, EqualHelp, and EqualDisabled to compare the attributes individually.
+func (b Binding) Equal(o Binding) bool {
+	return b.EqualKeys(o) && b.EqualHelp(o) && b.EqualDisabled(o)
+}
+
+// EqualKeys returns whether a target Binding is equal to this Binding by comparing the key values.
+func (b Binding) EqualKeys(o Binding) bool {
+	if keysEqual := slices.Equal(slices.Sorted(slices.Values(b.keys)), slices.Sorted(slices.Values(o.keys))); keysEqual {
+		return true
+	}
+	return false
+}
+
+// EqualHelp returns whether a target Binding is equal to this Binding by comparing the help values.
+func (b Binding) EqualHelp(o Binding) bool {
+	if helpsEqual := b.help == o.help; helpsEqual {
+		return true
+	}
+	return false
+}
+
+// EqualDisabled returns whether a target Binding is equal to this Binding by comparing the disabled value.
+func (b Binding) EqualDisabled(o Binding) bool {
+	if disabledEqual := b.disabled == o.disabled; disabledEqual {
+		return true
+	}
+	return false
+}
+
 // SetKeys sets the keys for the keybinding.
 func (b *Binding) SetKeys(keys ...string) {
 	b.keys = keys
@@ -100,9 +135,9 @@ func (b Binding) Help() Help {
 	return b.help
 }
 
-// Enabled returns whether or not the keybinding is enabled. Disabled
-// keybindings won't be activated and won't show up in help. Keybindings are
-// enabled by default.
+// Enabled returns whether or not the keybinding is enabled.
+// Disabled keybindings won't be activated and won't show up in help.
+// Keybindings are enabled by default.
 func (b Binding) Enabled() bool {
 	return !b.disabled && b.keys != nil
 }
@@ -112,9 +147,9 @@ func (b *Binding) SetEnabled(v bool) {
 	b.disabled = !v
 }
 
-// Unbind removes the keys and help from this binding, effectively nullifying
-// it. This is a step beyond disabling it, since applications can enable
-// or disable key bindings based on application state.
+// Unbind removes the keys and help from this binding, effectively nullifying it.
+// This is a step beyond disabling it, since applications can enable or disable key bindings based on the application
+// state.
 func (b *Binding) Unbind() {
 	b.keys = nil
 	b.help = Help{}
