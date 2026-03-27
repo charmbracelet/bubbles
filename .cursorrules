@@ -1,0 +1,91 @@
+# Cursor Rules for charmbracelet/bubbles
+
+## Project Context
+
+This is Bubbles, a Go TUI component library built on Bubble Tea (charm.land/bubbletea/v2). Module path: charm.land/bubbles/v2. Each component is its own Go package in a dedicated directory.
+
+## Architecture Pattern
+
+Every component follows the Elm Architecture with this structure:
+
+- Model struct: holds all component state. Public fields for user config, private fields for internal state.
+- New() constructor: returns a configured Model. Newer components use functional options: New(opts ...Option) where Option is func(*Model).
+- Update(msg tea.Msg) (Model, tea.Cmd): processes messages. ALWAYS returns concrete Model type, never tea.Model.
+- View() string: renders to string using lipgloss styles.
+- Init() tea.Cmd: OPTIONAL. Only for components needing initial commands (filepicker, viewport, progress, timer, stopwatch).
+- KeyMap struct + DefaultKeyMap(): keybinding definitions using key.Binding.
+- Styles struct + DefaultStyles(): lipgloss styling with sensible defaults.
+
+## Component List and Composition
+
+- cursor: virtual blinking cursor (used by textinput, textarea)
+- filepicker: filesystem browser with directory navigation
+- help: auto-generated keybinding help (consumes help.KeyMap interface)
+- key: keybinding definitions and matching (non-visual, foundational)
+- list: browsable list with filtering/pagination (composes paginator, spinner, textinput, help)
+- paginator: pagination logic and indicators
+- progress: animated progress bar with gradient colors (uses harmonica for spring animation)
+- spinner: animated spinner with preset frame sets
+- stopwatch: count-up timer
+- table: tabular data with scrolling (composes viewport, help)
+- textarea: multi-line text editor (composes cursor, viewport)
+- textinput: single-line input with suggestions (composes cursor)
+- timer: countdown timer
+- viewport: scrollable content area with soft-wrap and gutters
+
+## Key Interfaces
+
+list.Item: FilterValue() string -- required for anything in a list.
+list.ItemDelegate: Render(w io.Writer, m Model, index int, item Item) + Height() int + Spacing() int + Update(msg tea.Msg, m *Model) tea.Cmd.
+help.KeyMap: ShortHelp() []key.Binding + FullHelp() [][]key.Binding.
+
+## Import Paths (v2 -- always use these)
+
+charm.land/bubbles/v2/<component>
+charm.land/bubbletea/v2 (aliased as tea)
+charm.land/lipgloss/v2
+
+Never use github.com/charmbracelet/bubbles -- that is v1.
+
+## Code Style
+
+- Formatter: gofumpt + goimports (enforced by golangci-lint v2.9)
+- All comments end with a period (godot linter)
+- All exported symbols have doc comments
+- Wrap errors from external packages (wrapcheck)
+- Exhaustive switches on enum types (exhaustive)
+- Package-level doc comment on every package
+
+## Testing
+
+- Table-driven tests with map[string]struct{} and named subtests
+- Golden file tests for View() output using github.com/charmbracelet/x/exp/golden
+- Golden files stored in <component>/testdata/<TestName>/<subtest>.golden
+- Regenerate golden files: go test ./... -update
+- Tests construct models, pipe messages through Update(), assert View() output
+
+## Animated Component ID Pattern
+
+Spinner, progress, cursor, stopwatch, timer, and filepicker each maintain an atomic ID counter (lastID + nextID()). Each model instance gets a unique ID at construction. Tick/blink messages carry the sender's ID so only the correct instance processes them.
+
+## Build Commands
+
+go test ./...                    # run all tests
+go test ./... -update            # update golden files
+golangci-lint run                # lint
+task test                        # Taskfile shortcut for tests
+task lint                        # Taskfile shortcut for lint
+
+## Internal Packages (not importable externally)
+
+internal/memoization/ -- generic cache for textarea render optimization
+internal/runeutil/ -- rune sanitization and display width utilities
+
+## Common Mistakes to Avoid
+
+- Do not return tea.Model from Update(). Return the concrete Model type.
+- Do not add Init() unless the component genuinely needs an initial command.
+- Do not use github.com/charmbracelet/bubbles imports. This is v2 with charm.land paths.
+- Do not forget DefaultKeyMap() and DefaultStyles() when adding new configurable bindings or styles.
+- Do not use global mutable state except the atomic ID counter pattern for animated components.
+- Do not skip the godot linter: end all comments with periods.
