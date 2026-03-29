@@ -790,20 +790,20 @@ func (m *Model) Word() string {
 		return ""
 	}
 
-	// If cursor is on a space, return empty string
-	if unicode.IsSpace(line[col]) {
+	// If cursor is on a boundary character, return empty string.
+	if isWordBoundary(line[col]) {
 		return ""
 	}
 
-	// Find the start of the word by moving left
+	// Find the start of the word by moving left.
 	start := col
-	for start > 0 && !unicode.IsSpace(line[start-1]) {
+	for start > 0 && !isWordBoundary(line[start-1]) {
 		start--
 	}
 
-	// Find the end of the word by moving right
+	// Find the end of the word by moving right.
 	end := col
-	for end < len(line) && !unicode.IsSpace(line[end]) {
+	for end < len(line) && !isWordBoundary(line[end]) {
 		end++
 	}
 
@@ -852,6 +852,12 @@ func (m *Model) transposeLeft() {
 	}
 }
 
+// isWordBoundary reports whether the rune is a word boundary character
+// (whitespace, punctuation, or symbol).
+func isWordBoundary(r rune) bool {
+	return unicode.IsSpace(r) || unicode.IsPunct(r) || unicode.IsSymbol(r)
+}
+
 // deleteWordLeft deletes the word left to the cursor. Returns whether or not
 // the cursor blink should be reset.
 func (m *Model) deleteWordLeft() {
@@ -864,24 +870,16 @@ func (m *Model) deleteWordLeft() {
 	// call into the corresponding if clause does not apply here.
 	oldCol := m.col
 
-	m.SetCursorColumn(m.col - 1)
-	for unicode.IsSpace(m.value[m.row][m.col]) {
-		if m.col <= 0 {
-			break
-		}
-		// ignore series of whitespace before cursor
-		m.SetCursorColumn(m.col - 1)
-	}
-
-	for m.col > 0 {
-		if !unicode.IsSpace(m.value[m.row][m.col]) {
+	// If the character to the left of the cursor is a boundary character,
+	// delete consecutive boundary characters. Otherwise, delete consecutive
+	// non-boundary (word) characters.
+	if isWordBoundary(m.value[m.row][m.col-1]) {
+		for m.col > 0 && isWordBoundary(m.value[m.row][m.col-1]) {
 			m.SetCursorColumn(m.col - 1)
-		} else {
-			if m.col > 0 {
-				// keep the previous space
-				m.SetCursorColumn(m.col + 1)
-			}
-			break
+		}
+	} else {
+		for m.col > 0 && !isWordBoundary(m.value[m.row][m.col-1]) {
+			m.SetCursorColumn(m.col - 1)
 		}
 	}
 
@@ -900,16 +898,16 @@ func (m *Model) deleteWordRight() {
 
 	oldCol := m.col
 
-	for m.col < len(m.value[m.row]) && unicode.IsSpace(m.value[m.row][m.col]) {
-		// ignore series of whitespace after cursor
-		m.SetCursorColumn(m.col + 1)
-	}
-
-	for m.col < len(m.value[m.row]) {
-		if !unicode.IsSpace(m.value[m.row][m.col]) {
+	// If the character at the cursor is a boundary character, delete
+	// consecutive boundary characters. Otherwise, delete consecutive
+	// non-boundary (word) characters.
+	if isWordBoundary(m.value[m.row][m.col]) {
+		for m.col < len(m.value[m.row]) && isWordBoundary(m.value[m.row][m.col]) {
 			m.SetCursorColumn(m.col + 1)
-		} else {
-			break
+		}
+	} else {
+		for m.col < len(m.value[m.row]) && !isWordBoundary(m.value[m.row][m.col]) {
+			m.SetCursorColumn(m.col + 1)
 		}
 	}
 
@@ -956,13 +954,13 @@ func (m *Model) characterLeft(insideLine bool) {
 func (m *Model) wordLeft() {
 	for {
 		m.characterLeft(true /* insideLine */)
-		if m.col < len(m.value[m.row]) && !unicode.IsSpace(m.value[m.row][m.col]) {
+		if m.col < len(m.value[m.row]) && !isWordBoundary(m.value[m.row][m.col]) {
 			break
 		}
 	}
 
 	for m.col > 0 {
-		if unicode.IsSpace(m.value[m.row][m.col-1]) {
+		if isWordBoundary(m.value[m.row][m.col-1]) {
 			break
 		}
 		m.SetCursorColumn(m.col - 1)
@@ -978,7 +976,7 @@ func (m *Model) wordRight() {
 
 func (m *Model) doWordRight(fn func(charIdx int, pos int)) {
 	// Skip spaces forward.
-	for m.col >= len(m.value[m.row]) || unicode.IsSpace(m.value[m.row][m.col]) {
+	for m.col >= len(m.value[m.row]) || isWordBoundary(m.value[m.row][m.col]) {
 		if m.row == len(m.value)-1 && m.col == len(m.value[m.row]) {
 			// End of text.
 			break
@@ -988,7 +986,7 @@ func (m *Model) doWordRight(fn func(charIdx int, pos int)) {
 
 	charIdx := 0
 	for m.col < len(m.value[m.row]) {
-		if unicode.IsSpace(m.value[m.row][m.col]) {
+		if isWordBoundary(m.value[m.row][m.col]) {
 			break
 		}
 		fn(charIdx, m.col)
