@@ -7,7 +7,7 @@
 [![Build Status](https://github.com/charmbracelet/bubbles/workflows/build/badge.svg)](https://github.com/charmbracelet/bubbles/actions)
 [![Go ReportCard](https://goreportcard.com/badge/charmbracelet/bubbles)](https://goreportcard.com/report/charmbracelet/bubbles)
 
-Primatives for [Bubble Tea](https://github.com/charmbracelet/bubbletea)
+Primitives for [Bubble Tea](https://github.com/charmbracelet/bubbletea)
 applications. These components are used in production in [Crush][crush], and [many other applications][otherstuff].
 
 > [!TIP]
