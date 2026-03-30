@@ -1,0 +1,233 @@
+# AI-Ready Project Configuration
+# https://github.com/nicepkg/ai-ready
+# Machine-readable metadata to help AI coding assistants understand this project.
+
+project:
+  name: bubbles
+  description: TUI component library for Bubble Tea applications
+  language: Go
+  module: charm.land/bubbles/v2
+  go_version: "1.25"
+  license: MIT
+  repository: https://github.com/charmbracelet/bubbles
+
+architecture:
+  style: component-library
+  summary: >
+    Bubbles is a collection of reusable TUI (terminal user interface) components
+    built on top of the Bubble Tea framework. Each component lives in its own
+    package directory and follows the Elm Architecture (Model-Update-View).
+    Components are designed to be composed together inside a parent Bubble Tea
+    application. They do not implement tea.Model directly; instead they return
+    their own concrete Model type from Update, enabling embedding without
+    interface boxing.
+
+  framework_dependencies:
+    - name: bubbletea
+      module: charm.land/bubbletea/v2
+      role: Core TUI framework implementing the Elm Architecture (Init/Update/View loop)
+    - name: lipgloss
+      module: charm.land/lipgloss/v2
+      role: Terminal styling (colors, borders, padding, alignment)
+    - name: harmonica
+      module: github.com/charmbracelet/harmonica
+      role: Spring-based animation for smooth progress bar transitions
+
+  component_pattern:
+    description: >
+      Every component follows the same structural pattern. Understanding this
+      pattern is critical for contributing or extending the library.
+    elements:
+      - name: Model
+        description: >
+          A struct holding all component state. Exported fields are the public
+          API; unexported fields are internal state. Created via New() constructor
+          which returns the concrete type (not tea.Model).
+      - name: New() / New(opts ...Option)
+        description: >
+          Constructor function. Older components use New() with no args or
+          positional args. Newer components (viewport, table, progress, timer,
+          stopwatch) use the functional options pattern: New(opts ...Option).
+      - name: Option
+        description: >
+          type Option func(*Model) -- functional option for configuring a
+          component at construction time. Used by newer components.
+      - name: Update(msg tea.Msg) (Model, tea.Cmd)
+        description: >
+          Handles messages and returns updated model + optional command.
+          Returns the concrete Model type, NOT tea.Model. This allows parent
+          models to embed components without type assertions.
+      - name: View() string
+        description: >
+          Renders the component to a string. Uses lipgloss for styling.
+          Output is ANSI-escaped terminal text.
+      - name: Init() tea.Cmd
+        description: >
+          Optional. Only implemented by components that need to send an initial
+          command (filepicker, viewport, progress, timer, stopwatch). Simple
+          components like spinner and textinput omit Init entirely.
+      - name: KeyMap
+        description: >
+          Struct defining all keybindings for the component. Each field is a
+          key.Binding. A DefaultKeyMap() function provides sensible defaults.
+          Components with KeyMap also integrate with the help bubble.
+      - name: Styles
+        description: >
+          Struct of lipgloss.Style fields controlling visual appearance.
+          A DefaultStyles() function provides defaults. Some DefaultStyles()
+          accept an isDark bool for light/dark theme support.
+
+  key_interfaces:
+    - name: list.Item
+      package: list
+      methods: ["FilterValue() string"]
+      description: Any type that can appear in a List must implement this interface.
+    - name: list.ItemDelegate
+      package: list
+      methods: ["Render(w io.Writer, m Model, index int, item Item)", "Height() int", "Spacing() int", "Update(msg tea.Msg, m *Model) tea.Cmd"]
+      description: Controls how list items are rendered and how they handle input.
+    - name: help.KeyMap
+      package: help
+      methods: ["ShortHelp() []key.Binding", "FullHelp() [][]key.Binding"]
+      description: Any component KeyMap implementing this can auto-generate help text.
+
+components:
+  - name: cursor
+    path: cursor/
+    description: Virtual cursor with blink animation for text input components
+    has_init: false
+    uses_options: false
+    uses_id: true
+
+  - name: filepicker
+    path: filepicker/
+    description: File system browser with directory navigation and file selection
+    has_init: true
+    uses_options: false
+    uses_id: true
+
+  - name: help
+    path: help/
+    description: Auto-generated keybinding help view (short and full modes)
+    has_init: false
+    uses_options: false
+    note: "View() takes a KeyMap argument: View(k KeyMap) string"
+
+  - name: key
+    path: key/
+    description: Keybinding definitions and matching utilities (non-visual)
+    has_init: false
+    note: Not a visual component. Provides key.Binding and key.Matches().
+
+  - name: list
+    path: list/
+    description: Feature-rich browsable list with filtering, pagination, help, spinner
+    has_init: false
+    uses_options: true
+    composes: [paginator, spinner, textinput, help]
+
+  - name: paginator
+    path: paginator/
+    description: Pagination logic and dot/arabic page indicators
+    has_init: false
+    uses_options: false
+
+  - name: progress
+    path: progress/
+    description: Animated progress bar with gradient color support
+    has_init: true
+    uses_options: true
+    uses_id: true
+    note: Uses harmonica for spring-based animation
+
+  - name: spinner
+    path: spinner/
+    description: Animated spinner with many built-in frame sets
+    has_init: false
+    uses_options: false
+    uses_id: true
+
+  - name: stopwatch
+    path: stopwatch/
+    description: Count-up timer with start/stop/reset
+    has_init: true
+    uses_options: true
+    uses_id: true
+
+  - name: table
+    path: table/
+    description: Tabular data display with scrolling and selection
+    has_init: false
+    uses_options: true
+    composes: [viewport, help]
+
+  - name: textarea
+    path: textarea/
+    description: Multi-line text editor with full cursor movement and clipboard
+    has_init: false
+    uses_options: false
+    composes: [cursor, viewport]
+
+  - name: textinput
+    path: textinput/
+    description: Single-line text input with suggestions and validation
+    has_init: false
+    uses_options: false
+    composes: [cursor]
+
+  - name: timer
+    path: timer/
+    description: Countdown timer with configurable interval
+    has_init: true
+    uses_options: true
+    uses_id: true
+
+  - name: viewport
+    path: viewport/
+    description: Scrollable content viewport with soft-wrap and gutter support
+    has_init: true
+    uses_options: true
+
+internal_packages:
+  - path: internal/memoization/
+    description: Generic memoization cache used by textarea for render optimization
+  - path: internal/runeutil/
+    description: Rune manipulation utilities (sanitization, width calculation)
+
+testing:
+  framework: go test
+  runner: "go test ./..."
+  task_runner: Taskfile (task test, task lint)
+  patterns:
+    - Table-driven tests using map[string]struct{} with named subtests
+    - Golden file testing via github.com/charmbracelet/x/exp/golden
+    - Golden files stored in <component>/testdata/<TestName>/<subtest>.golden
+    - Update golden files with: go test ./... -update
+    - Tests create models, send messages through Update(), and assert on View() output
+    - reflect.DeepEqual used for Model comparison in some tests
+
+ci:
+  provider: GitHub Actions
+  workflows:
+    - name: build
+      file: .github/workflows/build.yml
+      triggers: [push, pull_request]
+      matrix: "go: [stable, oldstable] x os: [ubuntu, macos, windows]"
+    - name: lint
+      file: .github/workflows/lint.yml
+      tool: golangci-lint v2.9
+      config: .golangci.yml
+    - name: coverage
+      file: .github/workflows/coverage.yml
+
+code_style:
+  formatter: gofumpt + goimports (via golangci-lint)
+  linters:
+    - golangci-lint with exhaustive, godot, gosec, misspell, revive, wrapcheck, and others
+    - "//nolint:mnd" used for magic number suppression in spinner frame definitions
+  conventions:
+    - Package-level doc comments on every package
+    - Godot-compliant comments (end with periods)
+    - Exported types and functions always have doc comments
+    - Constructor functions named New() or DefaultKeyMap() / DefaultStyles()
+    - Unexported struct fields for internal state; exported for user-configurable state
