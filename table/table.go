@@ -17,11 +17,12 @@ type Model struct {
 	KeyMap KeyMap
 	Help   help.Model
 
-	cols   []Column
-	rows   []Row
-	cursor int
-	focus  bool
-	styles Styles
+	cols      []Column
+	rows      []Row
+	cursor    int
+	focus     bool
+	styles    Styles
+	autoWidth bool
 
 	viewport viewport.Model
 	start    int
@@ -198,6 +199,16 @@ func WithKeyMap(km KeyMap) Option {
 	}
 }
 
+// WithAutoWidth enables automatic column width distribution. When enabled,
+// columns with Width <= 0 will share the remaining table width equally after
+// fixed-width columns are accounted for. This is recalculated on every
+// SetWidth call and on tea.WindowSizeMsg if the table width is set.
+func WithAutoWidth() Option {
+	return func(m *Model) {
+		m.autoWidth = true
+	}
+}
+
 // Update is the Bubble Tea update loop.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	if !m.focus {
@@ -322,6 +333,9 @@ func (m *Model) SetColumns(c []Column) {
 // SetWidth sets the width of the viewport of the table.
 func (m *Model) SetWidth(w int) {
 	m.viewport.SetWidth(w)
+	if m.autoWidth {
+		m.recalculateWidths()
+	}
 	m.UpdateViewport()
 }
 
@@ -446,6 +460,54 @@ func (m *Model) renderRow(r int) string {
 	}
 
 	return row
+}
+
+// recalculateWidths distributes the available table width across columns.
+// Columns with Width > 0 keep their fixed width. Columns with Width <= 0
+// share the remaining space equally. If there is no remaining space, auto
+// columns get a minimum width of 1.
+func (m *Model) recalculateWidths() {
+	totalWidth := m.viewport.Width()
+	if totalWidth <= 0 || len(m.cols) == 0 {
+		return
+	}
+
+	fixedWidth := 0
+	autoCount := 0
+	cellPadding := m.styles.Cell.GetHorizontalPadding()
+
+	for _, col := range m.cols {
+		if col.Width > 0 {
+			fixedWidth += col.Width + cellPadding
+		} else {
+			autoCount++
+		}
+	}
+
+	if autoCount == 0 {
+		return
+	}
+
+	remaining := totalWidth - fixedWidth
+	if remaining < autoCount {
+		remaining = autoCount
+	}
+	perCol := remaining / autoCount
+	extra := remaining % autoCount
+
+	for i := range m.cols {
+		if m.cols[i].Width <= 0 {
+			w := perCol - cellPadding
+			if w < 1 {
+				w = 1
+			}
+			if extra > 0 {
+				w++
+				extra--
+			}
+			m.cols[i].Width = w
+		}
+	}
 }
 
 func clamp(v, low, high int) int {
