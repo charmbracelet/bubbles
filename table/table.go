@@ -170,10 +170,13 @@ func WithHeight(h int) Option {
 	}
 }
 
-// WithWidth sets the width of the table.
+// WithWidth sets the width of the table. If the total column widths exceed the
+// given width, columns are proportionally shrunk to fit. If autoWidth is
+// enabled, auto columns are recalculated to fill the available space.
 func WithWidth(w int) Option {
 	return func(m *Model) {
 		m.viewport.SetWidth(w)
+		m.fitColumnsToWidth()
 	}
 }
 
@@ -319,9 +322,11 @@ func (m *Model) SetColumns(c []Column) {
 	m.UpdateViewport()
 }
 
-// SetWidth sets the width of the viewport of the table.
+// SetWidth sets the width of the viewport of the table. If columns are too
+// wide for the new width, they are proportionally shrunk to fit.
 func (m *Model) SetWidth(w int) {
 	m.viewport.SetWidth(w)
+	m.fitColumnsToWidth()
 	m.UpdateViewport()
 }
 
@@ -446,6 +451,36 @@ func (m *Model) renderRow(r int) string {
 	}
 
 	return row
+}
+
+// fitColumnsToWidth proportionally shrinks column widths when their total
+// exceeds the table width. This prevents the table from rendering wider than
+// the viewport, which causes broken layouts.
+func (m *Model) fitColumnsToWidth() {
+	tableWidth := m.viewport.Width()
+	if tableWidth <= 0 || len(m.cols) == 0 {
+		return
+	}
+
+	cellPadding := m.styles.Cell.GetHorizontalPadding()
+	totalColWidth := 0
+	for _, col := range m.cols {
+		totalColWidth += col.Width + cellPadding
+	}
+
+	if totalColWidth <= tableWidth {
+		return
+	}
+
+	// Proportionally shrink columns to fit
+	for i := range m.cols {
+		proportion := float64(m.cols[i].Width+cellPadding) / float64(totalColWidth)
+		newWidth := int(proportion*float64(tableWidth)) - cellPadding
+		if newWidth < 1 {
+			newWidth = 1
+		}
+		m.cols[i].Width = newWidth
+	}
 }
 
 func clamp(v, low, high int) int {
