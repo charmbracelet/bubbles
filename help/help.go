@@ -40,6 +40,10 @@ type Styles struct {
 	FullKey       lipgloss.Style
 	FullDesc      lipgloss.Style
 	FullSeparator lipgloss.Style
+
+	// FullColumnGap is the style applied to the gap between the key column
+	// and the description column within each group in the full help view.
+	FullColumnGap lipgloss.Style
 }
 
 // DefaultStyles returns a set of default styles for the help bubble. Light or
@@ -208,10 +212,11 @@ func (m Model) FullHelpView(groups [][]key.Binding) string {
 		}
 
 		// Column
+		gap := m.Styles.FullColumnGap.Render(" ")
 		col := lipgloss.JoinHorizontal(lipgloss.Top,
 			sep,
 			m.Styles.FullKey.Render(strings.Join(keys, "\n")),
-			" ",
+			gap,
 			m.Styles.FullDesc.Render(strings.Join(descriptions, "\n")),
 		)
 		w := lipgloss.Width(col)
