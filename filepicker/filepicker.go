@@ -353,6 +353,14 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				break
 			}
 
+			// When DirAllowed is true and the user pressed Select on a
+			// directory, select it without navigating into it. The user
+			// can still navigate into directories using Open-only keys
+			// (e.g. "l" or "right").
+			if isDir && m.DirAllowed && key.Matches(msg, m.KeyMap.Select) {
+				break
+			}
+
 			m.CurrentDirectory = filepath.Join(m.CurrentDirectory, f.Name())
 			m.pushView(m.selected, m.minIdx, m.maxIdx)
 			m.selected = 0
@@ -495,7 +503,7 @@ func (m Model) didSelectFile(msg tea.Msg) (bool, string) {
 			}
 		}
 
-		if (!isDir && m.FileAllowed) || (isDir && m.DirAllowed) && m.Path != "" {
+		if ((!isDir && m.FileAllowed) || (isDir && m.DirAllowed)) && m.Path != "" {
 			return true, m.Path
 		}
 
