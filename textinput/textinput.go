@@ -745,38 +745,59 @@ func (m Model) placeholderView() string {
 		render = styles.Placeholder.Render
 	)
 
-	p := make([]rune, m.Width()+1)
-	copy(p, []rune(m.Placeholder))
+	// Extract the first grapheme cluster for the cursor. This handles
+	// multi-rune characters like emojis correctly.
+	firstCluster, rest, _, _ := uniseg.FirstGraphemeClusterInString(m.Placeholder, -1)
 
 	m.virtualCursor.TextStyle = styles.Placeholder
-	m.virtualCursor.SetChar(string(p[:1]))
+	m.virtualCursor.SetChar(firstCluster)
 	v += m.virtualCursor.View()
 
 	// If the entire placeholder is already set and no padding is needed, finish
-	if m.Width() < 1 && len(p) <= 1 {
+	if m.Width() < 1 && rest == "" {
 		return styles.Prompt.Render(m.Prompt) + v
 	}
 
 	// If Width is set then size placeholder accordingly
 	if m.Width() > 0 {
-		// available width is width - len + cursor offset of 1
-		minWidth := lipgloss.Width(m.Placeholder)
-		availWidth := m.Width() - minWidth + 1
+		placeholderWidth := uniseg.StringWidth(m.Placeholder)
+		availWidth := m.Width() - placeholderWidth + 1
 
-		// if width < len, 'subtract'(add) number to len and dont add padding
 		if availWidth < 0 {
-			minWidth += availWidth
+			// Truncate the rest to fit within the available width.
+			// Account for the first cluster already rendered as cursor.
+			targetWidth := m.Width() - 1
+			rest = truncateToWidth(rest, targetWidth)
 			availWidth = 0
 		}
-		// append placeholder[len] - cursor, append padding
-		v += render(string(p[1:minWidth]))
-		v += render(strings.Repeat(" ", availWidth))
+		v += render(rest)
+		v += render(strings.Repeat(" ", max(0, availWidth)))
 	} else {
 		// if there is no width, the placeholder can be any length
-		v += render(string(p[1:]))
+		v += render(rest)
 	}
 
 	return styles.Prompt.Render(m.Prompt) + v
+}
+
+// truncateToWidth truncates a string to fit within the given visual width,
+// respecting grapheme cluster boundaries.
+func truncateToWidth(s string, width int) string {
+	var (
+		result strings.Builder
+		used   int
+	)
+	remaining := s
+	for len(remaining) > 0 {
+		cluster, rest, clusterWidth, _ := uniseg.FirstGraphemeClusterInString(remaining, -1)
+		if used+clusterWidth > width {
+			break
+		}
+		result.WriteString(cluster)
+		used += clusterWidth
+		remaining = rest
+	}
+	return result.String()
 }
 
 // Blink is a command used to initialize cursor blinking.
