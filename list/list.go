@@ -439,6 +439,13 @@ func (m *Model) InsertItem(index int, item Item) tea.Cmd {
 // this will be a no-op. O(n) complexity, which probably won't matter in the
 // case of a TUI.
 func (m *Model) RemoveItem(index int) {
+	if index < 0 || index >= len(m.items) {
+		return
+	}
+
+	itemsBefore := len(m.VisibleItems())
+	currentIndex := m.Index()
+
 	m.items = removeItemFromSlice(m.items, index)
 	if m.filterState != Unfiltered {
 		m.filteredItems = removeFilterMatchFromSlice(m.filteredItems, index)
@@ -446,6 +453,24 @@ func (m *Model) RemoveItem(index int) {
 			m.resetFiltering()
 		}
 	}
+
+	itemsAfter := len(m.VisibleItems())
+
+	// Adjust cursor when the removed item was at or before the current
+	// position, so that the selection doesn't silently shift to the next item.
+	if itemsAfter < itemsBefore && currentIndex > 0 && index <= currentIndex {
+		currentIndex--
+	}
+
+	// Clamp the index to the new bounds.
+	if itemsAfter > 0 {
+		currentIndex = clamp(currentIndex, 0, itemsAfter-1)
+	} else {
+		currentIndex = 0
+	}
+
+	m.Paginator.Page = currentIndex / max(1, m.Paginator.PerPage)
+	m.cursor = currentIndex % max(1, m.Paginator.PerPage)
 	m.updatePagination()
 }
 
