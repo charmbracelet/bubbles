@@ -145,8 +145,15 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		if msg.ID != 0 && msg.ID != m.id {
 			return m, nil
 		}
+		wasRunning := m.running
 		m.running = msg.running
-		return m, m.tick()
+		// Only start a new tick if the timer was not already running.
+		// Starting an already-running timer would spawn a duplicate tick
+		// goroutine, causing the timeout to decrement twice as fast.
+		if m.running && !wasRunning {
+			return m, m.tick()
+		}
+		return m, nil
 	case TickMsg:
 		if !m.Running() || (msg.ID != 0 && msg.ID != m.id) {
 			break
