@@ -921,7 +921,10 @@ func (m Model) Cursor() *tea.Cursor {
 	w := lipgloss.Width
 
 	promptWidth := w(m.promptView())
-	xOffset := m.Position() +
+	// Use display width instead of rune count for correct cursor
+	// positioning with wide characters (CJK, fullwidth, etc.)
+	displayPos := w(string(m.value[:m.pos]))
+	xOffset := displayPos +
 		promptWidth
 	if m.width > 0 {
 		xOffset = min(xOffset, m.width+promptWidth)
