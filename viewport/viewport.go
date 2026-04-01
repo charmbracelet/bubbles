@@ -166,6 +166,9 @@ func (m Model) Height() int {
 
 // SetHeight sets the height of the viewport.
 func (m *Model) SetHeight(h int) {
+	if h < 0 {
+		h = 0
+	}
 	m.height = h
 }
 
