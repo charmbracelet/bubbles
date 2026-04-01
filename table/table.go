@@ -346,9 +346,14 @@ func (m Model) Cursor() int {
 	return m.cursor
 }
 
-// SetCursor sets the cursor position in the table.
+// SetCursor sets the cursor position in the table and ensures the cursor
+// row is visible within the viewport.
 func (m *Model) SetCursor(n int) {
 	m.cursor = clamp(n, 0, len(m.rows)-1)
+	// Reset the viewport offset so the cursor row is always visible.
+	// Without this, jumping to a distant row (e.g. SetCursor(cursor+9))
+	// can leave the highlighted row outside the visible area.
+	m.viewport.SetYOffset(0)
 	m.UpdateViewport()
 }
 
