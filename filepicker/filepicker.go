@@ -141,6 +141,7 @@ type Model struct {
 	files           []os.DirEntry
 	ShowPermissions bool
 	ShowSize        bool
+	ShowModTime     bool
 	ShowHidden      bool
 	DirAllowed      bool
 	FileAllowed     bool
@@ -399,6 +400,9 @@ func (m Model) View() string {
 			if m.ShowSize {
 				selected += fmt.Sprintf("%"+strconv.Itoa(m.Styles.FileSize.GetWidth())+"s", size)
 			}
+			if m.ShowModTime {
+				selected += " " + info.ModTime().Format("Jan 02 15:04")
+			}
 			selected += " " + name
 			if isSymlink {
 				selected += " → " + symlinkPath
@@ -431,6 +435,9 @@ func (m Model) View() string {
 		}
 		if m.ShowSize {
 			s.WriteString(m.Styles.FileSize.Render(size))
+		}
+		if m.ShowModTime {
+			s.WriteString(" " + info.ModTime().Format("Jan 02 15:04"))
 		}
 		s.WriteString(" " + fileName)
 		s.WriteRune('\n')
