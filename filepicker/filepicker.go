@@ -527,3 +527,13 @@ func (m Model) HighlightedPath() string {
 	}
 	return filepath.Join(m.CurrentDirectory, m.files[m.selected].Name())
 }
+
+// HighlightedDirEntry returns the currently highlighted DirEntry without
+// selecting it. This is useful for previewing file information before the
+// user confirms a selection. Returns nil if no entry is highlighted.
+func (m Model) HighlightedDirEntry() os.DirEntry {
+	if len(m.files) == 0 || m.selected < 0 || m.selected >= len(m.files) {
+		return nil
+	}
+	return m.files[m.selected]
+}
