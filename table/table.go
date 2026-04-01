@@ -35,6 +35,7 @@ type Row []string
 type Column struct {
 	Title string
 	Width int
+	Style *lipgloss.Style // optional per-column cell style; overrides Styles.Cell
 }
 
 // KeyMap defines keybindings. It satisfies to the help.KeyMap interface, which
@@ -434,8 +435,12 @@ func (m *Model) renderRow(r int) string {
 		if m.cols[i].Width <= 0 {
 			continue
 		}
-		style := lipgloss.NewStyle().Width(m.cols[i].Width).MaxWidth(m.cols[i].Width).Inline(true)
-		renderedCell := m.styles.Cell.Render(style.Render(ansi.Truncate(value, m.cols[i].Width, "…")))
+		sizeStyle := lipgloss.NewStyle().Width(m.cols[i].Width).MaxWidth(m.cols[i].Width).Inline(true)
+		cellStyle := m.styles.Cell
+		if m.cols[i].Style != nil {
+			cellStyle = *m.cols[i].Style
+		}
+		renderedCell := cellStyle.Render(sizeStyle.Render(ansi.Truncate(value, m.cols[i].Width, "…")))
 		s = append(s, renderedCell)
 	}
 
