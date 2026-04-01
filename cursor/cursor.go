@@ -31,8 +31,8 @@ type BlinkMsg struct {
 	tag int
 }
 
-// blinkCanceled is sent when a blink operation is canceled.
-type blinkCanceled struct{}
+// BlinkCanceledMsg is sent when a blink operation is canceled.
+type BlinkCanceledMsg struct{}
 
 // blinkCtx manages cursor blinking.
 type blinkCtx struct {
@@ -151,7 +151,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		}
 		return m, cmd
 
-	case blinkCanceled: // no-op
+	case BlinkCanceledMsg: // no-op
 		return m, nil
 	}
 	return m, nil
@@ -201,7 +201,7 @@ func (m *Model) Blink() tea.Cmd {
 		if ctx.Err() == context.DeadlineExceeded {
 			return blinkMsg
 		}
-		return blinkCanceled{}
+		return BlinkCanceledMsg{}
 	}
 }
 

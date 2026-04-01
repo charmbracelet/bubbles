@@ -16,7 +16,7 @@ import (
 //		if ctx.Err() == context.DeadlineExceeded {
 //			return BlinkMsg{id: m.id, tag: m.blinkTag}
 //		}
-//		return blinkCanceled{}
+//		return BlinkCanceledMsg{}
 //	}
 //
 // A race on “m.blinkTag” will occur if:
