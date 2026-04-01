@@ -304,6 +304,11 @@ type Model struct {
 	// logical lines) for backward compatibility.
 	MaxContentHeight int
 
+	// CharacterWrap, when true, disables word-based line wrapping and
+	// wraps at character boundaries instead. By default, lines are wrapped
+	// at word boundaries.
+	CharacterWrap bool
+
 	// Styling. Styles are defined in [Styles]. Use [SetStyles] and [GetStyles]
 	// to work with this value publicly.
 	styles Styles
@@ -1645,7 +1650,12 @@ func (m Model) memoizedWrap(runes []rune, width int) [][]rune {
 	if v, ok := m.cache.Get(input); ok {
 		return v
 	}
-	v := wrap(runes, width)
+	var v [][]rune
+	if m.CharacterWrap {
+		v = charWrap(runes, width)
+	} else {
+		v = wrap(runes, width)
+	}
 	m.cache.Set(input, v)
 	return v
 }
@@ -1864,6 +1874,27 @@ func wrap(runes []rune, width int) [][]rune {
 		lines[row] = append(lines[row], repeatSpaces(spaces)...)
 	}
 
+	return lines
+}
+
+// charWrap wraps runes at character boundaries instead of word boundaries.
+func charWrap(runes []rune, width int) [][]rune {
+	var (
+		lines = [][]rune{{}}
+		row   int
+	)
+
+	for _, r := range runes {
+		charWidth := rw.RuneWidth(r)
+		if uniseg.StringWidth(string(lines[row]))+charWidth > width && len(lines[row]) > 0 {
+			row++
+			lines = append(lines, []rune{})
+		}
+		lines[row] = append(lines[row], r)
+	}
+
+	// Add trailing space for consistency with word-wrap behavior.
+	lines[row] = append(lines[row], ' ')
 	return lines
 }
 
