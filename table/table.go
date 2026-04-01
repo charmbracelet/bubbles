@@ -19,6 +19,7 @@ type Model struct {
 
 	cols   []Column
 	rows   []Row
+	footer []string
 	cursor int
 	focus  bool
 	styles Styles
@@ -107,6 +108,7 @@ type Styles struct {
 	Header   lipgloss.Style
 	Cell     lipgloss.Style
 	Selected lipgloss.Style
+	Footer   lipgloss.Style
 }
 
 // DefaultStyles returns a set of default style definitions for this table.
@@ -115,6 +117,7 @@ func DefaultStyles() Styles {
 		Selected: lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("212")),
 		Header:   lipgloss.NewStyle().Bold(true).Padding(0, 1),
 		Cell:     lipgloss.NewStyle().Padding(0, 1),
+		Footer:   lipgloss.NewStyle().Faint(true).Padding(0, 1),
 	}
 }
 
@@ -198,6 +201,14 @@ func WithKeyMap(km KeyMap) Option {
 	}
 }
 
+// WithFooter sets a footer row displayed below the table body.
+// The footer is not part of the rows and is not selectable.
+func WithFooter(footer []string) Option {
+	return func(m *Model) {
+		m.footer = footer
+	}
+}
+
 // Update is the Bubble Tea update loop.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	if !m.focus {
@@ -247,9 +258,23 @@ func (m *Model) Blur() {
 	m.UpdateViewport()
 }
 
+// SetFooter sets the footer content. Pass nil or empty to remove the footer.
+func (m *Model) SetFooter(footer []string) {
+	m.footer = footer
+}
+
+// Footer returns the current footer.
+func (m Model) Footer() []string {
+	return m.footer
+}
+
 // View renders the component.
 func (m Model) View() string {
-	return m.headersView() + "\n" + m.viewport.View()
+	v := m.headersView() + "\n" + m.viewport.View()
+	if len(m.footer) > 0 {
+		v += "\n" + m.footerView()
+	}
+	return v
 }
 
 // HelpView is a helper method for rendering the help menu from the keymap.
@@ -327,7 +352,11 @@ func (m *Model) SetWidth(w int) {
 
 // SetHeight sets the height of the viewport of the table.
 func (m *Model) SetHeight(h int) {
-	m.viewport.SetHeight(h - lipgloss.Height(m.headersView()))
+	offset := lipgloss.Height(m.headersView())
+	if len(m.footer) > 0 {
+		offset += lipgloss.Height(m.footerView())
+	}
+	m.viewport.SetHeight(h - offset)
 	m.UpdateViewport()
 }
 
@@ -424,6 +453,23 @@ func (m Model) headersView() string {
 		style := lipgloss.NewStyle().Width(col.Width).MaxWidth(col.Width).Inline(true)
 		renderedCell := style.Render(ansi.Truncate(col.Title, col.Width, "…"))
 		s = append(s, m.styles.Header.Render(renderedCell))
+	}
+	return lipgloss.JoinHorizontal(lipgloss.Top, s...)
+}
+
+func (m Model) footerView() string {
+	s := make([]string, 0, len(m.cols))
+	for i, col := range m.cols {
+		if col.Width <= 0 {
+			continue
+		}
+		value := ""
+		if i < len(m.footer) {
+			value = m.footer[i]
+		}
+		style := lipgloss.NewStyle().Width(col.Width).MaxWidth(col.Width).Inline(true)
+		renderedCell := style.Render(ansi.Truncate(value, col.Width, "…"))
+		s = append(s, m.styles.Footer.Render(renderedCell))
 	}
 	return lipgloss.JoinHorizontal(lipgloss.Top, s...)
 }
