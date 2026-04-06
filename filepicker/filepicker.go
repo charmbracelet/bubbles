@@ -148,6 +148,7 @@ type Model struct {
 	FileSelected  string
 	selected      int
 	selectedStack stack
+	cwdToSelect   string
 
 	minIdx   int
 	maxIdx   int
@@ -232,6 +233,20 @@ func (m *Model) SetHeight(h int) {
 	}
 }
 
+// SetCWDDefault configures the model to open in the parent directory with
+// the current directory selected. This should be called before Init().
+func (m *Model) SetCWDDefault(enabled bool) {
+	if enabled {
+		// Store the directory name we want to select
+		m.cwdToSelect = filepath.Base(m.CurrentDirectory)
+		// Move to parent directory
+		m.CurrentDirectory = filepath.Dir(m.CurrentDirectory)
+	} else {
+		m.CurrentDirectory = filepath.Join(m.CurrentDirectory, m.cwdToSelect)
+		m.cwdToSelect = ""
+	}
+}
+
 // Height returns the height of the file picker.
 func (m Model) Height() int {
 	return m.height
@@ -251,6 +266,32 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		}
 		m.files = msg.entries
 		m.maxIdx = max(m.maxIdx, m.Height()-1)
+		// If we need to select a specific directory (CWDDefault mode)
+		if m.cwdToSelect != "" {
+			for i, f := range m.files {
+				if f.Name() == m.cwdToSelect {
+					m.selected = i
+					m.FileSelected = f.Name()
+					// Update view bounds if needed
+					if m.selected > m.maxIdx {
+						m.minIdx = m.selected - m.Height() + 1
+						if m.minIdx < 0 {
+							m.minIdx = 0
+						}
+						m.maxIdx = m.minIdx + m.Height() - 1
+					}
+					break
+				}
+			}
+			m.cwdToSelect = ""
+		} else {
+			// Update FileSelected for the current selection
+			if len(m.files) > 0 && m.selected >= 0 && m.selected < len(m.files) {
+				m.FileSelected = m.files[m.selected].Name()
+			} else {
+				m.FileSelected = ""
+			}
+		}
 	case tea.WindowSizeMsg:
 		if m.AutoHeight {
 			m.SetHeight(msg.Height - marginBottom)
@@ -359,6 +400,13 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.minIdx = 0
 			m.maxIdx = m.Height() - 1
 			return m, m.readDir(m.CurrentDirectory, m.ShowHidden)
+		}
+
+		// Update FileSelected after any key press
+		if len(m.files) > 0 && m.selected >= 0 && m.selected < len(m.files) {
+			m.FileSelected = m.files[m.selected].Name()
+		} else {
+			m.FileSelected = ""
 		}
 	}
 	return m, nil
