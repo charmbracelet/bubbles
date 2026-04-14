@@ -751,11 +751,6 @@ func (m Model) placeholderView() string {
 	m.virtualCursor.SetChar(string(p[:1]))
 	v += m.virtualCursor.View()
 
-	// If the entire placeholder is already set and no padding is needed, finish
-	if m.Width() < 1 && len(p) <= 1 {
-		return styles.Prompt.Render(m.Prompt) + v
-	}
-
 	// If Width is set then size placeholder accordingly
 	if m.Width() > 0 {
 		// available width is width - len + cursor offset of 1
