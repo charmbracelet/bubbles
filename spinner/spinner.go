@@ -5,8 +5,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 )
 
 // Internal ID management. Used during animating to ensure that frame messages
@@ -120,11 +120,6 @@ func New(opts ...Option) Model {
 	return m
 }
 
-// NewModel returns a model with default values.
-//
-// Deprecated: use [New] instead.
-var NewModel = New
-
 // TickMsg indicates that the timer has ticked and we should render a frame.
 type TickMsg struct {
 	Time time.Time
@@ -196,27 +191,19 @@ func (m Model) tick(id, tag int) tea.Cmd {
 	})
 }
 
-// Tick is the command used to advance the spinner one frame. Use this command
-// to effectively start the spinner.
-//
-// Deprecated: Use [Model.Tick] instead.
-func Tick() tea.Msg {
-	return TickMsg{Time: time.Now()}
-}
-
 // Option is used to set options in New. For example:
 //
 //	spinner := New(WithSpinner(Dot))
 type Option func(*Model)
 
-// WithSpinner is an option to set the spinner.
+// WithSpinner is an option to set the spinner. Pass this to [Spinner.New].
 func WithSpinner(spinner Spinner) Option {
 	return func(m *Model) {
 		m.Spinner = spinner
 	}
 }
 
-// WithStyle is an option to set the spinner style.
+// WithStyle is an option to set the spinner style. Pass this to [Spinner.New].
 func WithStyle(style lipgloss.Style) Option {
 	return func(m *Model) {
 		m.Style = style

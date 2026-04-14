@@ -1,66 +1,94 @@
 package progress
 
 import (
-	"strings"
+	"image/color"
 	"testing"
 
-	"github.com/muesli/termenv"
+	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/exp/golden"
 )
 
-const (
-	AnsiReset = "\x1b[0m"
-)
-
-func TestGradient(t *testing.T) {
-
-	colA := "#FF0000"
-	colB := "#00FF00"
-
-	var p Model
-	var descr string
-
-	for _, scale := range []bool{false, true} {
-		opts := []Option{
-			WithColorProfile(termenv.TrueColor), WithoutPercentage(),
-		}
-		if scale {
-			descr = "progress bar with scaled gradient"
-			opts = append(opts, WithScaledGradient(colA, colB))
-		} else {
-			descr = "progress bar with gradient"
-			opts = append(opts, WithGradient(colA, colB))
-		}
-
-		t.Run(descr, func(t *testing.T) {
-			p = New(opts...)
-
-			// build the expected colors by colorizing an empty string and then cutting off the following reset sequence
-			sb := strings.Builder{}
-			sb.WriteString(termenv.String("").Foreground(p.color(colA)).String())
-			expFirst := strings.Split(sb.String(), AnsiReset)[0]
-			sb.Reset()
-			sb.WriteString(termenv.String("").Foreground(p.color(colB)).String())
-			expLast := strings.Split(sb.String(), AnsiReset)[0]
-
-			for _, width := range []int{3, 5, 50} {
-				p.Width = width
-				res := p.ViewAs(1.0)
-
-				// extract colors from the progrss bar by splitting at p.Full+AnsiReset, leaving us with just the color sequences
-				colors := strings.Split(res, string(p.Full)+AnsiReset)
-
-				// discard the last color, because it is empty (no new color comes after the last char of the bar)
-				colors = colors[0 : len(colors)-1]
-
-				if expFirst != colors[0] {
-					t.Errorf("expected first color of bar to be first gradient color %q, instead got %q", expFirst, colors[0])
-				}
-
-				if expLast != colors[len(colors)-1] {
-					t.Errorf("expected last color of bar to be second gradient color %q, instead got %q", expLast, colors[len(colors)-1])
-				}
-			}
-		})
+func TestBlend(t *testing.T) {
+	tests := []struct {
+		name    string
+		options []Option
+		width   int
+		percent float64
+	}{
+		{
+			name: "10w-red-to-green-50perc",
+			options: []Option{
+				WithColors(lipgloss.Color("#FF0000"), lipgloss.Color("#00FF00")),
+				WithScaled(false),
+				WithoutPercentage(),
+			},
+			width:   10,
+			percent: 0.5,
+		},
+		{
+			name: "10w-red-to-green-50perc-full-block",
+			options: []Option{
+				WithColors(lipgloss.Color("#FF0000"), lipgloss.Color("#00FF00")),
+				WithFillCharacters('█', DefaultEmptyCharBlock),
+				WithoutPercentage(),
+			},
+			width:   10,
+			percent: 0.5,
+		},
+		{
+			name: "30w-red-to-green-100perc",
+			options: []Option{
+				WithColors(lipgloss.Color("#FF0000"), lipgloss.Color("#00FF00")),
+				WithScaled(false),
+				WithoutPercentage(),
+			},
+			width:   30,
+			percent: 1.0,
+		},
+		{
+			name: "10w-red-to-green-scaled-50perc",
+			options: []Option{
+				WithColors(lipgloss.Color("#FF0000"), lipgloss.Color("#00FF00")),
+				WithScaled(true),
+				WithoutPercentage(),
+			},
+			width:   10,
+			percent: 0.5,
+		},
+		{
+			name: "30w-red-to-green-scaled-100perc",
+			options: []Option{
+				WithColors(lipgloss.Color("#FF0000"), lipgloss.Color("#00FF00")),
+				WithScaled(true),
+				WithoutPercentage(),
+			},
+			width:   30,
+			percent: 1.0,
+		},
+		{
+			name: "30w-colorfunc-rgb-100perc",
+			options: []Option{
+				WithColorFunc(func(_, current float64) color.Color {
+					if current <= 0.3 {
+						return lipgloss.Color("#FF0000")
+					}
+					if current <= 0.7 {
+						return lipgloss.Color("#00FF00")
+					}
+					return lipgloss.Color("#0000FF")
+				}),
+				WithoutPercentage(),
+			},
+			width:   30,
+			percent: 1.0,
+		},
 	}
 
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := New(tt.options...)
+			p.SetWidth(tt.width)
+			golden.RequireEqual(t, []byte(p.ViewAs(tt.percent)))
+		})
+	}
 }
