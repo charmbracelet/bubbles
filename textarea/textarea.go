@@ -1588,9 +1588,7 @@ func (m Model) placeholderView() string {
 		// terminate with new line
 		s.WriteRune('\n')
 	}
-
-	m.viewport.SetContent(s.String())
-	return styles.Base.Render(m.viewport.View())
+	return s.String()
 }
 
 // Blink returns the blink command for the virtual cursor.
