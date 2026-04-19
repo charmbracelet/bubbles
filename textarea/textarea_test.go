@@ -1063,6 +1063,31 @@ func TestView(t *testing.T) {
 			},
 		},
 		{
+			name: "placeholder with style",
+			modelFunc: func(m Model) Model {
+				s := m.Styles()
+				s.Focused.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
+				m.SetStyles(s)
+				m.Focus()
+
+				m.SetWidth(12)
+
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`
+					┌──────────┐
+					│>   1 Hell│
+					│>     o,  │
+					│>     Worl│
+					│>     d!  │
+					│>         │
+					│>         │
+					└──────────┘
+				`),
+			},
+		},
+		{
 			name: "set width with style max width minus one",
 			modelFunc: func(m Model) Model {
 				s := m.Styles()
