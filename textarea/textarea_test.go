@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 	"unicode"
 
 	tea "charm.land/bubbletea/v2"
@@ -1972,6 +1973,32 @@ func TestWord(t *testing.T) {
 			t.Fatalf("Expected last word to be '%s', got '%s'", expect, word)
 		}
 	})
+}
+
+// TestWordLeftEmptyDoesNotHang is a regression test for
+// https://github.com/charmbracelet/bubbletea/issues/1652: pressing
+// alt+left (WordBackward) on an empty textarea used to spin wordLeft()
+// forever because characterLeft() was a no-op and the loop's only exit
+// condition was finding a non-space rune under the cursor.
+func TestWordLeftEmptyDoesNotHang(t *testing.T) {
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		textarea := newTextArea()
+		textarea.SetHeight(3)
+		textarea.SetWidth(20)
+		textarea, _ = textarea.Update(nil)
+		textarea, _ = textarea.Update(tea.KeyPressMsg{
+			Code: tea.KeyLeft, Mod: tea.ModAlt, Text: "alt+left",
+		})
+		_ = textarea.View()
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("wordLeft() hung on empty textarea")
+	}
 }
 
 func newDynamicTextArea(minH, maxH int) Model {

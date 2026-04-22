@@ -955,6 +955,15 @@ func (m *Model) characterLeft(insideLine bool) {
 // so as not to reveal word breaks in the masked input.
 func (m *Model) wordLeft() {
 	for {
+		// Stop before wrapping past the beginning of the buffer;
+		// otherwise on empty input (or at row=0,col=0) characterLeft is
+		// a no-op and the loop spins forever because the break
+		// condition `col < len(value[row]) && !IsSpace` is never true
+		// when value[0] is empty. doWordRight already has an analogous
+		// end-of-text guard.
+		if m.row == 0 && m.col == 0 {
+			return
+		}
 		m.characterLeft(true /* insideLine */)
 		if m.col < len(m.value[m.row]) && !unicode.IsSpace(m.value[m.row][m.col]) {
 			break
