@@ -287,6 +287,23 @@ type Model struct {
 	// there's no limit.
 	MaxWidth int
 
+	// DynamicHeight, when true, causes the textarea to automatically grow
+	// and shrink its height to fit the content. The height is clamped between
+	// MinHeight and MaxHeight.
+	DynamicHeight bool
+
+	// MinHeight is the minimum height of the text area in rows when
+	// DynamicHeight is enabled. If 0 or less, defaults to 1.
+	MinHeight int
+
+	// MaxContentHeight is the maximum content height in visual rows
+	// (accounting for soft wraps). When set (> 0), input is blocked once
+	// the total visual lines reach this limit, while MaxHeight controls
+	// only the visible viewport height. When 0, the content guard falls
+	// back to the legacy MaxHeight behavior (blocking at MaxHeight
+	// logical lines) for backward compatibility.
+	MaxContentHeight int
+
 	// Styling. Styles are defined in [Styles]. Use [SetStyles] and [GetStyles]
 	// to work with this value publicly.
 	styles Styles
@@ -464,16 +481,19 @@ func (m *Model) updateVirtualCursorStyle() {
 func (m *Model) SetValue(s string) {
 	m.Reset()
 	m.InsertString(s)
+	m.recalculateHeight()
 }
 
 // InsertString inserts a string at the cursor position.
 func (m *Model) InsertString(s string) {
 	m.insertRunesFromUserInput([]rune(s))
+	m.recalculateHeight()
 }
 
 // InsertRune inserts a rune at the cursor position.
 func (m *Model) InsertRune(r rune) {
 	m.insertRunesFromUserInput([]rune{r})
+	m.recalculateHeight()
 }
 
 // insertRunesFromUserInput inserts runes at the current cursor position.
@@ -519,6 +539,18 @@ func (m *Model) insertRunesFromUserInput(runes []rune) {
 	if maxLines > 0 && len(m.value)+len(lines)-1 > maxLines {
 		allowedHeight := max(0, maxLines-len(m.value)+1)
 		lines = lines[:allowedHeight]
+	}
+
+	// Obey MaxContentHeight in visual rows when set.
+	if m.MaxContentHeight > 0 {
+		budget := m.MaxContentHeight - m.totalVisualLines()
+		// Trim lines from the end until we fit within the budget.
+		for len(lines) > 1 && m.visualLinesForInsert(lines) > budget {
+			lines = lines[:len(lines)-1]
+		}
+		if m.visualLinesForInsert(lines) > budget {
+			return
+		}
 	}
 
 	if len(lines) == 0 {
@@ -740,6 +772,7 @@ func (m *Model) Reset() {
 	m.row = 0
 	m.viewport.GotoTop()
 	m.SetCursorColumn(0)
+	m.recalculateHeight()
 }
 
 // Word returns the word at the cursor position.
@@ -1134,6 +1167,7 @@ func (m *Model) SetWidth(w int) {
 
 	m.viewport.SetWidth(inputWidth - reservedOuter)
 	m.width = inputWidth - reservedOuter - reservedInner
+	m.recalculateHeight()
 }
 
 // SetPromptFunc supersedes the Prompt field and sets a dynamic prompt instead.
@@ -1238,7 +1272,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			}
 			m.deleteWordRight()
 		case key.Matches(msg, m.KeyMap.InsertNewline):
-			if m.MaxHeight > 0 && len(m.value) >= m.MaxHeight {
+			if m.atContentLimit() {
 				return m, nil
 			}
 			m.col = clamp(m.col, 0, len(m.value[m.row]))
@@ -1288,6 +1322,8 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	case pasteErrMsg:
 		m.Err = msg
 	}
+
+	m.recalculateHeight()
 
 	// Make sure we set the content of the viewport before updating it.
 	view := m.view()
@@ -1625,6 +1661,76 @@ func (m Model) cursorLineNumber() int {
 	}
 	line += m.LineInfo().RowOffset
 	return line
+}
+
+// totalVisualLines returns the total number of display lines across all
+// logical lines, accounting for soft wraps.
+func (m *Model) totalVisualLines() int {
+	n := 0
+	for _, line := range m.value {
+		n += len(m.memoizedWrap(line, m.width))
+	}
+	return n
+}
+
+// recalculateHeight recomputes and applies the textarea height based on
+// content when DynamicHeight is enabled. It is a no-op otherwise.
+func (m *Model) recalculateHeight() {
+	if !m.DynamicHeight {
+		return
+	}
+	minH := max(m.MinHeight, minHeight)
+	total := m.totalVisualLines()
+	h := max(total, minH)
+	if m.MaxHeight > 0 {
+		h = min(h, m.MaxHeight)
+	}
+	if maxOffset := total - h; m.viewport.YOffset() > maxOffset {
+		m.viewport.SetYOffset(max(0, maxOffset))
+	}
+	m.SetHeight(h)
+}
+
+// atContentLimit reports whether the textarea has reached its content limit.
+// When MaxContentHeight is set (> 0), it checks total visual lines.
+// Otherwise it falls back to the legacy MaxHeight logical-line check for
+// backward compatibility.
+func (m *Model) atContentLimit() bool {
+	if m.MaxContentHeight > 0 {
+		return m.totalVisualLines() >= m.MaxContentHeight
+	}
+	return m.MaxHeight > 0 && len(m.value) >= m.MaxHeight
+}
+
+// visualLinesForInsert estimates how many additional visual lines would result
+// from inserting the given lines at the current cursor position. The first
+// element merges into the current line; subsequent elements become new lines.
+func (m *Model) visualLinesForInsert(lines [][]rune) int {
+	if len(lines) == 0 {
+		return 0
+	}
+
+	// The current row's visual line count before insertion.
+	currentRowVisual := len(m.memoizedWrap(m.value[m.row], m.width))
+
+	// Simulate merging the first paste line into the current row.
+	merged := make([]rune, m.col+len(lines[0]))
+	copy(merged, m.value[m.row][:m.col])
+	copy(merged[m.col:], lines[0])
+	if len(lines) == 1 {
+		merged = append(merged, m.value[m.row][m.col:]...)
+	}
+	delta := len(m.memoizedWrap(merged, m.width)) - currentRowVisual
+
+	// Each additional line is a new logical line.
+	for i, content := range lines {
+		if i == len(lines)-1 {
+			content = append(content, m.value[m.row][m.col:]...)
+		}
+		delta += len(m.memoizedWrap(content, m.width))
+	}
+
+	return delta
 }
 
 // mergeLineBelow merges the current line the cursor is on with the line below.
