@@ -75,7 +75,7 @@ func DefaultKeyMap() KeyMap {
 		DeleteWordForward:       key.NewBinding(key.WithKeys("alt+delete", "alt+d")),
 		DeleteAfterCursor:       key.NewBinding(key.WithKeys("ctrl+k")),
 		DeleteBeforeCursor:      key.NewBinding(key.WithKeys("ctrl+u")),
-		DeleteCharacterBackward: key.NewBinding(key.WithKeys("backspace", "ctrl+h")),
+		DeleteCharacterBackward: key.NewBinding(key.WithKeys("backspace", "shift+backspace", "ctrl+h")),
 		DeleteCharacterForward:  key.NewBinding(key.WithKeys("delete", "ctrl+d")),
 		LineStart:               key.NewBinding(key.WithKeys("home", "ctrl+a")),
 		LineEnd:                 key.NewBinding(key.WithKeys("end", "ctrl+e")),
