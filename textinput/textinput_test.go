@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 )
 
 func Test_CurrentSuggestion(t *testing.T) {
@@ -104,6 +105,36 @@ func ExampleValidateFunc() {
 		_, err := strconv.ParseInt(c, 10, 64)
 
 		return err
+	}
+}
+
+func TestTextStyleAndPlaceholderStyleScopeMatch(t *testing.T) {
+	// Regression test for #245. The padding spaces that fill the input out to
+	// its full width must not pick up the Text or Placeholder style, otherwise
+	// the user sees a styled background extending past the actual text. Both
+	// the text and placeholder code paths should agree.
+	bg := lipgloss.NewStyle().Background(lipgloss.Color("#AFAFAF"))
+
+	m := New()
+	m.SetWidth(20)
+	m.Placeholder = "Pies"
+	styles := m.Styles()
+	styles.Focused.Text = bg
+	styles.Focused.Placeholder = bg
+	styles.Blurred.Text = bg
+	styles.Blurred.Placeholder = bg
+	m.SetStyles(styles)
+	m.Blur()
+
+	placeholderView := m.View()
+	if !strings.HasSuffix(placeholderView, strings.Repeat(" ", 17)) {
+		t.Errorf("placeholder view should end with unstyled padding spaces, got %q", placeholderView)
+	}
+
+	m.SetValue("foo")
+	textView := m.View()
+	if !strings.HasSuffix(textView, strings.Repeat(" ", 17)) {
+		t.Errorf("text view should end with unstyled padding spaces, got %q", textView)
 	}
 }
 

@@ -719,15 +719,16 @@ func (m Model) View() string {
 		}
 	}
 
-	// If a max width and background color were set fill the empty spaces with
-	// the background color.
+	// Pad the rest of the input out to its full width. The padding spaces are
+	// left unstyled so that Text styling stops at the value's end, matching
+	// the placeholder's behavior. See #245.
 	valWidth := uniseg.StringWidth(string(value))
 	if m.Width() > 0 && valWidth <= m.Width() {
 		padding := max(0, m.Width()-valWidth)
 		if valWidth+padding <= m.Width() && pos < len(value) {
 			padding++
 		}
-		v += styleText(strings.Repeat(" ", padding))
+		v += strings.Repeat(" ", padding)
 	}
 
 	return m.promptView() + v
@@ -768,9 +769,11 @@ func (m Model) placeholderView() string {
 			minWidth += availWidth
 			availWidth = 0
 		}
-		// append placeholder[len] - cursor, append padding
+		// append placeholder[len] - cursor, append padding (padding is
+		// intentionally unstyled so the placeholder color only covers the
+		// placeholder text itself, matching the text-mode behavior in View).
 		v += render(string(p[1:minWidth]))
-		v += render(strings.Repeat(" ", availWidth))
+		v += strings.Repeat(" ", availWidth)
 	} else {
 		// if there is no width, the placeholder can be any length
 		v += render(string(p[1:]))
