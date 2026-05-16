@@ -745,8 +745,19 @@ func (m Model) placeholderView() string {
 		render = styles.Placeholder.Render
 	)
 
-	p := make([]rune, m.Width()+1)
-	copy(p, []rune(m.Placeholder))
+	// Size the buffer to the longer of Width and the placeholder
+	// itself so that, when Width is 0 ("no width") or shorter than
+	// the placeholder, copy still pulls in every rune. The old
+	// `m.Width()+1` left exactly one slot when Width was 0, so all
+	// but the first character of the placeholder fell on the floor.
+	// See #950.
+	placeholderRunes := []rune(m.Placeholder)
+	size := m.Width() + 1
+	if size < len(placeholderRunes) {
+		size = len(placeholderRunes)
+	}
+	p := make([]rune, size)
+	copy(p, placeholderRunes)
 
 	m.virtualCursor.TextStyle = styles.Placeholder
 	m.virtualCursor.SetChar(string(p[:1]))

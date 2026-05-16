@@ -48,6 +48,28 @@ func Test_SlicingOutsideCap(t *testing.T) {
 	textinput.View()
 }
 
+// Regression for #950. When SetWidth(0) is used (the documented
+// "no width" mode), the placeholder buffer was sized to exactly 1
+// rune and copy lost everything past the first character. The
+// rendered placeholder was a single letter regardless of length.
+func TestPlaceholderZeroWidth(t *testing.T) {
+	ti := New()
+	ti.Placeholder = "Something"
+	ti.SetWidth(0)
+
+	got := ti.View()
+	// View output carries ANSI styling, so check each rune of the
+	// placeholder appears somewhere in the string in order.
+	idx := 0
+	for _, r := range "Something" {
+		i := strings.IndexRune(got[idx:], r)
+		if i < 0 {
+			t.Fatalf("expected full placeholder %q to appear in view %q", "Something", got)
+		}
+		idx += i + 1
+	}
+}
+
 func TestChinesePlaceholder(t *testing.T) {
 	t.Skip("Skipping flaky test, the returned view seems incorrect. TODO: Needs investigation.")
 	textinput := New()
