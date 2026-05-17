@@ -1918,6 +1918,29 @@ func TestView(t *testing.T) {
 	}
 }
 
+func TestPlaceholderWithBaseBorderAppliesBaseStyleOnce(t *testing.T) {
+	t.Parallel()
+
+	textarea := newTextArea()
+	textarea.Prompt = ""
+	textarea.ShowLineNumbers = false
+	textarea.SetWidth(20)
+	textarea.SetHeight(3)
+
+	styles := textarea.Styles()
+	styles.Focused.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder()).Padding(0, 1)
+	styles.Blurred.Base = styles.Focused.Base
+	styles.Focused.CursorLine = lipgloss.NewStyle()
+	textarea.SetStyles(styles)
+
+	view := stripString(textarea.View())
+	for _, border := range []string{"┌", "┐", "└", "┘"} {
+		if got := strings.Count(view, border); got != 1 {
+			t.Fatalf("expected placeholder view to render border %q once, got %d:\n%s", border, got, view)
+		}
+	}
+}
+
 func TestWord(t *testing.T) {
 	textarea := newTextArea()
 
