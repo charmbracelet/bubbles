@@ -743,8 +743,8 @@ func TestView(t *testing.T) {
 					>
 					>
 				`),
-				cursorRow: 1,
-				cursorCol: 0,
+				cursorRow: 0,
+				cursorCol: 4,
 			},
 		},
 		{
@@ -814,8 +814,8 @@ func TestView(t *testing.T) {
 					>
 					>
 				`),
-				cursorRow: 1,
-				cursorCol: 0,
+				cursorRow: 0,
+				cursorCol: 4,
 			},
 		},
 		{
@@ -861,8 +861,8 @@ func TestView(t *testing.T) {
 					>
 					>
 				`),
-				cursorRow: 3,
-				cursorCol: 0,
+				cursorRow: 2,
+				cursorCol: 1,
 			},
 		},
 		{
@@ -884,8 +884,8 @@ func TestView(t *testing.T) {
 					>
 					>
 				`),
-				cursorRow: 3,
-				cursorCol: 0,
+				cursorRow: 2,
+				cursorCol: 1,
 			},
 		},
 		{
@@ -908,8 +908,8 @@ func TestView(t *testing.T) {
 					>
 					>
 				`),
-				cursorRow: 3,
-				cursorCol: 0,
+				cursorRow: 2,
+				cursorCol: 1,
 			},
 		},
 		{
@@ -933,8 +933,8 @@ func TestView(t *testing.T) {
 
 
 				`),
-				cursorRow: 3,
-				cursorCol: 0,
+				cursorRow: 2,
+				cursorCol: 1,
 			},
 		},
 		{
@@ -1004,8 +1004,8 @@ func TestView(t *testing.T) {
 					>
 					>
 				`),
-				cursorRow: 1,
-				cursorCol: 0,
+				cursorRow: 0,
+				cursorCol: 4,
 			},
 		},
 		{
@@ -1118,8 +1118,8 @@ func TestView(t *testing.T) {
 					│>         │
 					└──────────┘
 				`),
-				cursorRow: 1,
-				cursorCol: 0,
+				cursorRow: 0,
+				cursorCol: 4,
 			},
 		},
 		{
@@ -1241,8 +1241,8 @@ func TestView(t *testing.T) {
 					│>         │
 					└──────────┘
 				`),
-				cursorRow: 1,
-				cursorCol: 0,
+				cursorRow: 0,
+				cursorCol: 8,
 			},
 		},
 		{
@@ -2401,6 +2401,36 @@ func newTextArea() Model {
 	textarea, _ = textarea.Update(nil)
 
 	return textarea
+}
+
+func TestWrapExactWidthNoPhantomLine(t *testing.T) {
+	const width = 10
+	input := []rune("0123456789")
+
+	lines := wrap(input, width)
+	if len(lines) > 1 {
+		for i, line := range lines {
+			if i > 0 && len(strings.TrimSpace(string(line))) == 0 {
+				t.Fatalf("phantom wrap line at index %d: %#v", i, lines)
+			}
+		}
+	}
+}
+
+func TestCursorDownPastExactWidthLine(t *testing.T) {
+	textarea := newTextArea()
+	textarea.SetWidth(20)
+
+	line1 := strings.Repeat("x", 20)
+	textarea.SetValue(line1 + "\nsecond")
+	textarea.row = 0
+	textarea.col = len(line1)
+	textarea.lastCharOffset = textarea.LineInfo().CharOffset
+
+	textarea.CursorDown()
+	if textarea.row != 1 {
+		t.Fatalf("row %d want 1 after moving down from a full-width line", textarea.row)
+	}
 }
 
 func keyPress(key rune) tea.Msg {
