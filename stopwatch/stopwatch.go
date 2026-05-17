@@ -54,6 +54,7 @@ type ResetMsg struct {
 // Model for the stopwatch component.
 type Model struct {
 	d       time.Duration
+	start   time.Time
 	id      int
 	tag     int
 	running bool
@@ -65,7 +66,8 @@ type Model struct {
 // New creates a new stopwatch with 1s interval.
 func New(opts ...Option) Model {
 	m := Model{
-		id: nextID(),
+		id:       nextID(),
+		Interval: time.Second,
 	}
 
 	for _, opt := range opts {
@@ -86,9 +88,9 @@ func (m Model) Init() tea.Cmd {
 
 // Start starts the stopwatch.
 func (m Model) Start() tea.Cmd {
-	return tea.Sequence(func() tea.Msg {
+	return func() tea.Msg {
 		return StartStopMsg{ID: m.id, running: true}
-	}, tick(m.id, m.tag, m.Interval))
+	}
 }
 
 // Stop stops the stopwatch.
@@ -125,12 +127,28 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		if msg.ID != m.id {
 			return m, nil
 		}
-		m.running = msg.running
+		if msg.running {
+			if !m.running {
+				m.start = time.Now()
+			}
+			m.running = true
+			return m, tick(m.id, m.tag, m.Interval)
+		}
+		if m.running {
+			m.d += time.Since(m.start)
+			m.start = time.Time{}
+		}
+		m.running = false
 	case ResetMsg:
 		if msg.ID != m.id {
 			return m, nil
 		}
 		m.d = 0
+		if m.running {
+			m.start = time.Now()
+		} else {
+			m.start = time.Time{}
+		}
 	case TickMsg:
 		if !m.running || msg.ID != m.id {
 			break
@@ -143,7 +161,6 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			return m, nil
 		}
 
-		m.d += m.Interval
 		m.tag++
 		return m, tick(m.id, m.tag, m.Interval)
 	}
@@ -153,12 +170,15 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 // Elapsed returns the time elapsed.
 func (m Model) Elapsed() time.Duration {
+	if m.running && !m.start.IsZero() {
+		return m.d + time.Since(m.start)
+	}
 	return m.d
 }
 
 // View of the timer component.
 func (m Model) View() string {
-	return m.d.String()
+	return m.Elapsed().String()
 }
 
 func tick(id int, tag int, d time.Duration) tea.Cmd {
