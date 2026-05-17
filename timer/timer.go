@@ -145,7 +145,13 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		if msg.ID != 0 && msg.ID != m.id {
 			return m, nil
 		}
+		if msg.running == m.running {
+			return m, nil
+		}
 		m.running = msg.running
+		if !m.running {
+			return m, nil
+		}
 		return m, m.tick()
 	case TickMsg:
 		if !m.Running() || (msg.ID != 0 && msg.ID != m.id) {
