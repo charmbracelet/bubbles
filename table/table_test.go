@@ -130,6 +130,7 @@ func TestNew(t *testing.T) {
 					viewport.WithWidth(10),
 					viewport.WithHeight(20),
 				),
+				tableWidth: 10,
 			},
 		},
 		"WithFocused": {
@@ -737,7 +738,6 @@ func TestModel_View(t *testing.T) {
 					}),
 				)
 			},
-			skip: true,
 		},
 		"Modified viewport height": {
 			modelFunc: func() Model {
