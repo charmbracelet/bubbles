@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 	"unicode"
 
 	tea "charm.land/bubbletea/v2"
@@ -2429,3 +2430,24 @@ func stripString(str string) string {
 
 	return strings.Join(lines, "\n")
 }
+
+func TestWordLeftInfiniteLoopRepro(t *testing.T) {
+	m := New()
+	m.SetValue(" hello")
+	m.col = 0
+	m.row = 0
+
+	done := make(chan struct{})
+	go func() {
+		m.wordLeft()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		t.Log("wordLeft finished")
+	case <-time.After(2 * time.Second):
+		t.Fatal("wordLeft timed out (likely infinite loop)")
+	}
+}
+
