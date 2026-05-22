@@ -959,6 +959,9 @@ func (m *Model) wordLeft() {
 		if m.col < len(m.value[m.row]) && !unicode.IsSpace(m.value[m.row][m.col]) {
 			break
 		}
+		if m.col == 0 && m.row == 0 {
+			break
+		}
 	}
 
 	for m.col > 0 {
