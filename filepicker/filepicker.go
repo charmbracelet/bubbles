@@ -286,15 +286,20 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				return m, m.readDir(m.CurrentDirectory, m.ShowHidden)
 
 			case tea.KeyBackspace:
-				r := []rune(m.filter)
-				if len(r) > 0 {
-					m.filter = string(r[:len(r)-1])
+				m.selected = 0
+				m.minIdx = 0
+				m.maxIdx = m.Height() - 1
+				if len(m.filter) > 0 {
+					m.filter = m.filter[:len(m.filter)-1]
 				}
 				return m, m.readDir(m.CurrentDirectory, m.ShowHidden)
 			}
 
 			if msg.Text != "" {
 				m.filter += msg.Text
+				m.selected = 0
+				m.minIdx = 0
+				m.maxIdx = m.Height() - 1
 				return m, m.readDir(m.CurrentDirectory, m.ShowHidden)
 			}
 		}
