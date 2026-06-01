@@ -12,6 +12,7 @@ import (
 	"sync/atomic"
 
 	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/dustin/go-humanize"
@@ -23,8 +24,12 @@ func nextID() int {
 	return int(atomic.AddInt64(&lastID, 1))
 }
 
-// New returns a new filepicker model with default styling and key bindings.
+// New returns a new file picker model with default styling and key bindings.
 func New() Model {
+	ti := textinput.New()
+	ti.Prompt = "/ "
+	ti.CharLimit = 64
+
 	return Model{
 		id:               nextID(),
 		CurrentDirectory: ".",
@@ -45,6 +50,8 @@ func New() Model {
 		maxStack:         newStack(),
 		KeyMap:           DefaultKeyMap(),
 		Styles:           DefaultStyles(),
+		searchInput:      ti,
+		Filter:           DefaultFilter,
 	}
 }
 
@@ -74,6 +81,7 @@ type KeyMap struct {
 	Back     key.Binding
 	Open     key.Binding
 	Select   key.Binding
+	Search   key.Binding
 }
 
 // DefaultKeyMap defines the default keybindings.
@@ -88,6 +96,7 @@ func DefaultKeyMap() KeyMap {
 		Back:     key.NewBinding(key.WithKeys("h", "backspace", "left", "esc"), key.WithHelp("h", "back")),
 		Open:     key.NewBinding(key.WithKeys("l", "right", "enter"), key.WithHelp("l", "open")),
 		Select:   key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "select")),
+		Search:   key.NewBinding(key.WithKeys("/"), key.WithHelp("/", "search")),
 	}
 }
 
@@ -121,6 +130,21 @@ func DefaultStyles() Styles {
 		FileSize:         lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Width(fileSizeWidth).Align(lipgloss.Right),
 		EmptyDirectory:   lipgloss.NewStyle().Foreground(lipgloss.Color("240")).PaddingLeft(paddingLeft).SetString("Bummer. No Files Found."),
 	}
+}
+
+// FilterFunc is a function that returns matching file indices for a query.
+type FilterFunc func(query string, entries []os.DirEntry) []int
+
+// DefaultFilter performs a case-insensitive substring match on file names.
+func DefaultFilter(query string, entries []os.DirEntry) []int {
+	lower := strings.ToLower(query)
+	var matches []int
+	for i, entry := range entries {
+		if strings.Contains(strings.ToLower(entry.Name()), lower) {
+			matches = append(matches, i)
+		}
+	}
+	return matches
 }
 
 // Model represents a file picker.
@@ -159,6 +183,17 @@ type Model struct {
 
 	Cursor string
 	Styles Styles
+
+	// Search/filter state
+	searchInput   textinput.Model
+	searchActive  bool // user is typing in the search bar
+	filterApplied bool // a filter is active (search confirmed or still typing)
+	filteredFiles []os.DirEntry
+	filteredMap   []int // maps filtered index -> original files index
+
+	// Filter is the function used to filter files. Defaults to case-insensitive
+	// substring matching. Set this to customize filtering behavior.
+	Filter FilterFunc
 }
 
 type stack struct {
@@ -242,6 +277,56 @@ func (m Model) Init() tea.Cmd {
 	return m.readDir(m.CurrentDirectory, m.ShowHidden)
 }
 
+// visibleFiles returns the currently visible files (filtered or all).
+func (m Model) visibleFiles() []os.DirEntry {
+	if m.filterApplied && len(m.filteredFiles) > 0 {
+		return m.filteredFiles
+	}
+	return m.files
+}
+
+// updateFilter recomputes the filtered files based on the current search query.
+func (m *Model) updateFilter() {
+	query := m.searchInput.Value()
+	if query == "" {
+		m.filterApplied = false
+		m.filteredFiles = nil
+		m.filteredMap = nil
+		return
+	}
+
+	indices := m.Filter(query, m.files)
+	m.filteredFiles = make([]os.DirEntry, 0, len(indices))
+	m.filteredMap = make([]int, 0, len(indices))
+	for _, idx := range indices {
+		m.filteredFiles = append(m.filteredFiles, m.files[idx])
+		m.filteredMap = append(m.filteredMap, idx)
+	}
+	m.filterApplied = true
+
+	// Reset selection if it's out of bounds
+	if m.selected >= len(m.filteredFiles) {
+		m.selected = max(0, len(m.filteredFiles)-1)
+	}
+	if m.minIdx > m.selected {
+		m.minIdx = m.selected
+	}
+	m.maxIdx = m.minIdx + m.Height() - 1
+}
+
+// resetSearch clears the search state and restores the full file list.
+func (m *Model) resetSearch() {
+	m.searchActive = false
+	m.filterApplied = false
+	m.filteredFiles = nil
+	m.filteredMap = nil
+	m.searchInput.SetValue("")
+	m.searchInput.Blur()
+	m.selected = 0
+	m.minIdx = 0
+	m.maxIdx = m.Height() - 1
+}
+
 // Update handles user interactions within the file picker model.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
@@ -251,25 +336,64 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		}
 		m.files = msg.entries
 		m.maxIdx = max(m.maxIdx, m.Height()-1)
+		// Reapply filter if active
+		if m.filterApplied {
+			m.updateFilter()
+		}
 	case tea.WindowSizeMsg:
 		if m.AutoHeight {
 			m.SetHeight(msg.Height - marginBottom)
 		}
 		m.maxIdx = m.Height() - 1
 	case tea.KeyPressMsg:
+		// When search is active, handle search-specific keys first
+		if m.searchActive {
+			var cmd tea.Cmd
+			switch {
+			case msg.String() == "esc":
+				if m.filterApplied && m.searchInput.Value() != "" {
+					// Filter was applied: clear everything
+					m.resetSearch()
+				} else {
+					// No filter: just exit search mode
+					m.searchActive = false
+					m.searchInput.Blur()
+				}
+				return m, nil
+			case msg.String() == "enter":
+				// Confirm search: exit search mode but keep filter
+				m.searchActive = false
+				m.searchInput.Blur()
+				return m, nil
+			default:
+				// Forward to text input
+				m.searchInput, cmd = m.searchInput.Update(msg)
+				m.updateFilter()
+				return m, cmd
+			}
+		}
+
 		switch {
+		case key.Matches(msg, m.KeyMap.Search):
+			// Enter search mode
+			m.searchActive = true
+			m.searchInput.Focus()
+			return m, textinput.Blink
+
 		case key.Matches(msg, m.KeyMap.GoToTop):
 			m.selected = 0
 			m.minIdx = 0
 			m.maxIdx = m.Height() - 1
 		case key.Matches(msg, m.KeyMap.GoToLast):
-			m.selected = len(m.files) - 1
-			m.minIdx = len(m.files) - m.Height()
-			m.maxIdx = len(m.files) - 1
+			vis := m.visibleFiles()
+			m.selected = len(vis) - 1
+			m.minIdx = len(vis) - m.Height()
+			m.maxIdx = len(vis) - 1
 		case key.Matches(msg, m.KeyMap.Down):
+			vis := m.visibleFiles()
 			m.selected++
-			if m.selected >= len(m.files) {
-				m.selected = len(m.files) - 1
+			if m.selected >= len(vis) {
+				m.selected = len(vis) - 1
 			}
 			if m.selected > m.maxIdx {
 				m.minIdx++
@@ -285,15 +409,16 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				m.maxIdx--
 			}
 		case key.Matches(msg, m.KeyMap.PageDown):
+			vis := m.visibleFiles()
 			m.selected += m.Height()
-			if m.selected >= len(m.files) {
-				m.selected = len(m.files) - 1
+			if m.selected >= len(vis) {
+				m.selected = len(vis) - 1
 			}
 			m.minIdx += m.Height()
 			m.maxIdx += m.Height()
 
-			if m.maxIdx >= len(m.files) {
-				m.maxIdx = len(m.files) - 1
+			if m.maxIdx >= len(vis) {
+				m.maxIdx = len(vis) - 1
 				m.minIdx = m.maxIdx - m.Height()
 			}
 		case key.Matches(msg, m.KeyMap.PageUp):
@@ -309,6 +434,14 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				m.maxIdx = m.minIdx + m.Height()
 			}
 		case key.Matches(msg, m.KeyMap.Back):
+			// Esc has layered behavior:
+			// 1. If filter is applied, clear filter first
+			// 2. Otherwise, go to parent directory
+			if m.filterApplied {
+				m.resetSearch()
+				return m, nil
+			}
+
 			m.CurrentDirectory = filepath.Dir(m.CurrentDirectory)
 			if m.selectedStack.Length() > 0 {
 				m.selected, m.minIdx, m.maxIdx = m.popView()
@@ -319,11 +452,12 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			}
 			return m, m.readDir(m.CurrentDirectory, m.ShowHidden)
 		case key.Matches(msg, m.KeyMap.Open):
-			if len(m.files) == 0 {
+			vis := m.visibleFiles()
+			if len(vis) == 0 {
 				break
 			}
 
-			f := m.files[m.selected]
+			f := vis[m.selected]
 			info, err := f.Info()
 			if err != nil {
 				break
@@ -353,6 +487,14 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				break
 			}
 
+			// Entering a directory: clear search
+			if m.filterApplied {
+				m.searchInput.SetValue("")
+				m.filterApplied = false
+				m.filteredFiles = nil
+				m.filteredMap = nil
+			}
+
 			m.CurrentDirectory = filepath.Join(m.CurrentDirectory, f.Name())
 			m.pushView(m.selected, m.minIdx, m.maxIdx)
 			m.selected = 0
@@ -366,12 +508,34 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 // View returns the view of the file picker.
 func (m Model) View() string {
-	if len(m.files) == 0 {
-		return m.Styles.EmptyDirectory.Height(m.Height()).MaxHeight(m.Height()).String()
-	}
 	var s strings.Builder
 
-	for i, f := range m.files {
+	// Show search bar when active
+	if m.searchActive {
+		s.WriteString(m.searchInput.View())
+		s.WriteRune('\n')
+	}
+
+	vis := m.visibleFiles()
+
+	// Show filter status when filter is applied but not actively typing
+	if m.filterApplied && !m.searchActive && m.searchInput.Value() != "" {
+		status := fmt.Sprintf("  filter: %s (%d/%d)", m.searchInput.Value(), len(vis), len(m.files))
+		s.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render(status))
+		s.WriteRune('\n')
+	}
+
+	if len(vis) == 0 {
+		if m.filterApplied {
+			noMatch := lipgloss.NewStyle().Foreground(lipgloss.Color("240")).PaddingLeft(paddingLeft).SetString("No matches.")
+			s.WriteString(noMatch.Height(m.Height()).MaxHeight(m.Height()).String())
+		} else {
+			s.WriteString(m.Styles.EmptyDirectory.Height(m.Height()).MaxHeight(m.Height()).String())
+		}
+		return s.String()
+	}
+
+	for i, f := range vis {
 		if i < m.minIdx || i > m.maxIdx {
 			continue
 		}
@@ -464,7 +628,8 @@ func (m Model) DidSelectDisabledFile(msg tea.Msg) (bool, string) {
 }
 
 func (m Model) didSelectFile(msg tea.Msg) (bool, string) {
-	if len(m.files) == 0 {
+	vis := m.visibleFiles()
+	if len(vis) == 0 {
 		return false, ""
 	}
 	switch msg := msg.(type) {
@@ -476,7 +641,7 @@ func (m Model) didSelectFile(msg tea.Msg) (bool, string) {
 
 		// The key press was a selection, let's confirm whether the current file could
 		// be selected or used for navigating deeper into the stack.
-		f := m.files[m.selected]
+		f := vis[m.selected]
 		info, err := f.Info()
 		if err != nil {
 			return false, ""
@@ -522,8 +687,9 @@ func (m Model) canSelect(file string) bool {
 
 // HighlightedPath returns the path of the currently highlighted file or directory.
 func (m Model) HighlightedPath() string {
-	if len(m.files) == 0 || m.selected < 0 || m.selected >= len(m.files) {
+	vis := m.visibleFiles()
+	if len(vis) == 0 || m.selected < 0 || m.selected >= len(vis) {
 		return ""
 	}
-	return filepath.Join(m.CurrentDirectory, m.files[m.selected].Name())
+	return filepath.Join(m.CurrentDirectory, vis[m.selected].Name())
 }
