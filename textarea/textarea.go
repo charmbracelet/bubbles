@@ -482,6 +482,7 @@ func (m *Model) SetValue(s string) {
 	m.Reset()
 	m.InsertString(s)
 	m.recalculateHeight()
+	m.repositionView()
 }
 
 // InsertString inserts a string at the cursor position.
