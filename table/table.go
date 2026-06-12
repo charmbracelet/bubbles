@@ -306,7 +306,9 @@ func (m Model) Columns() []Column {
 func (m *Model) SetRows(r []Row) {
 	m.rows = r
 
-	if m.cursor > len(m.rows)-1 {
+	if len(m.rows) == 0 {
+		m.cursor = 0
+	} else if m.cursor > len(m.rows)-1 {
 		m.cursor = len(m.rows) - 1
 	}
 
