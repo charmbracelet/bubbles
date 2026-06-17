@@ -2,12 +2,15 @@ package textinput
 
 import (
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
 )
+
+var stripANSI = regexp.MustCompile(`\x1b\[[0-9;]*[a-zA-Z]`)
 
 func Test_CurrentSuggestion(t *testing.T) {
 	textinput := New()
@@ -58,6 +61,16 @@ func TestChinesePlaceholder(t *testing.T) {
 	expected := "> 输入消息...       "
 	if got != expected {
 		t.Fatalf("expected %q but got %q", expected, got)
+	}
+}
+
+func TestPlaceholderZeroWidth(t *testing.T) {
+	ti := New()
+	ti.Placeholder = "Nickname"
+	view := ti.View()
+	plain := stripANSI.ReplaceAllString(view, "")
+	if !strings.Contains(plain, "Nickname") {
+		t.Fatalf("expected full placeholder in view, got %q (plain %q)", view, plain)
 	}
 }
 
@@ -117,4 +130,23 @@ func sendString(m Model, str string) Model {
 	}
 
 	return m
+}
+
+func TestCursorWideCharacterOffset(t *testing.T) {
+	t.Parallel()
+
+	m := New()
+	m.Prompt = ""
+	m.Focus()
+	m.SetVirtualCursor(false)
+	m.SetValue("你好")
+	m.SetCursor(len([]rune("你好")))
+
+	c := m.Cursor()
+	if c == nil {
+		t.Fatal("expected cursor, got nil")
+	}
+	if c.Position.X != 4 {
+		t.Fatalf("expected cursor X offset 4 for two wide runes, got %d", c.Position.X)
+	}
 }

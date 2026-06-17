@@ -745,15 +745,20 @@ func (m Model) placeholderView() string {
 		render = styles.Placeholder.Render
 	)
 
-	p := make([]rune, m.Width()+1)
-	copy(p, []rune(m.Placeholder))
+	placeholder := []rune(m.Placeholder)
+	bufLen := len(placeholder)
+	if w := m.Width() + 1; w > bufLen {
+		bufLen = w
+	}
+	p := make([]rune, bufLen)
+	copy(p, placeholder)
 
 	m.virtualCursor.TextStyle = styles.Placeholder
 	m.virtualCursor.SetChar(string(p[:1]))
 	v += m.virtualCursor.View()
 
 	// If the entire placeholder is already set and no padding is needed, finish
-	if m.Width() < 1 && len(p) <= 1 {
+	if m.Width() < 1 && len(placeholder) <= 1 {
 		return styles.Prompt.Render(m.Prompt) + v
 	}
 
@@ -921,8 +926,7 @@ func (m Model) Cursor() *tea.Cursor {
 	w := lipgloss.Width
 
 	promptWidth := w(m.promptView())
-	xOffset := m.Position() +
-		promptWidth
+	xOffset := promptWidth + uniseg.StringWidth(string(m.value[:m.pos]))
 	if m.width > 0 {
 		xOffset = min(xOffset, m.width+promptWidth)
 	}
