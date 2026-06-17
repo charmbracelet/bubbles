@@ -385,11 +385,15 @@ func (m Model) View() string {
 		size := strings.Replace(humanize.Bytes(uint64(info.Size())), " ", "", 1) //nolint:gosec
 		name := f.Name()
 
+		isDir := f.IsDir()
 		if isSymlink {
 			symlinkPath, _ = filepath.EvalSymlinks(filepath.Join(m.CurrentDirectory, name))
+			if target, err := os.Stat(symlinkPath); err == nil && target.IsDir() {
+				isDir = true
+			}
 		}
 
-		disabled := !m.canSelect(name) && !f.IsDir()
+		disabled := !m.canSelect(name) && !isDir
 
 		if m.selected == i { //nolint:nestif
 			selected := ""
@@ -495,7 +499,10 @@ func (m Model) didSelectFile(msg tea.Msg) (bool, string) {
 			}
 		}
 
-		if (!isDir && m.FileAllowed) || (isDir && m.DirAllowed) && m.Path != "" {
+		if isDir {
+			return false, ""
+		}
+		if m.FileAllowed && m.Path != "" {
 			return true, m.Path
 		}
 
