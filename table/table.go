@@ -26,6 +26,8 @@ type Model struct {
 	viewport viewport.Model
 	start    int
 	end      int
+
+	tableWidth int
 }
 
 // Row represents one line in the table.
@@ -173,7 +175,7 @@ func WithHeight(h int) Option {
 // WithWidth sets the width of the table.
 func WithWidth(w int) Option {
 	return func(m *Model) {
-		m.viewport.SetWidth(w)
+		m.SetWidth(w)
 	}
 }
 
@@ -319,10 +321,26 @@ func (m *Model) SetColumns(c []Column) {
 	m.UpdateViewport()
 }
 
-// SetWidth sets the width of the viewport of the table.
+// SetWidth sets the total rendered width of the table.
 func (m *Model) SetWidth(w int) {
-	m.viewport.SetWidth(w)
+	m.tableWidth = w
+	if w > 0 {
+		m.viewport.SetWidth(w)
+	} else {
+		m.viewport.SetWidth(m.naturalWidth())
+	}
 	m.UpdateViewport()
+}
+
+func (m Model) naturalWidth() int {
+	frame := m.cellFrameWidth()
+	total := 0
+	for _, col := range m.cols {
+		if col.Width > 0 {
+			total += col.Width + frame
+		}
+	}
+	return total
 }
 
 // SetHeight sets the height of the viewport of the table.
@@ -416,26 +434,30 @@ func (m *Model) FromValues(value, separator string) {
 }
 
 func (m Model) headersView() string {
+	widths := m.effectiveColumnWidths()
 	s := make([]string, 0, len(m.cols))
-	for _, col := range m.cols {
-		if col.Width <= 0 {
+	for i, col := range m.cols {
+		w := widths[i]
+		if w <= 0 {
 			continue
 		}
-		style := lipgloss.NewStyle().Width(col.Width).MaxWidth(col.Width).Inline(true)
-		renderedCell := style.Render(ansi.Truncate(col.Title, col.Width, "…"))
+		style := lipgloss.NewStyle().Width(w).MaxWidth(w).Inline(true)
+		renderedCell := style.Render(ansi.Truncate(col.Title, w, "…"))
 		s = append(s, m.styles.Header.Render(renderedCell))
 	}
 	return lipgloss.JoinHorizontal(lipgloss.Top, s...)
 }
 
 func (m *Model) renderRow(r int) string {
+	widths := m.effectiveColumnWidths()
 	s := make([]string, 0, len(m.cols))
 	for i, value := range m.rows[r] {
-		if m.cols[i].Width <= 0 {
+		w := widths[i]
+		if w <= 0 {
 			continue
 		}
-		style := lipgloss.NewStyle().Width(m.cols[i].Width).MaxWidth(m.cols[i].Width).Inline(true)
-		renderedCell := m.styles.Cell.Render(style.Render(ansi.Truncate(value, m.cols[i].Width, "…")))
+		style := lipgloss.NewStyle().Width(w).MaxWidth(w).Inline(true)
+		renderedCell := m.styles.Cell.Render(style.Render(ansi.Truncate(value, w, "…")))
 		s = append(s, renderedCell)
 	}
 
