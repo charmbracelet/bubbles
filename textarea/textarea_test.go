@@ -2390,6 +2390,25 @@ func TestDynamicHeight_ShrinksWhenScrolledNoMaxContent(t *testing.T) {
 	}
 }
 
+func TestCharLimitWideRunes(t *testing.T) {
+	m := newTextArea()
+	m.Prompt = ""
+	m.ShowLineNumbers = false
+	m.CharLimit = 5
+
+	// Five East Asian wide runes, each two cells wide. CharLimit counts
+	// characters, not display cells, so all five should be accepted (this
+	// matches textinput, which limits by rune count).
+	m = sendString(m, "你好世界龍")
+
+	if got := len([]rune(m.Value())); got != 5 {
+		t.Errorf("CharLimit=5 admitted %d wide characters, want 5", got)
+	}
+	if got := m.Length(); got != 5 {
+		t.Errorf("Length() = %d for five characters, want 5", got)
+	}
+}
+
 func newTextArea() Model {
 	textarea := New()
 
