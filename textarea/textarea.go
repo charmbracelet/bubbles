@@ -1377,7 +1377,6 @@ func (m *Model) view() string {
 
 		for wl, wrappedLine := range wrappedLines {
 			prompt := m.promptView(displayLine)
-			prompt = styles.computedPrompt().Render(prompt)
 			s.WriteString(style.Render(prompt))
 			displayLine++
 
@@ -1462,16 +1461,15 @@ func (m Model) View() string {
 // promptView renders a single line of the prompt.
 func (m Model) promptView(displayLine int) (prompt string) {
 	prompt = m.Prompt
-	if m.promptFunc == nil {
-		return prompt
-	}
-	prompt = m.promptFunc(PromptInfo{
-		LineNumber: displayLine,
-		Focused:    m.focus,
-	})
-	width := lipgloss.Width(prompt)
-	if width < m.promptWidth {
-		prompt = fmt.Sprintf("%*s%s", m.promptWidth-width, "", prompt)
+	if m.promptFunc != nil {
+		prompt = m.promptFunc(PromptInfo{
+			LineNumber: displayLine,
+			Focused:    m.focus,
+		})
+		width := lipgloss.Width(prompt)
+		if width < m.promptWidth {
+			prompt = fmt.Sprintf("%*s%s", m.promptWidth-width, "", prompt)
+		}
 	}
 
 	return m.activeStyle().computedPrompt().Render(prompt)
@@ -1534,7 +1532,6 @@ func (m Model) placeholderView() string {
 
 		// render prompt
 		prompt := m.promptView(i)
-		prompt = styles.computedPrompt().Render(prompt)
 		s.WriteString(lineStyle.Render(prompt))
 
 		// when show line numbers enabled:
