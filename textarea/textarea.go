@@ -699,7 +699,7 @@ func (m *Model) setCursorLineRelative(delta int) {
 
 	offset := 0
 	for offset < charOffset {
-		if m.row >= len(m.value) || m.col >= len(m.value[m.row]) || offset >= nli.CharWidth-1 {
+		if m.row >= len(m.value) || m.col >= len(m.value[m.row]) || offset >= nli.CharWidth {
 			break
 		}
 		offset += rw.RuneWidth(m.value[m.row][m.col])
@@ -1846,7 +1846,7 @@ func wrap(runes []rune, width int) [][]rune {
 		}
 	}
 
-	if uniseg.StringWidth(string(lines[row]))+uniseg.StringWidth(string(word))+spaces >= width {
+	if uniseg.StringWidth(string(lines[row]))+uniseg.StringWidth(string(word))+spaces > width {
 		lines = append(lines, []rune{})
 		lines[row+1] = append(lines[row+1], word...)
 		// We add an extra space at the end of the line to account for the
