@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 	"unicode"
 
 	tea "charm.land/bubbletea/v2"
@@ -1972,6 +1973,58 @@ func TestWord(t *testing.T) {
 			t.Fatalf("Expected last word to be '%s', got '%s'", expect, word)
 		}
 	})
+}
+
+// TestWordBackwardEmptyTextareaTerminates guards against a regression where
+// wordLeft() spun forever on an empty textarea. With m.value == [][]rune{{}}
+// and the cursor at row 0, col 0, characterLeft is a no-op and the loop's
+// break condition (m.col < len(m.value[m.row])) is 0 < 0 == false, so alt+left
+// / alt+b would freeze the event loop. See charmbracelet/bubbletea#1652.
+//
+// The test runs the update on a goroutine with a timeout so a regression fails
+// the test instead of hanging the whole suite, and asserts the motion is a
+// no-op on empty input.
+func TestWordBackwardEmptyTextareaTerminates(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		key  tea.KeyPressMsg
+	}{
+		{"alt+left", tea.KeyPressMsg{Code: tea.KeyLeft, Mod: tea.ModAlt, Text: "alt+left"}},
+		{"alt+b", tea.KeyPressMsg{Code: 'b', Mod: tea.ModAlt, Text: "alt+b"}},
+	} {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			m := newTextArea()
+
+			// Sanity check: the textarea starts empty with the cursor at the
+			// very start of the text.
+			if got := m.Value(); got != "" {
+				t.Fatalf("expected empty value, got %q", got)
+			}
+			if m.row != 0 || m.col != 0 {
+				t.Fatalf("expected cursor at row 0, col 0, got row %d, col %d", m.row, m.col)
+			}
+
+			done := make(chan Model, 1)
+			go func() {
+				updated, _ := m.Update(tc.key)
+				done <- updated
+			}()
+
+			select {
+			case updated := <-done:
+				// Word-backward on empty input must be a no-op.
+				if got := updated.Value(); got != "" {
+					t.Fatalf("expected value to remain empty, got %q", got)
+				}
+				if updated.row != 0 || updated.col != 0 {
+					t.Fatalf("expected cursor to stay at row 0, col 0, got row %d, col %d", updated.row, updated.col)
+				}
+			case <-time.After(2 * time.Second):
+				t.Fatalf("word backward (%s) did not terminate on empty textarea", tc.name)
+			}
+		})
+	}
 }
 
 func newDynamicTextArea(minH, maxH int) Model {
