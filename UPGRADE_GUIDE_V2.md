@@ -74,8 +74,7 @@ import (
     "charm.land/bubbles/v2/timer"
     "charm.land/bubbles/v2/viewport"
 )
-```
-
+``
 > **Note:** The `runeutil` and `memoization` packages are now internal and no longer importable.
 
 **Search-and-replace pattern:**
@@ -84,7 +83,7 @@ import (
 github.com/charmbracelet/bubbles/  →  charm.land/bubbles/v2/
 github.com/charmbracelet/bubbles   →  charm.land/bubbles/v2
 ```
-
+pathum23/github
 ---
 
 ## 2. Global Patterns
