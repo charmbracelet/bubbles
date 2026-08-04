@@ -4,7 +4,9 @@ package filepicker
 
 import (
 	"fmt"
+	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -54,7 +56,7 @@ type errorMsg struct {
 
 type readDirMsg struct {
 	id      int
-	entries []os.DirEntry
+	entries []fs.DirEntry
 }
 
 const (
@@ -127,6 +129,9 @@ func DefaultStyles() Styles {
 type Model struct {
 	id int
 
+	// Optional [io/fs.FS] to browse. If nil, functions from package [os] are used.
+	FS fs.FS
+
 	// Path is the path which the user has selected with the file picker.
 	Path string
 
@@ -138,7 +143,7 @@ type Model struct {
 	AllowedTypes []string
 
 	KeyMap          KeyMap
-	files           []os.DirEntry
+	files           []fs.DirEntry
 	ShowPermissions bool
 	ShowSize        bool
 	ShowHidden      bool
@@ -196,7 +201,15 @@ func (m *Model) popView() (int, int, int) {
 
 func (m Model) readDir(path string, showHidden bool) tea.Cmd {
 	return func() tea.Msg {
-		dirEntries, err := os.ReadDir(path)
+		var (
+			dirEntries []fs.DirEntry
+			err        error
+		)
+		if m.FS != nil {
+			dirEntries, err = fs.ReadDir(m.FS, path)
+		} else {
+			dirEntries, err = os.ReadDir(path)
+		}
 		if err != nil {
 			return errorMsg{err}
 		}
@@ -212,7 +225,7 @@ func (m Model) readDir(path string, showHidden bool) tea.Cmd {
 			return readDirMsg{id: m.id, entries: dirEntries}
 		}
 
-		var sanitizedDirEntries []os.DirEntry
+		var sanitizedDirEntries []fs.DirEntry
 		for _, dirEntry := range dirEntries {
 			isHidden, _ := IsHidden(dirEntry.Name())
 			if isHidden {
@@ -309,7 +322,11 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				m.maxIdx = m.minIdx + m.Height()
 			}
 		case key.Matches(msg, m.KeyMap.Back):
-			m.CurrentDirectory = filepath.Dir(m.CurrentDirectory)
+			if m.FS != nil {
+				m.CurrentDirectory = path.Dir(m.CurrentDirectory)
+			} else {
+				m.CurrentDirectory = filepath.Dir(m.CurrentDirectory)
+			}
 			if m.selectedStack.Length() > 0 {
 				m.selected, m.minIdx, m.maxIdx = m.popView()
 			} else {
@@ -328,12 +345,12 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			if err != nil {
 				break
 			}
-			isSymlink := info.Mode()&os.ModeSymlink != 0
+			isSymlink := info.Mode()&fs.ModeSymlink != 0
 			isDir := f.IsDir()
 
 			if isSymlink {
-				symlinkPath, _ := filepath.EvalSymlinks(filepath.Join(m.CurrentDirectory, f.Name()))
-				info, err := os.Stat(symlinkPath)
+				symlinkPath, _ := m.evalSymlinks(f.Name())
+				info, err = os.Stat(symlinkPath)
 				if err != nil {
 					break
 				}
@@ -345,7 +362,11 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			if (!isDir && m.FileAllowed) || (isDir && m.DirAllowed) {
 				if key.Matches(msg, m.KeyMap.Select) {
 					// Select the current path as the selection
-					m.Path = filepath.Join(m.CurrentDirectory, f.Name())
+					if m.FS != nil {
+						m.Path = path.Join(m.CurrentDirectory, f.Name())
+					} else {
+						m.Path = filepath.Join(m.CurrentDirectory, f.Name())
+					}
 				}
 			}
 
@@ -353,7 +374,11 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				break
 			}
 
-			m.CurrentDirectory = filepath.Join(m.CurrentDirectory, f.Name())
+			if m.FS != nil {
+				m.CurrentDirectory = path.Join(m.CurrentDirectory, f.Name())
+			} else {
+				m.CurrentDirectory = filepath.Join(m.CurrentDirectory, f.Name())
+			}
 			m.pushView(m.selected, m.minIdx, m.maxIdx)
 			m.selected = 0
 			m.minIdx = 0
@@ -362,6 +387,42 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		}
 	}
 	return m, nil
+}
+
+func (m *Model) evalSymlinks(name string) (string, error) {
+	if m.FS == nil {
+		return filepath.EvalSymlinks(filepath.Join(m.CurrentDirectory, name))
+	}
+
+	// Since go 1.25
+	if sym, ok := m.FS.(fs.ReadLinkFS); ok {
+		return sym.ReadLink(path.Join(m.CurrentDirectory, name))
+	}
+
+	// Fallback because io/fs.ReadLink just fails if ReadLinkFS is not implemented.
+	p := path.Join(m.CurrentDirectory, name)
+	for {
+		symlinkPathBytes, err := fs.ReadFile(m.FS, p)
+		if err != nil {
+			return "", err
+		}
+		symlinkPath := string(symlinkPathBytes)
+		if symlinkPath == "" {
+			return p, &fs.PathError{Path: p, Err: fs.ErrInvalid}
+		}
+		if path.IsAbs(symlinkPath) {
+			return p, &fs.PathError{Path: p, Err: fs.ErrInvalid}
+		}
+		q := path.Join(p, symlinkPath)
+		info, err := fs.Stat(m.FS, q)
+		if err != nil {
+			return p, err
+		}
+		p = q
+		if info.Mode()&fs.ModeSymlink != 0 {
+			return p, nil
+		}
+	}
 }
 
 // View returns the view of the file picker.
@@ -386,7 +447,7 @@ func (m Model) View() string {
 		name := f.Name()
 
 		if isSymlink {
-			symlinkPath, _ = filepath.EvalSymlinks(filepath.Join(m.CurrentDirectory, name))
+			symlinkPath, _ = m.evalSymlinks(name)
 		}
 
 		disabled := !m.canSelect(name) && !f.IsDir()
@@ -481,12 +542,16 @@ func (m Model) didSelectFile(msg tea.Msg) (bool, string) {
 		if err != nil {
 			return false, ""
 		}
-		isSymlink := info.Mode()&os.ModeSymlink != 0
+		isSymlink := info.Mode()&fs.ModeSymlink != 0
 		isDir := f.IsDir()
 
 		if isSymlink {
-			symlinkPath, _ := filepath.EvalSymlinks(filepath.Join(m.CurrentDirectory, f.Name()))
-			info, err := os.Stat(symlinkPath)
+			symlinkPath, _ := m.evalSymlinks(f.Name())
+			if m.FS != nil {
+				info, err = fs.Stat(m.FS, symlinkPath)
+			} else {
+				info, err = os.Stat(symlinkPath)
+			}
 			if err != nil {
 				break
 			}
