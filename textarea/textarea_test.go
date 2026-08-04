@@ -120,6 +120,40 @@ func TestValueSoftWrap(t *testing.T) {
 	}
 }
 
+func TestAutoResizeKeepsFirstSoftWrappedRowVisible(t *testing.T) {
+	textarea := newTextArea()
+	textarea.Prompt = ""
+	textarea.ShowLineNumbers = false
+	textarea.SetWidth(24)
+	textarea.SetHeight(1)
+	textarea.CharLimit = 200
+
+	textarea, _ = textarea.Update(nil)
+
+	input := "this is a long active line that should wrap to the next row while typing"
+	for _, k := range input {
+		textarea, _ = textarea.Update(keyPress(k))
+		textarea.SetHeight(softWrappedLineCount(textarea))
+		textarea.View()
+	}
+
+	if got := textarea.viewport.YOffset(); got != 0 {
+		t.Fatalf("expected viewport offset 0 after autoresize, got %d", got)
+	}
+
+	view := stripString(textarea.View())
+	if !strings.Contains(view, "this is a long active") {
+		t.Fatalf("expected first wrapped row to stay visible, got %q", view)
+	}
+	if !strings.Contains(view, "typing") {
+		t.Fatalf("expected last wrapped row to be visible, got %q", view)
+	}
+}
+
+func softWrappedLineCount(m Model) int {
+	return m.totalLineCount()
+}
+
 func TestSetValue(t *testing.T) {
 	textarea := newTextArea()
 	textarea.SetValue(strings.Join([]string{"Foo", "Bar", "Baz"}, "\n"))
