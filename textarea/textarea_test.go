@@ -2429,3 +2429,392 @@ func stripString(str string) string {
 
 	return strings.Join(lines, "\n")
 }
+
+func TestSelectionCharacterForward(t *testing.T) {
+	textarea := newTextArea()
+	textarea.Prompt = ""
+	textarea.ShowLineNumbers = false
+	textarea.SetWidth(20)
+	textarea.SetHeight(5)
+
+	textarea = sendString(textarea, "hello world")
+
+	// Move cursor to start.
+	textarea.CursorStart()
+
+	// Select "hello" by pressing shift+right 5 times.
+	for range 5 {
+		textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyRight, Mod: tea.ModShift})
+	}
+
+	sel := textarea.Selection()
+	if sel != "hello" {
+		t.Errorf("Expected selection %q, got %q", "hello", sel)
+	}
+
+	if !textarea.SelectionActive() {
+		t.Error("Expected selection to be active")
+	}
+}
+
+func TestSelectionCharacterBackward(t *testing.T) {
+	textarea := newTextArea()
+	textarea.Prompt = ""
+	textarea.ShowLineNumbers = false
+	textarea.SetWidth(20)
+	textarea.SetHeight(5)
+
+	textarea = sendString(textarea, "hello")
+
+	// Cursor is at end. Select "hello" backwards.
+	for range 5 {
+		textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyLeft, Mod: tea.ModShift})
+	}
+
+	sel := textarea.Selection()
+	if sel != "hello" {
+		t.Errorf("Expected selection %q, got %q", "hello", sel)
+	}
+}
+
+func TestSelectionWordForward(t *testing.T) {
+	textarea := newTextArea()
+	textarea.Prompt = ""
+	textarea.ShowLineNumbers = false
+	textarea.SetWidth(20)
+	textarea.SetHeight(5)
+
+	textarea = sendString(textarea, "hello world foo")
+
+	textarea.CursorStart()
+
+	// Select "hello" with alt+shift+right.
+	textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyRight, Mod: tea.ModShift | tea.ModAlt})
+
+	sel := textarea.Selection()
+	if sel != "hello" {
+		t.Errorf("Expected selection %q, got %q", "hello", sel)
+	}
+}
+
+func TestSelectionMultiLine(t *testing.T) {
+	textarea := newTextArea()
+	textarea.Prompt = ""
+	textarea.ShowLineNumbers = false
+	textarea.SetWidth(20)
+	textarea.SetHeight(10)
+
+	textarea = sendString(textarea, "line one")
+	textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	textarea = sendString(textarea, "line two")
+
+	// Go to start.
+	textarea.MoveToBegin()
+
+	// Select down one line.
+	textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyDown, Mod: tea.ModShift})
+
+	sel := textarea.Selection()
+	if sel != "line one\n" {
+		t.Errorf("Expected selection %q, got %q", "line one\n", sel)
+	}
+
+	// Now select to end of line two.
+	for range 8 {
+		textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyRight, Mod: tea.ModShift})
+	}
+
+	sel = textarea.Selection()
+	if sel != "line one\nline two" {
+		t.Errorf("Expected selection %q, got %q", "line one\nline two", sel)
+	}
+}
+
+func TestSelectAll(t *testing.T) {
+	textarea := newTextArea()
+	textarea.Prompt = ""
+	textarea.ShowLineNumbers = false
+	textarea.SetWidth(20)
+	textarea.SetHeight(10)
+
+	textarea = sendString(textarea, "hello world")
+
+	textarea.SelectAll()
+
+	sel := textarea.Selection()
+	if sel != "hello world" {
+		t.Errorf("Expected selection %q, got %q", "hello world", sel)
+	}
+}
+
+func TestSelectionClearedOnMovement(t *testing.T) {
+	textarea := newTextArea()
+	textarea.Prompt = ""
+	textarea.ShowLineNumbers = false
+	textarea.SetWidth(20)
+	textarea.SetHeight(5)
+
+	textarea = sendString(textarea, "hello")
+	textarea.CursorStart()
+
+	// Select some text.
+	textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyRight, Mod: tea.ModShift})
+	if !textarea.SelectionActive() {
+		t.Fatal("Expected selection to be active")
+	}
+
+	// Move without shift, selection should clear.
+	textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyRight})
+	if textarea.SelectionActive() {
+		t.Error("Expected selection to be cleared after non-selection movement")
+	}
+}
+
+func TestSelectionClearedOnType(t *testing.T) {
+	textarea := newTextArea()
+	textarea.Prompt = ""
+	textarea.ShowLineNumbers = false
+	textarea.SetWidth(20)
+	textarea.SetHeight(5)
+
+	textarea = sendString(textarea, "hello")
+	textarea.CursorStart()
+
+	// Select some text.
+	textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyRight, Mod: tea.ModShift})
+	if !textarea.SelectionActive() {
+		t.Fatal("Expected selection to be active")
+	}
+
+	// Type a character, selection should clear.
+	textarea, _ = textarea.Update(keyPress('x'))
+	if textarea.SelectionActive() {
+		t.Error("Expected selection to be cleared after typing")
+	}
+}
+
+func TestClearSelection(t *testing.T) {
+	textarea := newTextArea()
+	textarea.Prompt = ""
+	textarea.ShowLineNumbers = false
+	textarea.SetWidth(20)
+	textarea.SetHeight(5)
+
+	textarea = sendString(textarea, "hello")
+	textarea.SelectAll()
+
+	if !textarea.SelectionActive() {
+		t.Fatal("Expected selection to be active")
+	}
+
+	textarea.ClearSelection()
+
+	if textarea.SelectionActive() {
+		t.Error("Expected selection to be cleared")
+	}
+
+	if sel := textarea.Selection(); sel != "" {
+		t.Errorf("Expected empty selection, got %q", sel)
+	}
+}
+
+func TestSelectionRendering(t *testing.T) {
+	textarea := newTextArea()
+	textarea.Prompt = ""
+	textarea.ShowLineNumbers = false
+	textarea.SetWidth(20)
+	textarea.SetHeight(5)
+
+	textarea = sendString(textarea, "hello")
+
+	textarea.CursorStart()
+	for range 3 {
+		textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyRight, Mod: tea.ModShift})
+	}
+
+	// Render the view and check it doesn't panic.
+	view := textarea.View()
+	if view == "" {
+		t.Error("Expected non-empty view")
+	}
+}
+
+func TestTypingReplacesSelection(t *testing.T) {
+	textarea := newTextArea()
+	textarea.Prompt = ""
+	textarea.ShowLineNumbers = false
+	textarea.SetWidth(20)
+	textarea.SetHeight(5)
+
+	textarea = sendString(textarea, "hello world")
+	textarea.CursorStart()
+
+	// Select "hello".
+	for range 5 {
+		textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyRight, Mod: tea.ModShift})
+	}
+	if sel := textarea.Selection(); sel != "hello" {
+		t.Fatalf("Expected selection %q, got %q", "hello", sel)
+	}
+
+	// Type 'X' — should replace selection.
+	textarea, _ = textarea.Update(keyPress('X'))
+
+	if got := textarea.Value(); got != "X world" {
+		t.Errorf("Expected %q, got %q", "X world", got)
+	}
+	if textarea.SelectionActive() {
+		t.Error("Expected selection to be cleared after typing")
+	}
+}
+
+func TestBackspaceDeletesSelection(t *testing.T) {
+	textarea := newTextArea()
+	textarea.Prompt = ""
+	textarea.ShowLineNumbers = false
+	textarea.SetWidth(20)
+	textarea.SetHeight(5)
+
+	textarea = sendString(textarea, "hello world")
+	textarea.CursorStart()
+
+	// Select "hello ".
+	for range 6 {
+		textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyRight, Mod: tea.ModShift})
+	}
+
+	// Press backspace — should delete selection.
+	textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyBackspace})
+
+	if got := textarea.Value(); got != "world" {
+		t.Errorf("Expected %q, got %q", "world", got)
+	}
+	if textarea.SelectionActive() {
+		t.Error("Expected selection to be cleared")
+	}
+}
+
+func TestDeleteForwardDeletesSelection(t *testing.T) {
+	textarea := newTextArea()
+	textarea.Prompt = ""
+	textarea.ShowLineNumbers = false
+	textarea.SetWidth(20)
+	textarea.SetHeight(5)
+
+	textarea = sendString(textarea, "hello world")
+	textarea.CursorStart()
+
+	for range 5 {
+		textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyRight, Mod: tea.ModShift})
+	}
+
+	textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyDelete})
+
+	if got := textarea.Value(); got != " world" {
+		t.Errorf("Expected %q, got %q", " world", got)
+	}
+}
+
+func TestPasteReplacesSelection(t *testing.T) {
+	textarea := newTextArea()
+	textarea.Prompt = ""
+	textarea.ShowLineNumbers = false
+	textarea.SetWidth(40)
+	textarea.SetHeight(5)
+
+	textarea = sendString(textarea, "hello world")
+	textarea.CursorStart()
+
+	// Select "hello".
+	for range 5 {
+		textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyRight, Mod: tea.ModShift})
+	}
+
+	// Simulate paste via internal message.
+	textarea, _ = textarea.Update(pasteMsg("REPLACED"))
+
+	if got := textarea.Value(); got != "REPLACED world" {
+		t.Errorf("Expected %q, got %q", "REPLACED world", got)
+	}
+}
+
+func TestNewlineReplacesSelection(t *testing.T) {
+	textarea := newTextArea()
+	textarea.Prompt = ""
+	textarea.ShowLineNumbers = false
+	textarea.SetWidth(20)
+	textarea.SetHeight(10)
+
+	textarea = sendString(textarea, "hello world")
+	textarea.CursorStart()
+
+	// Select "hello ".
+	for range 6 {
+		textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyRight, Mod: tea.ModShift})
+	}
+
+	// Press enter — should replace selection with newline.
+	textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+
+	if got := textarea.Value(); got != "\nworld" {
+		t.Errorf("Expected %q, got %q", "\nworld", got)
+	}
+}
+
+func TestDeleteSelectionMultiLine(t *testing.T) {
+	textarea := newTextArea()
+	textarea.Prompt = ""
+	textarea.ShowLineNumbers = false
+	textarea.SetWidth(20)
+	textarea.SetHeight(10)
+
+	textarea = sendString(textarea, "line one")
+	textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	textarea = sendString(textarea, "line two")
+	textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	textarea = sendString(textarea, "line three")
+
+	// Go to start and select through "line two\n".
+	textarea.MoveToBegin()
+	// Move right through "line one\n" (9 chars).
+	for range 9 {
+		textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyRight, Mod: tea.ModShift})
+	}
+	// Move right through "line two\n" (9 chars).
+	for range 9 {
+		textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyRight, Mod: tea.ModShift})
+	}
+
+	sel := textarea.Selection()
+	if sel != "line one\nline two\n" {
+		t.Fatalf("Expected selection %q, got %q", "line one\nline two\n", sel)
+	}
+
+	// Delete the selection.
+	textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyBackspace})
+
+	if got := textarea.Value(); got != "line three" {
+		t.Errorf("Expected %q, got %q", "line three", got)
+	}
+}
+
+func TestSelectionRangeOrdering(t *testing.T) {
+	textarea := newTextArea()
+	textarea.Prompt = ""
+	textarea.ShowLineNumbers = false
+	textarea.SetWidth(20)
+	textarea.SetHeight(5)
+
+	textarea = sendString(textarea, "hello world")
+
+	// Select backwards from end.
+	for range 5 {
+		textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyLeft, Mod: tea.ModShift})
+	}
+
+	// Selection should be "world" even though we selected backwards.
+	sel := textarea.Selection()
+	if sel != "world" {
+		t.Errorf("Expected selection %q, got %q", "world", sel)
+	}
+}
