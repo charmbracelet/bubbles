@@ -1427,6 +1427,9 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			}
 
 		default:
+			if msg.Text == "" {
+				break
+			}
 			m.deleteSelection()
 			m.insertRunesFromUserInput([]rune(msg.Text))
 		}
