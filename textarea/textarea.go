@@ -352,6 +352,10 @@ type Model struct {
 
 	// rune sanitizer for input.
 	rsan runeutil.Sanitizer
+
+	// highlighter is the optional per-line token highlighter installed via
+	// SetHighlighter. Consulted at render time only.
+	highlighter LineHighlighter
 }
 
 // New creates a new model with default settings.
@@ -1375,6 +1379,15 @@ func (m *Model) view() string {
 			style = styles.computedText()
 		}
 
+		// Consult the optional token highlighter once per logical line.
+		// Ranges are rune offsets within the logical line; each wrapped
+		// segment intersects them at render time.
+		var lineRanges []lipgloss.Range
+		if m.highlighter != nil {
+			lineRanges = m.highlightRanges(l, line)
+		}
+
+		segStart := 0
 		for wl, wrappedLine := range wrappedLines {
 			prompt := m.promptView(displayLine)
 			s.WriteString(style.Render(prompt))
@@ -1399,6 +1412,9 @@ func (m *Model) view() string {
 
 			strwidth := uniseg.StringWidth(string(wrappedLine))
 			padding := m.width - strwidth
+			// segLen is captured before the trailing-space trim below so
+			// segStart tracking stays aligned with the raw logical line.
+			segLen := len(wrappedLine)
 			// If the trailing space causes the line to be wider than the
 			// width, we should not draw it to the screen since it will result
 			// in an extra space at the end of the line which can look off when
@@ -1411,21 +1427,22 @@ func (m *Model) view() string {
 				padding -= m.width - strwidth
 			}
 			if m.row == l && lineInfo.RowOffset == wl {
-				s.WriteString(style.Render(string(wrappedLine[:lineInfo.ColumnOffset])))
+				s.WriteString(styleSegment(style, wrappedLine[:lineInfo.ColumnOffset], segStart, lineRanges))
 				if m.col >= len(line) && lineInfo.CharOffset >= m.width {
 					m.virtualCursor.SetChar(" ")
 					s.WriteString(m.virtualCursor.View())
 				} else {
 					m.virtualCursor.SetChar(string(wrappedLine[lineInfo.ColumnOffset]))
 					s.WriteString(style.Render(m.virtualCursor.View()))
-					s.WriteString(style.Render(string(wrappedLine[lineInfo.ColumnOffset+1:])))
+					s.WriteString(styleSegment(style, wrappedLine[lineInfo.ColumnOffset+1:], segStart+lineInfo.ColumnOffset+1, lineRanges))
 				}
 			} else {
-				s.WriteString(style.Render(string(wrappedLine)))
+				s.WriteString(styleSegment(style, wrappedLine, segStart, lineRanges))
 			}
 			s.WriteString(style.Render(strings.Repeat(" ", max(0, padding))))
 			s.WriteRune('\n')
 			newLines++
+			segStart += segLen
 		}
 	}
 
