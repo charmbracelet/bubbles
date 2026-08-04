@@ -118,7 +118,7 @@ func DefaultKeyMap() KeyMap {
 		SelectCharacterForward:  key.NewBinding(key.WithKeys("shift+right"), key.WithHelp("shift+right", "select character forward")),
 		SelectCharacterBackward: key.NewBinding(key.WithKeys("shift+left"), key.WithHelp("shift+left", "select character backward")),
 		SelectWordForward:       key.NewBinding(key.WithKeys("ctrl+shift+right", "alt+shift+right", "alt+shift+f"), key.WithHelp("alt+shift+right", "select word forward")),
-		SelectWordBackward:      key.NewBinding(key.WithKeys("ctrl+shift+left", "alt+shift+right", "alt+shift+b"), key.WithHelp("alt+shift+left", "select word backward")),
+		SelectWordBackward:      key.NewBinding(key.WithKeys("ctrl+shift+left", "alt+shift+left", "alt+shift+b"), key.WithHelp("alt+shift+left", "select word backward")),
 		SelectLineUp:            key.NewBinding(key.WithKeys("shift+up"), key.WithHelp("shift+up", "select line up")),
 		SelectLineDown:          key.NewBinding(key.WithKeys("shift+down"), key.WithHelp("shift+down", "select line down")),
 		SelectAll:               key.NewBinding(key.WithKeys("ctrl+g"), key.WithHelp("ctrl+g", "select all")),
