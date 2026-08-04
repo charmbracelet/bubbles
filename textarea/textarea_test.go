@@ -1889,6 +1889,23 @@ func TestView(t *testing.T) {
 				cursorRow: 7,
 			},
 		},
+		{
+			name: "empty textarea with placeholder and styled border",
+			modelFunc: func(m Model) Model {
+				m.SetHeight(2)
+				m.SetWidth(20)
+				m.Placeholder = "line 1"
+				m.styles.Focused.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`┌────────────────────┐
+				    │>   1 line 1        │
+				    │>                   │
+				    └────────────────────┘
+				`),
+			},
+		},
 	}
 
 	for _, tt := range tests {
