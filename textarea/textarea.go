@@ -816,6 +816,7 @@ func (m *Model) Reset() {
 	m.viewport.GotoTop()
 	m.SetCursorColumn(0)
 	m.recalculateHeight()
+	m.ClearSelection()
 }
 
 // Word returns the word at the cursor position.
