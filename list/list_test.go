@@ -135,3 +135,54 @@ func TestSetFilterState(t *testing.T) {
 		t.Fatalf("Error: expected view to contain '%s'", expected)
 	}
 }
+
+func TestRemoveItemWhileFiltered(t *testing.T) {
+	// items: foo(0), bar(1), baz(2)
+	// filter "ba" → filtered: bar(global 1), baz(global 2)
+	items := []Item{item("foo"), item("bar"), item("baz")}
+	list := New(items, itemDelegate{}, 10, 10)
+	list.SetFilterText("ba")
+
+	// Sanity: filtered list is [bar, baz]
+	if got := list.VisibleItems(); !reflect.DeepEqual(got, []Item{item("bar"), item("baz")}) {
+		t.Fatalf("setup: expected filtered [bar baz], got %v", got)
+	}
+
+	// RemoveItem(0) should remove "bar" (filtered index 0 → global index 1)
+	list.RemoveItem(0)
+
+	// Filtered list should now be [baz]
+	if got := list.VisibleItems(); !reflect.DeepEqual(got, []Item{item("baz")}) {
+		t.Fatalf("filtered view after remove: expected [baz], got %v", got)
+	}
+
+	// Reset filter — global list should be [foo, baz]
+	list.ResetFilter()
+	if got := list.Items(); !reflect.DeepEqual(got, []Item{item("foo"), item("baz")}) {
+		t.Fatalf("global list after remove+reset: expected [foo baz], got %v", got)
+	}
+}
+
+func TestRemoveItemWhileFilteredUpdatesIndices(t *testing.T) {
+	// items: foo(0), bar(1), baz(2)
+	// filter "ba" → filtered: bar(global 1), baz(global 2)
+	// Remove bar (filtered index 0, global index 1).
+	// After removal baz should still be reachable (global index now 1).
+	items := []Item{item("foo"), item("bar"), item("baz")}
+	list := New(items, itemDelegate{}, 10, 10)
+	list.SetFilterText("ba")
+	list.RemoveItem(0)
+
+	// baz is the only remaining filtered item; remove it too
+	list.RemoveItem(0)
+
+	// filter should have been reset (no filtered items left)
+	if list.FilterState() != Unfiltered {
+		t.Fatalf("expected filter to reset when no items remain, got state %v", list.FilterState())
+	}
+
+	// Only "foo" should remain
+	if got := list.Items(); !reflect.DeepEqual(got, []Item{item("foo")}) {
+		t.Fatalf("global list after removing all filtered items: expected [foo], got %v", got)
+	}
+}
