@@ -197,6 +197,10 @@ type StyleState struct {
 	EndOfBuffer      lipgloss.Style
 	Placeholder      lipgloss.Style
 	Prompt           lipgloss.Style
+
+	// Selection styles text covered by an active selection. See
+	// [Model.BeginSelection].
+	Selection lipgloss.Style
 }
 
 func (s StyleState) computedCursorLine() lipgloss.Style {
@@ -228,6 +232,10 @@ func (s StyleState) computedPrompt() lipgloss.Style {
 
 func (s StyleState) computedText() lipgloss.Style {
 	return s.Text.Inherit(s.Base).Inline(true)
+}
+
+func (s StyleState) computedSelection() lipgloss.Style {
+	return s.Selection.Inherit(s.Text).Inherit(s.Base).Inline(true)
 }
 
 // line is the input to the text wrapping function. This is stored in a struct
@@ -352,6 +360,19 @@ type Model struct {
 
 	// rune sanitizer for input.
 	rsan runeutil.Sanitizer
+
+	// Selection anchor and head. The anchor is where the selection began;
+	// the head follows the pointer. Either may sort before the other — use
+	// [Model.Selection] for a normalized range.
+	selAnchor Position
+	selHead   Position
+
+	// hasSelection reports whether a selection has been set at all.
+	// [Model.HasSelection] additionally requires it to be non-empty.
+	hasSelection bool
+
+	// selecting reports whether a drag is currently in progress.
+	selecting bool
 }
 
 // New creates a new model with default settings.
@@ -403,6 +424,7 @@ func DefaultStyles(isDark bool) Styles {
 		LineNumber:       lipgloss.NewStyle().Foreground(lightDark(lipgloss.Color("249"), lipgloss.Color("7"))),
 		Placeholder:      lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
 		Prompt:           lipgloss.NewStyle().Foreground(lipgloss.Color("7")),
+		Selection:        lipgloss.NewStyle().Background(lightDark(lipgloss.Color("253"), lipgloss.Color("8"))),
 		Text:             lipgloss.NewStyle(),
 	}
 	s.Blurred = StyleState{
@@ -413,6 +435,7 @@ func DefaultStyles(isDark bool) Styles {
 		LineNumber:       lipgloss.NewStyle().Foreground(lightDark(lipgloss.Color("249"), lipgloss.Color("7"))),
 		Placeholder:      lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
 		Prompt:           lipgloss.NewStyle().Foreground(lipgloss.Color("7")),
+		Selection:        lipgloss.NewStyle().Background(lightDark(lipgloss.Color("253"), lipgloss.Color("8"))),
 		Text:             lipgloss.NewStyle().Foreground(lightDark(lipgloss.Color("245"), lipgloss.Color("7"))),
 	}
 	s.Cursor = CursorStyle{
@@ -1221,8 +1244,13 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.PasteMsg:
+		m.ClearSelection()
 		m.insertRunesFromUserInput([]rune(msg.Content))
 	case tea.KeyPressMsg:
+		// Any keyboard input invalidates a pointer selection: the buffer or
+		// the cursor is about to move out from under it.
+		m.ClearSelection()
+
 		switch {
 		case key.Matches(msg, m.KeyMap.DeleteAfterCursor):
 			m.col = clamp(m.col, 0, len(m.value[m.row]))
@@ -1375,6 +1403,11 @@ func (m *Model) view() string {
 			style = styles.computedText()
 		}
 
+		// wrappedBase is the index, within the logical line, of the first rune
+		// of the current wrapped segment. It is what maps a segment back onto
+		// selection coordinates.
+		wrappedBase := 0
+
 		for wl, wrappedLine := range wrappedLines {
 			prompt := m.promptView(displayLine)
 			s.WriteString(style.Render(prompt))
@@ -1410,7 +1443,14 @@ func (m *Model) view() string {
 				wrappedLine = []rune(strings.TrimSuffix(string(wrappedLine), " "))
 				padding -= m.width - strwidth
 			}
-			if m.row == l && lineInfo.RowOffset == wl {
+			// A selection covering this segment takes precedence over the
+			// inline cursor: during a drag the highlight is the meaningful
+			// affordance, and mixing the two would double-style the same cell.
+			if selFrom, selTo, selected := m.selectionSpanFor(l, wrappedBase, len(wrappedLine)); selected {
+				s.WriteString(style.Render(string(wrappedLine[:selFrom])))
+				s.WriteString(styles.computedSelection().Render(string(wrappedLine[selFrom:selTo])))
+				s.WriteString(style.Render(string(wrappedLine[selTo:])))
+			} else if m.row == l && lineInfo.RowOffset == wl {
 				s.WriteString(style.Render(string(wrappedLine[:lineInfo.ColumnOffset])))
 				if m.col >= len(line) && lineInfo.CharOffset >= m.width {
 					m.virtualCursor.SetChar(" ")
@@ -1423,6 +1463,7 @@ func (m *Model) view() string {
 			} else {
 				s.WriteString(style.Render(string(wrappedLine)))
 			}
+			wrappedBase += len(wrappedLine)
 			s.WriteString(style.Render(strings.Repeat(" ", max(0, padding))))
 			s.WriteRune('\n')
 			newLines++
