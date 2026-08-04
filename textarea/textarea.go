@@ -117,8 +117,8 @@ func DefaultKeyMap() KeyMap {
 
 		SelectCharacterForward:  key.NewBinding(key.WithKeys("shift+right"), key.WithHelp("shift+right", "select character forward")),
 		SelectCharacterBackward: key.NewBinding(key.WithKeys("shift+left"), key.WithHelp("shift+left", "select character backward")),
-		SelectWordForward:       key.NewBinding(key.WithKeys("ctrl+shift+right", "alt+shift+f"), key.WithHelp("alt+shift+right", "select word forward")),
-		SelectWordBackward:      key.NewBinding(key.WithKeys("ctrl+shift+left", "alt+shift+b"), key.WithHelp("alt+shift+left", "select word backward")),
+		SelectWordForward:       key.NewBinding(key.WithKeys("ctrl+shift+right", "alt+shift+right", "alt+shift+f"), key.WithHelp("alt+shift+right", "select word forward")),
+		SelectWordBackward:      key.NewBinding(key.WithKeys("ctrl+shift+left", "alt+shift+right", "alt+shift+b"), key.WithHelp("alt+shift+left", "select word backward")),
 		SelectLineUp:            key.NewBinding(key.WithKeys("shift+up"), key.WithHelp("shift+up", "select line up")),
 		SelectLineDown:          key.NewBinding(key.WithKeys("shift+down"), key.WithHelp("shift+down", "select line down")),
 		SelectAll:               key.NewBinding(key.WithKeys("ctrl+g"), key.WithHelp("ctrl+g", "select all")),
@@ -2016,33 +2016,7 @@ func (m *Model) positionCursorFromMouse(x, y int) {
 		for wl := range wrappedLines {
 			if displayLine == y {
 				targetRow = l
-				// Calculate column from x position, accounting for prompt
-				// and line numbers.
-				promptWidth := lipgloss.Width(m.promptView(displayLine))
-				lineNumWidth := 0
-				if m.ShowLineNumbers {
-					lineNumWidth = lipgloss.Width(m.lineNumberView(0, false))
-				}
-				col := x - promptWidth - lineNumWidth
-				if col < 0 {
-					col = 0
-				}
-				// Find the actual column in the original line, accounting
-				// for soft wrapping.
-				if wl < len(wrappedLines) {
-					wrappedLine := wrappedLines[wl]
-					if col > len(wrappedLine) {
-						col = len(wrappedLine)
-					}
-					// Sum up columns from previous wrapped lines.
-					for i := 0; i < wl; i++ {
-						col += len(wrappedLines[i])
-					}
-					if col > len(line) {
-						col = len(line)
-					}
-					targetCol = col
-				}
+				targetCol = m.columnFromMouseX(x, displayLine, wrappedLines, wl, len(line))
 				break
 			}
 			displayLine++
@@ -2057,6 +2031,32 @@ func (m *Model) positionCursorFromMouse(x, y int) {
 		m.SetCursorColumn(targetCol)
 		m.repositionView()
 	}
+}
+
+func (m *Model) columnFromMouseX(x, displayLine int, wrappedLines [][]rune, wl, lineLen int) int {
+	promptWidth := lipgloss.Width(m.promptView(displayLine))
+	lineNumWidth := 0
+	if m.ShowLineNumbers {
+		lineNumWidth = lipgloss.Width(m.lineNumberView(0, false))
+	}
+	col := x - promptWidth - lineNumWidth
+	if col < 0 {
+		col = 0
+	}
+	if wl >= len(wrappedLines) {
+		return col
+	}
+	wrappedLine := wrappedLines[wl]
+	if col > len(wrappedLine) {
+		col = len(wrappedLine)
+	}
+	for i := range wl {
+		col += len(wrappedLines[i])
+	}
+	if col > lineLen {
+		col = lineLen
+	}
+	return col
 }
 
 func (m Model) memoizedWrap(runes []rune, width int) [][]rune {
