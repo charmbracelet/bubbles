@@ -2447,12 +2447,12 @@ func TestSelectionCharacterForward(t *testing.T) {
 		textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyRight, Mod: tea.ModShift})
 	}
 
-	sel := textarea.Selection()
+	sel := textarea.SelectedText()
 	if sel != "hello" {
 		t.Errorf("Expected selection %q, got %q", "hello", sel)
 	}
 
-	if !textarea.SelectionActive() {
+	if !textarea.HasSelection() {
 		t.Error("Expected selection to be active")
 	}
 }
@@ -2471,7 +2471,7 @@ func TestSelectionCharacterBackward(t *testing.T) {
 		textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyLeft, Mod: tea.ModShift})
 	}
 
-	sel := textarea.Selection()
+	sel := textarea.SelectedText()
 	if sel != "hello" {
 		t.Errorf("Expected selection %q, got %q", "hello", sel)
 	}
@@ -2491,7 +2491,7 @@ func TestSelectionWordForward(t *testing.T) {
 	// Select "hello" with alt+shift+right.
 	textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyRight, Mod: tea.ModShift | tea.ModAlt})
 
-	sel := textarea.Selection()
+	sel := textarea.SelectedText()
 	if sel != "hello" {
 		t.Errorf("Expected selection %q, got %q", "hello", sel)
 	}
@@ -2514,7 +2514,7 @@ func TestSelectionMultiLine(t *testing.T) {
 	// Select down one line.
 	textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyDown, Mod: tea.ModShift})
 
-	sel := textarea.Selection()
+	sel := textarea.SelectedText()
 	if sel != "line one\n" {
 		t.Errorf("Expected selection %q, got %q", "line one\n", sel)
 	}
@@ -2524,7 +2524,7 @@ func TestSelectionMultiLine(t *testing.T) {
 		textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyRight, Mod: tea.ModShift})
 	}
 
-	sel = textarea.Selection()
+	sel = textarea.SelectedText()
 	if sel != "line one\nline two" {
 		t.Errorf("Expected selection %q, got %q", "line one\nline two", sel)
 	}
@@ -2541,7 +2541,7 @@ func TestSelectAll(t *testing.T) {
 
 	textarea.SelectAll()
 
-	sel := textarea.Selection()
+	sel := textarea.SelectedText()
 	if sel != "hello world" {
 		t.Errorf("Expected selection %q, got %q", "hello world", sel)
 	}
@@ -2559,13 +2559,13 @@ func TestSelectionClearedOnMovement(t *testing.T) {
 
 	// Select some text.
 	textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyRight, Mod: tea.ModShift})
-	if !textarea.SelectionActive() {
+	if !textarea.HasSelection() {
 		t.Fatal("Expected selection to be active")
 	}
 
 	// Move without shift, selection should clear.
 	textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyRight})
-	if textarea.SelectionActive() {
+	if textarea.HasSelection() {
 		t.Error("Expected selection to be cleared after non-selection movement")
 	}
 }
@@ -2582,13 +2582,13 @@ func TestSelectionClearedOnType(t *testing.T) {
 
 	// Select some text.
 	textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyRight, Mod: tea.ModShift})
-	if !textarea.SelectionActive() {
+	if !textarea.HasSelection() {
 		t.Fatal("Expected selection to be active")
 	}
 
 	// Type a character, selection should clear.
 	textarea, _ = textarea.Update(keyPress('x'))
-	if textarea.SelectionActive() {
+	if textarea.HasSelection() {
 		t.Error("Expected selection to be cleared after typing")
 	}
 }
@@ -2603,17 +2603,17 @@ func TestClearSelection(t *testing.T) {
 	textarea = sendString(textarea, "hello")
 	textarea.SelectAll()
 
-	if !textarea.SelectionActive() {
+	if !textarea.HasSelection() {
 		t.Fatal("Expected selection to be active")
 	}
 
 	textarea.ClearSelection()
 
-	if textarea.SelectionActive() {
+	if textarea.HasSelection() {
 		t.Error("Expected selection to be cleared")
 	}
 
-	if sel := textarea.Selection(); sel != "" {
+	if sel := textarea.SelectedText(); sel != "" {
 		t.Errorf("Expected empty selection, got %q", sel)
 	}
 }
@@ -2653,7 +2653,7 @@ func TestTypingReplacesSelection(t *testing.T) {
 	for range 5 {
 		textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyRight, Mod: tea.ModShift})
 	}
-	if sel := textarea.Selection(); sel != "hello" {
+	if sel := textarea.SelectedText(); sel != "hello" {
 		t.Fatalf("Expected selection %q, got %q", "hello", sel)
 	}
 
@@ -2663,7 +2663,7 @@ func TestTypingReplacesSelection(t *testing.T) {
 	if got := textarea.Value(); got != "X world" {
 		t.Errorf("Expected %q, got %q", "X world", got)
 	}
-	if textarea.SelectionActive() {
+	if textarea.HasSelection() {
 		t.Error("Expected selection to be cleared after typing")
 	}
 }
@@ -2689,7 +2689,7 @@ func TestBackspaceDeletesSelection(t *testing.T) {
 	if got := textarea.Value(); got != "world" {
 		t.Errorf("Expected %q, got %q", "world", got)
 	}
-	if textarea.SelectionActive() {
+	if textarea.HasSelection() {
 		t.Error("Expected selection to be cleared")
 	}
 }
@@ -2785,7 +2785,7 @@ func TestDeleteSelectionMultiLine(t *testing.T) {
 		textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyRight, Mod: tea.ModShift})
 	}
 
-	sel := textarea.Selection()
+	sel := textarea.SelectedText()
 	if sel != "line one\nline two\n" {
 		t.Fatalf("Expected selection %q, got %q", "line one\nline two\n", sel)
 	}
@@ -2813,7 +2813,7 @@ func TestSelectionRangeOrdering(t *testing.T) {
 	}
 
 	// Selection should be "world" even though we selected backwards.
-	sel := textarea.Selection()
+	sel := textarea.SelectedText()
 	if sel != "world" {
 		t.Errorf("Expected selection %q, got %q", "world", sel)
 	}

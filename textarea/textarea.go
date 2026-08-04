@@ -196,34 +196,9 @@ type CursorStyle struct {
 // states. The appropriate styles will be chosen based on the focus state of
 // the textarea.
 type Styles struct {
-	Focused   StyleState
-	Blurred   StyleState
-	Cursor    CursorStyle
-	Selection SelectionStyle
-}
-
-// SelectionStyle is the style for selected text.
-type SelectionStyle struct {
-	// Foreground is the color of selected text. If nil, the terminal's
-	// default foreground color is used.
-	Foreground color.Color
-
-	// Background is the background color of selected text. If nil, the
-	// terminal's default selection color is used (typically the inverse
-	// of the foreground and background colors).
-	Background color.Color
-}
-
-// computedSelection returns the lipgloss style for selected text.
-func (s SelectionStyle) computedSelection() lipgloss.Style {
-	style := lipgloss.NewStyle()
-	if s.Foreground != nil {
-		style = style.Foreground(s.Foreground)
-	}
-	if s.Background != nil {
-		style = style.Background(s.Background)
-	}
-	return style
+	Focused StyleState
+	Blurred StyleState
+	Cursor  CursorStyle
 }
 
 // StyleState that will be applied to the text area.
@@ -242,6 +217,10 @@ type StyleState struct {
 	EndOfBuffer      lipgloss.Style
 	Placeholder      lipgloss.Style
 	Prompt           lipgloss.Style
+
+	// Selection styles text covered by an active selection. See
+	// [Model.BeginSelection].
+	Selection lipgloss.Style
 }
 
 func (s StyleState) computedCursorLine() lipgloss.Style {
@@ -273,6 +252,10 @@ func (s StyleState) computedPrompt() lipgloss.Style {
 
 func (s StyleState) computedText() lipgloss.Style {
 	return s.Text.Inherit(s.Base).Inline(true)
+}
+
+func (s StyleState) computedSelection() lipgloss.Style {
+	return s.Selection.Inherit(s.Text).Inherit(s.Base).Inline(true)
 }
 
 // line is the input to the text wrapping function. This is stored in a struct
@@ -398,17 +381,18 @@ type Model struct {
 	// rune sanitizer for input.
 	rsan runeutil.Sanitizer
 
-	// Selection state.
-	selectionActive bool
-	selectionStart  position
-	selectionEnd    position
-	mouseSelecting  bool
-}
+	// Selection anchor and head. The anchor is where the selection began;
+	// the head follows the pointer. Either may sort before the other — use
+	// [Model.Selection] for a normalized range.
+	selAnchor Position
+	selHead   Position
 
-// position represents a position in the text buffer.
-type position struct {
-	row int
-	col int
+	// hasSelection reports whether a selection has been set at all.
+	// [Model.HasSelection] additionally requires it to be non-empty.
+	hasSelection bool
+
+	// selecting reports whether a drag is currently in progress.
+	selecting bool
 }
 
 // New creates a new model with default settings.
@@ -460,6 +444,7 @@ func DefaultStyles(isDark bool) Styles {
 		LineNumber:       lipgloss.NewStyle().Foreground(lightDark(lipgloss.Color("249"), lipgloss.Color("7"))),
 		Placeholder:      lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
 		Prompt:           lipgloss.NewStyle().Foreground(lipgloss.Color("7")),
+		Selection:        lipgloss.NewStyle().Background(lightDark(lipgloss.Color("253"), lipgloss.Color("8"))),
 		Text:             lipgloss.NewStyle(),
 	}
 	s.Blurred = StyleState{
@@ -470,15 +455,13 @@ func DefaultStyles(isDark bool) Styles {
 		LineNumber:       lipgloss.NewStyle().Foreground(lightDark(lipgloss.Color("249"), lipgloss.Color("7"))),
 		Placeholder:      lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
 		Prompt:           lipgloss.NewStyle().Foreground(lipgloss.Color("7")),
+		Selection:        lipgloss.NewStyle().Background(lightDark(lipgloss.Color("253"), lipgloss.Color("8"))),
 		Text:             lipgloss.NewStyle().Foreground(lightDark(lipgloss.Color("245"), lipgloss.Color("7"))),
 	}
 	s.Cursor = CursorStyle{
 		Color: lipgloss.Color("7"),
 		Shape: tea.CursorBlock,
 		Blink: true,
-	}
-	s.Selection = SelectionStyle{
-		Background: lightDark(lipgloss.Color("254"), lipgloss.Color("238")),
 	}
 	return s
 }
@@ -1286,7 +1269,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	case tea.KeyPressMsg:
 		switch {
 		case key.Matches(msg, m.KeyMap.DeleteAfterCursor):
-			if m.selectionActive {
+			if m.HasSelection() {
 				m.deleteSelection()
 				break
 			}
@@ -1297,7 +1280,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			}
 			m.deleteAfterCursor()
 		case key.Matches(msg, m.KeyMap.DeleteBeforeCursor):
-			if m.selectionActive {
+			if m.HasSelection() {
 				m.deleteSelection()
 				break
 			}
@@ -1308,7 +1291,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			}
 			m.deleteBeforeCursor()
 		case key.Matches(msg, m.KeyMap.DeleteCharacterBackward):
-			if m.selectionActive {
+			if m.HasSelection() {
 				m.deleteSelection()
 				break
 			}
@@ -1324,7 +1307,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				}
 			}
 		case key.Matches(msg, m.KeyMap.DeleteCharacterForward):
-			if m.selectionActive {
+			if m.HasSelection() {
 				m.deleteSelection()
 				break
 			}
@@ -1336,7 +1319,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				break
 			}
 		case key.Matches(msg, m.KeyMap.DeleteWordBackward):
-			if m.selectionActive {
+			if m.HasSelection() {
 				m.deleteSelection()
 				break
 			}
@@ -1346,7 +1329,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			}
 			m.deleteWordLeft()
 		case key.Matches(msg, m.KeyMap.DeleteWordForward):
-			if m.selectionActive {
+			if m.HasSelection() {
 				m.deleteSelection()
 				break
 			}
@@ -1412,29 +1395,29 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.transposeLeft()
 
 		case key.Matches(msg, m.KeyMap.SelectCharacterForward):
-			m.startSelection()
+			m.startKeyboardSelection()
 			m.characterRight()
-			m.updateSelection()
+			m.updateKeyboardSelection()
 		case key.Matches(msg, m.KeyMap.SelectCharacterBackward):
-			m.startSelection()
+			m.startKeyboardSelection()
 			m.characterLeft(false)
-			m.updateSelection()
+			m.updateKeyboardSelection()
 		case key.Matches(msg, m.KeyMap.SelectWordForward):
-			m.startSelection()
+			m.startKeyboardSelection()
 			m.wordRight()
-			m.updateSelection()
+			m.updateKeyboardSelection()
 		case key.Matches(msg, m.KeyMap.SelectWordBackward):
-			m.startSelection()
+			m.startKeyboardSelection()
 			m.wordLeft()
-			m.updateSelection()
+			m.updateKeyboardSelection()
 		case key.Matches(msg, m.KeyMap.SelectLineUp):
-			m.startSelection()
+			m.startKeyboardSelection()
 			m.CursorUp()
-			m.updateSelection()
+			m.updateKeyboardSelection()
 		case key.Matches(msg, m.KeyMap.SelectLineDown):
-			m.startSelection()
+			m.startKeyboardSelection()
 			m.CursorDown()
-			m.updateSelection()
+			m.updateKeyboardSelection()
 		case key.Matches(msg, m.KeyMap.SelectAll):
 			m.SelectAll()
 		case key.Matches(msg, m.KeyMap.CopySelection):
@@ -1446,25 +1429,6 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.deleteSelection()
 			m.insertRunesFromUserInput([]rune(msg.Text))
 		}
-
-	case tea.MouseClickMsg:
-		mouse := msg.Mouse()
-		if mouse.Button == tea.MouseLeft {
-			m.mouseSelecting = true
-			m.ClearSelection()
-			m.positionCursorFromMouse(mouse.X, mouse.Y)
-			m.startSelection()
-		}
-
-	case tea.MouseMotionMsg:
-		if m.mouseSelecting {
-			mouse := msg.Mouse()
-			m.positionCursorFromMouse(mouse.X, mouse.Y)
-			m.updateSelection()
-		}
-
-	case tea.MouseReleaseMsg:
-		m.mouseSelecting = false
 
 	case pasteMsg:
 		m.deleteSelection()
@@ -1529,6 +1493,11 @@ func (m *Model) view() string {
 			style = styles.computedText()
 		}
 
+		// wrappedBase is the index, within the logical line, of the first rune
+		// of the current wrapped segment. It is what maps a segment back onto
+		// selection coordinates.
+		wrappedBase := 0
+
 		for wl, wrappedLine := range wrappedLines {
 			prompt := m.promptView(displayLine)
 			s.WriteString(style.Render(prompt))
@@ -1565,28 +1534,27 @@ func (m *Model) view() string {
 				padding -= m.width - strwidth
 			}
 
-			// Compute the column offset of this wrapped line within the
-			// original line.
-			wrappedColOffset := 0
-			for i := 0; i < wl; i++ {
-				wrappedColOffset += len(wrappedLines[i])
-			}
-
-			if m.row == l && lineInfo.RowOffset == wl {
-				beforeCursor := string(wrappedLine[:lineInfo.ColumnOffset])
-				s.WriteString(m.renderWithSelection(style, beforeCursor, l, wrappedColOffset))
+			// A selection covering this segment takes precedence over the
+			// inline cursor: during a drag the highlight is the meaningful
+			// affordance, and mixing the two would double-style the same cell.
+			if selFrom, selTo, selected := m.selectionSpanFor(l, wrappedBase, len(wrappedLine)); selected {
+				s.WriteString(style.Render(string(wrappedLine[:selFrom])))
+				s.WriteString(styles.computedSelection().Render(string(wrappedLine[selFrom:selTo])))
+				s.WriteString(style.Render(string(wrappedLine[selTo:])))
+			} else if m.row == l && lineInfo.RowOffset == wl {
+				s.WriteString(style.Render(string(wrappedLine[:lineInfo.ColumnOffset])))
 				if m.col >= len(line) && lineInfo.CharOffset >= m.width {
 					m.virtualCursor.SetChar(" ")
 					s.WriteString(m.virtualCursor.View())
 				} else {
 					m.virtualCursor.SetChar(string(wrappedLine[lineInfo.ColumnOffset]))
 					s.WriteString(style.Render(m.virtualCursor.View()))
-					rest := string(wrappedLine[lineInfo.ColumnOffset+1:])
-					s.WriteString(m.renderWithSelection(style, rest, l, wrappedColOffset+lineInfo.ColumnOffset+1))
+					s.WriteString(style.Render(string(wrappedLine[lineInfo.ColumnOffset+1:])))
 				}
 			} else {
-				s.WriteString(m.renderWithSelection(style, string(wrappedLine), l, wrappedColOffset))
+				s.WriteString(style.Render(string(wrappedLine)))
 			}
+			wrappedBase += len(wrappedLine)
 			s.WriteString(style.Render(strings.Repeat(" ", max(0, padding))))
 			s.WriteRune('\n')
 			newLines++
@@ -1608,53 +1576,6 @@ func (m *Model) view() string {
 	}
 
 	return s.String()
-}
-
-// renderWithSelection renders text with the selection style applied to
-// selected portions. The colOffset is the column offset of the text within
-// the original line (accounting for soft wrapping).
-func (m Model) renderWithSelection(style lipgloss.Style, text string, lineIdx, colOffset int) string {
-	if !m.selectionActive || len(text) == 0 {
-		return style.Render(text)
-	}
-
-	start, end := m.selectionRange()
-	selStyle := m.styles.Selection.computedSelection()
-
-	// No selection on this line.
-	if lineIdx < start.row || lineIdx > end.row {
-		return style.Render(text)
-	}
-
-	runes := []rune(text)
-	var result strings.Builder
-
-	for i, r := range runes {
-		col := colOffset + i
-		inSelection := false
-
-		if lineIdx == start.row && lineIdx == end.row {
-			// Single line selection.
-			inSelection = col >= start.col && col < end.col
-		} else if lineIdx == start.row {
-			// Selection starts on this line.
-			inSelection = col >= start.col
-		} else if lineIdx == end.row {
-			// Selection ends on this line.
-			inSelection = col < end.col
-		} else {
-			// Line is fully within selection.
-			inSelection = true
-		}
-
-		if inSelection {
-			result.WriteString(selStyle.Render(string(r)))
-		} else {
-			result.WriteString(style.Render(string(r)))
-		}
-	}
-
-	return result.String()
 }
 
 // View renders the text area in its current state.
@@ -1848,119 +1769,53 @@ func (m Model) Cursor() *tea.Cursor {
 	return c
 }
 
-// SelectionActive returns whether there is an active text selection.
-func (m Model) SelectionActive() bool {
-	return m.selectionActive
-}
-
-// Selection returns the currently selected text. Returns an empty string if
-// there is no active selection.
-func (m Model) Selection() string {
-	if !m.selectionActive {
-		return ""
-	}
-
-	start, end := m.selectionRange()
-	if start.row == end.row {
-		if start.col >= len(m.value[start.row]) || end.col > len(m.value[start.row]) || start.col > end.col {
-			return ""
-		}
-		return string(m.value[start.row][start.col:end.col])
-	}
-
-	var sb strings.Builder
-	for r := start.row; r <= end.row && r < len(m.value); r++ {
-		line := m.value[r]
-		switch r {
-		case start.row:
-			if start.col < len(line) {
-				sb.WriteString(string(line[start.col:]))
-			}
-		case end.row:
-			if end.col <= len(line) {
-				sb.WriteString(string(line[:end.col]))
-			}
-		default:
-			sb.WriteString(string(line))
-		}
-		if r < end.row {
-			sb.WriteRune('\n')
-		}
-	}
-	return sb.String()
-}
-
-// selectionRange returns the start and end positions of the selection in
-// order (start before end).
-func (m Model) selectionRange() (start, end position) {
-	if m.selectionStart.row < m.selectionEnd.row ||
-		(m.selectionStart.row == m.selectionEnd.row && m.selectionStart.col <= m.selectionEnd.col) {
-		return m.selectionStart, m.selectionEnd
-	}
-	return m.selectionEnd, m.selectionStart
-}
-
-// ClearSelection clears the current selection.
-func (m *Model) ClearSelection() {
-	m.selectionActive = false
-	m.selectionStart = position{}
-	m.selectionEnd = position{}
-}
-
 // deleteSelection deletes the currently selected text, positions the cursor
 // at the start of the former selection, and clears the selection state. It
 // is a no-op when there is no active selection.
 func (m *Model) deleteSelection() {
-	if !m.selectionActive {
+	if !m.HasSelection() {
 		return
 	}
 
-	start, end := m.selectionRange()
+	start, end, _ := m.Selection()
 
-	if start.row == end.row {
-		line := m.value[start.row]
-		endCol := min(end.col, len(line))
-		startCol := min(start.col, endCol)
-		m.value[start.row] = append(line[:startCol], line[endCol:]...)
-		m.row = start.row
+	if start.Row == end.Row {
+		line := m.value[start.Row]
+		endCol := min(end.Col, len(line))
+		startCol := min(start.Col, endCol)
+		m.value[start.Row] = append(line[:startCol], line[endCol:]...)
+		m.row = start.Row
 		m.SetCursorColumn(startCol)
 	} else {
-		headLine := m.value[start.row]
-		tailLine := m.value[end.row]
-		endCol := min(end.col, len(tailLine))
-		startCol := min(start.col, len(headLine))
+		headLine := m.value[start.Row]
+		tailLine := m.value[end.Row]
+		endCol := min(end.Col, len(tailLine))
+		startCol := min(start.Col, len(headLine))
 
 		merged := make([]rune, 0, startCol+len(tailLine)-endCol)
 		merged = append(merged, headLine[:startCol]...)
 		merged = append(merged, tailLine[endCol:]...)
 
-		newValue := make([][]rune, 0, len(m.value)-(end.row-start.row))
-		newValue = append(newValue, m.value[:start.row]...)
+		newValue := make([][]rune, 0, len(m.value)-(end.Row-start.Row))
+		newValue = append(newValue, m.value[:start.Row]...)
 		newValue = append(newValue, merged)
-		newValue = append(newValue, m.value[end.row+1:]...)
+		newValue = append(newValue, m.value[end.Row+1:]...)
 		m.value = newValue
 
-		m.row = start.row
+		m.row = start.Row
 		m.SetCursorColumn(startCol)
 	}
 
 	m.ClearSelection()
 }
 
-// SelectAll selects all text in the textarea.
-func (m *Model) SelectAll() {
-	m.selectionActive = true
-	m.selectionStart = position{row: 0, col: 0}
-	m.selectionEnd = position{row: len(m.value) - 1, col: len(m.value[len(m.value)-1])}
-}
-
 // CopySelection copies the selected text to the clipboard and returns a
 // command that performs the copy. Returns nil if there is no selection.
 func (m *Model) CopySelection() tea.Cmd {
-	if !m.selectionActive {
+	if !m.HasSelection() {
 		return nil
 	}
-	text := m.Selection()
+	text := m.SelectedText()
 	return func() tea.Msg {
 		if err := clipboard.WriteAll(text); err != nil {
 			return copyErrMsg{err}
@@ -1969,94 +1824,20 @@ func (m *Model) CopySelection() tea.Cmd {
 	}
 }
 
-// startSelection begins a new selection at the current cursor position.
-func (m *Model) startSelection() {
-	if !m.selectionActive {
-		m.selectionActive = true
-		m.selectionStart = position{row: m.row, col: m.col}
+// startKeyboardSelection begins a keyboard-driven selection at the current
+// cursor position if one is not already active.
+func (m *Model) startKeyboardSelection() {
+	if !m.hasSelection {
+		m.selAnchor = Position{Row: m.row, Col: m.col}
 	}
-	m.selectionEnd = position{row: m.row, col: m.col}
+	m.hasSelection = true
+	m.selHead = Position{Row: m.row, Col: m.col}
 }
 
-// extendSelection extends the selection to the current cursor position.
-func (m *Model) extendSelection() {
-	if !m.selectionActive {
-		m.selectionStart = position{row: m.row, col: m.col}
-	}
-	m.selectionActive = true
-	m.selectionEnd = position{row: m.row, col: m.col}
-}
-
-// updateSelection updates the selection end to the current cursor position.
-// If no selection is active, starts a new one.
-func (m *Model) updateSelection() {
-	m.extendSelection()
-}
-
-// positionCursorFromMouse positions the cursor based on mouse coordinates.
-// The coordinates are relative to the textarea's view.
-func (m *Model) positionCursorFromMouse(x, y int) {
-	styles := m.activeStyle()
-	baseStyle := styles.Base
-
-	// Adjust for base style margins and borders.
-	x -= baseStyle.GetMarginLeft() + baseStyle.GetPaddingLeft() + baseStyle.GetBorderLeftSize()
-	y -= baseStyle.GetMarginTop() + baseStyle.GetPaddingTop() + baseStyle.GetBorderTopSize()
-
-	// Adjust for viewport scroll offset.
-	y += m.viewport.YOffset()
-
-	// Find the line at the y position.
-	displayLine := 0
-	targetRow := -1
-	targetCol := 0
-
-	for l, line := range m.value {
-		wrappedLines := m.memoizedWrap(line, m.width)
-		for wl := range wrappedLines {
-			if displayLine == y {
-				targetRow = l
-				targetCol = m.columnFromMouseX(x, displayLine, wrappedLines, wl, len(line))
-				break
-			}
-			displayLine++
-		}
-		if targetRow >= 0 {
-			break
-		}
-	}
-
-	if targetRow >= 0 && targetRow < len(m.value) {
-		m.row = targetRow
-		m.SetCursorColumn(targetCol)
-		m.repositionView()
-	}
-}
-
-func (m *Model) columnFromMouseX(x, displayLine int, wrappedLines [][]rune, wl, lineLen int) int {
-	promptWidth := lipgloss.Width(m.promptView(displayLine))
-	lineNumWidth := 0
-	if m.ShowLineNumbers {
-		lineNumWidth = lipgloss.Width(m.lineNumberView(0, false))
-	}
-	col := x - promptWidth - lineNumWidth
-	if col < 0 {
-		col = 0
-	}
-	if wl >= len(wrappedLines) {
-		return col
-	}
-	wrappedLine := wrappedLines[wl]
-	if col > len(wrappedLine) {
-		col = len(wrappedLine)
-	}
-	for i := range wl {
-		col += len(wrappedLines[i])
-	}
-	if col > lineLen {
-		col = lineLen
-	}
-	return col
+// updateKeyboardSelection updates the selection head to the current cursor
+// position after a keyboard movement.
+func (m *Model) updateKeyboardSelection() {
+	m.selHead = Position{Row: m.row, Col: m.col}
 }
 
 func (m Model) memoizedWrap(runes []rune, width int) [][]rune {
