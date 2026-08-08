@@ -636,10 +636,30 @@ func (m Model) isEmpty() bool {
 func (m *Model) Length() int {
 	var l int
 	for _, row := range m.value {
+		if asciiOnly(row) {
+			// Printable ASCII runes are all width 1 in uniseg, so the count
+			// is exact without materializing the row string or running the
+			// grapheme machinery. This is the hot path: Length() runs once
+			// per insert for the CharLimit check.
+			l += len(row)
+			continue
+		}
 		l += uniseg.StringWidth(string(row))
 	}
 	// We add len(m.value) to include the newline characters.
 	return l + len(m.value) - 1
+}
+
+// asciiOnly reports whether every rune is printable ASCII (0x20-0x7E).
+// Control runes (tab, DEL, ...) have width 0 in uniseg, so they must fall
+// back to the uniseg path for an exact result.
+func asciiOnly(row []rune) bool {
+	for _, r := range row {
+		if r < 0x20 || r > 0x7E {
+			return false
+		}
+	}
+	return true
 }
 
 // LineCount returns the number of lines that are currently in the text input.

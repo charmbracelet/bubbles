@@ -10,6 +10,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/MakeNowJust/heredoc"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/rivo/uniseg"
 )
 
 func TestVerticalScrolling(t *testing.T) {
@@ -2459,4 +2460,53 @@ func TestIsEmpty(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestLengthASCIIFastPath verifies Length() is exact across ASCII (fast
+// path), wide/CJK, control-rune, and mixed rows — matching the uniseg
+// reference width for every case.
+func TestLengthASCIIFastPath(t *testing.T) {
+	cases := []struct {
+		name string
+		rows []string // rows joined into a value by SetValue
+	}{
+		{"empty", nil},
+		{"single empty line", []string{""}},
+		{"plain ascii", []string{"hello world"}},
+		{"ascii with punctuation", []string{"~!@#$%^&*()_+{}|:<>?"}},
+		{"wide cjk", []string{"你好"}},
+		{"mixed ascii+wide", []string{"a你好b"}},
+		{"control runes", []string{"a\tb"}},
+		{"del rune", []string{"a\x7fb"}},
+		{"multiline ascii", []string{"one", "two", "three"}},
+		{"multiline mixed", []string{"alpha", "中文", "gamma"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			m := New()
+			m.SetValue(joinRows(tc.rows))
+			// Reference: the previous implementation, computed over the
+			// actually-stored rows (SetValue + the input sanitizer may
+			// rewrite tabs/controls, so tc.rows is not the stored state).
+			want := 0
+			for _, row := range m.value {
+				want += uniseg.StringWidth(string(row))
+			}
+			want += len(m.value) - 1 // newlines
+			if got := m.Length(); got != want {
+				t.Fatalf("Length(%q rows) = %d, want %d (stored %q)", tc.rows, got, want, m.Value())
+			}
+		})
+	}
+}
+
+func joinRows(rows []string) string {
+	out := ""
+	for i, r := range rows {
+		if i > 0 {
+			out += "\n"
+		}
+		out += r
+	}
+	return out
 }
