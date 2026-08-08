@@ -614,7 +614,18 @@ func (m Model) Value() string {
 		return ""
 	}
 
+	// Pre-grow to the total rune count + one byte per line for the
+	// newlines, so a multi-line buffer is not repeatedly copied by builder
+	// growth. This is the hot path: clients rebuild Value() once per
+	// content change. Underestimates for wide/combining runes (their UTF-8
+	// bytes exceed the rune count), which just triggers a bounded amount of
+	// growth — still far better than doubling from 0.
+	size := 0
+	for _, l := range m.value {
+		size += len(l)
+	}
 	var v strings.Builder
+	v.Grow(size + len(m.value))
 	for _, l := range m.value {
 		v.WriteString(string(l))
 		v.WriteByte('\n')
