@@ -623,6 +623,15 @@ func (m Model) Value() string {
 	return strings.TrimSuffix(v.String(), "\n")
 }
 
+// isEmpty reports whether the textarea contains no text, matching the
+// previous len(m.Value()) == 0 check without materializing the whole value
+// string (Value() builds the entire buffer, including the inter-line
+// newlines, so the value is empty only when there is at most one line and
+// it has no runes).
+func (m Model) isEmpty() bool {
+	return len(m.value) == 0 || (len(m.value) == 1 && len(m.value[0]) == 0)
+}
+
 // Length returns the number of characters currently in the text input.
 func (m *Model) Length() int {
 	var l int
@@ -1362,7 +1371,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 }
 
 func (m *Model) view() string {
-	if len(m.Value()) == 0 && m.row == 0 && m.col == 0 && m.Placeholder != "" {
+	if m.isEmpty() && m.row == 0 && m.col == 0 && m.Placeholder != "" {
 		return m.placeholderView()
 	}
 	m.virtualCursor.TextStyle = m.activeStyle().computedCursorLine()

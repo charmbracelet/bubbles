@@ -2429,3 +2429,34 @@ func stripString(str string) string {
 
 	return strings.Join(lines, "\n")
 }
+
+// TestIsEmpty verifies the placeholder-emptiness check does not need to
+// materialize the whole value string: a zero-width buffer is empty, a
+// buffer with any non-empty row is not.
+func TestIsEmpty(t *testing.T) {
+	cases := []struct {
+		name  string
+		value string
+		want  bool
+	}{
+		{"zero value model", "", true},
+		{"single empty line", "", true},
+		{"all-empty multiline is non-empty (newlines count)", "\n\n", false},
+		{"single non-empty line", "hello", false},
+		{"non-empty middle row", "a\nb\nc", false},
+		{"empty rows around non-empty", "\n\nx\n\n", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			m := New()
+			m.SetValue(tc.value)
+			if got := m.isEmpty(); got != tc.want {
+				t.Fatalf("isEmpty(%q) = %v, want %v", tc.value, got, tc.want)
+			}
+			// The helper must agree with the previous Value()-based check.
+			if got := len(m.Value()) == 0; got != tc.want {
+				t.Fatalf("isEmpty(%q)=%v disagrees with len(Value())==0 (%v)", tc.value, got, tc.want)
+			}
+		})
+	}
+}
