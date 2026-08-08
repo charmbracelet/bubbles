@@ -645,6 +645,9 @@ func (m Model) isEmpty() bool {
 
 // Length returns the number of characters currently in the text input.
 func (m *Model) Length() int {
+	if m.value == nil {
+		return 0
+	}
 	var l int
 	for _, row := range m.value {
 		if asciiOnly(row) {

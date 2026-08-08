@@ -2510,3 +2510,15 @@ func joinRows(rows []string) string {
 	}
 	return out
 }
+
+// TestValueZeroModel covers Value()'s nil-buffer early return (zero-value
+// Model without New()).
+func TestValueZeroModel(t *testing.T) {
+	var m Model
+	if got := m.Value(); got != "" {
+		t.Fatalf("zero-model Value() = %q, want empty", got)
+	}
+	if got := m.Length(); got != 0 {
+		t.Fatalf("zero-model Length() = %d, want 0", got)
+	}
+}
