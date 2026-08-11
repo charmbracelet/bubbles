@@ -2522,3 +2522,37 @@ func TestValueZeroModel(t *testing.T) {
 		t.Fatalf("zero-model Length() = %d, want 0", got)
 	}
 }
+
+// TestCharLimitTruncatesByCellWidth: CharLimit is enforced in cells, so
+// wide (CJK) content must be truncated by cell width, not rune count (the
+// old code let wide pastes overshoot the limit by up to ~2x). ASCII
+// truncation is unchanged.
+func TestCharLimitTruncatesByCellWidth(t *testing.T) {
+	m := New()
+	m.CharLimit = 10
+	m.SetValue("abcde")      // 5 cells
+	m.InsertString("你好你好你好") // 12 cells, availSpace 5
+	if got := uniseg.StringWidth(m.Value()); got > m.CharLimit {
+		t.Fatalf("cells %d exceed CharLimit %d (value %q)", got, m.CharLimit, m.Value())
+	}
+	if want := "abcde你好"; m.Value() != want { // 5 + 4 = 9 cells
+		t.Fatalf("value = %q, want %q", m.Value(), want)
+	}
+
+	// Single rune wider than the remaining space is rejected, not overshot.
+	m2 := New()
+	m2.CharLimit = 1
+	m2.InsertString("你")
+	if m2.Value() != "" {
+		t.Fatalf("expected 2-cell rune rejected at 1-cell limit, got %q", m2.Value())
+	}
+
+	// ASCII truncation unchanged.
+	m3 := New()
+	m3.CharLimit = 10
+	m3.SetValue("abcde")
+	m3.InsertString("1234567890")
+	if want := "abcde12345"; m3.Value() != want {
+		t.Fatalf("ASCII truncation changed: got %q want %q", m3.Value(), want)
+	}
+}

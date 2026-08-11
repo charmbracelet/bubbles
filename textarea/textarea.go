@@ -520,10 +520,25 @@ func (m *Model) insertRunesFromUserInput(runes []rune) {
 		if availSpace <= 0 {
 			return
 		}
-		// If there's not enough space to paste the whole thing cut the pasted
-		// runes down so they'll fit.
-		if availSpace < len(runes) {
-			runes = runes[:availSpace]
+		// If there's not enough space to paste the whole thing, cut the
+		// pasted runes down by CELL width so they'll fit. Length() counts
+		// cells; truncating by rune count (the old code) let wide content
+		// overshoot CharLimit by up to ~2x.
+		if uniseg.StringWidth(string(runes)) > availSpace {
+			cells := 0
+			i := 0
+			for i < len(runes) {
+				w := rw.RuneWidth(runes[i])
+				if w < 0 {
+					w = 0
+				}
+				if cells+w > availSpace {
+					break
+				}
+				cells += w
+				i++
+			}
+			runes = runes[:i]
 		}
 	}
 
