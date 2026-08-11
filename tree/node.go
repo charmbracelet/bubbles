@@ -61,6 +61,7 @@ func (t *Node) Close() *Node {
 
 // Open opens the node.
 func (t *Node) Open() *Node {
+	t.initialClosed = false
 	t.open = true
 	t.tree.Offset(0, 0)
 	return t

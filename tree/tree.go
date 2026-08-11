@@ -34,8 +34,6 @@ type KeyMap struct {
 	// Help toggle keybindings.
 	ShowFullHelp  key.Binding
 	CloseFullHelp key.Binding
-
-	Quit key.Binding
 }
 
 // DefaultKeyMap returns the default set of key bindings for navigating and acting
@@ -97,11 +95,6 @@ func DefaultKeyMap() KeyMap {
 			key.WithKeys("?"),
 			key.WithHelp("?", "close help"),
 		),
-
-		Quit: key.NewBinding(
-			key.WithKeys("q", "ctrl+c"),
-			key.WithHelp("q", "quit"),
-		),
 	}
 }
 
@@ -140,6 +133,8 @@ type Model struct {
 
 // New creates a new model with default settings.
 func New(t *Node, width, height int) Model {
+	vp := viewport.New()
+	vp.KeyMap = viewport.KeyMap{}
 	m := Model{
 		KeyMap:          DefaultKeyMap(),
 		openCharacter:   "▼",
@@ -150,7 +145,7 @@ func New(t *Node, width, height int) Model {
 
 		showHelp: true,
 		root:     t,
-		viewport: viewport.Model{},
+		viewport: vp,
 	}
 
 	if m.root == nil {
@@ -198,8 +193,6 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		case key.Matches(msg, m.KeyMap.Close):
 			m.CloseCurrentNode()
 
-		case key.Matches(msg, m.KeyMap.Quit):
-			return m, tea.Quit
 		case key.Matches(msg, m.KeyMap.ShowFullHelp):
 			fallthrough
 		case key.Matches(msg, m.KeyMap.CloseFullHelp):
@@ -488,7 +481,7 @@ func (m Model) ShortHelp() []key.Binding {
 		kb = append(kb, m.additionalShortHelpKeys()...)
 	}
 
-	kb = append(kb, m.KeyMap.Quit, m.KeyMap.ShowFullHelp)
+	kb = append(kb, m.KeyMap.ShowFullHelp)
 
 	return kb
 }
@@ -521,7 +514,6 @@ func (m Model) FullHelp() [][]key.Binding {
 	}
 
 	kb = append(kb, []key.Binding{
-		m.KeyMap.Quit,
 		m.KeyMap.CloseFullHelp,
 	})
 

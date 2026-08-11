@@ -44,12 +44,12 @@ func DefaultStyles(isDark bool) (s Styles) {
 	s.TreeStyle = lipgloss.NewStyle()
 	s.HelpStyle = lipgloss.NewStyle().PaddingTop(1)
 
-	s.NodeStyle = lipgloss.NewStyle().Foreground(lightDark(lipgloss.Color("#9B9B9B"), lipgloss.Color("b0b0b0")))
+	s.NodeStyle = lipgloss.NewStyle().Foreground(lightDark(lipgloss.Color("#9B9B9B"), lipgloss.Color("#B0B0B0")))
 	s.nodeFunc = func(_ Nodes, _ int) lipgloss.Style {
 		return s.NodeStyle
 	}
 
-	s.SelectedNodeStyle = s.NodeStyle.Foreground(lipgloss.Color("212")).Bold(true)
+	s.SelectedNodeStyle = s.NodeStyle.Foreground(lightDark(lipgloss.Color("249"), lipgloss.Color("212"))).Bold(true)
 	s.selectedNodeFunc = func(_ Nodes, _ int) lipgloss.Style {
 		return s.SelectedNodeStyle
 	}
@@ -60,12 +60,12 @@ func DefaultStyles(isDark bool) (s Styles) {
 		return s.RootNodeStyle
 	}
 
-	s.ParentNodeStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("99"))
+	s.ParentNodeStyle = lipgloss.NewStyle().Foreground(lightDark(lipgloss.Color("90"), lipgloss.Color("99")))
 	s.parentNodeFunc = func(_ Nodes, _ int) lipgloss.Style {
 		return s.ParentNodeStyle
 	}
 
-	s.CursorStyle = lipgloss.NewStyle().PaddingRight(1).Foreground(lipgloss.Color("212")).Bold(true)
+	s.CursorStyle = lipgloss.NewStyle().PaddingRight(1).Foreground(lightDark(lipgloss.Color("249"), lipgloss.Color("212"))).Bold(true)
 
 	s.EnumeratorStyle = lipgloss.NewStyle().Foreground(verySubduedColor)
 	s.IndenterStyle = lipgloss.NewStyle().Foreground(verySubduedColor)
