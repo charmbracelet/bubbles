@@ -37,7 +37,7 @@ func New() Model {
 		DirAllowed:       false,
 		FileAllowed:      true,
 		AutoHeight:       true,
-		height:           0,
+		height:           1,
 		maxIdx:           0,
 		minIdx:           0,
 		selectedStack:    newStack(),
