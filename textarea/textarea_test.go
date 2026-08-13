@@ -143,6 +143,22 @@ func TestSetValue(t *testing.T) {
 	}
 }
 
+func TestSetValueViewportReposition(t *testing.T) {
+	ta := newTextArea()
+	ta.SetHeight(3)
+	ta.SetWidth(40)
+
+	// Insert more lines than the viewport height so the cursor ends below the visible area.
+	lines := strings.Join([]string{"line1", "line2", "line3", "line4", "line5"}, "\n")
+	ta.SetValue(lines)
+
+	// Cursor must be visible: ScrollYOffset must be high enough that the last row is in view.
+	if ta.ScrollYOffset()+ta.Height()-1 < ta.LineCount()-1 {
+		t.Fatalf("cursor out of view after SetValue: yOffset=%d height=%d lines=%d",
+			ta.ScrollYOffset(), ta.Height(), ta.LineCount())
+	}
+}
+
 func TestInsertString(t *testing.T) {
 	textarea := newTextArea()
 
