@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 	"unicode"
 
 	tea "charm.land/bubbletea/v2"
@@ -1913,6 +1914,68 @@ func TestView(t *testing.T) {
 			if tt.want.cursorRow != cursorRow || tt.want.cursorCol != cursorCol {
 				format := "Want cursor at row: %v, col: %v Got: row: %v col: %v\n"
 				t.Fatalf(format, tt.want.cursorRow, tt.want.cursorCol, cursorRow, cursorCol)
+			}
+		})
+	}
+}
+
+func TestWordLeftStopsAtStart(t *testing.T) {
+	tests := []struct {
+		name             string
+		value            string
+		row, col         int
+		wantRow, wantCol int
+	}{
+		{
+			name: "empty input",
+		},
+		{
+			name:  "buffer start before whitespace",
+			value: " word",
+		},
+		{
+			name:    "inside leading whitespace",
+			value:   "   word",
+			col:     2,
+			wantCol: 0,
+		},
+		{
+			name:    "multiline whitespace prefix",
+			value:   "  \n  word",
+			row:     1,
+			col:     2,
+			wantRow: 0,
+			wantCol: 0,
+		},
+		{
+			name:    "previous word",
+			value:   "first second",
+			col:     len("first second"),
+			wantCol: len("first "),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			textarea := newTextArea()
+			textarea.SetValue(tt.value)
+			textarea.row = tt.row
+			textarea.col = tt.col
+
+			type position struct{ row, col int }
+			done := make(chan position, 1)
+			go func() {
+				textarea.wordLeft()
+				done <- position{row: textarea.row, col: textarea.col}
+			}()
+
+			select {
+			case got := <-done:
+				if got.row != tt.wantRow || got.col != tt.wantCol {
+					t.Fatalf("expected cursor at row %d, col %d; got row %d, col %d", tt.wantRow, tt.wantCol, got.row, got.col)
+				}
+			case <-time.After(time.Second):
+				t.Fatal("wordLeft did not terminate")
 			}
 		})
 	}
