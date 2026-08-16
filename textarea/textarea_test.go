@@ -1957,21 +1957,280 @@ func TestWord(t *testing.T) {
 	})
 
 	t.Run("delete", func(t *testing.T) {
+		// After the "navigate" subtest the text is still
+		// "Word1 Word2 Word3 Word4" and the cursor is inside Word3.
+		// Move to end first.
 		for _, k := range []tea.KeyPressMsg{
 			{Code: tea.KeyEnd, Text: "end"},
-			{Code: tea.KeyBackspace, Mod: tea.ModAlt, Text: "alt+backspace"},
-			{Code: tea.KeyBackspace, Mod: tea.ModAlt, Text: "alt+backspace"},
-			{Code: tea.KeyBackspace, Text: "backspace"},
+			// Boundary characters (spaces, punctuation) and word characters
+			// are deleted separately, so deleting " Word4" requires two
+			// alt+backspace invocations: one for "Word4" and one for the
+			// preceding space.
+			{Code: tea.KeyBackspace, Mod: tea.ModAlt, Text: "alt+backspace"}, // "Word4"
+			{Code: tea.KeyBackspace, Mod: tea.ModAlt, Text: "alt+backspace"}, // " "
+			{Code: tea.KeyBackspace, Mod: tea.ModAlt, Text: "alt+backspace"}, // "Word3"
+			{Code: tea.KeyBackspace, Mod: tea.ModAlt, Text: "alt+backspace"}, // " "
+			{Code: tea.KeyBackspace, Text: "backspace"},                      // "2"
 		} {
 			textarea, _ = textarea.Update(k)
 			textarea.View()
 		}
 
-		expect := "Word2"
+		expect := "Word"
 		if word := textarea.Word(); word != expect {
 			t.Fatalf("Expected last word to be '%s', got '%s'", expect, word)
 		}
+
+		if val := textarea.Value(); val != "Word1 Word" {
+			t.Fatalf("Expected value to be 'Word1 Word', got '%s'", val)
+		}
 	})
+}
+
+func TestIsWordBoundary(t *testing.T) {
+	tests := []struct {
+		r    rune
+		want bool
+	}{
+		// Spaces are boundaries.
+		{' ', true},
+		{'\t', true},
+		{'\n', true},
+		// ASCII punctuation.
+		{'.', true},
+		{',', true},
+		{'!', true},
+		{'(', true},
+		{')', true},
+		{'-', true},
+		{'_', true},
+		// CJK punctuation (fullwidth).
+		{'，', true},
+		{'。', true},
+		{'！', true},
+		{'？', true},
+		{'、', true},
+		{'；', true},
+		{'：', true},
+		{'"', true},
+		{'"', true},
+		{'（', true},
+		{'）', true},
+		{'【', true},
+		{'】', true},
+		{'《', true},
+		{'》', true},
+		// Symbols.
+		{'+', true},
+		{'=', true},
+		{'$', true},
+		// Letters and digits are not boundaries.
+		{'a', false},
+		{'Z', false},
+		{'0', false},
+		{'9', false},
+		// CJK ideographs are not boundaries.
+		{'中', false},
+		{'文', false},
+		{'あ', false},
+		{'漢', false},
+	}
+	for _, tt := range tests {
+		if got := isWordBoundary(tt.r); got != tt.want {
+			t.Errorf("isWordBoundary(%q) = %v, want %v", tt.r, got, tt.want)
+		}
+	}
+}
+
+func TestWordMovementWithPunctuation(t *testing.T) {
+	altLeft := tea.KeyPressMsg{Code: tea.KeyLeft, Mod: tea.ModAlt}
+	altRight := tea.KeyPressMsg{Code: tea.KeyRight, Mod: tea.ModAlt}
+
+	t.Run("ascii punctuation", func(t *testing.T) {
+		ta := newTextArea()
+		ta.SetWidth(80)
+		ta.CharLimit = 500
+		ta, _ = ta.Update(nil)
+
+		// "hello.world foo" — rune indices:
+		//  h=0 e=1 l=2 l=3 o=4 .=5 w=6 o=7 r=8 l=9 d=10 ' '=11 f=12 o=13 o=14
+		ta = sendString(ta, "hello.world foo")
+		ta.View()
+
+		// alt+left from end (col=15): skip space, land at start of "foo"
+		ta, _ = ta.Update(altLeft)
+		if ta.col != 12 {
+			t.Fatalf("after first alt+left: expected col 12, got %d", ta.col)
+		}
+		// alt+left: skip '.', land at start of "world"
+		ta, _ = ta.Update(altLeft)
+		if ta.col != 6 {
+			t.Fatalf("after second alt+left: expected col 6, got %d", ta.col)
+		}
+		// alt+left: land at start of "hello"
+		ta, _ = ta.Update(altLeft)
+		if ta.col != 0 {
+			t.Fatalf("after third alt+left: expected col 0, got %d", ta.col)
+		}
+
+		// alt+right from col=0: skip past "hello", land after 'o' (col=5)
+		ta, _ = ta.Update(altRight)
+		if ta.col != 5 {
+			t.Fatalf("after first alt+right: expected col 5, got %d", ta.col)
+		}
+		// alt+right: skip '.', past "world" (col=11)
+		ta, _ = ta.Update(altRight)
+		if ta.col != 11 {
+			t.Fatalf("after second alt+right: expected col 11, got %d", ta.col)
+		}
+	})
+
+	t.Run("CJK punctuation", func(t *testing.T) {
+		ta := newTextArea()
+		ta.SetWidth(80)
+		ta.CharLimit = 500
+		ta, _ = ta.Update(nil)
+
+		// "你好，世界" — rune indices: 你=0 好=1 ，=2 世=3 界=4
+		ta = sendString(ta, "你好，世界")
+		ta.View()
+
+		// alt+left from end (col=5): land at start of "世界" (col=3)
+		ta, _ = ta.Update(altLeft)
+		if ta.col != 3 {
+			t.Fatalf("after first alt+left: expected col 3, got %d", ta.col)
+		}
+
+		// alt+left: skip '，', land at start of "你好" (col=0)
+		ta, _ = ta.Update(altLeft)
+		if ta.col != 0 {
+			t.Fatalf("after second alt+left: expected col 0, got %d", ta.col)
+		}
+
+		// alt+right: skip past "你好" (col=2)
+		ta, _ = ta.Update(altRight)
+		if ta.col != 2 {
+			t.Fatalf("after alt+right: expected col 2, got %d", ta.col)
+		}
+
+		// alt+right: skip '，', past "世界" (col=5)
+		ta, _ = ta.Update(altRight)
+		if ta.col != 5 {
+			t.Fatalf("after second alt+right: expected col 5, got %d", ta.col)
+		}
+	})
+
+	t.Run("mixed CJK and ASCII", func(t *testing.T) {
+		ta := newTextArea()
+		ta.SetWidth(80)
+		ta.CharLimit = 500
+		ta, _ = ta.Update(nil)
+
+		// "hello，世界！end" — rune indices:
+		//  h=0 e=1 l=2 l=3 o=4 ，=5 世=6 界=7 ！=8 e=9 n=10 d=11
+		ta = sendString(ta, "hello，世界！end")
+		ta.View()
+
+		// alt+left from end (col=12): land at start of "end" (col=9)
+		ta, _ = ta.Update(altLeft)
+		if ta.col != 9 {
+			t.Fatalf("after first alt+left: expected col 9, got %d", ta.col)
+		}
+
+		// alt+left: skip '！', land at start of "世界" (col=6)
+		ta, _ = ta.Update(altLeft)
+		if ta.col != 6 {
+			t.Fatalf("after second alt+left: expected col 6, got %d", ta.col)
+		}
+
+		// alt+left: skip '，', land at start of "hello" (col=0)
+		ta, _ = ta.Update(altLeft)
+		if ta.col != 0 {
+			t.Fatalf("after third alt+left: expected col 0, got %d", ta.col)
+		}
+	})
+}
+
+func TestDeleteWordWithPunctuation(t *testing.T) {
+	altBackspace := tea.KeyPressMsg{Code: tea.KeyBackspace, Mod: tea.ModAlt}
+
+	t.Run("delete word stops at punctuation", func(t *testing.T) {
+		ta := newTextArea()
+		ta.SetWidth(80)
+		ta.CharLimit = 500
+		ta, _ = ta.Update(nil)
+
+		ta = sendString(ta, "hello.world")
+		ta.View()
+
+		// alt+backspace: should delete "world", leaving "hello."
+		ta, _ = ta.Update(altBackspace)
+		if val := ta.Value(); val != "hello." {
+			t.Fatalf("after first alt+backspace: expected \"hello.\", got %q", val)
+		}
+
+		// alt+backspace: should delete ".", leaving "hello"
+		ta, _ = ta.Update(altBackspace)
+		if val := ta.Value(); val != "hello" {
+			t.Fatalf("after second alt+backspace: expected \"hello\", got %q", val)
+		}
+	})
+
+	t.Run("delete CJK word stops at punctuation", func(t *testing.T) {
+		ta := newTextArea()
+		ta.SetWidth(80)
+		ta.CharLimit = 500
+		ta, _ = ta.Update(nil)
+
+		ta = sendString(ta, "你好，世界")
+		ta.View()
+
+		// alt+backspace: should delete "世界", leaving "你好，"
+		ta, _ = ta.Update(altBackspace)
+		if val := ta.Value(); val != "你好，" {
+			t.Fatalf("after first alt+backspace: expected \"你好，\", got %q", val)
+		}
+
+		// alt+backspace: should delete "，", leaving "你好"
+		ta, _ = ta.Update(altBackspace)
+		if val := ta.Value(); val != "你好" {
+			t.Fatalf("after second alt+backspace: expected \"你好\", got %q", val)
+		}
+	})
+}
+
+func TestWordAtCursorWithPunctuation(t *testing.T) {
+	// Word() returns the word at col-1 (the character the cursor is after).
+	tests := []struct {
+		name     string
+		input    string
+		col      int
+		expected string
+	}{
+		{"inside word", "hello.world", 3, "hello"},
+		{"on period", "hello.world", 6, ""},
+		{"inside second word", "hello.world", 8, "world"},
+		{"on CJK punct", "你好，世界", 3, ""},
+		{"inside first CJK word", "你好，世界", 1, "你好"},
+		{"inside second CJK word", "你好，世界", 4, "世界"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ta := newTextArea()
+			ta.SetWidth(80)
+			ta.CharLimit = 500
+			ta, _ = ta.Update(nil)
+
+			ta = sendString(ta, tt.input)
+			ta.View()
+
+			ta.col = tt.col
+			if word := ta.Word(); word != tt.expected {
+				t.Errorf("Word() at col %d in %q = %q, want %q", tt.col, tt.input, word, tt.expected)
+			}
+		})
+	}
 }
 
 func newDynamicTextArea(minH, maxH int) Model {
