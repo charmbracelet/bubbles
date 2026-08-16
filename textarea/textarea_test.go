@@ -2390,6 +2390,17 @@ func TestDynamicHeight_ShrinksWhenScrolledNoMaxContent(t *testing.T) {
 	}
 }
 
+func TestShiftBackspaceDeletesCharacterBackward(t *testing.T) {
+	ta := newTextArea()
+	ta.SetValue("abc")
+
+	ta, _ = ta.Update(tea.KeyPressMsg{Code: tea.KeyBackspace, Mod: tea.ModShift})
+
+	if got, want := ta.Value(), "ab"; got != want {
+		t.Errorf("after shift+backspace got %q, want %q", got, want)
+	}
+}
+
 func newTextArea() Model {
 	textarea := New()
 
