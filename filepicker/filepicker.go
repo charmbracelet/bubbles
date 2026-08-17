@@ -27,6 +27,7 @@ func nextID() int {
 func New() Model {
 	return Model{
 		id:               nextID(),
+		filter:           "",
 		CurrentDirectory: ".",
 		Cursor:           ">",
 		AllowedTypes:     []string{},
@@ -37,6 +38,7 @@ func New() Model {
 		DirAllowed:       false,
 		FileAllowed:      true,
 		AutoHeight:       true,
+		SearchMode:       false,
 		height:           0,
 		maxIdx:           0,
 		minIdx:           0,
@@ -74,6 +76,7 @@ type KeyMap struct {
 	Back     key.Binding
 	Open     key.Binding
 	Select   key.Binding
+	Search   key.Binding
 }
 
 // DefaultKeyMap defines the default keybindings.
@@ -88,6 +91,10 @@ func DefaultKeyMap() KeyMap {
 		Back:     key.NewBinding(key.WithKeys("h", "backspace", "left", "esc"), key.WithHelp("h", "back")),
 		Open:     key.NewBinding(key.WithKeys("l", "right", "enter"), key.WithHelp("l", "open")),
 		Select:   key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "select")),
+		Search: key.NewBinding(
+			key.WithKeys("/"),
+			key.WithHelp("/", "search"),
+		),
 	}
 }
 
@@ -127,6 +134,7 @@ func DefaultStyles() Styles {
 type Model struct {
 	id int
 
+	filter string
 	// Path is the path which the user has selected with the file picker.
 	Path string
 
@@ -139,11 +147,13 @@ type Model struct {
 
 	KeyMap          KeyMap
 	files           []os.DirEntry
+	filteredFiles   []os.DirEntry
 	ShowPermissions bool
 	ShowSize        bool
 	ShowHidden      bool
 	DirAllowed      bool
 	FileAllowed     bool
+	SearchMode      bool
 
 	FileSelected  string
 	selected      int
@@ -195,6 +205,7 @@ func (m *Model) popView() (int, int, int) {
 }
 
 func (m Model) readDir(path string, showHidden bool) tea.Cmd {
+
 	return func() tea.Msg {
 		dirEntries, err := os.ReadDir(path)
 		if err != nil {
@@ -218,6 +229,11 @@ func (m Model) readDir(path string, showHidden bool) tea.Cmd {
 			if isHidden {
 				continue
 			}
+
+			if !strings.HasPrefix(dirEntry.Name(), m.filter) {
+				continue
+			}
+
 			sanitizedDirEntries = append(sanitizedDirEntries, dirEntry)
 		}
 		return readDirMsg{id: m.id, entries: sanitizedDirEntries}
@@ -232,6 +248,10 @@ func (m *Model) SetHeight(h int) {
 	}
 }
 
+func (m Model) Filter() string {
+	return m.filter
+}
+
 // Height returns the height of the file picker.
 func (m Model) Height() int {
 	return m.height
@@ -239,11 +259,13 @@ func (m Model) Height() int {
 
 // Init initializes the file picker model.
 func (m Model) Init() tea.Cmd {
+
 	return m.readDir(m.CurrentDirectory, m.ShowHidden)
 }
 
 // Update handles user interactions within the file picker model.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
+
 	switch msg := msg.(type) {
 	case readDirMsg:
 		if msg.id != m.id {
@@ -257,7 +279,33 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		}
 		m.maxIdx = m.Height() - 1
 	case tea.KeyPressMsg:
+		if m.SearchMode {
+			switch msg.Code {
+			case tea.KeyEsc:
+				m.SearchMode = false
+				return m, m.readDir(m.CurrentDirectory, m.ShowHidden)
+
+			case tea.KeyBackspace:
+				m.selected = 0
+				m.minIdx = 0
+				m.maxIdx = m.Height() - 1
+				if len(m.filter) > 0 {
+					m.filter = m.filter[:len(m.filter)-1]
+				}
+				return m, m.readDir(m.CurrentDirectory, m.ShowHidden)
+			}
+
+			if msg.Text != "" {
+				m.filter += msg.Text
+				m.selected = 0
+				m.minIdx = 0
+				m.maxIdx = m.Height() - 1
+				return m, m.readDir(m.CurrentDirectory, m.ShowHidden)
+			}
+		}
 		switch {
+		case key.Matches(msg, m.KeyMap.Search):
+			m.SearchMode = true
 		case key.Matches(msg, m.KeyMap.GoToTop):
 			m.selected = 0
 			m.minIdx = 0
@@ -309,6 +357,12 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				m.maxIdx = m.minIdx + m.Height()
 			}
 		case key.Matches(msg, m.KeyMap.Back):
+
+			if m.SearchMode {
+				m.SearchMode = false
+				return m, nil
+			}
+
 			m.CurrentDirectory = filepath.Dir(m.CurrentDirectory)
 			if m.selectedStack.Length() > 0 {
 				m.selected, m.minIdx, m.maxIdx = m.popView()
@@ -360,6 +414,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.maxIdx = m.Height() - 1
 			return m, m.readDir(m.CurrentDirectory, m.ShowHidden)
 		}
+
 	}
 	return m, nil
 }
