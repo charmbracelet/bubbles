@@ -1813,6 +1813,13 @@ func (m *Model) deleteSelection() {
 	m.ClearSelection()
 }
 
+// DeleteSelection deletes the currently selected text, positions the cursor
+// at the start of the former selection, and clears the selection state. It
+// is a no-op when there is no active selection.
+func (m *Model) DeleteSelection() {
+	m.deleteSelection()
+}
+
 // CopySelection copies the selected text to the clipboard and returns a
 // command that performs the copy. Returns nil if there is no selection.
 func (m *Model) CopySelection() tea.Cmd {
