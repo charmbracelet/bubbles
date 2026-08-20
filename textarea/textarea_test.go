@@ -10,6 +10,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/MakeNowJust/heredoc"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/rivo/uniseg"
 )
 
 func TestVerticalScrolling(t *testing.T) {
@@ -2428,4 +2429,130 @@ func stripString(str string) string {
 	}
 
 	return strings.Join(lines, "\n")
+}
+
+// TestIsEmpty verifies the placeholder-emptiness check does not need to
+// materialize the whole value string: a zero-width buffer is empty, a
+// buffer with any non-empty row is not.
+func TestIsEmpty(t *testing.T) {
+	cases := []struct {
+		name  string
+		value string
+		want  bool
+	}{
+		{"zero value model", "", true},
+		{"single empty line", "", true},
+		{"all-empty multiline is non-empty (newlines count)", "\n\n", false},
+		{"single non-empty line", "hello", false},
+		{"non-empty middle row", "a\nb\nc", false},
+		{"empty rows around non-empty", "\n\nx\n\n", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			m := New()
+			m.SetValue(tc.value)
+			if got := m.isEmpty(); got != tc.want {
+				t.Fatalf("isEmpty(%q) = %v, want %v", tc.value, got, tc.want)
+			}
+			// The helper must agree with the previous Value()-based check.
+			if got := len(m.Value()) == 0; got != tc.want {
+				t.Fatalf("isEmpty(%q)=%v disagrees with len(Value())==0 (%v)", tc.value, got, tc.want)
+			}
+		})
+	}
+}
+
+// TestLengthASCIIFastPath verifies Length() is exact across ASCII (fast
+// path), wide/CJK, control-rune, and mixed rows — matching the uniseg
+// reference width for every case.
+func TestLengthASCIIFastPath(t *testing.T) {
+	cases := []struct {
+		name string
+		rows []string // rows joined into a value by SetValue
+	}{
+		{"empty", nil},
+		{"single empty line", []string{""}},
+		{"plain ascii", []string{"hello world"}},
+		{"ascii with punctuation", []string{"~!@#$%^&*()_+{}|:<>?"}},
+		{"wide cjk", []string{"你好"}},
+		{"mixed ascii+wide", []string{"a你好b"}},
+		{"control runes", []string{"a\tb"}},
+		{"del rune", []string{"a\x7fb"}},
+		{"multiline ascii", []string{"one", "two", "three"}},
+		{"multiline mixed", []string{"alpha", "中文", "gamma"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			m := New()
+			m.SetValue(joinRows(tc.rows))
+			// Reference: the previous implementation, computed over the
+			// actually-stored rows (SetValue + the input sanitizer may
+			// rewrite tabs/controls, so tc.rows is not the stored state).
+			want := 0
+			for _, row := range m.value {
+				want += uniseg.StringWidth(string(row))
+			}
+			want += len(m.value) - 1 // newlines
+			if got := m.Length(); got != want {
+				t.Fatalf("Length(%q rows) = %d, want %d (stored %q)", tc.rows, got, want, m.Value())
+			}
+		})
+	}
+}
+
+func joinRows(rows []string) string {
+	out := ""
+	for i, r := range rows {
+		if i > 0 {
+			out += "\n"
+		}
+		out += r
+	}
+	return out
+}
+
+// TestValueZeroModel covers Value()'s nil-buffer early return (zero-value
+// Model without New()).
+func TestValueZeroModel(t *testing.T) {
+	var m Model
+	if got := m.Value(); got != "" {
+		t.Fatalf("zero-model Value() = %q, want empty", got)
+	}
+	if got := m.Length(); got != 0 {
+		t.Fatalf("zero-model Length() = %d, want 0", got)
+	}
+}
+
+// TestCharLimitTruncatesByCellWidth: CharLimit is enforced in cells, so
+// wide (CJK) content must be truncated by cell width, not rune count (the
+// old code let wide pastes overshoot the limit by up to ~2x). ASCII
+// truncation is unchanged.
+func TestCharLimitTruncatesByCellWidth(t *testing.T) {
+	m := New()
+	m.CharLimit = 10
+	m.SetValue("abcde")      // 5 cells
+	m.InsertString("你好你好你好") // 12 cells, availSpace 5
+	if got := uniseg.StringWidth(m.Value()); got > m.CharLimit {
+		t.Fatalf("cells %d exceed CharLimit %d (value %q)", got, m.CharLimit, m.Value())
+	}
+	if want := "abcde你好"; m.Value() != want { // 5 + 4 = 9 cells
+		t.Fatalf("value = %q, want %q", m.Value(), want)
+	}
+
+	// Single rune wider than the remaining space is rejected, not overshot.
+	m2 := New()
+	m2.CharLimit = 1
+	m2.InsertString("你")
+	if m2.Value() != "" {
+		t.Fatalf("expected 2-cell rune rejected at 1-cell limit, got %q", m2.Value())
+	}
+
+	// ASCII truncation unchanged.
+	m3 := New()
+	m3.CharLimit = 10
+	m3.SetValue("abcde")
+	m3.InsertString("1234567890")
+	if want := "abcde12345"; m3.Value() != want {
+		t.Fatalf("ASCII truncation changed: got %q want %q", m3.Value(), want)
+	}
 }
