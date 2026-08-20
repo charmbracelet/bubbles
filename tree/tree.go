@@ -375,11 +375,19 @@ func (m *Model) updateViewport(movement int) {
 		return
 	}
 
+	// the scrolloff is computed against the selected node's position in
+	// rendered lines, which accounts for nodes that span multiple lines
+	selected := findNode(m.root, m.yOffset)
+	if selected == nil {
+		return
+	}
+	lineOffset := selected.lineOffset
+
 	// make sure there are enough lines above and below the selected node
 	height := m.viewport.VisibleLineCount()
 	scrolloff := min(m.scrollOff, height/2)
-	minTop := max(m.yOffset-scrolloff, 0)
-	minBottom := min(m.viewport.TotalLineCount()-1, m.yOffset+scrolloff)
+	minTop := max(lineOffset-scrolloff, 0)
+	minBottom := min(m.viewport.TotalLineCount()-1, lineOffset+scrolloff)
 
 	if m.viewport.YOffset() > minTop { // reveal more lines above
 		m.viewport.SetYOffset(minTop)
@@ -565,8 +573,10 @@ func (m Model) cursorView() string {
 	if m.cursorCharacter == "" {
 		return ""
 	}
-	cursor := strings.Split(strings.Repeat(" ", m.root.Size()), "")
-	cursor[m.yOffset] = m.cursorCharacter
+	cursor := strings.Split(strings.Repeat(" ", m.root.Height()), "")
+	if node := findNode(m.root, m.yOffset); node != nil {
+		cursor[node.lineOffset] = m.cursorCharacter
+	}
 	return m.styles.CursorStyle.Render(lipgloss.JoinVertical(lipgloss.Left, cursor...))
 }
 
@@ -592,16 +602,21 @@ func (m *Model) setYOffsets() {
 	setYOffsets(m.root)
 }
 
-// setYOffsets updates each Node's yOffset based on how many items are "above" it.
+// setYOffsets updates each Node's yOffset based on how many items are "above" it,
+// as well as its lineOffset based on how many rendered lines are "above" it.
+// lineOffset accounts for nodes that span multiple lines.
 func setYOffsets(t *Node) {
 	children := t.tree.Children()
 	above := 0
+	linesAbove := 0
 	for i := 0; i < children.Length(); i++ {
 		child := children.At(i)
 		if child, ok := child.(*Node); ok {
 			child.yOffset = t.yOffset + above + i + 1
+			child.lineOffset = t.lineOffset + linesAbove + i + 1
 			setYOffsets(child)
 			above += child.Size() - 1
+			linesAbove += child.Height() - 1
 		}
 	}
 }

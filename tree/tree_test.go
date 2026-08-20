@@ -1,6 +1,7 @@
 package tree
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/charmbracelet/x/ansi"
@@ -36,6 +37,46 @@ func TestTree(t *testing.T) {
 		s = ansi.Strip(s)
 		golden.RequireEqual(t, []byte(s))
 	})
+}
+
+func TestTreeMultiLineNodes(t *testing.T) {
+	m := New(Root("~/charm").
+		Child(
+			"ayman",
+			"two\nlines",
+			Root("bash").
+				Child(
+					"zsh",
+					"doom\nemacs",
+				),
+			"maas",
+		), 70, 20)
+
+	// walk down node by node and assert the cursor row matches the
+	// selected node's line offset, even when nodes span multiple lines
+	for i := 0; i < m.Root().Size()-1; i++ {
+		m.Down()
+		node := m.NodeAtCurrentOffset()
+		if node == nil {
+			t.Fatalf("no node at yOffset %d", m.YOffset())
+		}
+
+		view := ansi.Strip(m.viewport.View())
+		lines := strings.Split(view, "\n")
+		cursorLine := -1
+		for j, line := range lines {
+			if strings.Contains(line, "→") {
+				cursorLine = j
+				break
+			}
+		}
+
+		want := node.LineOffset() - m.viewport.YOffset()
+		if cursorLine != want {
+			t.Errorf("step %d: cursor on line %d, want %d (node %q, lineOffset %d)",
+				i, cursorLine, want, node.GivenValue(), node.LineOffset())
+		}
+	}
 }
 
 func TestTreeAdditionalHelp(t *testing.T) {

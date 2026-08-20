@@ -11,8 +11,12 @@ type Node struct {
 	// tree is used as the renderer layer.
 	tree *ltree.Tree
 
-	// yOffset is the vertical offset of the selected node.
+	// yOffset is the vertical offset of the node, in nodes.
 	yOffset int
+
+	// lineOffset is the vertical offset of the node in rendered lines.
+	// It differs from yOffset when nodes span multiple lines.
+	lineOffset int
 
 	// isRoot is true for every Node which was added with tree.Root.
 	isRoot        bool
@@ -49,6 +53,16 @@ func (t *Node) IsSelected() bool {
 // Note that if a child isn't open, its size is 1.
 func (t *Node) Size() int {
 	return len(t.AllNodes())
+}
+
+// Height returns the number of rendered lines of the node.
+func (t *Node) Height() int {
+	return lipgloss.Height(t.String())
+}
+
+// LineOffset returns the vertical offset of the node in rendered lines.
+func (t *Node) LineOffset() int {
+	return t.lineOffset
 }
 
 // YOffset returns the vertical offset of the Node.
