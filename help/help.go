@@ -35,6 +35,7 @@ type Styles struct {
 	ShortKey       lipgloss.Style
 	ShortDesc      lipgloss.Style
 	ShortSeparator lipgloss.Style
+	ShortWhitespace lipgloss.Style
 
 	// Styling for the full help
 	FullKey       lipgloss.Style
@@ -53,10 +54,11 @@ func DefaultStyles(isDark bool) Styles {
 	sepStyle := lipgloss.NewStyle().Foreground(lightDark(lipgloss.Color("#DADADA"), lipgloss.Color("#3C3C3C")))
 
 	return Styles{
-		ShortKey:       keyStyle,
-		ShortDesc:      descStyle,
-		ShortSeparator: sepStyle,
-		Ellipsis:       sepStyle,
+		ShortKey:        keyStyle,
+		ShortDesc:       descStyle,
+		ShortSeparator:  sepStyle,
+		ShortWhitespace: lipgloss.NewStyle(),
+		Ellipsis:        sepStyle,
 		FullKey:        keyStyle,
 		FullDesc:       descStyle,
 		FullSeparator:  sepStyle,
@@ -147,7 +149,8 @@ func (m Model) ShortHelpView(bindings []key.Binding) string {
 
 		// Item
 		str := sep +
-			m.Styles.ShortKey.Inline(true).Render(kb.Help().Key) + " " +
+			m.Styles.ShortKey.Inline(true).Render(kb.Help().Key) +
+			m.Styles.ShortWhitespace.Inline(true).Render(" ") +
 			m.Styles.ShortDesc.Inline(true).Render(kb.Help().Desc)
 		w := lipgloss.Width(str)
 
