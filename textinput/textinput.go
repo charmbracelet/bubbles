@@ -3,6 +3,7 @@
 package textinput
 
 import (
+	"context"
 	"reflect"
 	"slices"
 	"strings"
@@ -13,7 +14,7 @@ import (
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/atotto/clipboard"
+	"github.com/gopasspw/clipboard"
 	rw "github.com/mattn/go-runewidth"
 	"github.com/rivo/uniseg"
 )
@@ -786,7 +787,7 @@ func Blink() tea.Msg {
 
 // Paste is a command for pasting from the clipboard into the text input.
 func Paste() tea.Msg {
-	str, err := clipboard.ReadAll()
+	str, err := clipboard.ReadAll(context.Background())
 	if err != nil {
 		return pasteErrMsg{err}
 	}
