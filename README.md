@@ -189,6 +189,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 ```
 
+## Tree
+
+<img src="https://stuff.charm.sh/bubbles-examples/tree.gif" width="400" alt="Tree example">
+
+A customizable component for navigating hierarchical lists of data with nested levels that can be expanded and collapsed.
+
+- [Example code](https://github.com/charmbracelet/bubbletea/blob/main/examples/tree-default/main.go)
+
 ## There’s more where that came from
 
 To check out community-maintained Bubbles see [Charm & Friends][charmandfriends].
