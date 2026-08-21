@@ -999,7 +999,11 @@ func (m *Model) characterLeft(insideLine bool) {
 // so as not to reveal word breaks in the masked input.
 func (m *Model) wordLeft() {
 	for {
+		oldRow, oldCol := m.row, m.col
 		m.characterLeft(true /* insideLine */)
+		if m.row == oldRow && m.col == oldCol {
+			return
+		}
 		if m.col < len(m.value[m.row]) && !unicode.IsSpace(m.value[m.row][m.col]) {
 			break
 		}
