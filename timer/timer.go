@@ -145,8 +145,17 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		if msg.ID != 0 && msg.ID != m.id {
 			return m, nil
 		}
+		// Only process the state change if it's actually changing
+		// This prevents multiple Start() calls from spawning multiple tickers
+		if m.running == msg.running {
+			return m, nil
+		}
 		m.running = msg.running
-		return m, m.tick()
+		// Only start ticking when transitioning to running state
+		if m.running {
+			return m, m.tick()
+		}
+		return m, nil
 	case TickMsg:
 		if !m.Running() || (msg.ID != 0 && msg.ID != m.id) {
 			break
@@ -202,6 +211,10 @@ func (m Model) timedout() tea.Cmd {
 }
 
 func (m Model) startStop(v bool) tea.Cmd {
+	// Can't start a timer that has already timed out
+	if v && m.Timedout() {
+		return nil
+	}
 	return func() tea.Msg {
 		return StartStopMsg{ID: m.id, running: v}
 	}
