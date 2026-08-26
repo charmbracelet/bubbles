@@ -65,7 +65,8 @@ type Model struct {
 // New creates a new stopwatch with 1s interval.
 func New(opts ...Option) Model {
 	m := Model{
-		id: nextID(),
+		id:       nextID(),
+		Interval: time.Second,
 	}
 
 	for _, opt := range opts {
