@@ -102,7 +102,7 @@ func DefaultFilter(term string, targets []string) []Rank {
 	for i, r := range ranks {
 		result[i] = Rank{
 			Index:          r.Index,
-			MatchedIndexes: r.MatchedIndexes,
+			MatchedIndexes: runeIndexes(targets[r.Index], r.MatchedIndexes),
 		}
 	}
 	return result
@@ -116,10 +116,37 @@ func UnsortedFilter(term string, targets []string) []Rank {
 	for i, r := range ranks {
 		result[i] = Rank{
 			Index:          r.Index,
-			MatchedIndexes: r.MatchedIndexes,
+			MatchedIndexes: runeIndexes(targets[r.Index], r.MatchedIndexes),
 		}
 	}
 	return result
+}
+
+// runeIndexes converts the byte offsets that sahilm/fuzzy reports into rune
+// offsets. MatchesForItem documents its result as rune positions and
+// lipgloss.StyleRunes consumes them as such, so byte offsets would highlight
+// the wrong runes (or none) when a target contains multi-byte characters. The
+// byte offsets are ascending and always fall on rune boundaries.
+func runeIndexes(target string, byteIndexes []int) []int {
+	if len(byteIndexes) == 0 {
+		return byteIndexes
+	}
+	out := make([]int, len(byteIndexes))
+	next := 0
+	runeIndex := 0
+	for byteIndex := range target {
+		for next < len(byteIndexes) && byteIndexes[next] == byteIndex {
+			out[next] = runeIndex
+			next++
+		}
+		runeIndex++
+	}
+	// Handle any trailing offset that points just past the last rune.
+	for next < len(byteIndexes) {
+		out[next] = runeIndex
+		next++
+	}
+	return out
 }
 
 type statusMessageTimeoutMsg struct{}

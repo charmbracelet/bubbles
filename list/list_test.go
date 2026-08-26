@@ -135,3 +135,39 @@ func TestSetFilterState(t *testing.T) {
 		t.Fatalf("Error: expected view to contain '%s'", expected)
 	}
 }
+
+func TestFilterMatchedIndexesAreRunePositions(t *testing.T) {
+	// sahilm/fuzzy reports matched indexes as byte offsets, but MatchesForItem
+	// documents them as rune positions and lipgloss.StyleRunes consumes them as
+	// such. DefaultFilter and UnsortedFilter must convert byte offsets to rune
+	// offsets so multi-byte titles are highlighted correctly.
+	cases := []struct {
+		name   string
+		term   string
+		target string
+		want   []int
+	}{
+		{"ascii", "b", "abc", []int{1}},
+		{"multibyte prefix", "b", "日本b", []int{2}},
+		{"accented prefix", "x", "café x", []int{5}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			for _, f := range []struct {
+				name   string
+				filter FilterFunc
+			}{
+				{"DefaultFilter", DefaultFilter},
+				{"UnsortedFilter", UnsortedFilter},
+			} {
+				ranks := f.filter(tc.term, []string{tc.target})
+				if len(ranks) != 1 {
+					t.Fatalf("%s: expected 1 rank, got %d", f.name, len(ranks))
+				}
+				if !reflect.DeepEqual(ranks[0].MatchedIndexes, tc.want) {
+					t.Errorf("%s: MatchedIndexes = %v, want %v", f.name, ranks[0].MatchedIndexes, tc.want)
+				}
+			}
+		})
+	}
+}
