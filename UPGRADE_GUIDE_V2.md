@@ -307,6 +307,8 @@ sw := stopwatch.New(stopwatch.WithInterval(500 * time.Millisecond))
 
 The table already had `SetWidth`/`SetHeight`/`Width()`/`Height()` in v1, but internally these now use viewport getter/setters.
 
+An explicit width is now required or the table body may be blank. You can pass the `WithWidth()` option to `New()` to set it.
+
 ### Textarea
 
 #### KeyMap
