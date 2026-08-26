@@ -690,6 +690,7 @@ func (m Model) View() string {
 	styles := m.activeStyle()
 
 	styleText := styles.Text.Inline(true).Render
+	m.virtualCursor.TextStyle = styles.Text
 
 	value := m.value[m.offset:m.offsetRight]
 	pos := max(0, m.pos-m.offset)
