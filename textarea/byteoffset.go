@@ -24,10 +24,13 @@ func (m Model) ByteOffset() int {
 // the inverse of [Model.ByteOffset]. A negative offset clamps to the start and
 // an offset past the end clamps to the end.
 //
-// An offset landing inside a multi-byte rune, or on the "\n" that Value
-// inserts between rows, is not a position the cursor can occupy; it snaps
-// forward to the next one that is. Round-tripping an offset produced by
-// ByteOffset is therefore always exact.
+// One offset is not a position the cursor can occupy: one landing inside a
+// multi-byte rune. It snaps forward to the next one that is, so round-tripping
+// an offset produced by ByteOffset is always exact.
+//
+// The "\n" Value inserts between rows belongs to no row, but it costs no
+// position either: the offset of that byte is the end of the row before it,
+// and the offset after it is the start of the row that follows.
 func (m *Model) SetCursorByteOffset(off int) {
 	if off < 0 {
 		off = 0

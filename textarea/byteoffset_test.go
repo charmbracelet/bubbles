@@ -159,9 +159,10 @@ func TestSetCursorByteOffsetMidRuneSnapsForward(t *testing.T) {
 	}
 }
 
-// TestSetCursorByteOffsetOnNewlineSnapsForward covers the other non-position:
-// the "\n" Value inserts between rows is not part of any row.
-func TestSetCursorByteOffsetOnNewlineSnapsForward(t *testing.T) {
+// TestSetCursorByteOffsetAtRowSeparator covers the "\n" Value inserts between
+// rows. It belongs to no row, but it costs no cursor position either: the
+// offsets on either side of it are both ordinary positions, so nothing snaps.
+func TestSetCursorByteOffsetAtRowSeparator(t *testing.T) {
 	t.Parallel()
 
 	m := New()
