@@ -30,6 +30,16 @@ func (d itemDelegate) Render(w io.Writer, m Model, index int, listItem Item) {
 	fmt.Fprint(w, m.Styles.TitleBar.Render(str))
 }
 
+func TestDefaultKeyMapQuit(t *testing.T) {
+	quit := DefaultKeyMap().Quit
+	if !reflect.DeepEqual(quit.Keys(), []string{"q", "esc"}) {
+		t.Fatalf("expected quit keys q and esc, got %v", quit.Keys())
+	}
+	if help := quit.Help(); help.Key != "q" || help.Desc != "quit" {
+		t.Fatalf("expected quit help, got %q, %q", help.Key, help.Desc)
+	}
+}
+
 func TestStatusBarItemName(t *testing.T) {
 	list := New([]Item{item("foo"), item("bar")}, itemDelegate{}, 10, 10)
 	expected := "2 items"
