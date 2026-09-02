@@ -393,6 +393,10 @@ type Model struct {
 
 	// selecting reports whether a drag is currently in progress.
 	selecting bool
+
+	// highlighter is the optional per-line token highlighter installed via
+	// SetHighlighter. Consulted at render time only.
+	highlighter LineHighlighter
 }
 
 // New creates a new model with default settings.
@@ -1501,9 +1505,14 @@ func (m *Model) view() string {
 			style = styles.computedText()
 		}
 
+		// Consult the optional token highlighter once per logical line.
+		// Ranges are rune offsets within the logical line; each wrapped
+		// segment intersects them at render time.
+		lineRanges := m.highlightRanges(l, line)
+
 		// wrappedBase is the index, within the logical line, of the first rune
 		// of the current wrapped segment. It is what maps a segment back onto
-		// selection coordinates.
+		// selection and highlight coordinates.
 		wrappedBase := 0
 
 		for wl, wrappedLine := range wrappedLines {
@@ -1530,6 +1539,11 @@ func (m *Model) view() string {
 
 			strwidth := uniseg.StringWidth(string(wrappedLine))
 			padding := m.width - strwidth
+			// segLen is captured before the trailing-space trim below so
+			// wrappedBase keeps counting runes of the raw logical line: the
+			// trimmed space is a rune of that line, and dropping it from the
+			// tally shifts every later segment one rune to the left.
+			segLen := len(wrappedLine)
 			// If the trailing space causes the line to be wider than the
 			// width, we should not draw it to the screen since it will result
 			// in an extra space at the end of the line which can look off when
@@ -1542,27 +1556,28 @@ func (m *Model) view() string {
 				padding -= m.width - strwidth
 			}
 
-			// A selection covering this segment takes precedence over the
-			// inline cursor: during a drag the highlight is the meaningful
-			// affordance, and mixing the two would double-style the same cell.
+			// A selection covering this segment takes precedence over both the
+			// inline cursor and any token highlighting: during a drag the
+			// selection is the meaningful affordance, and stacking them would
+			// double-style the same cell.
 			if selFrom, selTo, selected := m.selectionSpanFor(l, wrappedBase, len(wrappedLine)); selected {
 				s.WriteString(style.Render(string(wrappedLine[:selFrom])))
 				s.WriteString(styles.computedSelection().Render(string(wrappedLine[selFrom:selTo])))
 				s.WriteString(style.Render(string(wrappedLine[selTo:])))
 			} else if m.row == l && lineInfo.RowOffset == wl {
-				s.WriteString(style.Render(string(wrappedLine[:lineInfo.ColumnOffset])))
+				s.WriteString(styleSegment(style, wrappedLine[:lineInfo.ColumnOffset], wrappedBase, lineRanges))
 				if m.col >= len(line) && lineInfo.CharOffset >= m.width {
 					m.virtualCursor.SetChar(" ")
 					s.WriteString(m.virtualCursor.View())
 				} else {
 					m.virtualCursor.SetChar(string(wrappedLine[lineInfo.ColumnOffset]))
 					s.WriteString(style.Render(m.virtualCursor.View()))
-					s.WriteString(style.Render(string(wrappedLine[lineInfo.ColumnOffset+1:])))
+					s.WriteString(styleSegment(style, wrappedLine[lineInfo.ColumnOffset+1:], wrappedBase+lineInfo.ColumnOffset+1, lineRanges))
 				}
 			} else {
-				s.WriteString(style.Render(string(wrappedLine)))
+				s.WriteString(styleSegment(style, wrappedLine, wrappedBase, lineRanges))
 			}
-			wrappedBase += len(wrappedLine)
+			wrappedBase += segLen
 			s.WriteString(style.Render(strings.Repeat(" ", max(0, padding))))
 			s.WriteRune('\n')
 			newLines++
