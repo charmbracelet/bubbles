@@ -131,13 +131,29 @@ func (m Model) ShortHelpView(bindings []key.Binding) string {
 	}
 
 	var b strings.Builder
+	var w int
 	var totalWidth int
+	var next string
 	separator := m.Styles.ShortSeparator.Inline(true).Render(m.ShortSeparator)
+	tail := " " + m.Styles.Ellipsis.Inline(true).Render(m.Ellipsis)
+	tailWidth := lipgloss.Width(tail)
 
 	for i, kb := range bindings {
 		if !kb.Enabled() {
 			continue
 		}
+
+		// Tail
+		tailCompatibleWidth := totalWidth + tailWidth // ensure enough space for tail
+		if ok := m.shouldAddItem(tailCompatibleWidth, w); !ok && next != "" {
+			if totalWidth+tailWidth <= m.width {
+				b.WriteString(tail)
+			}
+			return b.String()
+		}
+
+		totalWidth += w
+		b.WriteString(next)
 
 		// Sep
 		var sep string
@@ -145,22 +161,20 @@ func (m Model) ShortHelpView(bindings []key.Binding) string {
 			sep = separator
 		}
 
-		// Item
-		str := sep +
+		// Next item
+		next = sep +
 			m.Styles.ShortKey.Inline(true).Render(kb.Help().Key) + " " +
 			m.Styles.ShortDesc.Inline(true).Render(kb.Help().Desc)
-		w := lipgloss.Width(str)
+		w = lipgloss.Width(next)
+	}
 
-		// Tail
-		if tail, ok := m.shouldAddItem(totalWidth, w); !ok {
-			if tail != "" {
-				b.WriteString(tail)
-			}
-			break
+	// Try append last item
+	if ok := m.shouldAddItem(totalWidth, w); !ok && next != "" {
+		if totalWidth+tailWidth <= m.width {
+			b.WriteString(tail)
 		}
-
-		totalWidth += w
-		b.WriteString(str)
+	} else {
+		b.WriteString(next)
 	}
 
 	return b.String()
@@ -176,10 +190,14 @@ func (m Model) FullHelpView(groups [][]key.Binding) string {
 	// Linter note: at this time we don't think it's worth the additional
 	// code complexity involved in preallocating this slice.
 	var (
-		out []string
+		out  []string
+		w    int
+		next string
 
 		totalWidth int
 		separator  = m.Styles.FullSeparator.Inline(true).Render(m.FullSeparator)
+		tail       = " " + m.Styles.Ellipsis.Inline(true).Render(m.Ellipsis)
+		tailWidth  = lipgloss.Width(tail)
 	)
 
 	// Iterate over groups to build columns
@@ -187,6 +205,19 @@ func (m Model) FullHelpView(groups [][]key.Binding) string {
 		if group == nil || !shouldRenderColumn(group) {
 			continue
 		}
+
+		// Tail
+		tailCompatibleWidth := totalWidth + tailWidth // ensure enough space for tail
+		if ok := m.shouldAddItem(tailCompatibleWidth, w); !ok && next != "" {
+			if totalWidth+tailWidth <= m.width {
+				out = append(out, tail)
+			}
+			return lipgloss.JoinHorizontal(lipgloss.Top, out...)
+		}
+
+		totalWidth += w
+		out = append(out, next)
+
 		var (
 			sep          string
 			keys         []string
@@ -207,40 +238,29 @@ func (m Model) FullHelpView(groups [][]key.Binding) string {
 			descriptions = append(descriptions, kb.Help().Desc)
 		}
 
-		// Column
-		col := lipgloss.JoinHorizontal(lipgloss.Top,
+		// Next column
+		next = lipgloss.JoinHorizontal(lipgloss.Top,
 			sep,
 			m.Styles.FullKey.Render(strings.Join(keys, "\n")),
 			" ",
 			m.Styles.FullDesc.Render(strings.Join(descriptions, "\n")),
 		)
-		w := lipgloss.Width(col)
-
-		// Tail
-		if tail, ok := m.shouldAddItem(totalWidth, w); !ok {
-			if tail != "" {
-				out = append(out, tail)
-			}
-			break
+		w = lipgloss.Width(next)
+	}
+	// Try append last column
+	if ok := m.shouldAddItem(totalWidth, w); !ok && next != "" {
+		if totalWidth+tailWidth <= m.width {
+			out = append(out, tail)
 		}
-
-		totalWidth += w
-		out = append(out, col)
+	} else {
+		out = append(out, next)
 	}
 
 	return lipgloss.JoinHorizontal(lipgloss.Top, out...)
 }
 
-func (m Model) shouldAddItem(totalWidth, width int) (tail string, ok bool) {
-	// If there's room for an ellipsis, print that.
-	if m.width > 0 && totalWidth+width > m.width {
-		tail = " " + m.Styles.Ellipsis.Inline(true).Render(m.Ellipsis)
-
-		if totalWidth+lipgloss.Width(tail) < m.width {
-			return tail, false
-		}
-	}
-	return "", true
+func (m Model) shouldAddItem(totalWidth, width int) (ok bool) {
+	return !(m.width > 0 && totalWidth+width > m.width)
 }
 
 func shouldRenderColumn(b []key.Binding) (ok bool) {
