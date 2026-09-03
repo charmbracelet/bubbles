@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 )
 
 type item string
@@ -133,5 +134,16 @@ func TestSetFilterState(t *testing.T) {
 
 	if !strings.Contains(footer, expected) {
 		t.Fatalf("Error: expected view to contain '%s'", expected)
+	}
+}
+
+func TestTitleViewWithoutStatusMessageDoesNotTruncate(t *testing.T) {
+	list := New(nil, itemDelegate{}, 20, 10)
+	list.Title = "List Title ABCDEFG"
+	list.Styles.Title = list.Styles.Title.Padding(0)
+	list.Styles.TitleBar = list.Styles.TitleBar.Padding(0)
+
+	if got := ansi.Strip(list.titleView()); got != list.Title {
+		t.Fatalf("expected title %q, got %q", list.Title, got)
 	}
 }
