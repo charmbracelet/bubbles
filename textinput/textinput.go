@@ -745,17 +745,11 @@ func (m Model) placeholderView() string {
 		render = styles.Placeholder.Render
 	)
 
-	p := make([]rune, m.Width()+1)
-	copy(p, []rune(m.Placeholder))
+	p := []rune(m.Placeholder)
 
 	m.virtualCursor.TextStyle = styles.Placeholder
 	m.virtualCursor.SetChar(string(p[:1]))
 	v += m.virtualCursor.View()
-
-	// If the entire placeholder is already set and no padding is needed, finish
-	if m.Width() < 1 && len(p) <= 1 {
-		return styles.Prompt.Render(m.Prompt) + v
-	}
 
 	// If Width is set then size placeholder accordingly
 	if m.Width() > 0 {
