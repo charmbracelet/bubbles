@@ -228,8 +228,18 @@ func (m Model) readDir(path string, showHidden bool) tea.Cmd {
 func (m *Model) SetHeight(h int) {
 	m.height = h
 	if m.maxIdx > m.height-1 {
-		m.maxIdx = m.minIdx + m.height - 1
+		m.maxIdx = m.bottomIdx(m.minIdx)
 	}
+}
+
+// bottomIdx returns the index of the last visible entry for a viewport whose
+// first visible entry is top. If the height has not been set yet, one entry is
+// shown so that the view is never blank.
+func (m Model) bottomIdx(top int) int {
+	if m.height < 1 {
+		return top
+	}
+	return top + m.height - 1
 }
 
 // Height returns the height of the file picker.
@@ -250,21 +260,21 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			break
 		}
 		m.files = msg.entries
-		m.maxIdx = max(m.maxIdx, m.Height()-1)
+		m.maxIdx = max(m.maxIdx, m.bottomIdx(m.minIdx))
 	case tea.WindowSizeMsg:
 		if m.AutoHeight {
 			m.SetHeight(msg.Height - marginBottom)
 		}
-		m.maxIdx = m.Height() - 1
+		m.maxIdx = m.bottomIdx(m.minIdx)
 	case tea.KeyPressMsg:
 		switch {
 		case key.Matches(msg, m.KeyMap.GoToTop):
 			m.selected = 0
 			m.minIdx = 0
-			m.maxIdx = m.Height() - 1
+			m.maxIdx = m.bottomIdx(0)
 		case key.Matches(msg, m.KeyMap.GoToLast):
 			m.selected = len(m.files) - 1
-			m.minIdx = len(m.files) - m.Height()
+			m.minIdx = max(len(m.files)-m.Height(), 0)
 			m.maxIdx = len(m.files) - 1
 		case key.Matches(msg, m.KeyMap.Down):
 			m.selected++
@@ -294,7 +304,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 			if m.maxIdx >= len(m.files) {
 				m.maxIdx = len(m.files) - 1
-				m.minIdx = m.maxIdx - m.Height()
+				m.minIdx = max(m.maxIdx-m.Height(), 0)
 			}
 		case key.Matches(msg, m.KeyMap.PageUp):
 			m.selected -= m.Height()
@@ -315,7 +325,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			} else {
 				m.selected = 0
 				m.minIdx = 0
-				m.maxIdx = m.Height() - 1
+				m.maxIdx = m.bottomIdx(0)
 			}
 			return m, m.readDir(m.CurrentDirectory, m.ShowHidden)
 		case key.Matches(msg, m.KeyMap.Open):
@@ -357,7 +367,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.pushView(m.selected, m.minIdx, m.maxIdx)
 			m.selected = 0
 			m.minIdx = 0
-			m.maxIdx = m.Height() - 1
+			m.maxIdx = m.bottomIdx(0)
 			return m, m.readDir(m.CurrentDirectory, m.ShowHidden)
 		}
 	}
@@ -495,7 +505,7 @@ func (m Model) didSelectFile(msg tea.Msg) (bool, string) {
 			}
 		}
 
-		if (!isDir && m.FileAllowed) || (isDir && m.DirAllowed) && m.Path != "" {
+		if ((!isDir && m.FileAllowed) || (isDir && m.DirAllowed)) && m.Path != "" {
 			return true, m.Path
 		}
 
