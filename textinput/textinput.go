@@ -14,6 +14,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/atotto/clipboard"
+	"github.com/charmbracelet/x/ansi"
 	rw "github.com/mattn/go-runewidth"
 	"github.com/rivo/uniseg"
 )
@@ -745,35 +746,27 @@ func (m Model) placeholderView() string {
 		render = styles.Placeholder.Render
 	)
 
-	p := make([]rune, m.Width()+1)
-	copy(p, []rune(m.Placeholder))
-
-	m.virtualCursor.TextStyle = styles.Placeholder
-	m.virtualCursor.SetChar(string(p[:1]))
-	v += m.virtualCursor.View()
-
-	// If the entire placeholder is already set and no padding is needed, finish
-	if m.Width() < 1 && len(p) <= 1 {
-		return styles.Prompt.Render(m.Prompt) + v
+	graphemes := uniseg.NewGraphemes(m.Placeholder)
+	if !graphemes.Next() {
+		m.virtualCursor.TextStyle = styles.Placeholder
+		m.virtualCursor.SetChar(" ")
+		return styles.Prompt.Render(m.Prompt) + m.virtualCursor.View()
 	}
 
-	// If Width is set then size placeholder accordingly
-	if m.Width() > 0 {
-		// available width is width - len + cursor offset of 1
-		minWidth := lipgloss.Width(m.Placeholder)
-		availWidth := m.Width() - minWidth + 1
+	first := graphemes.Str()
+	rest := m.Placeholder[len(first):]
 
-		// if width < len, 'subtract'(add) number to len and dont add padding
-		if availWidth < 0 {
-			minWidth += availWidth
-			availWidth = 0
-		}
-		// append placeholder[len] - cursor, append padding
-		v += render(string(p[1:minWidth]))
-		v += render(strings.Repeat(" ", availWidth))
+	m.virtualCursor.TextStyle = styles.Placeholder
+	m.virtualCursor.SetChar(first)
+	v += m.virtualCursor.View()
+
+	if m.Width() > 0 {
+		remainingWidth := max(0, m.Width()-uniseg.StringWidth(first))
+		rest = ansi.Truncate(rest, remainingWidth, "…")
+		v += render(rest)
+		v += render(strings.Repeat(" ", max(0, remainingWidth-uniseg.StringWidth(rest))))
 	} else {
-		// if there is no width, the placeholder can be any length
-		v += render(string(p[1:]))
+		v += render(rest)
 	}
 
 	return styles.Prompt.Render(m.Prompt) + v
