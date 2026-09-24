@@ -471,22 +471,9 @@ func (m *Model) deleteWordForward() {
 	}
 
 	oldPos := m.pos
-	m.SetCursor(m.pos + 1)
-	for unicode.IsSpace(m.value[m.pos]) {
-		// ignore series of whitespace after cursor
+	m.SetCursor(m.pos)
+	for m.pos < len(m.value) && !unicode.IsSpace(m.value[m.pos]) {
 		m.SetCursor(m.pos + 1)
-
-		if m.pos >= len(m.value) {
-			break
-		}
-	}
-
-	for m.pos < len(m.value) {
-		if !unicode.IsSpace(m.value[m.pos]) {
-			m.SetCursor(m.pos + 1)
-		} else {
-			break
-		}
 	}
 
 	if m.pos > len(m.value) {

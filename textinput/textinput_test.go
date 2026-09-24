@@ -118,3 +118,31 @@ func sendString(m Model, str string) Model {
 
 	return m
 }
+
+func TestDeleteWordForward(t *testing.T) {
+	tests := []struct {
+		name   string
+		value  string
+		cursor int
+		want   string
+	}{
+		{name: "inside word", value: "abc d", cursor: 1, want: "a d"},
+		{name: "last rune before space", value: "ab c", cursor: 1, want: "a c"},
+		{name: "last rune of value", value: "ab", cursor: 1, want: "a"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := New()
+			m.Focus()
+			m.SetValue(tt.value)
+			m.SetCursor(tt.cursor)
+
+			m, _ = m.Update(tea.KeyPressMsg{Code: 'd', Mod: tea.ModAlt})
+
+			if got := m.Value(); got != tt.want {
+				t.Fatalf("expected %q, got %q", tt.want, got)
+			}
+		})
+	}
+}
