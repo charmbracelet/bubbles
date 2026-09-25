@@ -37,3 +37,31 @@ func TestFullHelp(t *testing.T) {
 		})
 	}
 }
+
+func TestHelpEdgeCases(t *testing.T) {
+	m := New()
+
+	if got := m.ShortHelpView(nil); got != "" {
+		t.Errorf("expected empty short help for nil bindings, got %q", got)
+	}
+	if got := m.FullHelpView(nil); got != "" {
+		t.Errorf("expected empty full help for nil groups, got %q", got)
+	}
+	if got := m.FullHelpView([][]key.Binding{nil}); got != "" {
+		t.Errorf("expected empty full help for nil group, got %q", got)
+	}
+
+	disabled := key.NewBinding(key.WithKeys("x"), key.WithDisabled())
+	if got := m.FullHelpView([][]key.Binding{{disabled}}); got != "" {
+		t.Errorf("expected empty full help for all-disabled group, got %q", got)
+	}
+
+	m.SetWidth(0)
+	if m.Width() != 0 {
+		t.Errorf("expected width 0, got %d", m.Width())
+	}
+	// Should not panic when width is zero.
+	_ = m.ShortHelpView([]key.Binding{
+		key.NewBinding(key.WithKeys("x"), key.WithHelp("x", "do")),
+	})
+}
