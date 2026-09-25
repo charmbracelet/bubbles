@@ -438,13 +438,29 @@ func (m *Model) InsertItem(index int, item Item) tea.Cmd {
 // RemoveItem removes an item at the given index. If the index is out of bounds
 // this will be a no-op. O(n) complexity, which probably won't matter in the
 // case of a TUI.
+//
+// When a filter is active, index refers to the position in the filtered list.
+// The corresponding item is removed from both the filtered list and the
+// underlying unfiltered list.
 func (m *Model) RemoveItem(index int) {
-	m.items = removeItemFromSlice(m.items, index)
 	if m.filterState != Unfiltered {
+		if index >= len(m.filteredItems) {
+			return // noop
+		}
+		globalIndex := m.filteredItems[index].index
+		m.items = removeItemFromSlice(m.items, globalIndex)
 		m.filteredItems = removeFilterMatchFromSlice(m.filteredItems, index)
+		// Keep stored global indices consistent after the removal.
+		for i := range m.filteredItems {
+			if m.filteredItems[i].index > globalIndex {
+				m.filteredItems[i].index--
+			}
+		}
 		if len(m.filteredItems) == 0 {
 			m.resetFiltering()
 		}
+	} else {
+		m.items = removeItemFromSlice(m.items, index)
 	}
 	m.updatePagination()
 }
