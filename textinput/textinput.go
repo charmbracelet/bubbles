@@ -921,7 +921,7 @@ func (m Model) Cursor() *tea.Cursor {
 	w := lipgloss.Width
 
 	promptWidth := w(m.promptView())
-	xOffset := m.Position() +
+	xOffset := max(0, m.pos-m.offset) +
 		promptWidth
 	if m.width > 0 {
 		xOffset = min(xOffset, m.width+promptWidth)
