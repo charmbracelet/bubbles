@@ -160,6 +160,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		}
 
 		m.Timeout -= m.Interval
+		m.tag++
 		return m, tea.Batch(m.tick(), m.timedout())
 	}
 
