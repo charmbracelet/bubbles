@@ -713,8 +713,9 @@ func (m *Model) setCursorLineRelative(delta int) {
 				m.row++
 				m.col = 0
 			} else {
-				// Move the cursor to the start of the next virtual line.
-				m.col = min(li.StartColumn+li.Width+trailingSpace, len(m.value[m.row])-1)
+				// Include the trailing cursor-only line when the content
+				// fills the width.
+				m.col = min(li.StartColumn+li.Width+trailingSpace, len(m.value[m.row]))
 			}
 			li = m.LineInfo()
 		}

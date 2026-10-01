@@ -329,6 +329,101 @@ func TestVerticalNavigationShouldRememberPositionWhileTraversing(t *testing.T) {
 	}
 }
 
+func TestVerticalNavigationThroughSoftWraps(t *testing.T) {
+	const nextLine = "\nabcdefghijklmnop"
+	tests := []struct {
+		name  string
+		value string
+		want  []Position
+	}{
+		{
+			name:  "short line",
+			value: strings.Repeat("a", 19) + nextLine,
+			want:  []Position{{0, 7}, {1, 7}},
+		},
+		{
+			name:  "exact width",
+			value: strings.Repeat("a", 20) + nextLine,
+			want:  []Position{{0, 7}, {0, 20}, {1, 7}},
+		},
+		{
+			name:  "over width",
+			value: strings.Repeat("a", 21) + nextLine,
+			want:  []Position{{0, 7}, {0, 21}, {1, 7}},
+		},
+		{
+			name:  "word wrap",
+			value: "one two three four five" + nextLine,
+			want:  []Position{{0, 7}, {0, 23}, {1, 7}},
+		},
+		{
+			name:  "multiple exact wraps",
+			value: strings.Repeat("a", 40) + nextLine,
+			want:  []Position{{0, 7}, {0, 27}, {0, 40}, {1, 7}},
+		},
+		{
+			name:  "exact width with spaces",
+			value: "123456789 123456789 " + nextLine,
+			want:  []Position{{0, 7}, {0, 20}, {1, 7}},
+		},
+		{
+			name:  "wide runes",
+			value: strings.Repeat("你好", 5) + nextLine,
+			want:  []Position{{0, 4}, {0, 10}, {1, 8}},
+		},
+		{
+			name:  "mixed width runes",
+			value: strings.Repeat("a", 18) + "你" + nextLine,
+			want:  []Position{{0, 7}, {0, 19}, {1, 7}},
+		},
+		{
+			name:  "exact width at end of buffer",
+			value: strings.Repeat("a", 20),
+			want:  []Position{{0, 7}, {0, 20}},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			textarea := newTextArea()
+			textarea.Prompt = ""
+			textarea.ShowLineNumbers = false
+			textarea.SetWidth(20)
+			textarea.SetHeight(10)
+			textarea.SetVirtualCursor(false)
+			textarea.SetValue(tt.value)
+			textarea.MoveToBegin()
+			textarea.SetCursorColumn(tt.want[0].Col)
+
+			checkCursor := func(key string, visualRow int) {
+				t.Helper()
+				got := Position{Row: textarea.Line(), Col: textarea.Column()}
+				if got != tt.want[visualRow] {
+					t.Fatalf("%s: cursor = %v, want %v", key, got, tt.want[visualRow])
+				}
+				if got := textarea.Cursor().Position.Y; got != visualRow {
+					t.Fatalf("%s: visual row = %d, want %d", key, got, visualRow)
+				}
+			}
+
+			checkCursor("start", 0)
+			for i := 1; i < len(tt.want); i++ {
+				textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyDown})
+				checkCursor("down", i)
+			}
+			textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyDown})
+			checkCursor("down at end", len(tt.want)-1)
+
+			for i := len(tt.want) - 2; i >= 0; i-- {
+				textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyUp})
+				checkCursor("up", i)
+			}
+			textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyUp})
+			checkCursor("up at start", 0)
+		})
+	}
+}
+
 func TestView(t *testing.T) {
 	t.Parallel()
 
