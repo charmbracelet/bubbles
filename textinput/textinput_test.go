@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 )
 
 func Test_CurrentSuggestion(t *testing.T) {
@@ -117,4 +118,39 @@ func sendString(m Model, str string) Model {
 	}
 
 	return m
+}
+
+// Cursor() must report the scroll-adjusted column (pos-offset) like View() when
+// the value overflows the width.
+func TestCursorXAccountsForScrollOffset(t *testing.T) {
+	m := New()
+	m.Focus()
+	m.SetVirtualCursor(false)
+	m.CharLimit = 200
+	m.SetWidth(20)
+	m.SetValue(strings.Repeat("a", 30))
+
+	// Scroll to the end, then move into the middle of the viewport, where the
+	// width clamp doesn't mask the wrong column.
+	m.CursorEnd()
+	m.SetCursor(25)
+
+	if m.offset == 0 {
+		t.Fatalf("test setup: expected a non-zero scroll offset for an overflowing input, got 0")
+	}
+
+	cur := m.Cursor()
+	if cur == nil {
+		t.Fatal("Cursor() returned nil")
+	}
+
+	// Oracle: the cursor must land on the column where View renders the glyph
+	// for value[pos] — the prompt width plus the rendered width of the visible
+	// text before the cursor (value[offset:pos]). Measured from the rendered
+	// text, so it's independent of Cursor()'s own arithmetic.
+	want := lipgloss.Width(m.promptView()) + lipgloss.Width(string(m.value[m.offset:m.pos]))
+	if cur.X != want {
+		t.Errorf("Cursor().X = %d, want %d (column where View renders the cursor glyph; pos=%d, offset=%d)",
+			cur.X, want, m.pos, m.offset)
+	}
 }
