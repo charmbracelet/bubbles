@@ -1,6 +1,7 @@
 package table
 
 import (
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -486,6 +487,69 @@ func TestCursorNavigation(t *testing.T) {
 				t.Errorf("want %d, got %d", tc.want, table.Cursor())
 			}
 		})
+	}
+}
+
+// TestMoveUpFromBottomKeepsViewport checks that stepping up from the last row
+// only moves the cursor: the visible window must not scroll while the cursor
+// is still inside it.
+func TestMoveUpFromBottomKeepsViewport(t *testing.T) {
+	rows := make([]Row, 30)
+	for i := range rows {
+		rows[i] = Row{fmt.Sprintf("r%02d", i)}
+	}
+	table := New(
+		WithColumns([]Column{{Title: "c", Width: 4}}),
+		WithRows(rows),
+		WithWidth(10),
+		WithHeight(6), // 5 body rows below the header
+	)
+	table.GotoBottom()
+	before := table.View()
+	table.MoveUp(1)
+	after := table.View()
+
+	if table.Cursor() != len(rows)-2 {
+		t.Fatalf("cursor = %d, want %d", table.Cursor(), len(rows)-2)
+	}
+	firstRow := func(view string) string {
+		return ansi.Strip(strings.Split(view, "\n")[1])
+	}
+	if got, want := firstRow(after), firstRow(before); got != want {
+		t.Errorf("window scrolled: first visible row %q, want %q\nbefore:\n%s\nafter:\n%s", got, want, before, after)
+	}
+}
+
+// TestMoveDownAfterUpsKeepsViewport checks the mirror case: after stepping up
+// twice from the last row, stepping down again must only move the cursor.
+// SetContent clamps the y-offset when the rendered window shrinks, so
+// MoveDown must not subtract its step from the already-clamped offset.
+func TestMoveDownAfterUpsKeepsViewport(t *testing.T) {
+	rows := make([]Row, 30)
+	for i := range rows {
+		rows[i] = Row{fmt.Sprintf("r%02d", i)}
+	}
+	table := New(
+		WithColumns([]Column{{Title: "c", Width: 4}}),
+		WithRows(rows),
+		WithWidth(10),
+		WithHeight(6), // 5 body rows below the header
+	)
+	table.GotoBottom()
+	before := table.View()
+	table.MoveUp(1)
+	table.MoveUp(1)
+	table.MoveDown(1)
+	after := table.View()
+
+	if table.Cursor() != len(rows)-2 {
+		t.Fatalf("cursor = %d, want %d", table.Cursor(), len(rows)-2)
+	}
+	firstRow := func(view string) string {
+		return ansi.Strip(strings.Split(view, "\n")[1])
+	}
+	if got, want := firstRow(after), firstRow(before); got != want {
+		t.Errorf("window scrolled: first visible row %q, want %q\nbefore:\n%s\nafter:\n%s", got, want, before, after)
 	}
 }
 
