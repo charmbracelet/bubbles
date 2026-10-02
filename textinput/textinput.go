@@ -921,8 +921,12 @@ func (m Model) Cursor() *tea.Cursor {
 	w := lipgloss.Width
 
 	promptWidth := w(m.promptView())
-	xOffset := m.Position() +
-		promptWidth
+	// Match View(): use the scroll-adjusted visible prefix and its display
+	// width so wide runes (CJK, etc.) and horizontal scrolling both land
+	// the hardware cursor on the correct column.
+	pos := max(0, m.pos-m.offset)
+	visible := m.value[m.offset : m.offset+pos]
+	xOffset := w(string(visible)) + promptWidth
 	if m.width > 0 {
 		xOffset = min(xOffset, m.width+promptWidth)
 	}
