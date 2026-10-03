@@ -557,6 +557,78 @@ Charm热爱开源 • Charm loves open source
 	})
 }
 
+func TestMatchesToHighlights_ANSI(t *testing.T) {
+	t.Run("ansi prefix on single line", func(t *testing.T) {
+		content := "\x1b[31mX\x1b[0m padding needle padding\n"
+		testHighlights(t, content, regexp.MustCompile("needle"), []highlightInfo{
+			{
+				lineStart: 0,
+				lineEnd:   0,
+				lines: map[int][2]int{
+					0: {10, 16},
+				},
+			},
+		})
+	})
+
+	t.Run("ansi styled words across lines", func(t *testing.T) {
+		content := "\x1b[1mfirst\x1b[0m line with \x1b[32mneedle\x1b[0m\nsecond \x1b[34mneedle\x1b[0m here\n"
+		testHighlights(t, content, regexp.MustCompile("needle"), []highlightInfo{
+			{
+				lineStart: 0,
+				lineEnd:   0,
+				lines: map[int][2]int{
+					0: {16, 22},
+				},
+			},
+			{
+				lineStart: 1,
+				lineEnd:   1,
+				lines: map[int][2]int{
+					1: {7, 13},
+				},
+			},
+		})
+	})
+
+	t.Run("ansi escapes before match on multiline", func(t *testing.T) {
+		content := "a\x1b[32mb\x1b[0mc\nneed\nle here\n"
+		testHighlights(t, content, regexp.MustCompile("need\nle"), []highlightInfo{
+			{
+				lineStart: 1,
+				lineEnd:   2,
+				lines: map[int][2]int{
+					1: {0, 5},
+					2: {0, 2},
+				},
+			},
+		})
+	})
+
+	t.Run("reproducer from issue 1049", func(t *testing.T) {
+		for _, content := range []string{
+			"padding padding padding needle padding padding\n",
+			"\x1b[31mX\x1b[0m padding padding padding needle padding padding\n",
+		} {
+			i := strings.Index(content, "needle")
+			vp := New(WithWidth(60), WithHeight(3))
+			vp.HighlightStyle = lipgloss.NewStyle().Reverse(true)
+			vp.SelectedHighlightStyle = lipgloss.NewStyle().Reverse(true)
+			vp.SetContent(content)
+			vp.SetHighlights([][]int{{i, i + len("needle")}})
+
+			if len(vp.highlights) != 1 {
+				t.Fatalf("expected 1 highlight, got %d", len(vp.highlights))
+			}
+			hl := vp.highlights[0].lines[0]
+			cut := ansi.Strip(ansi.Cut(vp.lines[0], hl[0], hl[1]))
+			if cut != "needle" {
+				t.Errorf("expected cut to be 'needle', got %q", cut)
+			}
+		}
+	})
+}
+
 func testHighlights(tb testing.TB, content string, re *regexp.Regexp, expect []highlightInfo) {
 	tb.Helper()
 
