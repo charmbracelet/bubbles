@@ -969,7 +969,8 @@ func (m *Model) deleteWordRight() {
 // characterRight moves the cursor one character to the right.
 func (m *Model) characterRight() {
 	if m.col < len(m.value[m.row]) {
-		m.SetCursorColumn(m.col + 1)
+		_, end := graphemeAt(m.value[m.row], m.col)
+		m.SetCursorColumn(end)
 	} else {
 		if m.row < len(m.value)-1 {
 			m.row++
@@ -990,7 +991,8 @@ func (m *Model) characterLeft(insideLine bool) {
 		}
 	}
 	if m.col > 0 {
-		m.SetCursorColumn(m.col - 1)
+		start, _ := graphemeAt(m.value[m.row], m.col-1)
+		m.SetCursorColumn(start)
 	}
 }
 
@@ -1306,10 +1308,9 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				break
 			}
 			if len(m.value[m.row]) > 0 {
-				m.value[m.row] = append(m.value[m.row][:max(0, m.col-1)], m.value[m.row][m.col:]...)
-				if m.col > 0 {
-					m.SetCursorColumn(m.col - 1)
-				}
+				start, _ := graphemeAt(m.value[m.row], m.col-1)
+				m.value[m.row] = append(m.value[m.row][:start], m.value[m.row][m.col:]...)
+				m.SetCursorColumn(start)
 			}
 		case key.Matches(msg, m.KeyMap.DeleteCharacterForward):
 			if m.HasSelection() {
@@ -1317,7 +1318,8 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				break
 			}
 			if len(m.value[m.row]) > 0 && m.col < len(m.value[m.row]) {
-				m.value[m.row] = slices.Delete(m.value[m.row], m.col, m.col+1)
+				_, end := graphemeAt(m.value[m.row], m.col)
+				m.value[m.row] = slices.Delete(m.value[m.row], m.col, end)
 			}
 			if m.col >= len(m.value[m.row]) {
 				m.mergeLineBelow(m.row)
