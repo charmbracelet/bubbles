@@ -99,6 +99,29 @@ func TestSetFilterText(t *testing.T) {
 	}
 }
 
+func TestRemoveItemWithFilter(t *testing.T) {
+	items := []Item{item("foo"), item("bar"), item("baz")}
+	l := New(items, itemDelegate{}, 10, 10)
+	l.SetFilterText("ba")
+	l.SetFilterState(FilterApplied)
+
+	// filtered list contains ["bar", "baz"] at global indices 1 and 2.
+	// Remove "foo" (global index 0) — filtered list should be unchanged.
+	l.RemoveItem(0)
+	visible := l.VisibleItems()
+	if !reflect.DeepEqual(visible, []Item{item("bar"), item("baz")}) {
+		t.Fatalf("after removing unfiltered item: got %v, want [bar baz]", visible)
+	}
+
+	// The global list is now ["bar", "baz"]. Remove "bar" (global index 0).
+	// Filtered list should shrink to ["baz"].
+	l.RemoveItem(0)
+	visible = l.VisibleItems()
+	if !reflect.DeepEqual(visible, []Item{item("baz")}) {
+		t.Fatalf("after removing filtered item: got %v, want [baz]", visible)
+	}
+}
+
 func TestSetFilterState(t *testing.T) {
 	tc := []Item{item("foo"), item("bar"), item("baz")}
 
