@@ -46,10 +46,17 @@ const (
 	DefaultEmptyCharBlock = '░'
 
 	fps              = 60
+	partialBlockN    = 8 // number of steps a single cell is divided into
 	defaultWidth     = 40
 	defaultFrequency = 18.0
 	defaultDamping   = 1.0
 )
+
+// partialBlocks are the left-to-right eighth block characters used to render
+// the leading edge of the filled section at sub-cell resolution when partial
+// blocks are enabled. Index 0 is 1/8 filled and index 6 is 7/8 filled; a
+// completely filled cell uses [DefaultFullCharFullBlock].
+var partialBlocks = [partialBlockN - 1]rune{'▏', '▎', '▍', '▌', '▋', '▊', '▉'}
 
 var (
 	defaultBlendStart = lipgloss.Color("#5A56E0") // Purple haze.
@@ -138,6 +145,19 @@ func WithFillCharacters(full rune, empty rune) Option {
 	}
 }
 
+// WithPartialBlocks enables sub-cell rendering of the filled section's leading
+// edge using partial block characters (▏▎▍▌▋▊▉). This produces a smoother bar,
+// which is especially noticeable on narrow bars or when animating slowly.
+//
+// When enabled the filled section is drawn with full blocks (█) regardless of
+// the fill character set via [WithFillCharacters]; the empty character is left
+// unchanged.
+func WithPartialBlocks() Option {
+	return func(m *Model) {
+		m.PartialBlocks = true
+	}
+}
+
 // WithoutPercentage hides the numeric percentage.
 func WithoutPercentage() Option {
 	return func(m *Model) {
@@ -202,6 +222,10 @@ type Model struct {
 	// "Empty" sections of the progress bar.
 	Empty      rune
 	EmptyColor color.Color
+
+	// When true, the leading edge of the filled section is rendered at sub-cell
+	// resolution using partial block characters. See [WithPartialBlocks].
+	PartialBlocks bool
 
 	// Settings for rendering the numeric percentage.
 	ShowPercentage  bool
@@ -355,6 +379,11 @@ func (m *Model) nextFrame() tea.Cmd {
 }
 
 func (m Model) barView(b *strings.Builder, percent float64, textWidth int) {
+	if m.PartialBlocks {
+		m.barViewPartial(b, percent, textWidth)
+		return
+	}
+
 	var (
 		tw = max(0, m.width-textWidth)                // total width
 		fw = int(math.Round((float64(tw) * percent))) // filled width
@@ -415,6 +444,83 @@ func (m Model) barView(b *strings.Builder, percent float64, textWidth int) {
 
 	// Empty fill.
 	n := max(0, tw-fw)
+	b.WriteString(lipgloss.NewStyle().
+		Foreground(m.EmptyColor).
+		Render(strings.Repeat(string(m.Empty), n)))
+}
+
+// barViewPartial renders the bar with the leading edge of the filled section
+// drawn at sub-cell resolution using partial block characters. The filled
+// section always uses full blocks so that the eighth-block leading edge aligns
+// with it.
+func (m Model) barViewPartial(b *strings.Builder, percent float64, textWidth int) {
+	tw := max(0, m.width-textWidth) // total width
+
+	// exact is the filled width in fractional cells. fw is the number of full
+	// cells; the fractional remainder is mapped to one of the partial blocks.
+	exact := math.Max(0, math.Min(float64(tw), float64(tw)*percent))
+	fw := int(math.Floor(exact))
+
+	var (
+		partialRune rune
+		hasPartial  bool
+	)
+	if eighths := int(math.Round((exact - float64(fw)) * partialBlockN)); eighths >= partialBlockN {
+		// Rounded up to a full cell.
+		fw = min(tw, fw+1)
+	} else if eighths > 0 && fw < tw {
+		partialRune = partialBlocks[eighths-1]
+		hasPartial = true
+	}
+
+	// Precompute the blend when needed. In partial mode a cell always maps to a
+	// single color (there's no half-block double-resolution), so the blend has
+	// one entry per cell.
+	var blend []color.Color
+	if m.colorFunc == nil && len(m.blend) > 0 {
+		n := tw
+		if m.scaleBlend {
+			n = fw
+			if hasPartial {
+				n++
+			}
+		}
+		if n > 0 {
+			blend = lipgloss.Blend1D(n, m.blend...)
+		}
+	}
+
+	fillColor := func(i int) color.Color {
+		switch {
+		case m.colorFunc != nil:
+			return m.colorFunc(percent, float64(i)/float64(tw))
+		case i < len(blend):
+			return blend[i]
+		default:
+			return m.FullColor
+		}
+	}
+
+	// Filled cells.
+	for i := range fw {
+		b.WriteString(lipgloss.NewStyle().
+			Foreground(fillColor(i)).
+			Render(string(DefaultFullCharFullBlock)))
+	}
+
+	// Partial leading edge.
+	if hasPartial {
+		b.WriteString(lipgloss.NewStyle().
+			Foreground(fillColor(fw)).
+			Render(string(partialRune)))
+	}
+
+	// Empty fill.
+	n := tw - fw
+	if hasPartial {
+		n--
+	}
+	n = max(0, n)
 	b.WriteString(lipgloss.NewStyle().
 		Foreground(m.EmptyColor).
 		Render(strings.Repeat(string(m.Empty), n)))
