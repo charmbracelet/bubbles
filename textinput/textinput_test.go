@@ -118,3 +118,27 @@ func sendString(m Model, str string) Model {
 
 	return m
 }
+
+func TestCursorXAccountsForScrollOffset(t *testing.T) {
+	m := New()
+	m.Focus()
+	m.SetVirtualCursor(false)
+	m.CharLimit = 200
+	m.SetWidth(20)
+
+	text := strings.Repeat("a", 30)
+	m.SetValue(text)
+	m.SetCursor(15)
+
+	cur := m.Cursor()
+	if cur == nil {
+		t.Fatal("Cursor() returned nil")
+	}
+
+	// With 30 chars in a width-20 viewport, offset=10 and visible column=5.
+	// Hardware cursor X must include the prompt ("> ", width 2).
+	const wantX = 7
+	if cur.X != wantX {
+		t.Errorf("Cursor().X = %d, want %d (scroll-adjusted visible column + prompt width)", cur.X, wantX)
+	}
+}
