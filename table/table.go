@@ -425,7 +425,16 @@ func (m Model) headersView() string {
 		renderedCell := style.Render(ansi.Truncate(col.Title, col.Width, "…"))
 		s = append(s, m.styles.Header.Render(renderedCell))
 	}
-	return lipgloss.JoinHorizontal(lipgloss.Top, s...)
+	header := lipgloss.JoinHorizontal(lipgloss.Top, s...)
+
+	// Pad headers to the table width so they align with viewport rows. Without
+	// this, centering the table (e.g. via lipgloss.Align) misaligns headers and
+	// cells because the viewport pads rows to width but headers are not.
+	if w := m.Width(); w > 0 {
+		header = lipgloss.NewStyle().Width(w).Render(header)
+	}
+
+	return header
 }
 
 func (m *Model) renderRow(r int) string {

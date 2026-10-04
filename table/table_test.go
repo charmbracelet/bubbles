@@ -778,10 +778,7 @@ func TestModel_View(t *testing.T) {
 	}
 }
 
-// TODO: Fix table to make this test will pass.
 func TestModel_View_CenteredInABox(t *testing.T) {
-	t.Skip()
-
 	boxStyle := lipgloss.NewStyle().
 		BorderStyle(lipgloss.NormalBorder()).
 		Align(lipgloss.Center)
@@ -805,4 +802,41 @@ func TestModel_View_CenteredInABox(t *testing.T) {
 	got := boxStyle.Render(tableView)
 
 	golden.RequireEqual(t, []byte(got))
+}
+
+// Regression test for https://github.com/charmbracelet/bubbles/issues/576
+func TestModel_View_CenteredWithWideContent(t *testing.T) {
+	baseStyle := lipgloss.NewStyle().
+		BorderStyle(lipgloss.NormalBorder()).
+		BorderForeground(lipgloss.Color("240")).
+		Align(lipgloss.Center)
+
+	table := New(
+		WithHeight(7),
+		WithWidth(80),
+		WithColumns([]Column{
+			{Title: "Name", Width: 25},
+			{Title: "Country of Origin", Width: 16},
+			{Title: "Dunk-able", Width: 12},
+		}),
+		WithRows([]Row{
+			{"Chocolate Digestives", "UK", "Yes"},
+			{"Tim Tams", "Australia", "No"},
+			{"Hobnobs", "UK", "Yes"},
+		}),
+	)
+
+	got := ansi.Strip(baseStyle.Render(strings.Repeat("*", 80) + "\n" + table.View()))
+	lines := strings.Split(got, "\n")
+	if len(lines) < 4 {
+		t.Fatalf("expected at least 4 lines, got %d", len(lines))
+	}
+
+	// Header and first data row must start at the same column so centering
+	// does not misalign titles with cell contents.
+	headerIdx := strings.Index(lines[2], "Name")
+	rowIdx := strings.Index(lines[3], "Chocolate")
+	if headerIdx != rowIdx {
+		t.Fatalf("header and row misaligned: header starts at %d, row starts at %d\n%s", headerIdx, rowIdx, got)
+	}
 }
