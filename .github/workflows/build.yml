@@ -11,12 +11,12 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - name: Install Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version: ${{ matrix.go-version }}
 
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Download Go modules
         run: go mod download
@@ -36,7 +36,7 @@ jobs:
     if: ${{ github.actor == 'dependabot[bot]' && github.event_name == 'pull_request'}}
     steps:
       - id: metadata
-        uses: dependabot/fetch-metadata@v2
+        uses: dependabot/fetch-metadata@v3
         with:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
       - run: |
