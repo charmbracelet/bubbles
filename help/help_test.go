@@ -11,6 +11,37 @@ import (
 	"charm.land/bubbles/v2/key"
 )
 
+// A wide ellisis (i.e. wider than the items) should not render when all items
+// fit within the configured width.
+func TestWideEllipsisCompatibility(t *testing.T) {
+	kb := []key.Binding{
+		key.NewBinding(key.WithKeys("a"), key.WithHelp("a", "b")),
+		key.NewBinding(key.WithKeys("c"), key.WithHelp("c", "d")),
+	}
+
+	for _, tc := range []struct {
+		name  string
+		width int
+	}{
+		{"short", 9},
+		{"full", 10},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			m := New()
+			m.Ellipsis = "... more"
+			m.SetWidth(tc.width)
+
+			s := m.ShortHelpView(kb)
+			if tc.name == "full" {
+				s = m.FullHelpView([][]key.Binding{{kb[0]}, {kb[1]}})
+			}
+
+			s = ansi.Strip(s)
+			golden.RequireEqual(t, []byte(s))
+		})
+	}
+}
+
 func TestFullHelp(t *testing.T) {
 	m := New()
 	m.FullSeparator = " | "
@@ -35,11 +66,11 @@ func TestFullHelp(t *testing.T) {
 
 	widths := make([]int, 8)
 	widths[0] = 1                                         // no usable width
-	widths[1] = len("enter continue")                     // sufficient width for column, but not with traling ellipsis+space
-	widths[2] = widths[1] + 1                             // sufficient width for column, but not with traling ellipsis+space
+	widths[1] = len("enter continue")                     // sufficient width for column, but not with trailing ellipsis+space
+	widths[2] = widths[1] + 1                             // sufficient width for column, but not with trailing ellipsis+space
 	widths[3] = widths[2] + 1                             // sufficient width for column and ellipsis+space
-	widths[4] = widths[1] + sepWidth + len("esc back")    // sufficient width for 2 columns, but not with for elipsis+space
-	widths[5] = widths[4] + 1                             // sufficient width for 2 columns, but not with for elipsis+space
+	widths[4] = widths[1] + sepWidth + len("esc back")    // sufficient width for 2 columns, but not for elipsis+space
+	widths[5] = widths[4] + 1                             // sufficient width for 2 columns, but not for elipsis+space
 	widths[6] = widths[5] + 1                             // sufficient width for 2 columns and elipsis+space
 	widths[7] = widths[4] + sepWidth + len("ctrl+c quit") // sufficient width for all items
 
@@ -68,11 +99,11 @@ func TestShortHelp(t *testing.T) {
 
 	widths := make([]int, 8)
 	widths[0] = 1                                      // no usable width
-	widths[1] = len("enter continue")                  // sufficient width for item, but not with traling ellipsis+space
-	widths[2] = widths[1] + 1                          // sufficient width for item, but not with traling ellipsis+space
+	widths[1] = len("enter continue")                  // sufficient width for item, but not with trailing ellipsis+space
+	widths[2] = widths[1] + 1                          // sufficient width for item, but not with trailing ellipsis+space
 	widths[3] = widths[2] + 1                          // sufficient width for item and ellipsis+space
-	widths[4] = widths[1] + sepWidth + len("esc back") // sufficient width for 2 items, but not with for elipsis+space
-	widths[5] = widths[4] + 1                          // sufficient width for 2 items, but not with for elipsis+space
+	widths[4] = widths[1] + sepWidth + len("esc back") // sufficient width for 2 items, but not for elipsis+space
+	widths[5] = widths[4] + 1                          // sufficient width for 2 items, but not for elipsis+space
 	widths[6] = widths[5] + 1                          // sufficient width for 2 items and elipsis+space
 	widths[7] = widths[4] + sepWidth + len("? help")   // sufficient width for all items
 

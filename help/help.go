@@ -124,36 +124,26 @@ func (m Model) Width() int {
 
 // ShortHelpView renders a single line help view from a slice of keybindings.
 // If the line is longer than the maximum width it will be gracefully
-// truncated, showing only as many help items as possible.
+// truncated, showing only as many help items as possible + the ellipsis.
 func (m Model) ShortHelpView(bindings []key.Binding) string {
 	if len(bindings) == 0 {
 		return ""
 	}
 
-	var b strings.Builder
-	var w int
-	var totalWidth int
-	var next string
-	separator := m.Styles.ShortSeparator.Inline(true).Render(m.ShortSeparator)
-	tail := " " + m.Styles.Ellipsis.Inline(true).Render(m.Ellipsis)
-	tailWidth := lipgloss.Width(tail)
+	var (
+		b, t                   strings.Builder
+		totalWidth, truncWidth int
+		snapshotted            bool
+
+		separator = m.Styles.ShortSeparator.Inline(true).Render(m.ShortSeparator)
+		tail      = " " + m.Styles.Ellipsis.Inline(true).Render(m.Ellipsis)
+		tailWidth = lipgloss.Width(tail)
+	)
 
 	for i, kb := range bindings {
 		if !kb.Enabled() {
 			continue
 		}
-
-		// Tail
-		tailCompatibleWidth := totalWidth + tailWidth // ensure enough space for tail
-		if ok := m.shouldAddItem(tailCompatibleWidth, w); !ok && next != "" {
-			if totalWidth+tailWidth <= m.width {
-				b.WriteString(tail)
-			}
-			return b.String()
-		}
-
-		totalWidth += w
-		b.WriteString(next)
 
 		// Sep
 		var sep string
@@ -161,20 +151,31 @@ func (m Model) ShortHelpView(bindings []key.Binding) string {
 			sep = separator
 		}
 
-		// Next item
-		next = sep +
+		// Current item
+		item := sep +
 			m.Styles.ShortKey.Inline(true).Render(kb.Help().Key) + " " +
 			m.Styles.ShortDesc.Inline(true).Render(kb.Help().Desc)
-		w = lipgloss.Width(next)
-	}
+		w := lipgloss.Width(item)
 
-	// Try append last item
-	if ok := m.shouldAddItem(totalWidth, w); !ok && next != "" {
-		if totalWidth+tailWidth <= m.width {
-			b.WriteString(tail)
+		// Snapshot truncateable portion if applicable
+		tailCompatibleWidth := totalWidth + tailWidth // ensure enough space for tail
+		if !snapshotted && !m.shouldAddItem(tailCompatibleWidth, w) {
+			snapshotted = true
+			truncWidth = totalWidth
+			t.WriteString(b.String()) // snapshot
 		}
-	} else {
-		b.WriteString(next)
+
+		// Return truncated result if necessary
+		if !m.shouldAddItem(totalWidth, w) {
+			if truncWidth+tailWidth <= m.width {
+				t.WriteString(tail)
+			}
+			return t.String()
+		}
+
+		// Write item
+		totalWidth += w
+		b.WriteString(item)
 	}
 
 	return b.String()
@@ -190,14 +191,13 @@ func (m Model) FullHelpView(groups [][]key.Binding) string {
 	// Linter note: at this time we don't think it's worth the additional
 	// code complexity involved in preallocating this slice.
 	var (
-		out  []string
-		w    int
-		next string
+		out, trunc             []string
+		totalWidth, truncWidth int
+		snapshotted            bool
 
-		totalWidth int
-		separator  = m.Styles.FullSeparator.Inline(true).Render(m.FullSeparator)
-		tail       = " " + m.Styles.Ellipsis.Inline(true).Render(m.Ellipsis)
-		tailWidth  = lipgloss.Width(tail)
+		separator = m.Styles.FullSeparator.Inline(true).Render(m.FullSeparator)
+		tail      = " " + m.Styles.Ellipsis.Inline(true).Render(m.Ellipsis)
+		tailWidth = lipgloss.Width(tail)
 	)
 
 	// Iterate over groups to build columns
@@ -206,22 +206,9 @@ func (m Model) FullHelpView(groups [][]key.Binding) string {
 			continue
 		}
 
-		// Tail
-		tailCompatibleWidth := totalWidth + tailWidth // ensure enough space for tail
-		if ok := m.shouldAddItem(tailCompatibleWidth, w); !ok && next != "" {
-			if totalWidth+tailWidth <= m.width {
-				out = append(out, tail)
-			}
-			return lipgloss.JoinHorizontal(lipgloss.Top, out...)
-		}
-
-		totalWidth += w
-		out = append(out, next)
-
 		var (
-			sep          string
-			keys         []string
-			descriptions []string
+			sep                string
+			keys, descriptions []string
 		)
 
 		// Sep
@@ -238,22 +225,35 @@ func (m Model) FullHelpView(groups [][]key.Binding) string {
 			descriptions = append(descriptions, kb.Help().Desc)
 		}
 
-		// Next column
-		next = lipgloss.JoinHorizontal(lipgloss.Top,
+		// Current column
+		col := lipgloss.JoinHorizontal(lipgloss.Top,
 			sep,
 			m.Styles.FullKey.Render(strings.Join(keys, "\n")),
 			" ",
 			m.Styles.FullDesc.Render(strings.Join(descriptions, "\n")),
 		)
-		w = lipgloss.Width(next)
-	}
-	// Try append last column
-	if ok := m.shouldAddItem(totalWidth, w); !ok && next != "" {
-		if totalWidth+tailWidth <= m.width {
-			out = append(out, tail)
+		w := lipgloss.Width(col)
+
+		// Snapshot truncateable portion if applicable
+		tailCompatibleWidth := totalWidth + tailWidth // ensure enough space for tail
+		if !snapshotted && !m.shouldAddItem(tailCompatibleWidth, w) {
+			snapshotted = true
+			truncWidth = totalWidth
+			trunc = make([]string, len(out), len(out)+1)
+			copy(trunc, out) // snapshot
 		}
-	} else {
-		out = append(out, next)
+
+		// Return truncated result if necessary
+		if !m.shouldAddItem(totalWidth, w) {
+			if truncWidth+tailWidth <= m.width {
+				trunc = append(trunc, tail)
+			}
+			return lipgloss.JoinHorizontal(lipgloss.Top, trunc...)
+		}
+
+		// Write column
+		totalWidth += w
+		out = append(out, col)
 	}
 
 	return lipgloss.JoinHorizontal(lipgloss.Top, out...)
