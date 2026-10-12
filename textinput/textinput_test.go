@@ -107,6 +107,18 @@ func ExampleValidateFunc() {
 	}
 }
 
+func TestShiftBackspaceDeletesCharacterBackward(t *testing.T) {
+	ti := New()
+	ti.Focus()
+	ti.SetValue("abc")
+
+	ti, _ = ti.Update(tea.KeyPressMsg{Code: tea.KeyBackspace, Mod: tea.ModShift})
+
+	if got, want := ti.Value(), "ab"; got != want {
+		t.Errorf("after shift+backspace got %q, want %q", got, want)
+	}
+}
+
 func keyPress(key rune) tea.Msg {
 	return tea.KeyPressMsg{Code: key, Text: string(key)}
 }
