@@ -22,7 +22,7 @@ applications. These components are used in production in [Crush][crush], and [ma
 
 <img src="https://stuff.charm.sh/bubbles-examples/spinner.gif" width="400" alt="Spinner Example">
 
-A spinner, useful for indicating that some kind an operation is happening.
+A spinner, useful for indicating that some kind of operation is happening.
 There are a couple default ones, but you can also pass your own ”frames.”
 
 - [Example code, basic spinner](https://github.com/charmbracelet/bubbletea/blob/main/examples/spinner/main.go)
