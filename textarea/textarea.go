@@ -998,6 +998,11 @@ func (m *Model) characterLeft(insideLine bool) {
 // cursor blink should be reset. If input is masked, move input to the start
 // so as not to reveal word breaks in the masked input.
 func (m *Model) wordLeft() {
+	// If we're already at the start, do nothing and return
+	if m.row == 0 && m.col == 0 {
+		return
+	}
+
 	for {
 		oldRow, oldCol := m.row, m.col
 		m.characterLeft(true /* insideLine */)
