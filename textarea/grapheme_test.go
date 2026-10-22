@@ -35,8 +35,8 @@ func TestThaiGraphemeNavigationAndDeletion(t *testing.T) {
 
 			m.SetValue(value)
 			m, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyBackspace})
-			if got := m.Value(); got != "" {
-				t.Fatalf("backspace left an orphaned part of %q: %q", value, got)
+			if got, want := m.Value(), string([]rune(value)[:len([]rune(value))-1]); got != want {
+				t.Fatalf("backspace should remove the last code point of %q: got %q, want %q", value, got, want)
 			}
 		})
 	}

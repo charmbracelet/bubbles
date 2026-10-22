@@ -748,6 +748,9 @@ func (m *Model) setCursorLineRelative(delta int) {
 		offset += rw.RuneWidth(m.value[m.row][m.col])
 		m.col++
 	}
+	if m.col < len(m.value[m.row]) {
+		m.col, _ = graphemeAt(m.value[m.row], m.col)
+	}
 	m.repositionView()
 }
 
@@ -763,8 +766,12 @@ func (m *Model) CursorUp() {
 
 // SetCursorColumn moves the cursor to the given position. If the position is
 // out of bounds the cursor will be moved to the start or end accordingly.
+// A position inside a grapheme is snapped to its start.
 func (m *Model) SetCursorColumn(col int) {
 	m.col = clamp(col, 0, len(m.value[m.row]))
+	if m.col < len(m.value[m.row]) {
+		m.col, _ = graphemeAt(m.value[m.row], m.col)
+	}
 	// Any time that we move the cursor horizontally we need to reset the last
 	// offset so that the horizontal position when navigating is adjusted.
 	m.lastCharOffset = 0
@@ -946,12 +953,12 @@ func (m *Model) deleteWordRight() {
 
 	for m.col < len(m.value[m.row]) && unicode.IsSpace(m.value[m.row][m.col]) {
 		// ignore series of whitespace after cursor
-		m.SetCursorColumn(m.col + 1)
+		m.characterRight()
 	}
 
 	for m.col < len(m.value[m.row]) {
 		if !unicode.IsSpace(m.value[m.row][m.col]) {
-			m.SetCursorColumn(m.col + 1)
+			m.characterRight()
 		} else {
 			break
 		}
@@ -1042,7 +1049,7 @@ func (m *Model) doWordRight(fn func(charIdx int, pos int)) {
 			break
 		}
 		fn(charIdx, m.col)
-		m.SetCursorColumn(m.col + 1)
+		m.characterRight()
 		charIdx++
 	}
 }
@@ -1308,7 +1315,9 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				break
 			}
 			if len(m.value[m.row]) > 0 {
-				start, _ := graphemeAt(m.value[m.row], m.col-1)
+				// Backspace removes one code point so combining marks can be
+				// corrected without erasing their base consonant.
+				start := m.col - 1
 				m.value[m.row] = append(m.value[m.row][:start], m.value[m.row][m.col:]...)
 				m.SetCursorColumn(start)
 			}
