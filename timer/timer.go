@@ -27,6 +27,15 @@ func WithInterval(interval time.Duration) Option {
 	}
 }
 
+// WithFormatter sets the function used by [Model.View] to format the remaining
+// duration, including zero and negative values. Pass nil to use the default
+// [time.Duration.String] format.
+func WithFormatter(formatter func(time.Duration) string) Option {
+	return func(m *Model) {
+		m.formatter = formatter
+	}
+}
+
 // Authors note with regard to start and stop commands:
 //
 // Technically speaking, sending commands to start and stop the timer in this
@@ -97,6 +106,8 @@ type Model struct {
 	id      int
 	tag     int
 	running bool
+
+	formatter func(time.Duration) string
 }
 
 // New creates a new timer with the given timeout and default 1s interval.
@@ -168,6 +179,9 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 // View of the timer component.
 func (m Model) View() string {
+	if m.formatter != nil {
+		return m.formatter(m.Timeout)
+	}
 	return m.Timeout.String()
 }
 
