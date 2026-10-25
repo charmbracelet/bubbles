@@ -1316,13 +1316,11 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				m.deleteSelection()
 				break
 			}
-			if len(m.value[m.row]) > 0 && m.col < len(m.value[m.row]) {
-				m.value[m.row] = slices.Delete(m.value[m.row], m.col, m.col+1)
-			}
 			if m.col >= len(m.value[m.row]) {
 				m.mergeLineBelow(m.row)
 				break
 			}
+			m.value[m.row] = slices.Delete(m.value[m.row], m.col, m.col+1)
 		case key.Matches(msg, m.KeyMap.DeleteWordBackward):
 			if m.HasSelection() {
 				m.deleteSelection()
