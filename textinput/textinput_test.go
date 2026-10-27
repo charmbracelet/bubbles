@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/charmbracelet/x/ansi"
 	tea "charm.land/bubbletea/v2"
 )
 
@@ -58,6 +59,20 @@ func TestChinesePlaceholder(t *testing.T) {
 	expected := "> 输入消息...       "
 	if got != expected {
 		t.Fatalf("expected %q but got %q", expected, got)
+	}
+}
+
+func TestPlaceholderFullRenderWithoutWidth(t *testing.T) {
+	// Regression test for https://github.com/charmbracelet/bubbles/issues/779:
+	// when Width is 0 (default), only the first character of the placeholder was shown.
+	ti := New()
+	ti.Placeholder = "Nickname"
+
+	// Strip ANSI escape codes before checking, since the cursor and the rest
+	// of the placeholder are styled separately.
+	plain := ansi.Strip(ti.View())
+	if !strings.Contains(plain, "Nickname") {
+		t.Fatalf("expected placeholder %q to appear in full, got: %q", "Nickname", plain)
 	}
 }
 
