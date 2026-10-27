@@ -441,7 +441,19 @@ func (m *Model) InsertItem(index int, item Item) tea.Cmd {
 func (m *Model) RemoveItem(index int) {
 	m.items = removeItemFromSlice(m.items, index)
 	if m.filterState != Unfiltered {
-		m.filteredItems = removeFilterMatchFromSlice(m.filteredItems, index)
+		// Rebuild filtered list: drop the entry matching the removed global
+		// index and shift down all subsequent global indices by one.
+		filtered := m.filteredItems[:0]
+		for _, fi := range m.filteredItems {
+			if fi.index == index {
+				continue
+			}
+			if fi.index > index {
+				fi.index--
+			}
+			filtered = append(filtered, fi)
+		}
+		m.filteredItems = filtered
 		if len(m.filteredItems) == 0 {
 			m.resetFiltering()
 		}
@@ -1297,15 +1309,6 @@ func removeItemFromSlice(i []Item, index int) []Item {
 	}
 	copy(i[index:], i[index+1:])
 	i[len(i)-1] = nil
-	return i[:len(i)-1]
-}
-
-func removeFilterMatchFromSlice(i []filteredItem, index int) []filteredItem {
-	if index >= len(i) {
-		return i // noop
-	}
-	copy(i[index:], i[index+1:])
-	i[len(i)-1] = filteredItem{}
 	return i[:len(i)-1]
 }
 
