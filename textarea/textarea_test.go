@@ -98,6 +98,59 @@ func TestWordWrapOverflowing(t *testing.T) {
 	}
 }
 
+func TestWrapLastWordFillsWidth(t *testing.T) {
+	// A final word that exactly fills the remaining width should stay on its
+	// line; only the cursor's trailing cell moves to the next row, as it does
+	// for a single unbroken word that fills the width.
+	tests := []struct {
+		input string
+		want  []string
+	}{
+		{"1234567890", []string{"1234567890", " "}},
+		{"1 2 3 4 5", []string{"1 2 3 4 5 "}},
+		{"1 2 3 4 56", []string{"1 2 3 4 56", " "}},
+		{"1 2 3 4 567", []string{"1 2 3 4 ", "567 "}},
+		{"1 2 3 4 中", []string{"1 2 3 4 中", " "}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			var got []string
+			for _, line := range wrap([]rune(tt.input), 10) {
+				got = append(got, string(line))
+			}
+			if fmt.Sprintf("%q", got) != fmt.Sprintf("%q", tt.want) {
+				t.Errorf("wrap(%q, 10) = %q, want %q", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestTypingLastWordFillsWidthDoesNotReflow(t *testing.T) {
+	textarea := newTextArea()
+	textarea.Prompt = ""
+	textarea.ShowLineNumbers = false
+	textarea.SetWidth(10)
+	textarea.SetHeight(3)
+
+	for _, k := range "1 2 3 4 56" {
+		textarea, _ = textarea.Update(keyPress(k))
+	}
+
+	firstLine := strings.Split(ansi.Strip(textarea.View()), "\n")[0]
+	if firstLine != "1 2 3 4 56" {
+		t.Fatalf("expected the first line to hold the whole input, got %q", firstLine)
+	}
+
+	// Typing one more character overflows the width, so the last word
+	// should now reflow onto the next line.
+	textarea, _ = textarea.Update(keyPress('7'))
+	lines := strings.Split(ansi.Strip(textarea.View()), "\n")
+	if strings.TrimRight(lines[0], " ") != "1 2 3 4" || strings.TrimRight(lines[1], " ") != "567" {
+		t.Fatalf("expected %q to reflow onto the second line, got %q", "567", lines[:2])
+	}
+}
+
 func TestValueSoftWrap(t *testing.T) {
 	textarea := newTextArea()
 	textarea.SetWidth(16)
