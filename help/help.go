@@ -124,15 +124,21 @@ func (m Model) Width() int {
 
 // ShortHelpView renders a single line help view from a slice of keybindings.
 // If the line is longer than the maximum width it will be gracefully
-// truncated, showing only as many help items as possible.
+// truncated, showing only as many help items as possible + the ellipsis.
 func (m Model) ShortHelpView(bindings []key.Binding) string {
 	if len(bindings) == 0 {
 		return ""
 	}
 
-	var b strings.Builder
-	var totalWidth int
-	separator := m.Styles.ShortSeparator.Inline(true).Render(m.ShortSeparator)
+	var (
+		b, t                   strings.Builder
+		totalWidth, truncWidth int
+		snapshotted            bool
+
+		separator = m.Styles.ShortSeparator.Inline(true).Render(m.ShortSeparator)
+		tail      = " " + m.Styles.Ellipsis.Inline(true).Render(m.Ellipsis)
+		tailWidth = lipgloss.Width(tail)
+	)
 
 	for i, kb := range bindings {
 		if !kb.Enabled() {
@@ -145,22 +151,31 @@ func (m Model) ShortHelpView(bindings []key.Binding) string {
 			sep = separator
 		}
 
-		// Item
-		str := sep +
+		// Current item
+		item := sep +
 			m.Styles.ShortKey.Inline(true).Render(kb.Help().Key) + " " +
 			m.Styles.ShortDesc.Inline(true).Render(kb.Help().Desc)
-		w := lipgloss.Width(str)
+		w := lipgloss.Width(item)
 
-		// Tail
-		if tail, ok := m.shouldAddItem(totalWidth, w); !ok {
-			if tail != "" {
-				b.WriteString(tail)
-			}
-			break
+		// Snapshot truncateable portion if applicable
+		tailCompatibleWidth := totalWidth + tailWidth // ensure enough space for tail
+		if !snapshotted && !m.shouldAddItem(tailCompatibleWidth, w) {
+			snapshotted = true
+			truncWidth = totalWidth
+			t.WriteString(b.String()) // snapshot
 		}
 
+		// Return truncated result if necessary
+		if !m.shouldAddItem(totalWidth, w) {
+			if truncWidth+tailWidth <= m.width {
+				t.WriteString(tail)
+			}
+			return t.String()
+		}
+
+		// Write item
 		totalWidth += w
-		b.WriteString(str)
+		b.WriteString(item)
 	}
 
 	return b.String()
@@ -176,10 +191,13 @@ func (m Model) FullHelpView(groups [][]key.Binding) string {
 	// Linter note: at this time we don't think it's worth the additional
 	// code complexity involved in preallocating this slice.
 	var (
-		out []string
+		out, trunc             []string
+		totalWidth, truncWidth int
+		snapshotted            bool
 
-		totalWidth int
-		separator  = m.Styles.FullSeparator.Inline(true).Render(m.FullSeparator)
+		separator = m.Styles.FullSeparator.Inline(true).Render(m.FullSeparator)
+		tail      = " " + m.Styles.Ellipsis.Inline(true).Render(m.Ellipsis)
+		tailWidth = lipgloss.Width(tail)
 	)
 
 	// Iterate over groups to build columns
@@ -187,10 +205,10 @@ func (m Model) FullHelpView(groups [][]key.Binding) string {
 		if group == nil || !shouldRenderColumn(group) {
 			continue
 		}
+
 		var (
-			sep          string
-			keys         []string
-			descriptions []string
+			sep                string
+			keys, descriptions []string
 		)
 
 		// Sep
@@ -207,7 +225,7 @@ func (m Model) FullHelpView(groups [][]key.Binding) string {
 			descriptions = append(descriptions, kb.Help().Desc)
 		}
 
-		// Column
+		// Current column
 		col := lipgloss.JoinHorizontal(lipgloss.Top,
 			sep,
 			m.Styles.FullKey.Render(strings.Join(keys, "\n")),
@@ -216,14 +234,24 @@ func (m Model) FullHelpView(groups [][]key.Binding) string {
 		)
 		w := lipgloss.Width(col)
 
-		// Tail
-		if tail, ok := m.shouldAddItem(totalWidth, w); !ok {
-			if tail != "" {
-				out = append(out, tail)
-			}
-			break
+		// Snapshot truncateable portion if applicable
+		tailCompatibleWidth := totalWidth + tailWidth // ensure enough space for tail
+		if !snapshotted && !m.shouldAddItem(tailCompatibleWidth, w) {
+			snapshotted = true
+			truncWidth = totalWidth
+			trunc = make([]string, len(out), len(out)+1)
+			copy(trunc, out) // snapshot
 		}
 
+		// Return truncated result if necessary
+		if !m.shouldAddItem(totalWidth, w) {
+			if truncWidth+tailWidth <= m.width {
+				trunc = append(trunc, tail)
+			}
+			return lipgloss.JoinHorizontal(lipgloss.Top, trunc...)
+		}
+
+		// Write column
 		totalWidth += w
 		out = append(out, col)
 	}
@@ -231,16 +259,8 @@ func (m Model) FullHelpView(groups [][]key.Binding) string {
 	return lipgloss.JoinHorizontal(lipgloss.Top, out...)
 }
 
-func (m Model) shouldAddItem(totalWidth, width int) (tail string, ok bool) {
-	// If there's room for an ellipsis, print that.
-	if m.width > 0 && totalWidth+width > m.width {
-		tail = " " + m.Styles.Ellipsis.Inline(true).Render(m.Ellipsis)
-
-		if totalWidth+lipgloss.Width(tail) < m.width {
-			return tail, false
-		}
-	}
-	return "", true
+func (m Model) shouldAddItem(totalWidth, width int) (ok bool) {
+	return !(m.width > 0 && totalWidth+width > m.width)
 }
 
 func shouldRenderColumn(b []key.Binding) (ok bool) {
