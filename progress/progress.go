@@ -349,8 +349,9 @@ func (m Model) Width() int {
 }
 
 func (m *Model) nextFrame() tea.Cmd {
+	done := FrameMsg{id: m.id, tag: m.tag} // allowing m to be captured by the func passed to Tick risks data race
 	return tea.Tick(time.Second/time.Duration(fps), func(time.Time) tea.Msg {
-		return FrameMsg{id: m.id, tag: m.tag}
+		return done
 	})
 }
 
