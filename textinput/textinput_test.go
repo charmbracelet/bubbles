@@ -111,6 +111,32 @@ func keyPress(key rune) tea.Msg {
 	return tea.KeyPressMsg{Code: key, Text: string(key)}
 }
 
+func TestDeleteWordForwardAtWordEnd(t *testing.T) {
+	tests := []struct {
+		name, value, want string
+		cursor            int
+	}{
+		{"inside word", "abc d", "a d", 1},
+		{"last rune of word", "ab c", "a c", 1},
+		{"last rune of value", "ab", "a", 1},
+		{"on whitespace", "a bc", "a", 1},
+		{"unicode word", "a界 c", "a c", 1},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := New()
+			m.Focus()
+			m.SetValue(tt.value)
+			m.SetCursor(tt.cursor)
+			m, _ = m.Update(tea.KeyPressMsg{Code: 'd', Mod: tea.ModAlt})
+			if got := m.Value(); got != tt.want {
+				t.Errorf("alt+d at cursor %d in %q = %q, want %q", tt.cursor, tt.value, got, tt.want)
+			}
+		})
+	}
+}
+
 func sendString(m Model, str string) Model {
 	for _, k := range str {
 		m, _ = m.Update(keyPress(k))
