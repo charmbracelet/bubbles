@@ -178,3 +178,72 @@ func TestItemsOnPage(t *testing.T) {
 		}
 	}
 }
+
+func TestSetTotalPages_CurrentPage(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		items     int
+		wantTotal int
+		wantPage  int
+	}{
+		{"shrink to one page", 1, 1, 0},
+		{"shrink to partial last page", 3, 2, 1},
+		{"shrink to full last page", 4, 2, 1},
+		{"current page remains valid", 5, 3, 2},
+		{"unchanged", 6, 3, 2},
+		{"grow", 8, 4, 2},
+		{"zero items remains a no-op", 0, 3, 2},
+		{"negative items remains a no-op", -1, 3, 2},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			model := New(WithPerPage(2))
+			model.SetTotalPages(6)
+			model.NextPage()
+			model.NextPage()
+			if got := model.SetTotalPages(tt.items); got != tt.wantTotal {
+				t.Errorf("SetTotalPages() = %d, want %d", got, tt.wantTotal)
+			}
+			if model.TotalPages != tt.wantTotal {
+				t.Errorf("TotalPages = %d, want %d", model.TotalPages, tt.wantTotal)
+			}
+			if model.Page != tt.wantPage {
+				t.Errorf("Page = %d, want %d", model.Page, tt.wantPage)
+			}
+		})
+	}
+}
+
+func TestSetTotalPages_ShrinkingItems(t *testing.T) {
+	t.Parallel()
+
+	model := New(WithPerPage(2))
+	model.SetTotalPages(6)
+	model.NextPage()
+	model.NextPage()
+
+	items := []string{"remaining"}
+	model.SetTotalPages(len(items))
+	start, end := model.GetSliceBounds(len(items))
+	if start != 0 || end != 1 {
+		t.Fatalf("GetSliceBounds() = (%d, %d), want (0, 1)", start, end)
+	}
+	if got := items[start:end]; len(got) != 1 || got[0] != "remaining" {
+		t.Errorf("page items = %v, want [remaining]", got)
+	}
+	if got := model.ItemsOnPage(len(items)); got != 1 {
+		t.Errorf("ItemsOnPage() = %d, want 1", got)
+	}
+	if !model.OnLastPage() {
+		t.Error("OnLastPage() = false after shrinking to one page")
+	}
+	model.NextPage()
+	if model.Page != 0 {
+		t.Errorf("NextPage() advanced past the last page: %d", model.Page)
+	}
+}
