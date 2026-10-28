@@ -45,6 +45,9 @@ type (
 	copyErrMsg  struct{ error }
 )
 
+func (e pasteErrMsg) Unwrap() error { return e.error }
+func (e copyErrMsg) Unwrap() error  { return e.error }
+
 // KeyMap is the key bindings for different actions within the textarea.
 type KeyMap struct {
 	CharacterBackward       key.Binding

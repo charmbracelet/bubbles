@@ -1,6 +1,7 @@
 package textarea
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -2879,5 +2880,63 @@ func TestSelectionRangeOrdering(t *testing.T) {
 	sel := textarea.SelectedText()
 	if sel != "world" {
 		t.Errorf("Expected selection %q, got %q", "world", sel)
+	}
+}
+
+type customClipboardErr struct {
+	msg string
+}
+
+func (e *customClipboardErr) Error() string {
+	return e.msg
+}
+
+func TestPasteErrMsgUnwrap(t *testing.T) {
+	underlyingErr := &customClipboardErr{msg: "clipboard paste error"}
+	m := New()
+	m.Focus()
+
+	m, _ = m.Update(pasteErrMsg{underlyingErr})
+
+	if m.Err == nil {
+		t.Fatal("expected m.Err to be set, got nil")
+	}
+
+	if !errors.Is(m.Err, underlyingErr) {
+		t.Errorf("expected errors.Is(m.Err, underlyingErr) to be true")
+	}
+
+	if unwrapped := errors.Unwrap(m.Err); unwrapped != underlyingErr {
+		t.Errorf("expected errors.Unwrap(m.Err) to be %v, got %v", underlyingErr, unwrapped)
+	}
+
+	var target *customClipboardErr
+	if !errors.As(m.Err, &target) || target != underlyingErr {
+		t.Errorf("expected errors.As(m.Err, &target) to match underlying error")
+	}
+}
+
+func TestCopyErrMsgUnwrap(t *testing.T) {
+	underlyingErr := &customClipboardErr{msg: "clipboard copy error"}
+	m := New()
+	m.Focus()
+
+	m, _ = m.Update(copyErrMsg{underlyingErr})
+
+	if m.Err == nil {
+		t.Fatal("expected m.Err to be set, got nil")
+	}
+
+	if !errors.Is(m.Err, underlyingErr) {
+		t.Errorf("expected errors.Is(m.Err, underlyingErr) to be true")
+	}
+
+	if unwrapped := errors.Unwrap(m.Err); unwrapped != underlyingErr {
+		t.Errorf("expected errors.Unwrap(m.Err) to be %v, got %v", underlyingErr, unwrapped)
+	}
+
+	var target *customClipboardErr
+	if !errors.As(m.Err, &target) || target != underlyingErr {
+		t.Errorf("expected errors.As(m.Err, &target) to match underlying error")
 	}
 }
