@@ -1,6 +1,7 @@
 package table
 
 import (
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -486,6 +487,133 @@ func TestCursorNavigation(t *testing.T) {
 				t.Errorf("want %d, got %d", tc.want, table.Cursor())
 			}
 		})
+	}
+}
+
+func TestSetCursor_ViewportVisibility(t *testing.T) {
+	const totalRows = 30
+	const visibleHeight = 5
+
+	rows := make([]Row, totalRows)
+	for i := range rows {
+		rows[i] = Row{fmt.Sprintf("r%02d", i)}
+	}
+
+	table := New(
+		WithColumns([]Column{{Title: "Col", Width: 10}}),
+		WithRows(rows),
+		WithWidth(20),
+		WithHeight(visibleHeight+1), // 1 row for header, leaving visibleHeight body rows
+	)
+
+	if table.viewport.Height() != visibleHeight {
+		t.Fatalf("expected viewport height %d, got %d", visibleHeight, table.viewport.Height())
+	}
+
+	tests := []struct {
+		name       string
+		cursor     int
+		wantCursor int
+	}{
+		{
+			name:       "SetCursor within first page",
+			cursor:     3,
+			wantCursor: 3,
+		},
+		{
+			name:       "SetCursor equal to viewport height",
+			cursor:     5,
+			wantCursor: 5,
+		},
+		{
+			name:       "SetCursor greater than viewport height",
+			cursor:     10,
+			wantCursor: 10,
+		},
+		{
+			name:       "SetCursor near bottom",
+			cursor:     28,
+			wantCursor: 28,
+		},
+		{
+			name:       "SetCursor to last row",
+			cursor:     29,
+			wantCursor: 29,
+		},
+		{
+			name:       "SetCursor jump back to top",
+			cursor:     0,
+			wantCursor: 0,
+		},
+		{
+			name:       "SetCursor jump to middle",
+			cursor:     15,
+			wantCursor: 15,
+		},
+		{
+			name:       "SetCursor overflow clamps to last row",
+			cursor:     100,
+			wantCursor: 29,
+		},
+		{
+			name:       "SetCursor negative clamps to first row",
+			cursor:     -5,
+			wantCursor: 0,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			table.SetCursor(tc.cursor)
+
+			if table.Cursor() != tc.wantCursor {
+				t.Fatalf("table.Cursor() = %d, want %d", table.Cursor(), tc.wantCursor)
+			}
+
+			// Verify cursor index in rendered rows is within [offset, offset + height - 1]
+			cursorIdx := table.cursor - table.start
+			offset := table.viewport.YOffset()
+			height := table.viewport.Height()
+			if cursorIdx < offset || cursorIdx >= offset+height {
+				t.Errorf("cursor index %d out of viewport range [%d, %d)", cursorIdx, offset, offset+height)
+			}
+
+			// Verify the highlighted row is visible in table.View()
+			view := ansi.Strip(table.View())
+			expectedRowText := rows[tc.wantCursor][0]
+			if !strings.Contains(view, expectedRowText) {
+				t.Errorf("expected highlighted row %q to be visible in view:\n%s", expectedRowText, view)
+			}
+		})
+	}
+}
+
+func TestSetCursor_TabJumpVisible(t *testing.T) {
+	// Repro from issue #733: jumping cursor forward by multiple rows (e.g. tab)
+	rows := make([]Row, 30)
+	for i := range rows {
+		rows[i] = Row{fmt.Sprintf("item-%d", i)}
+	}
+
+	table := New(
+		WithColumns([]Column{{Title: "Item", Width: 10}}),
+		WithRows(rows),
+		WithWidth(20),
+		WithHeight(11), // 10 body rows
+	)
+
+	// Jump cursor +9 from 0
+	table.SetCursor(table.Cursor() + 9)
+	view := ansi.Strip(table.View())
+	if !strings.Contains(view, "item-9") {
+		t.Errorf("expected item-9 to be visible in view after jump:\n%s", view)
+	}
+
+	// Jump cursor +9 from 9 -> 18
+	table.SetCursor(table.Cursor() + 9)
+	view = ansi.Strip(table.View())
+	if !strings.Contains(view, "item-18") {
+		t.Errorf("expected item-18 to be visible in view after jump:\n%s", view)
 	}
 }
 

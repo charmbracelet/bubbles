@@ -350,6 +350,18 @@ func (m Model) Cursor() int {
 func (m *Model) SetCursor(n int) {
 	m.cursor = clamp(n, 0, len(m.rows)-1)
 	m.UpdateViewport()
+
+	if len(m.rows) > 0 && m.viewport.Height() > 0 {
+		cursorIdx := m.cursor - m.start
+		offset := m.viewport.YOffset()
+		switch {
+		case cursorIdx < offset:
+			offset = cursorIdx
+		case cursorIdx >= offset+m.viewport.Height():
+			offset = cursorIdx - m.viewport.Height() + 1
+		}
+		m.viewport.SetYOffset(offset)
+	}
 }
 
 // MoveUp moves the selection up by any number of rows.
