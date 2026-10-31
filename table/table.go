@@ -24,8 +24,10 @@ type Model struct {
 	styles Styles
 
 	viewport viewport.Model
-	start    int
-	end      int
+	// top is the first row the viewport shows. It moves only as far as
+	// the cursor needs to stay visible, so redrawing the table (SetRows,
+	// SetCursor, SetHeight...) leaves the view where it was.
+	top int
 }
 
 // Row represents one line in the table.
@@ -261,25 +263,33 @@ func (m Model) HelpView() string {
 
 // UpdateViewport updates the list content based on the previously defined
 // columns and rows.
+//
+// The visible window starts at m.top and only moves as far as needed to keep
+// the cursor in view, so the view stays where it was when rows are replaced
+// or the cursor is set. Only the visible rows are rendered: constant runtime,
+// independent of the number of rows in a table.
 func (m *Model) UpdateViewport() {
-	renderedRows := make([]string, 0, len(m.rows))
-
-	// Render only rows from: m.cursor-m.viewport.Height to: m.cursor+m.viewport.Height
-	// Constant runtime, independent of number of rows in a table.
-	// Limits the number of renderedRows to a maximum of 2*m.viewport.Height
-	if m.cursor >= 0 {
-		m.start = clamp(m.cursor-m.viewport.Height(), 0, m.cursor)
-	} else {
-		m.start = 0
+	height := m.viewport.Height()
+	if m.cursor >= 0 && height > 0 {
+		if m.cursor < m.top {
+			m.top = m.cursor
+		}
+		if m.cursor >= m.top+height {
+			m.top = m.cursor - height + 1
+		}
 	}
-	m.end = clamp(m.cursor+m.viewport.Height(), m.cursor, len(m.rows))
-	for i := m.start; i < m.end; i++ {
+	m.top = clamp(m.top, 0, max(0, len(m.rows)-height))
+
+	end := clamp(m.top+height, m.top, len(m.rows))
+	renderedRows := make([]string, 0, end-m.top)
+	for i := m.top; i < end; i++ {
 		renderedRows = append(renderedRows, m.renderRow(i))
 	}
 
 	m.viewport.SetContent(
 		lipgloss.JoinVertical(lipgloss.Left, renderedRows...),
 	)
+	m.viewport.SetYOffset(0)
 }
 
 // SelectedRow returns the selected row.
@@ -356,17 +366,6 @@ func (m *Model) SetCursor(n int) {
 // It can not go above the first row.
 func (m *Model) MoveUp(n int) {
 	m.cursor = clamp(m.cursor-n, 0, len(m.rows)-1)
-
-	offset := m.viewport.YOffset()
-	switch {
-	case m.start == 0:
-		offset = clamp(offset, 0, m.cursor)
-	case m.start < m.viewport.Height():
-		offset = clamp(clamp(offset+n, 0, m.cursor), 0, m.viewport.Height())
-	case offset >= 1:
-		offset = clamp(offset+n, 1, m.viewport.Height())
-	}
-	m.viewport.SetYOffset(offset)
 	m.UpdateViewport()
 }
 
@@ -375,18 +374,6 @@ func (m *Model) MoveUp(n int) {
 func (m *Model) MoveDown(n int) {
 	m.cursor = clamp(m.cursor+n, 0, len(m.rows)-1)
 	m.UpdateViewport()
-
-	offset := m.viewport.YOffset()
-	switch {
-	case m.end == len(m.rows) && offset > 0:
-		offset = clamp(offset-n, 1, m.viewport.Height())
-	case m.cursor > (m.end-m.start)/2 && offset > 0:
-		offset = clamp(offset-n, 1, m.cursor)
-	case offset > 1:
-	case m.cursor > offset+m.viewport.Height()-1:
-		offset = clamp(offset+1, 0, 1)
-	}
-	m.viewport.SetYOffset(offset)
 }
 
 // GotoTop moves the selection to the first row.
