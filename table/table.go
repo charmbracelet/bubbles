@@ -269,7 +269,9 @@ func (m Model) HelpView() string {
 // or the cursor is set. Only the visible rows are rendered: constant runtime,
 // independent of the number of rows in a table.
 func (m *Model) UpdateViewport() {
-	height := m.viewport.Height()
+	// A table set shorter than its header has a negative viewport height;
+	// it shows no rows.
+	height := max(0, m.viewport.Height())
 	if m.cursor >= 0 && height > 0 {
 		if m.cursor < m.top {
 			m.top = m.cursor

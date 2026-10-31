@@ -885,3 +885,29 @@ func TestViewportKeepsCursorVisible(t *testing.T) {
 		})
 	}
 }
+
+// TestViewportShorterThanHeader covers a table set shorter than its header:
+// it shows no rows, and replacing its rows does not panic.
+func TestViewportShorterThanHeader(t *testing.T) {
+	rows := make([]Row, 30)
+	for i := range rows {
+		rows[i] = Row{fmt.Sprintf("r%02d", i)}
+	}
+	m := New(
+		WithColumns([]Column{{Title: "Col", Width: 10}}),
+		WithRows(rows),
+		WithWidth(20),
+		WithHeight(6),
+		WithFocused(true),
+	)
+	m.GotoBottom()
+	m.SetHeight(0)
+	m.SetRows(rows[:8])
+	if m.Cursor() != 7 {
+		t.Fatalf("cursor = %d, want 7", m.Cursor())
+	}
+	m.SetHeight(6)
+	if got := strings.Count(ansi.Strip(m.View()), "r0"); got != 5 {
+		t.Fatalf("visible rows after growing back = %d, want 5", got)
+	}
+}
