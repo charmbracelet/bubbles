@@ -1,6 +1,7 @@
 package table
 
 import (
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -805,4 +806,108 @@ func TestModel_View_CenteredInABox(t *testing.T) {
 	got := boxStyle.Render(tableView)
 
 	golden.RequireEqual(t, []byte(got))
+}
+
+// TestViewportKeepsCursorVisible covers the window of visible rows: it moves
+// only as far as the cursor needs, and replacing the rows or setting the
+// cursor leaves it where it was (#733).
+func TestViewportKeepsCursorVisible(t *testing.T) {
+	const height = 5
+	rows := func(n int, suffix string) []Row {
+		r := make([]Row, n)
+		for i := range r {
+			r[i] = Row{fmt.Sprintf("r%02d%s", i, suffix)}
+		}
+		return r
+	}
+	newTable := func() Model {
+		return New(
+			WithColumns([]Column{{Title: "Col", Width: 10}}),
+			WithRows(rows(30, "")),
+			WithWidth(20),
+			WithHeight(height+1), // one line for the header
+			WithFocused(true),
+		)
+	}
+	visible := func(m Model) []string {
+		lines := strings.Split(ansi.Strip(m.View()), "\n")[1:]
+		var out []string
+		for _, l := range lines {
+			if l = strings.TrimSpace(l); l != "" {
+				out = append(out, l)
+			}
+		}
+		return out
+	}
+
+	tests := []struct {
+		name   string
+		act    func(m *Model)
+		cursor int
+		first  string
+	}{
+		{"moving down keeps the cursor at the bottom", func(m *Model) { m.MoveDown(12) }, 12, "r08"},
+		{"moving up inside the window keeps it", func(m *Model) { m.MoveDown(12); m.MoveUp(2) }, 10, "r08"},
+		{"moving up past the top moves it", func(m *Model) { m.MoveDown(12); m.MoveUp(6) }, 6, "r06"},
+		{"replacing the rows keeps the window", func(m *Model) { m.MoveDown(12); m.SetRows(rows(30, "x")) }, 12, "r08x"},
+		{"setting the cursor inside the window keeps it", func(m *Model) { m.MoveDown(12); m.SetCursor(9) }, 9, "r08"},
+		{"setting the cursor below the window shows it", func(m *Model) { m.SetCursor(20) }, 20, "r16"},
+		{"setting the cursor above the window shows it", func(m *Model) { m.SetCursor(20); m.SetCursor(3) }, 3, "r03"},
+		{"page down", func(m *Model) { m.MoveDown(height) }, 5, "r01"},
+		{"bottom", func(m *Model) { m.GotoBottom() }, 29, "r25"},
+		{"top", func(m *Model) { m.GotoBottom(); m.GotoTop() }, 0, "r00"},
+		{"fewer rows pull the window back", func(m *Model) { m.GotoBottom(); m.SetRows(rows(8, "")) }, 7, "r03"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := newTable()
+			tt.act(&m)
+			if m.Cursor() != tt.cursor {
+				t.Fatalf("cursor = %d, want %d", m.Cursor(), tt.cursor)
+			}
+			got := visible(m)
+			if len(got) != height {
+				t.Fatalf("visible rows = %q, want %d of them", got, height)
+			}
+			if got[0] != tt.first {
+				t.Fatalf("first visible row = %q, want %q (visible %q)", got[0], tt.first, got)
+			}
+			selected := fmt.Sprintf("r%02d", tt.cursor)
+			found := false
+			for _, r := range got {
+				if strings.HasPrefix(r, selected) {
+					found = true
+				}
+			}
+			if !found {
+				t.Fatalf("the selected row %s is not visible: %q", selected, got)
+			}
+		})
+	}
+}
+
+// TestViewportShorterThanHeader covers a table set shorter than its header:
+// it shows no rows, and replacing its rows does not panic.
+func TestViewportShorterThanHeader(t *testing.T) {
+	rows := make([]Row, 30)
+	for i := range rows {
+		rows[i] = Row{fmt.Sprintf("r%02d", i)}
+	}
+	m := New(
+		WithColumns([]Column{{Title: "Col", Width: 10}}),
+		WithRows(rows),
+		WithWidth(20),
+		WithHeight(6),
+		WithFocused(true),
+	)
+	m.GotoBottom()
+	m.SetHeight(0)
+	m.SetRows(rows[:8])
+	if m.Cursor() != 7 {
+		t.Fatalf("cursor = %d, want 7", m.Cursor())
+	}
+	m.SetHeight(6)
+	if got := strings.Count(ansi.Strip(m.View()), "r0"); got != 5 {
+		t.Fatalf("visible rows after growing back = %d, want 5", got)
+	}
 }
