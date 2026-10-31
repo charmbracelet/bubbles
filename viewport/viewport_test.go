@@ -290,7 +290,10 @@ func TestVisibleLines(t *testing.T) {
 
 		lastItem := numberOfLines - 1
 		defaultLastItem := len(defaultList) - 1
-		if list[lastItem] != defaultList[defaultLastItem] {
+		cutLast := func() string {
+			return ansi.Cut(defaultList[defaultLastItem], m.xOffset, m.xOffset+m.maxWidth())
+		}
+		if list[lastItem] != cutLast() {
 			t.Errorf("%dth list item should the the same as %dth default list item", lastItem, defaultLastItem)
 		}
 
@@ -308,8 +311,8 @@ func TestVisibleLines(t *testing.T) {
 			t.Errorf("first list item has to have prefix %s, get %s", newPrefix, list[0])
 		}
 
-		if list[lastItem] != defaultList[defaultLastItem] {
-			t.Errorf("last item should be empty, got %s", list[lastItem])
+		if list[lastItem] != cutLast() {
+			t.Errorf("last item should be cut to the viewport, got %s", list[lastItem])
 		}
 
 		// move left
@@ -319,8 +322,30 @@ func TestVisibleLines(t *testing.T) {
 			t.Errorf("first list item has to have prefix %s", perceptPrefix)
 		}
 
-		if list[lastItem] != defaultList[defaultLastItem] {
+		if list[lastItem] != cutLast() {
 			t.Errorf("%dth list item should the the same as %dth default list item", lastItem, defaultLastItem)
+		}
+	})
+
+	t.Run("list: long line outside the view", func(t *testing.T) {
+		t.Parallel()
+
+		m := New(WithHeight(2), WithWidth(10))
+		m.SetContentLines([]string{"short", "tiny", strings.Repeat("x", 40)})
+
+		if m.longestLineWidth >= 0 {
+			t.Errorf("content should be measured lazily, got %d", m.longestLineWidth)
+		}
+		if list := m.visibleLines(); list[0] != "short" || list[1] != "tiny" {
+			t.Errorf("visible lines that fit should be unchanged, got %q", list)
+		}
+		if got := m.maxXOffset(); got != 30 {
+			t.Errorf("maxXOffset should measure the longest line, got %d", got)
+		}
+
+		m.SetYOffset(1)
+		if list := m.visibleLines(); list[1] != strings.Repeat("x", 10) {
+			t.Errorf("visible long line should be cut, got %q", list[1])
 		}
 	})
 
