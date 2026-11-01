@@ -2064,7 +2064,8 @@ func wrap(runes []rune, width int) [][]rune {
 		}
 	}
 
-	if uniseg.StringWidth(string(lines[row]))+uniseg.StringWidth(string(word))+spaces >= width {
+	lineWidth := uniseg.StringWidth(string(lines[row])) + uniseg.StringWidth(string(word)) + spaces
+	if lineWidth > width {
 		lines = append(lines, []rune{})
 		lines[row+1] = append(lines[row+1], word...)
 		// We add an extra space at the end of the line to account for the
@@ -2075,6 +2076,13 @@ func wrap(runes []rune, width int) [][]rune {
 		lines[row+1] = append(lines[row+1], repeatSpaces(spaces)...)
 	} else {
 		lines[row] = append(lines[row], word...)
+		if lineWidth == width {
+			// The last word fills the line exactly, so keep it here and
+			// move only the trailing cursor space to the next row, as we
+			// do for a single word that fills the whole width.
+			row++
+			lines = append(lines, []rune{})
+		}
 		spaces++
 		lines[row] = append(lines[row], repeatSpaces(spaces)...)
 	}
