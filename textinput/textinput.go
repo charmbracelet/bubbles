@@ -24,6 +24,8 @@ type (
 	pasteErrMsg struct{ error }
 )
 
+func (e pasteErrMsg) Unwrap() error { return e.error }
+
 // EchoMode sets the input behavior of the text input field.
 type EchoMode int
 
