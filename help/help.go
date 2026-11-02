@@ -232,15 +232,16 @@ func (m Model) FullHelpView(groups [][]key.Binding) string {
 }
 
 func (m Model) shouldAddItem(totalWidth, width int) (tail string, ok bool) {
-	// If there's room for an ellipsis, print that.
-	if m.width > 0 && totalWidth+width > m.width {
-		tail = " " + m.Styles.Ellipsis.Inline(true).Render(m.Ellipsis)
-
-		if totalWidth+lipgloss.Width(tail) < m.width {
-			return tail, false
-		}
+	if m.width <= 0 || totalWidth+width <= m.width {
+		return "", true
 	}
-	return "", true
+
+	// The item does not fit. End with an ellipsis if there's room for one.
+	tail = " " + m.Styles.Ellipsis.Inline(true).Render(m.Ellipsis)
+	if totalWidth+lipgloss.Width(tail) < m.width {
+		return tail, false
+	}
+	return "", false
 }
 
 func shouldRenderColumn(b []key.Binding) (ok bool) {
