@@ -4,10 +4,43 @@ import (
 	"fmt"
 	"testing"
 
-	"charm.land/bubbles/v2/key"
+	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/golden"
+
+	"charm.land/bubbles/v2/key"
 )
+
+// A wide ellisis (i.e. wider than the items) should not render when all items
+// fit within the configured width.
+func TestWideEllipsisCompatibility(t *testing.T) {
+	kb := []key.Binding{
+		key.NewBinding(key.WithKeys("a"), key.WithHelp("a", "b")),
+		key.NewBinding(key.WithKeys("c"), key.WithHelp("c", "d")),
+	}
+
+	for _, tc := range []struct {
+		name  string
+		width int
+	}{
+		{"short", 9},
+		{"full", 10},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			m := New()
+			m.Ellipsis = "... more"
+			m.SetWidth(tc.width)
+
+			s := m.ShortHelpView(kb)
+			if tc.name == "full" {
+				s = m.FullHelpView([][]key.Binding{{kb[0]}, {kb[1]}})
+			}
+
+			s = ansi.Strip(s)
+			golden.RequireEqual(t, []byte(s))
+		})
+	}
+}
 
 func TestFullHelp(t *testing.T) {
 	m := New()
@@ -28,10 +61,56 @@ func TestFullHelp(t *testing.T) {
 		},
 	}
 
-	for _, w := range []int{20, 30, 40} {
-		t.Run(fmt.Sprintf("full help %d width", w), func(t *testing.T) {
+	sep := m.FullSeparator
+	sepWidth := lipgloss.Width(sep)
+
+	widths := make([]int, 8)
+	widths[0] = 1                                         // no usable width
+	widths[1] = len("enter continue")                     // sufficient width for column, but not with trailing ellipsis+space
+	widths[2] = widths[1] + 1                             // sufficient width for column, but not with trailing ellipsis+space
+	widths[3] = widths[2] + 1                             // sufficient width for column and ellipsis+space
+	widths[4] = widths[1] + sepWidth + len("esc back")    // sufficient width for 2 columns, but not for elipsis+space
+	widths[5] = widths[4] + 1                             // sufficient width for 2 columns, but not for elipsis+space
+	widths[6] = widths[5] + 1                             // sufficient width for 2 columns and elipsis+space
+	widths[7] = widths[4] + sepWidth + len("ctrl+c quit") // sufficient width for all items
+
+	for i, w := range widths {
+		t.Run(fmt.Sprintf("full help width #%d", i), func(t *testing.T) {
 			m.SetWidth(w)
 			s := m.FullHelpView(kb)
+			s = ansi.Strip(s)
+			golden.RequireEqual(t, []byte(s))
+		})
+	}
+}
+
+func TestShortHelp(t *testing.T) {
+	m := New()
+	k := key.WithKeys("x")
+	kb := []key.Binding{
+		key.NewBinding(k, key.WithHelp("enter", "continue")),
+		key.NewBinding(k, key.WithHelp("esc", "back")),
+		key.NewBinding(k, key.WithHelp("?", "help")),
+	}
+
+	m.Ellipsis = "…"
+	sep := m.ShortSeparator
+	sepWidth := lipgloss.Width(sep)
+
+	widths := make([]int, 8)
+	widths[0] = 1                                      // no usable width
+	widths[1] = len("enter continue")                  // sufficient width for item, but not with trailing ellipsis+space
+	widths[2] = widths[1] + 1                          // sufficient width for item, but not with trailing ellipsis+space
+	widths[3] = widths[2] + 1                          // sufficient width for item and ellipsis+space
+	widths[4] = widths[1] + sepWidth + len("esc back") // sufficient width for 2 items, but not for elipsis+space
+	widths[5] = widths[4] + 1                          // sufficient width for 2 items, but not for elipsis+space
+	widths[6] = widths[5] + 1                          // sufficient width for 2 items and elipsis+space
+	widths[7] = widths[4] + sepWidth + len("? help")   // sufficient width for all items
+
+	for i, w := range widths {
+		t.Run(fmt.Sprintf("short help width #%d", i), func(t *testing.T) {
+			m.SetWidth(w)
+			s := m.ShortHelpView(kb)
 			s = ansi.Strip(s)
 			golden.RequireEqual(t, []byte(s))
 		})
