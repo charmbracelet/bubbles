@@ -659,7 +659,7 @@ func (m Model) Value() string {
 func (m *Model) Length() int {
 	var l int
 	for _, row := range m.value {
-		l += uniseg.StringWidth(string(row))
+		l += len(row)
 	}
 	// We add len(m.value) to include the newline characters.
 	return l + len(m.value) - 1
