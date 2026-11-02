@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 )
 
 func Test_CurrentSuggestion(t *testing.T) {
@@ -117,4 +118,20 @@ func sendString(m Model, str string) Model {
 	}
 
 	return m
+}
+
+func Test_ViewRespectsWidthWithSuggestions(t *testing.T) {
+	m := New()
+	m.SetWidth(20)
+	m.SetValue("hel")
+	m.ShowSuggestions = true
+	m.SetSuggestions([]string{"hello world this is a very long suggestion overflow", "second"})
+	m.Focus()
+	m, _ = m.Update(keyPress('l'))
+
+	got := ansi.StringWidth(m.View())
+	// prompt (2) + width (20) + cursor (1)
+	if want := 23; got != want {
+		t.Fatalf("expected rendered width %d but got %d: %q", want, got, m.View())
+	}
 }

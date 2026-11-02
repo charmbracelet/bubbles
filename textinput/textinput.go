@@ -14,6 +14,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/atotto/clipboard"
+	"github.com/charmbracelet/x/ansi"
 	rw "github.com/mattn/go-runewidth"
 	"github.com/rivo/uniseg"
 )
@@ -695,12 +696,23 @@ func (m Model) View() string {
 	pos := max(0, m.pos-m.offset)
 	v := styleText(m.echoTransform(string(value[:pos])))
 
+	valWidth := uniseg.StringWidth(string(value))
+
+	// The cursor sits on top of a character while pos < len(value), so it does
+	// not add a column. At the end of the input it is appended after the text
+	// and consumes one column.
+	cursorExtra := 1
+	if pos < len(value) {
+		cursorExtra = 0
+	}
+
+	var completion string
 	if pos < len(value) { //nolint:nestif
 		char := m.echoTransform(string(value[pos]))
 		m.virtualCursor.SetChar(char)
 		v += m.virtualCursor.View()                            // cursor and text under it
 		v += styleText(m.echoTransform(string(value[pos+1:]))) // text after cursor
-		v += m.completionView(0)                               // suggested completion
+		completion = m.completionView(0, max(0, m.Width()+1-valWidth))
 	} else {
 		if m.focus && m.canAcceptSuggestion() {
 			suggestion := m.matchedSuggestions[m.currentSuggestionIndex]
@@ -708,7 +720,7 @@ func (m Model) View() string {
 				m.virtualCursor.TextStyle = styles.Suggestion
 				m.virtualCursor.SetChar(m.echoTransform(string(suggestion[pos])))
 				v += m.virtualCursor.View()
-				v += m.completionView(1)
+				completion = m.completionView(1, max(0, m.Width()-valWidth))
 			} else {
 				m.virtualCursor.SetChar(" ")
 				v += m.virtualCursor.View()
@@ -718,15 +730,15 @@ func (m Model) View() string {
 			v += m.virtualCursor.View()
 		}
 	}
+	if completion != "" {
+		v += completion
+	}
 
 	// If a max width and background color were set fill the empty spaces with
-	// the background color.
-	valWidth := uniseg.StringWidth(string(value))
+	// the background color. The suggested completion, when rendered, already
+	// consumes some of the width, so it is subtracted from the padding.
 	if m.Width() > 0 && valWidth <= m.Width() {
-		padding := max(0, m.Width()-valWidth)
-		if valWidth+padding <= m.Width() && pos < len(value) {
-			padding++
-		}
+		padding := max(0, m.Width()+1-valWidth-cursorExtra-ansi.StringWidth(completion))
 		v += styleText(strings.Repeat(" ", padding))
 	}
 
@@ -800,17 +812,22 @@ func clamp(v, low, high int) int {
 	return min(high, max(low, v))
 }
 
-func (m Model) completionView(offset int) string {
+func (m Model) completionView(offset, maxWidth int) string {
 	if !m.canAcceptSuggestion() {
 		return ""
 	}
+
+	sraw := m.matchedSuggestions[m.currentSuggestionIndex]
 	value := m.value
-	suggestion := m.matchedSuggestions[m.currentSuggestionIndex]
-	if len(value) < len(suggestion) {
-		return m.activeStyle().Suggestion.Inline(true).
-			Render(string(suggestion[len(value)+offset:]))
+	if len(value) >= len(sraw) || maxWidth <= 0 {
+		return ""
 	}
-	return ""
+
+	tail := string(sraw[len(value)+offset:])
+	// Keep the suggestion within the input width so the rendered line doesn't
+	// overflow the space given to the text input.
+	tail = ansi.Truncate(tail, maxWidth, "")
+	return m.activeStyle().Suggestion.Inline(true).Render(tail)
 }
 
 func (m *Model) getSuggestions(sugs [][]rune) []string {
