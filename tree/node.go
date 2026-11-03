@@ -161,6 +161,7 @@ func (t *Node) GivenValue() any {
 // SetValue sets the value of the node.
 func (t *Node) SetValue(value any) {
 	t.value = value
+	t.tree.SetValue(value)
 }
 
 // Children returns the children of an item.
