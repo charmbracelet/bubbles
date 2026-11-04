@@ -299,10 +299,11 @@ func (m Model) Percent() float64 {
 
 // SetPercent sets the percentage state of the model as well as a command
 // necessary for animating the progress bar to this new percentage.
+// Values are clamped to [0, 1]; NaN is treated as zero.
 //
 // If you're rendering with ViewAs you won't need this.
 func (m *Model) SetPercent(p float64) tea.Cmd {
-	m.targetPercent = math.Max(0, math.Min(1, p))
+	m.targetPercent = clampPercent(p)
 	m.tag++
 	return m.nextFrame()
 }
@@ -330,7 +331,9 @@ func (m Model) View() string {
 }
 
 // ViewAs renders the progress bar with a given percentage.
+// Values are clamped to [0, 1]; NaN is treated as zero.
 func (m Model) ViewAs(percent float64) string {
+	percent = clampPercent(percent)
 	b := strings.Builder{}
 	percentView := m.percentageView(percent)
 	m.barView(&b, percent, ansi.StringWidth(percentView))
@@ -425,10 +428,17 @@ func (m Model) percentageView(percent float64) string {
 	if !m.ShowPercentage {
 		return ""
 	}
-	percent = math.Max(0, math.Min(1, percent))
 	percentage := fmt.Sprintf(m.PercentFormat, percent*100) //nolint:mnd
 	percentage = m.PercentageStyle.Inline(true).Render(percentage)
 	return percentage
+}
+
+// clampPercent keeps invalid progress from entering the spring or bar renderer.
+func clampPercent(percent float64) float64 {
+	if math.IsNaN(percent) {
+		return 0
+	}
+	return math.Max(0, math.Min(1, percent))
 }
 
 // IsAnimating returns false if the progress bar reached equilibrium and is no
