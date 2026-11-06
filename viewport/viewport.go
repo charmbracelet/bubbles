@@ -5,6 +5,7 @@ import (
 	"math"
 	"slices"
 	"strings"
+	"sync"
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
@@ -113,6 +114,28 @@ type Model struct {
 
 	highlights []highlightInfo
 	hiIdx      int
+
+	// lineWidths caches the display width of each line for soft wrapping.
+	// It's replaced whenever the content changes.
+	lineWidths *lineWidthCache
+}
+
+// lineWidthCache measures the content lines once, on first use. It's held by
+// pointer so value receivers such as [Model.View] can fill it.
+type lineWidthCache struct {
+	once   sync.Once
+	widths []int
+}
+
+// get returns the display width of each line, measuring them on first call.
+func (c *lineWidthCache) get(lines []string) []int {
+	c.once.Do(func() {
+		c.widths = make([]int, len(lines))
+		for i, line := range lines {
+			c.widths[i] = ansi.StringWidth(line)
+		}
+	})
+	return c.widths
 }
 
 // GutterFunc can be implemented and set into [Model.LeftGutterFunc].
@@ -230,10 +253,14 @@ func (m *Model) SetContent(s string) {
 // SetContentLines allows to set the lines to be shown instead of the content.
 // If a given line has a \n in it, it will still be split into multiple lines
 // similar to that of [Model.SetContent]. See also [Model.SetContent].
+//
+// The viewport keeps and may modify the given slice, so it shouldn't be
+// changed afterwards; call SetContentLines again to update the content.
 func (m *Model) SetContentLines(lines []string) {
 	// if there's no content, set content to actual nil instead of one empty
 	// line.
 	m.lines = lines
+	m.lineWidths = &lineWidthCache{}
 	if len(m.lines) == 1 && ansi.StringWidth(m.lines[0]) == 0 {
 		m.lines = nil
 	} else {
@@ -280,8 +307,8 @@ func (m Model) calculateLine(yoffset int) (total, ridx, voffset int) {
 	maxWidth := float64(m.maxWidth())
 	var lineHeight int
 
-	for i, line := range m.lines {
-		lineHeight = max(1, int(math.Ceil(float64(ansi.StringWidth(line))/maxWidth)))
+	for i, width := range m.widths() {
+		lineHeight = max(1, int(math.Ceil(float64(width)/maxWidth)))
 
 		if yoffset >= total && yoffset < total+lineHeight {
 			ridx = i
@@ -296,6 +323,16 @@ func (m Model) calculateLine(yoffset int) (total, ridx, voffset int) {
 	}
 
 	return total, ridx, voffset
+}
+
+// widths returns the display width of each line. Soft wrapping needs them on
+// every scroll and render, so they're cached until the content changes.
+func (m Model) widths() []int {
+	if m.lineWidths == nil {
+		// Content wasn't set through SetContentLines; measure without caching.
+		return (&lineWidthCache{}).get(m.lines)
+	}
+	return m.lineWidths.get(m.lines)
 }
 
 // maxYOffset returns the maximum possible value of the y-offset based on the
