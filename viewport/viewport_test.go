@@ -734,6 +734,88 @@ func TestSizing(t *testing.T) {
 	})
 }
 
+func TestSoftWrapLineWidthCache(t *testing.T) {
+	t.Parallel()
+
+	newModel := func() Model {
+		m := New(WithWidth(10), WithHeight(3))
+		m.SoftWrap = true
+		return m
+	}
+	totalLines := func(m Model) int {
+		total, _, _ := m.calculateLine(0)
+		return total
+	}
+
+	t.Run("set content", func(t *testing.T) {
+		t.Parallel()
+		m := newModel()
+		m.SetContent("short\n" + strings.Repeat("x", 25))
+		if got := totalLines(m); got != 4 {
+			t.Errorf("expected 4 wrapped lines, got %d", got)
+		}
+		m.SetContent(strings.Repeat("y", 35) + "\nshort")
+		if got := totalLines(m); got != 5 {
+			t.Errorf("expected 5 wrapped lines after SetContent, got %d", got)
+		}
+	})
+
+	t.Run("set content lines reusing slice", func(t *testing.T) {
+		t.Parallel()
+		m := newModel()
+		lines := []string{"a", "b"}
+		m.SetContentLines(lines)
+		if got := totalLines(m); got != 2 {
+			t.Errorf("expected 2 wrapped lines, got %d", got)
+		}
+		lines[1] = strings.Repeat("z", 30)
+		m.SetContentLines(lines)
+		if got := totalLines(m); got != 4 {
+			t.Errorf("expected 4 wrapped lines after SetContentLines, got %d", got)
+		}
+	})
+
+	t.Run("width and gutter changes", func(t *testing.T) {
+		t.Parallel()
+		m := newModel()
+		m.SetContent(strings.Repeat("x", 20))
+		if got := totalLines(m); got != 2 {
+			t.Errorf("expected 2 wrapped lines, got %d", got)
+		}
+		m.SetWidth(5)
+		if got := totalLines(m); got != 4 {
+			t.Errorf("expected 4 wrapped lines after SetWidth, got %d", got)
+		}
+		m.LeftGutterFunc = func(GutterContext) string { return "  " }
+		if got := totalLines(m); got != 7 {
+			t.Errorf("expected 7 wrapped lines with a gutter, got %d", got)
+		}
+	})
+
+	t.Run("copies keep their content", func(t *testing.T) {
+		t.Parallel()
+		m := newModel()
+		m.SetContent(strings.Repeat("x", 30))
+		old := m
+		m.SetContent("short")
+		if got := totalLines(old); got != 3 {
+			t.Errorf("expected copy to keep 3 wrapped lines, got %d", got)
+		}
+		if got := totalLines(m); got != 1 {
+			t.Errorf("expected 1 wrapped line, got %d", got)
+		}
+	})
+
+	t.Run("lines set directly", func(t *testing.T) {
+		t.Parallel()
+		m := newModel()
+		m.lines = []string{strings.Repeat("x", 30)}
+		if got := totalLines(m); got != 3 {
+			t.Errorf("expected 3 wrapped lines, got %d", got)
+		}
+	})
+}
+
 func BenchmarkView(b *testing.B) {
 	b.Run("view-30x15", func(b *testing.B) {
 		vt := New(WithWidth(30), WithHeight(15))
@@ -772,4 +854,24 @@ func BenchmarkView(b *testing.B) {
 			vt.View()
 		}
 	})
+}
+
+func BenchmarkSoftWrapScroll(b *testing.B) {
+	var sb strings.Builder
+	for i := range 10000 {
+		fmt.Fprintf(&sb, "%05d \x1b[32mINFO\x1b[0m request handled path=/api/v1/items/%d %s\n", i, i, strings.Repeat("x", i%120))
+	}
+	content := sb.String()
+
+	vt := New(WithWidth(100), WithHeight(40))
+	vt.SoftWrap = true
+	vt.SetContent(content)
+
+	for b.Loop() {
+		if vt.AtBottom() {
+			vt.GotoTop()
+		}
+		vt.ScrollDown(1)
+		_ = vt.View()
+	}
 }
