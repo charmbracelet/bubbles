@@ -487,7 +487,7 @@ func (m *Model) PageDown() {
 	if m.AtBottom() {
 		return
 	}
-	m.ScrollDown(m.Height())
+	m.ScrollDown(m.maxHeight())
 }
 
 // PageUp moves the view up by one height of the viewport.
@@ -495,7 +495,7 @@ func (m *Model) PageUp() {
 	if m.AtTop() {
 		return
 	}
-	m.ScrollUp(m.Height())
+	m.ScrollUp(m.maxHeight())
 }
 
 // HalfPageDown moves the view down by half the height of the viewport.
@@ -503,7 +503,7 @@ func (m *Model) HalfPageDown() {
 	if m.AtBottom() {
 		return
 	}
-	m.ScrollDown(m.Height() / 2) //nolint:mnd
+	m.ScrollDown(m.maxHeight() / 2) //nolint:mnd
 }
 
 // HalfPageUp moves the view up by half the height of the viewport.
@@ -511,7 +511,7 @@ func (m *Model) HalfPageUp() {
 	if m.AtTop() {
 		return
 	}
-	m.ScrollUp(m.Height() / 2) //nolint:mnd
+	m.ScrollUp(m.maxHeight() / 2) //nolint:mnd
 }
 
 // ScrollDown moves the view down by the given number of lines.
