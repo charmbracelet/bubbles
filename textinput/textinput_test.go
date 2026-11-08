@@ -41,6 +41,56 @@ func Test_CurrentSuggestion(t *testing.T) {
 	}
 }
 
+func Test_CurrentSuggestionAfterPrevious(t *testing.T) {
+	tests := []struct {
+		name        string
+		value       string
+		suggestions []string
+		expected    string
+	}{
+		{
+			name: "no suggestions",
+		},
+		{
+			name:        "empty value",
+			suggestions: []string{"test1", "test2"},
+		},
+		{
+			name:        "no matches",
+			value:       "other",
+			suggestions: []string{"test1", "test2"},
+		},
+		{
+			name:        "one match",
+			value:       "test",
+			suggestions: []string{"test1"},
+			expected:    "test1",
+		},
+		{
+			name:        "multiple matches",
+			value:       "test",
+			suggestions: []string{"test1", "test2", "test3"},
+			expected:    "test3",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			textinput := New()
+			textinput.ShowSuggestions = true
+			textinput.SetValue(tt.value)
+			textinput.SetSuggestions(tt.suggestions)
+			textinput.Focus()
+
+			textinput, _ = textinput.Update(tea.KeyPressMsg{Code: tea.KeyUp})
+
+			if got := textinput.CurrentSuggestion(); got != tt.expected {
+				t.Fatalf("expected current suggestion %q, got %q", tt.expected, got)
+			}
+		})
+	}
+}
+
 func Test_SlicingOutsideCap(t *testing.T) {
 	textinput := New()
 	textinput.Placeholder = "作業ディレクトリを指定してください"

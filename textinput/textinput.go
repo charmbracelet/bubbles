@@ -889,7 +889,7 @@ func (m *Model) nextSuggestion() {
 func (m *Model) previousSuggestion() {
 	m.currentSuggestionIndex = (m.currentSuggestionIndex - 1)
 	if m.currentSuggestionIndex < 0 {
-		m.currentSuggestionIndex = len(m.matchedSuggestions) - 1
+		m.currentSuggestionIndex = max(0, len(m.matchedSuggestions)-1)
 	}
 }
 
