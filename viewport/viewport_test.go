@@ -773,3 +773,40 @@ func BenchmarkView(b *testing.B) {
 		}
 	})
 }
+
+func TestScrollPercentWithFrame(t *testing.T) {
+	t.Parallel()
+
+	lines := make([]string, 20)
+	for i := range lines {
+		lines[i] = fmt.Sprintf("line %02d", i)
+	}
+
+	// Height is 10, but the border takes 2 rows, so 8 lines are visible and
+	// the last offset is 20 - 8 = 12.
+	vp := New(WithWidth(20), WithHeight(10))
+	vp.Style = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
+	vp.SetContent(strings.Join(lines, "\n"))
+
+	for _, tt := range []struct {
+		offset int
+		want   float64
+	}{
+		{0, 0},
+		{6, 0.5},
+		{12, 1},
+	} {
+		vp.SetYOffset(tt.offset)
+		if got := vp.ScrollPercent(); got != tt.want {
+			t.Errorf("YOffset %d: expected ScrollPercent %v, got %v", tt.offset, tt.want, got)
+		}
+	}
+
+	// 9 lines do not fit in the 8 visible rows, so at the top the viewport
+	// is not fully scrolled.
+	vp.SetContent(strings.Join(lines[:9], "\n"))
+	vp.GotoTop()
+	if got := vp.ScrollPercent(); got != 0 {
+		t.Errorf("9 lines at the top: expected ScrollPercent 0, got %v", got)
+	}
+}

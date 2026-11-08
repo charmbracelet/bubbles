@@ -198,14 +198,11 @@ func (m Model) PastBottom() bool {
 
 // ScrollPercent returns the amount scrolled as a float between 0 and 1.
 func (m Model) ScrollPercent() float64 {
-	total, _, _ := m.calculateLine(0)
-	if m.Height() >= total {
+	maxYOffset := m.maxYOffset()
+	if maxYOffset == 0 {
 		return 1.0
 	}
-	y := float64(m.YOffset())
-	h := float64(m.Height())
-	t := float64(total)
-	v := y / (t - h)
+	v := float64(m.YOffset()) / float64(maxYOffset)
 	return clamp(v, 0, 1)
 }
 
