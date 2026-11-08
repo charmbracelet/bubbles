@@ -773,3 +773,45 @@ func BenchmarkView(b *testing.B) {
 		}
 	})
 }
+
+func TestPageScrollWithFrame(t *testing.T) {
+	t.Parallel()
+
+	lines := make([]string, 30)
+	for i := range lines {
+		lines[i] = fmt.Sprintf("line %02d", i)
+	}
+
+	// Height is 10, but the border takes 2 rows, so 8 lines are visible.
+	newViewport := func() Model {
+		vp := New(WithWidth(20), WithHeight(10))
+		vp.Style = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
+		vp.SetContent(strings.Join(lines, "\n"))
+		return vp
+	}
+
+	tests := []struct {
+		name   string
+		start  int
+		scroll func(*Model)
+		want   int
+	}{
+		{"PageDown", 0, (*Model).PageDown, 8},
+		{"PageUp", 16, (*Model).PageUp, 8},
+		{"HalfPageDown", 0, (*Model).HalfPageDown, 4},
+		{"HalfPageUp", 16, (*Model).HalfPageUp, 12},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			vp := newViewport()
+			vp.SetYOffset(tt.start)
+			tt.scroll(&vp)
+			if got := vp.YOffset(); got != tt.want {
+				t.Errorf("expected YOffset %d, got %d", tt.want, got)
+			}
+		})
+	}
+}
