@@ -107,6 +107,76 @@ func ExampleValidateFunc() {
 	}
 }
 
+func TestCursorPositionWithCJKCharacters(t *testing.T) {
+	t.Parallel()
+
+	ti := New()
+	ti.SetVirtualCursor(false)
+	ti.Focus()
+	ti.Prompt = "> "
+
+	// Type CJK characters that are 2 cells wide each.
+	ti = sendString(ti, "你好")
+
+	cur := ti.Cursor()
+	if cur == nil {
+		t.Fatal("expected non-nil cursor")
+	}
+
+	promptWidth := 2 // "> " is 2 columns
+	// "你好" = 2 CJK characters, each 2 cells wide = 4 columns total.
+	expectedX := promptWidth + 4
+	if cur.X != expectedX {
+		t.Fatalf("expected cursor X=%d but got X=%d", expectedX, cur.X)
+	}
+}
+
+func TestCursorPositionWithMixedASCIIAndCJK(t *testing.T) {
+	t.Parallel()
+
+	ti := New()
+	ti.SetVirtualCursor(false)
+	ti.Focus()
+	ti.Prompt = ""
+
+	// Type mixed ASCII and CJK characters.
+	ti = sendString(ti, "ab你c")
+
+	cur := ti.Cursor()
+	if cur == nil {
+		t.Fatal("expected non-nil cursor")
+	}
+
+	// "ab" = 2 columns, "你" = 2 columns, "c" = 1 column => 5 total.
+	expectedX := 5
+	if cur.X != expectedX {
+		t.Fatalf("expected cursor X=%d but got X=%d", expectedX, cur.X)
+	}
+}
+
+func TestCursorPositionCJKWithOffset(t *testing.T) {
+	t.Parallel()
+
+	ti := New()
+	ti.SetVirtualCursor(false)
+	ti.Focus()
+	ti.Prompt = ""
+	ti.SetWidth(6) // narrow width to force scrolling
+
+	// Type enough CJK characters to overflow the width.
+	ti = sendString(ti, "你好世界")
+
+	cur := ti.Cursor()
+	if cur == nil {
+		t.Fatal("expected non-nil cursor")
+	}
+
+	// Cursor X should not exceed width.
+	if cur.X > ti.Width() {
+		t.Fatalf("cursor X=%d exceeds width=%d", cur.X, ti.Width())
+	}
+}
+
 func keyPress(key rune) tea.Msg {
 	return tea.KeyPressMsg{Code: key, Text: string(key)}
 }
