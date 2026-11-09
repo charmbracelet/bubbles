@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 )
 
 func Test_CurrentSuggestion(t *testing.T) {
@@ -49,28 +50,40 @@ func Test_SlicingOutsideCap(t *testing.T) {
 }
 
 func TestChinesePlaceholder(t *testing.T) {
-	t.Skip("Skipping flaky test, the returned view seems incorrect. TODO: Needs investigation.")
 	textinput := New()
 	textinput.Placeholder = "输入消息..."
 	textinput.SetWidth(20)
 
-	got := textinput.View()
-	expected := "> 输入消息...       "
+	got := ansi.Strip(textinput.View())
+	expected := "> 输入消息...         "
 	if got != expected {
 		t.Fatalf("expected %q but got %q", expected, got)
 	}
 }
 
 func TestPlaceholderTruncate(t *testing.T) {
-	t.Skip("Skipping flaky test, the returned view seems incorrect. TODO: Needs investigation.")
 	textinput := New()
 	textinput.Placeholder = "A very long placeholder, or maybe not so much"
 	textinput.SetWidth(10)
 
-	got := textinput.View()
-	expected := "> A very …"
+	got := ansi.Strip(textinput.View())
+	expected := "> A very lo…"
 	if got != expected {
 		t.Fatalf("expected %q but got %q", expected, got)
+	}
+}
+
+func TestEmojiPlaceholder(t *testing.T) {
+	textinput := New()
+	textinput.Placeholder = "🤔scope"
+	textinput.SetWidth(20)
+
+	got := textinput.View()
+	if strings.ContainsRune(got, '\x00') {
+		t.Fatalf("expected placeholder view without null bytes, got %q", got)
+	}
+	if ansi.Strip(got) != "> 🤔scope             " {
+		t.Fatalf("unexpected emoji placeholder rendering: %q", ansi.Strip(got))
 	}
 }
 
