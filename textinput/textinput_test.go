@@ -118,3 +118,45 @@ func sendString(m Model, str string) Model {
 
 	return m
 }
+
+func Test_CursorPositionWithWideCharacters(t *testing.T) {
+	m := New()
+	m.SetVirtualCursor(false)
+	m.Focus()
+	m.SetWidth(40)
+	m.SetValue("あいう")
+
+	c := m.Cursor()
+	if c == nil {
+		t.Fatal("expected a cursor")
+	}
+
+	// The default prompt is "> ", and the three hiragana characters occupy
+	// six terminal columns, so the cursor belongs at column 8.
+	const want = 2 + 6
+	if c.X != want {
+		t.Fatalf("expected cursor X to be %d, got %d", want, c.X)
+	}
+}
+
+func Test_CursorPositionWithScrolledValue(t *testing.T) {
+	m := New()
+	m.SetVirtualCursor(false)
+	m.Focus()
+	m.SetWidth(5)
+	m.SetValue("abcdefghij")
+	m.SetCursor(8)
+
+	c := m.Cursor()
+	if c == nil {
+		t.Fatal("expected a cursor")
+	}
+
+	// The value is wider than the input, so the view is scrolled: the
+	// visible text is "fghij" and the cursor sits after "fgh", which is
+	// three columns wide.
+	const want = 2 + 3
+	if c.X != want {
+		t.Fatalf("expected cursor X to be %d, got %d", want, c.X)
+	}
+}
