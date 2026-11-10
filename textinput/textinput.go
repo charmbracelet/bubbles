@@ -921,8 +921,12 @@ func (m Model) Cursor() *tea.Cursor {
 	w := lipgloss.Width
 
 	promptWidth := w(m.promptView())
-	xOffset := m.Position() +
-		promptWidth
+	// The cursor sits after the visible text, so measure the display width of
+	// the value between the scroll offset and the cursor position instead of
+	// using the rune index, which is wrong for double-width characters.
+	end := max(m.offset, m.pos)
+	xOffset := promptWidth +
+		uniseg.StringWidth(string(m.value[m.offset:end]))
 	if m.width > 0 {
 		xOffset = min(xOffset, m.width+promptWidth)
 	}
