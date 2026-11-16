@@ -2359,6 +2359,102 @@ func TestMaxContentHeight_CursorVisibleWhileScrolling(t *testing.T) {
 	}
 }
 
+func TestMaxContentHeight_Insertion(t *testing.T) {
+	tests := []struct {
+		name    string
+		initial string
+		column  int
+		input   string
+		width   int
+		limit   int
+		want    string
+		row     int
+		col     int
+		visual  int
+	}{
+		{name: "exact multiline", input: "alpha\nbeta", width: 40, limit: 2, want: "alpha\nbeta", row: 1, col: 4, visual: 2},
+		{name: "last permitted line", initial: "alpha\nbeta", column: 4, input: "\ngamma", width: 40, limit: 3, want: "alpha\nbeta\ngamma", row: 2, col: 5, visual: 3},
+		{name: "single line at limit", initial: "alpha", column: 5, input: "beta", width: 40, limit: 1, want: "alphabeta", col: 9, visual: 1},
+		{name: "midline suffix", initial: "prefixsuffix", column: 6, input: "alpha\nbeta", width: 40, limit: 2, want: "prefixalpha\nbetasuffix", row: 1, col: 4, visual: 2},
+		{name: "single line with suffix", initial: "abef", column: 2, input: "cd", width: 40, limit: 1, want: "abcdef", col: 4, visual: 1},
+		{name: "first line wraps", initial: "abc", column: 3, input: "de\nx", width: 5, limit: 3, want: "abcde\nx", row: 1, col: 1, visual: 3},
+		{name: "suffix wraps", initial: "abcdef", column: 3, input: "x\nyz", width: 5, limit: 3, want: "abcx\nyzdef", row: 1, col: 2, visual: 3},
+		{name: "suffix exceeds limit", initial: "abcdef", column: 3, input: "x\nyz", width: 5, limit: 2, want: "abcxdef", col: 4, visual: 2},
+		{name: "middle line wraps", input: "a\nabcdef\nb", width: 5, limit: 4, want: "a\nabcdef\nb", row: 2, col: 1, visual: 4},
+		{name: "wide suffix wraps", initial: "界界", column: 1, input: "ab\nc界", width: 5, limit: 3, want: "界ab\nc界界", row: 1, col: 2, visual: 3},
+		{name: "wide suffix exceeds limit", initial: "界界", column: 1, input: "ab\nc界", width: 5, limit: 2, want: "界ab界", col: 3, visual: 2},
+		{name: "trailing newline", input: "alpha\n", width: 40, limit: 2, want: "alpha\n", row: 1, visual: 2},
+		{name: "excess lines trimmed", input: "a\nb\nc", width: 40, limit: 2, want: "a\nb", row: 1, col: 1, visual: 2},
+		{name: "single line exceeds limit", initial: "abc", column: 3, input: "de", width: 5, limit: 1, want: "abc", col: 3, visual: 1},
+		{name: "unlimited", input: "alpha\nbeta", width: 40, want: "alpha\nbeta", row: 1, col: 4, visual: 2},
+		{name: "empty insertion", initial: "alpha", column: 2, width: 40, limit: 1, want: "alpha", col: 2, visual: 1},
+	}
+	for _, tt := range tests {
+		for _, dynamic := range []bool{false, true} {
+			for _, paste := range []bool{false, true} {
+				t.Run(fmt.Sprintf("%s/dynamic=%t/paste=%t", tt.name, dynamic, paste), func(t *testing.T) {
+					ta := New()
+					ta.Prompt = ""
+					ta.ShowLineNumbers = false
+					ta.DynamicHeight = dynamic
+					ta.SetWidth(tt.width)
+					ta.Focus()
+					ta.SetValue(tt.initial)
+					ta.SetCursorColumn(tt.column)
+					ta.MaxContentHeight = tt.limit
+
+					if paste {
+						ta, _ = ta.Update(tea.PasteMsg{Content: tt.input})
+					} else {
+						ta.InsertString(tt.input)
+					}
+
+					if got := ta.Value(); got != tt.want {
+						t.Fatalf("expected value %q, got %q", tt.want, got)
+					}
+					if ta.Line() != tt.row || ta.Column() != tt.col {
+						t.Errorf("expected cursor (%d, %d), got (%d, %d)", tt.row, tt.col, ta.Line(), ta.Column())
+					}
+					if got := ta.totalVisualLines(); got != tt.visual {
+						t.Errorf("expected %d visual lines, got %d", tt.visual, got)
+					}
+					if dynamic && ta.Height() != tt.visual {
+						t.Errorf("expected height %d, got %d", tt.visual, ta.Height())
+					}
+				})
+			}
+		}
+	}
+}
+
+func TestMaxContentHeight_SingleRuneAtLimit(t *testing.T) {
+	for _, key := range []bool{false, true} {
+		t.Run(fmt.Sprintf("key=%t", key), func(t *testing.T) {
+			ta := New()
+			ta.Prompt = ""
+			ta.ShowLineNumbers = false
+			ta.SetWidth(5)
+			ta.Focus()
+			ta.SetValue("abc")
+			ta.MaxContentHeight = 1
+
+			for _, r := range "de" {
+				if key {
+					ta, _ = ta.Update(keyPress(r))
+				} else {
+					ta.InsertRune(r)
+				}
+			}
+			if got := ta.Value(); got != "abcd" {
+				t.Fatalf("expected value %q, got %q", "abcd", got)
+			}
+			if ta.Line() != 0 || ta.Column() != 4 || ta.totalVisualLines() != 1 {
+				t.Errorf("expected cursor (0, 4) within one visual line, got (%d, %d) within %d", ta.Line(), ta.Column(), ta.totalVisualLines())
+			}
+		})
+	}
+}
+
 func TestMaxContentHeight_PasteCapped(t *testing.T) {
 	ta := New()
 	ta.Prompt = ""
