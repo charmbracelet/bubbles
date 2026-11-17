@@ -135,3 +135,78 @@ func TestSetFilterState(t *testing.T) {
 		t.Fatalf("Error: expected view to contain '%s'", expected)
 	}
 }
+
+func TestRemoveItemRemovesValidItem(t *testing.T) {
+	t.Parallel()
+	for _, tt := range []struct {
+		name  string
+		index int
+		want  []Item
+	}{
+		{"first", 0, []Item{item("b"), item("c")}},
+		{"middle", 1, []Item{item("a"), item("c")}},
+		{"last", 2, []Item{item("a"), item("b")}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			m := New([]Item{item("a"), item("b"), item("c")}, itemDelegate{}, 40, 20)
+			m.RemoveItem(tt.index)
+			if !slices.Equal(m.Items(), tt.want) {
+				t.Fatalf("items = %v, want %v", m.Items(), tt.want)
+			}
+		})
+	}
+}
+
+func TestRemoveItemPastEndPreservesFilteredState(t *testing.T) {
+	t.Parallel()
+	m := New([]Item{item("foo"), item("bar"), item("baz")}, itemDelegate{}, 40, 20)
+	m.SetFilterText("ba")
+	m.Select(1)
+	items := slices.Clone(m.Items())
+	matches := slices.Clone(m.filteredItems)
+	page, cursor := m.Paginator.Page, m.cursor
+	for _, index := range []int{len(items), len(items) + 1} {
+		m.RemoveItem(index)
+		if !slices.Equal(m.Items(), items) || !reflect.DeepEqual(m.filteredItems, matches) {
+			t.Fatalf("removing %d changed items or filter matches", index)
+		}
+		if m.filterState != FilterApplied || m.FilterInput.Value() != "ba" {
+			t.Fatalf("removing %d changed the active filter", index)
+		}
+		if m.Paginator.Page != page || m.cursor != cursor {
+			t.Fatalf("removing %d changed the selection", index)
+		}
+	}
+}
+
+func TestRemoveItemInvalidIndicesAreNoOps(t *testing.T) {
+	t.Parallel()
+	for _, tt := range []struct {
+		name   string
+		items  []Item
+		filter string
+		index  int
+	}{
+		{"negative", []Item{item("a"), item("b")}, "", -1},
+		{"negative while filtered", []Item{item("a"), item("b")}, "b", -1},
+		{"negative on empty list", nil, "", -1},
+		{"past end with no matches", []Item{item("a"), item("b")}, "missing", 2},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			m := New(tt.items, itemDelegate{}, 40, 20)
+			if tt.filter != "" {
+				m.SetFilterText(tt.filter)
+			}
+			items := slices.Clone(m.Items())
+			matches := slices.Clone(m.filteredItems)
+			state := m.filterState
+			m.RemoveItem(tt.index)
+			if !slices.Equal(m.Items(), items) || !reflect.DeepEqual(m.filteredItems, matches) {
+				t.Fatal("invalid removal changed items or filter matches")
+			}
+			if m.filterState != state || m.FilterInput.Value() != tt.filter {
+				t.Fatal("invalid removal changed the active filter")
+			}
+		})
+	}
+}
