@@ -240,6 +240,9 @@ func (m *Model) SetCursorCharacter(character string) {
 
 // SetNodes sets the tree to the given root node.
 func (m *Model) SetNodes(t *Node) {
+	if t == nil {
+		t = NewNode()
+	}
 	m.root = t
 	if m.root != nil {
 		m.root.value = t.GivenValue()
