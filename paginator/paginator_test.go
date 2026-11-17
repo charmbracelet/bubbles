@@ -178,3 +178,65 @@ func TestItemsOnPage(t *testing.T) {
 		}
 	}
 }
+
+func TestSetTotalPagesCalculatesPages(t *testing.T) {
+	t.Parallel()
+	for _, tt := range []struct {
+		name                 string
+		perPage, items, want int
+	}{
+		{"one item per page", 1, 5, 5},
+		{"full last page", 2, 4, 2},
+		{"partial last page", 2, 5, 3},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			m := New(WithPerPage(tt.perPage), WithTotalPages(7))
+			if got := m.SetTotalPages(tt.items); got != tt.want {
+				t.Errorf("SetTotalPages = %d, want %d", got, tt.want)
+			}
+			if m.TotalPages != tt.want {
+				t.Errorf("TotalPages = %d, want %d", m.TotalPages, tt.want)
+			}
+		})
+	}
+}
+
+func TestSetTotalPagesNonpositiveItemsPreserveState(t *testing.T) {
+	t.Parallel()
+	for _, items := range []int{0, -1} {
+		m := New(WithPerPage(2), WithTotalPages(7))
+		m.Page = 3
+		if got := m.SetTotalPages(items); got != 7 {
+			t.Errorf("SetTotalPages(%d) = %d, want 7", items, got)
+		}
+		if m.TotalPages != 7 || m.Page != 3 || m.PerPage != 2 {
+			t.Errorf("SetTotalPages(%d) changed pagination: total=%d page=%d perPage=%d", items, m.TotalPages, m.Page, m.PerPage)
+		}
+	}
+}
+
+func TestSetTotalPagesInvalidPageSizeIsNoOp(t *testing.T) {
+	t.Parallel()
+	for _, tt := range []struct {
+		name  string
+		model Model
+	}{
+		{"zero value", Model{}},
+		{"zero per page", New(WithPerPage(0), WithTotalPages(7))},
+		{"negative per page", New(WithPerPage(-1), WithTotalPages(7))},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			m := tt.model
+			if m.TotalPages != 0 {
+				m.Page = 3
+			}
+			total, page, perPage := m.TotalPages, m.Page, m.PerPage
+			if got := m.SetTotalPages(10); got != total {
+				t.Errorf("SetTotalPages = %d, want %d", got, total)
+			}
+			if m.TotalPages != total || m.Page != page || m.PerPage != perPage {
+				t.Errorf("pagination changed: total=%d page=%d perPage=%d; want %d, %d, %d", m.TotalPages, m.Page, m.PerPage, total, page, perPage)
+			}
+		})
+	}
+}
