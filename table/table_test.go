@@ -806,3 +806,59 @@ func TestModel_View_CenteredInABox(t *testing.T) {
 
 	golden.RequireEqual(t, []byte(got))
 }
+
+func TestModel_RenderRow_MoreCellsThanColumns(t *testing.T) {
+	table := &Model{
+		rows:   []Row{{"Foooooo", "Baaaaar", "Baaaaaz", "Quuuuux"}},
+		cols:   testCols,
+		styles: Styles{Cell: lipgloss.NewStyle()},
+	}
+
+	expected := "Foooooo   Baaaaar   Baaaaaz   "
+	if row := table.renderRow(0); row != expected {
+		t.Fatalf("\n\nWant: \n%s\n\nGot:  \n%s\n", expected, row)
+	}
+}
+
+func TestModel_SetRows_NoColumns(t *testing.T) {
+	table := New()
+	table.SetRows([]Row{{"one"}})
+
+	if len(table.rows) != 1 {
+		t.Fatalf("expect table to have 1 row but it has %d", len(table.rows))
+	}
+}
+
+func TestModel_FromValues_MoreValuesThanColumns(t *testing.T) {
+	table := New(WithColumns([]Column{{Title: "Foo", Width: 5}, {Title: "Bar", Width: 5}}))
+	table.FromValues("foo1,bar1\nfoo2,bar2,baz2", ",")
+
+	if len(table.rows) != 2 {
+		t.Fatalf("expect table to have 2 rows but it has %d", len(table.rows))
+	}
+}
+
+func TestNew_RowsWithoutColumns(t *testing.T) {
+	table := New(WithRows([]Row{{"one"}}))
+
+	if len(table.rows) != 1 {
+		t.Fatalf("expect table to have 1 row but it has %d", len(table.rows))
+	}
+}
+
+func TestRenderRowConfiguredColumns(t *testing.T) {
+	t.Parallel()
+	m := &Model{rows: []Row{{"Foooooo", "Baaaaar", "Baaaaaz"}}, cols: testCols, styles: Styles{Cell: lipgloss.NewStyle()}}
+	if got, want := m.renderRow(0), "Foooooo   Baaaaar   Baaaaaz   "; got != want {
+		t.Fatalf("row = %q, want %q", got, want)
+	}
+}
+
+func TestRenderRowDoesNotDiscardExtraData(t *testing.T) {
+	t.Parallel()
+	m := New(WithColumns([]Column{{Title: "one", Width: 5}}), WithRows([]Row{{"one", "extra"}}))
+	_ = m.View()
+	if len(m.rows[0]) != 2 || m.rows[0][1] != "extra" {
+		t.Fatal("rendering discarded extra cell data")
+	}
+}
