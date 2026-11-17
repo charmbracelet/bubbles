@@ -98,13 +98,13 @@ type Model struct {
 	lines            []string
 	longestLineWidth int
 
-	// HighlightStyle highlights the ranges set with [SetHighligths].
+	// HighlightStyle highlights the ranges set with [Model.SetHighlights].
 	HighlightStyle lipgloss.Style
 
 	// SelectedHighlightStyle highlights the highlight range focused during
 	// navigation.
-	// Use [SetHighligths] to set the highlight ranges, and [HightlightNext]
-	// and [HihglightPrevious] to navigate.
+	// Use [Model.SetHighlights] to set the highlight ranges, and
+	// [Model.HighlightNext] and [Model.HighlightPrevious] to navigate.
 	SelectedHighlightStyle lipgloss.Style
 
 	// StyleLineFunc allows to return a [lipgloss.Style] for each line.
