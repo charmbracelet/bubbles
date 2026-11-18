@@ -216,6 +216,7 @@ func (m *Model) SetValue(s string) {
 	runes := m.san().Sanitize([]rune(s))
 	err := m.validate(runes)
 	m.setValueInternal(runes, err)
+	m.updateSuggestions()
 }
 
 func (m *Model) setValueInternal(runes []rune, err error) {
