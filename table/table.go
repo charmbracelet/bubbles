@@ -348,9 +348,15 @@ func (m Model) Cursor() int {
 	return m.cursor
 }
 
+// lastRow returns the highest valid cursor position. It is 0 for a table
+// without rows so the cursor never goes negative.
+func (m Model) lastRow() int {
+	return max(len(m.rows)-1, 0)
+}
+
 // SetCursor sets the cursor position in the table.
 func (m *Model) SetCursor(n int) {
-	m.cursor = clamp(n, 0, len(m.rows)-1)
+	m.cursor = clamp(n, 0, m.lastRow())
 	m.UpdateViewport()
 
 	if len(m.rows) > 0 && m.viewport.Height() > 0 {
@@ -369,7 +375,7 @@ func (m *Model) SetCursor(n int) {
 // MoveUp moves the selection up by any number of rows.
 // It can not go above the first row.
 func (m *Model) MoveUp(n int) {
-	m.cursor = clamp(m.cursor-n, 0, len(m.rows)-1)
+	m.cursor = clamp(m.cursor-n, 0, m.lastRow())
 
 	offset := m.viewport.YOffset()
 	switch {
@@ -392,7 +398,7 @@ func (m *Model) MoveUp(n int) {
 // MoveDown moves the selection down by any number of rows.
 // It can not go below the last row.
 func (m *Model) MoveDown(n int) {
-	m.cursor = clamp(m.cursor+n, 0, len(m.rows)-1)
+	m.cursor = clamp(m.cursor+n, 0, m.lastRow())
 	// Read the offset before re-rendering: SetContent clamps the y-offset
 	// when the row window shrinks (the window starts later as the cursor
 	// moves down), and subtracting n from an already-clamped offset would
