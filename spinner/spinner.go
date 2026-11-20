@@ -81,6 +81,10 @@ var (
 		Frames: []string{"", ".", "..", "..."},
 		FPS:    time.Second / 3, //nolint:mnd
 	}
+	Circle = Spinner{
+		Frames: []string{"", "", "", "", "", ""},
+		FPS:    time.Second / 6,
+	}
 )
 
 // Model contains the state for the spinner. Use New to create new models
