@@ -439,6 +439,9 @@ func (m *Model) InsertItem(index int, item Item) tea.Cmd {
 // this will be a no-op. O(n) complexity, which probably won't matter in the
 // case of a TUI.
 func (m *Model) RemoveItem(index int) {
+	if index < 0 || index >= len(m.items) {
+		return
+	}
 	m.items = removeItemFromSlice(m.items, index)
 	if m.filterState != Unfiltered {
 		m.filteredItems = removeFilterMatchFromSlice(m.filteredItems, index)
