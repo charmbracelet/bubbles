@@ -904,7 +904,7 @@ func (m Model) validate(v []rune) error {
 // program. This requires that [Model.VirtualCursor] is set to false.
 //
 // Note that you will almost certainly also need to adjust the offset cursor
-// position per the textarea's per the textarea's position in the terminal.
+// position per the textarea's position in the terminal.
 //
 // Example:
 //
