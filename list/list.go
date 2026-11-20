@@ -419,7 +419,9 @@ func (m *Model) SetItems(i []Item) tea.Cmd {
 }
 
 // Select selects the given index of the list and goes to its respective page.
+// An index outside of the visible items is clamped to the first or last item.
 func (m *Model) Select(index int) {
+	index = max(min(index, len(m.VisibleItems())-1), 0)
 	m.Paginator.Page = index / m.Paginator.PerPage
 	m.cursor = index % m.Paginator.PerPage
 }

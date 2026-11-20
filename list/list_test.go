@@ -216,3 +216,59 @@ func TestTitleViewWithoutStatusMessageDoesNotTruncate(t *testing.T) {
 		t.Fatalf("expected title %q, got %q", list.Title, got)
 	}
 }
+
+func TestSelectOutOfRange(t *testing.T) {
+	items := []Item{item("a"), item("b"), item("c")}
+
+	tests := []struct {
+		name  string
+		index int
+		want  int
+	}{
+		{"past the end", 3, 2},
+		{"far past the end", 100, 2},
+		{"negative", -1, 0},
+		{"far negative", -50, 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Small page size so that an unclamped index lands on a page
+			// that does not exist.
+			l := New(items, itemDelegate{}, 20, 5)
+			l.Select(tt.index)
+
+			if got := l.Index(); got != tt.want {
+				t.Fatalf("Index() = %d, want %d", got, tt.want)
+			}
+			if l.SelectedItem() == nil {
+				t.Fatal("SelectedItem() = nil, want an item")
+			}
+			// Rendering and moving the cursor must not panic.
+			_ = l.View()
+			l.CursorDown()
+			l.CursorUp()
+		})
+	}
+}
+
+func TestSelectEmptyList(t *testing.T) {
+	l := New(nil, itemDelegate{}, 20, 10)
+	l.Select(4)
+
+	if got := l.Index(); got != 0 {
+		t.Fatalf("Index() = %d, want 0", got)
+	}
+	_ = l.View()
+}
+
+func TestSelectUsesVisibleItems(t *testing.T) {
+	l := New([]Item{item("apple"), item("banana"), item("avocado")}, itemDelegate{}, 20, 10)
+	l.SetFilterText("a")
+	l.SetFilterState(FilterApplied)
+
+	l.Select(10)
+	if l.SelectedItem() == nil {
+		t.Fatal("SelectedItem() = nil, want the last visible item")
+	}
+	_ = l.View()
+}
