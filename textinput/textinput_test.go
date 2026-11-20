@@ -313,3 +313,71 @@ func Test_CursorPositionWithScrolledValue(t *testing.T) {
 		t.Fatalf("expected cursor X to be %d, got %d", want, c.X)
 	}
 }
+
+func TestSetValueRefreshesSuggestions(t *testing.T) {
+	textinput := New()
+	textinput.ShowSuggestions = true
+	textinput.SetSuggestions([]string{"hello"})
+	textinput.Focus()
+	textinput, _ = textinput.Update(tea.KeyPressMsg{Code: 'h', Text: "h"})
+
+	textinput.SetValue("ab")
+	if got := textinput.MatchedSuggestions(); len(got) != 0 {
+		t.Fatalf("expected no matched suggestions but got %v", got)
+	}
+
+	textinput, _ = textinput.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+	if got := textinput.Value(); got != "ab" {
+		t.Fatalf("expected value %q to be kept but was %q", "ab", got)
+	}
+
+	textinput.SetValue("he")
+	textinput, _ = textinput.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+	if got := textinput.Value(); got != "hello" {
+		t.Fatalf("completion = %q, want hello", got)
+	}
+}
+
+func TestAcceptSuggestionAfterSetValue(t *testing.T) {
+	textinput := New()
+	textinput.ShowSuggestions = true
+	textinput.SetSuggestions([]string{"hello"})
+	textinput.Focus()
+	textinput, _ = textinput.Update(tea.KeyPressMsg{Code: 'h', Text: "h"})
+
+	// Before this fix, SetValue left the old match shorter than the new
+	// value.
+	value := "a much longer value than any suggestion"
+	textinput.SetValue(value)
+	textinput, _ = textinput.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+
+	if got := textinput.Value(); got != value {
+		t.Fatalf("expected value %q to be kept but was %q", value, got)
+	}
+}
+
+func TestTypedPrefixStillAcceptsSuggestion(t *testing.T) {
+	t.Parallel()
+	m := New()
+	m.ShowSuggestions = true
+	m.SetSuggestions([]string{"hello"})
+	m.Focus()
+	m = sendString(m, "he")
+	m, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+	if got := m.Value(); got != "hello" {
+		t.Fatalf("completion = %q, want hello", got)
+	}
+}
+
+func TestSetValueDoesNotCompleteUnmatchedInput(t *testing.T) {
+	t.Parallel()
+	m := New()
+	m.ShowSuggestions = true
+	m.SetSuggestions([]string{"hello"})
+	m.Focus()
+	m.SetValue("other")
+	m, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+	if got := m.Value(); got != "other" {
+		t.Fatalf("unmatched value = %q, want other", got)
+	}
+}
