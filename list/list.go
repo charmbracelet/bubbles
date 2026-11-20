@@ -1148,10 +1148,10 @@ func (m Model) titleView() string {
 		view += m.Styles.Title.Render(m.Title)
 
 		// Status message
+		if m.filterState != Filtering && m.statusMessage != "" {
+			view += "  " + m.statusMessage
+		}
 		if m.filterState != Filtering {
-			if m.statusMessage != "" {
-				view += "  " + m.statusMessage
-			}
 			view = ansi.Truncate(view, m.width-spinnerWidth, ellipsis)
 		}
 	}
