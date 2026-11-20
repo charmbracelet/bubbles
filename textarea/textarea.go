@@ -1244,9 +1244,10 @@ func (m *Model) SetWidth(w int) {
 	minWidth := reservedInner + reservedOuter + 1
 	inputWidth := max(w, minWidth)
 
-	// Input width must be no more than maximum width.
+	// Input width must be no more than maximum width, unless that would leave
+	// less than the minimum input width.
 	if m.MaxWidth > 0 {
-		inputWidth = min(inputWidth, m.MaxWidth)
+		inputWidth = min(inputWidth, max(m.MaxWidth, minWidth))
 	}
 
 	// Since the width of the viewport and input area is dependent on the width of

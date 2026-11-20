@@ -3281,3 +3281,64 @@ func TestCopyErrMsgUnwrap(t *testing.T) {
 		t.Errorf("expected errors.As(m.Err, &target) to match underlying error")
 	}
 }
+
+func TestSetWidth_MaxWidthBelowReservedWidth(t *testing.T) {
+	tests := []struct {
+		name            string
+		showLineNumbers bool
+		maxWidth        int
+	}{
+		{"prompt", false, 2},
+		{"prompt and line numbers", true, 1},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			textarea := newTextArea()
+			textarea.ShowLineNumbers = tt.showLineNumbers
+			textarea.MaxWidth = tt.maxWidth
+			textarea.SetWidth(80)
+			textarea.Focus()
+
+			if textarea.Width() < 1 {
+				t.Fatalf("expected a text width of at least 1 but got %d", textarea.Width())
+			}
+
+			textarea.SetValue("a b  ")
+			textarea.SetCursorColumn(1)
+			_ = textarea.View()
+
+			textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyLeft})
+			_ = textarea.View()
+		})
+	}
+}
+
+func TestSetWidthHonorsUsableMaximum(t *testing.T) {
+	t.Parallel()
+	m := newTextArea()
+	m.SetWidth(40)
+	want := m.Width()
+	m.MaxWidth = 40
+	m.SetWidth(80)
+	if got := m.Width(); got != want {
+		t.Fatalf("input width = %d, want %d", got, want)
+	}
+}
+
+func TestSetWidthDoesNotExpandToMaximum(t *testing.T) {
+	t.Parallel()
+	m := newTextArea()
+	m.SetWidth(40)
+	want := m.Width()
+	m.MaxWidth = 80
+	m.SetWidth(40)
+	if got := m.Width(); got != want {
+		t.Fatalf("input width = %d, want %d", got, want)
+	}
+	m.MaxWidth = 0
+	m.SetWidth(40)
+	if got := m.Width(); got != want {
+		t.Fatalf("unlimited input width = %d, want %d", got, want)
+	}
+}
