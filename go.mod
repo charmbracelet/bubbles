@@ -12,7 +12,7 @@ require (
 	github.com/charmbracelet/x/exp/golden v0.1.0
 	github.com/dustin/go-humanize v1.1.0
 	github.com/mattn/go-runewidth v0.0.31
-	github.com/rivo/uniseg v0.4.7
+	github.com/rivo/uniseg v0.4.8-0.20261110175422-3a370411ca06
 	github.com/sahilm/fuzzy v0.1.3
 )
 

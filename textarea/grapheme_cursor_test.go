@@ -1,6 +1,7 @@
 package textarea
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -70,8 +71,11 @@ func TestBackspaceRemovesEmojiSequenceWhole(t *testing.T) {
 		"x❤\ufe0f":         "x",
 		"x1\ufe0f\u20e3":   "x",
 		"x🏴\U000e0067\U000e0062\U000e0073\U000e0063\U000e0074\U000e007f": "x",
-		"x👨\u200d": "x👨",
-		"क्\u200d": "क्",
+		"x👨\u200d":  "x👨",
+		"क्\u200d":  "क्",
+		"x🧑\u200d🎄": "x",
+		"क्\u200dष": "क्\u200d",
+		"क्ष":       "क्",
 	} {
 		m := newTextArea()
 		m.SetValue(value)
@@ -112,13 +116,21 @@ func TestTransposeSwapsGraphemes(t *testing.T) {
 	}
 }
 
-func TestInsertJoiningNextGraphemeKeepsCursorAfter(t *testing.T) {
-	m := newTextArea()
-	m.SetValue("🇸x")
-	m.CursorStart()
-	m.InsertString("🇺")
-	if m.col != 2 {
-		t.Fatalf("cursor moved before typed text: col %d want 2", m.col)
+func TestTypingComposesBeforeExistingText(t *testing.T) {
+	for _, tc := range []struct{ value, typed, want string }{
+		{"नमस्ते", "क्ष", "क्षनमस्ते"},
+		{"🇸x", "🇺🇸", "🇺🇸🇸x"},
+	} {
+		m := newTextArea()
+		m.SetValue(tc.value)
+		m.CursorStart()
+		for _, r := range tc.typed {
+			m, _ = m.Update(tea.KeyPressMsg{Code: r, Text: string(r)})
+		}
+		if m.Value() != tc.want || m.col != len([]rune(tc.typed)) {
+			t.Errorf("typing %q before %q: got %q col %d, want %q col %d",
+				tc.typed, tc.value, m.Value(), m.col, tc.want, len([]rune(tc.typed)))
+		}
 	}
 }
 
@@ -145,5 +157,18 @@ func TestDeleteWordLeftKeepsSpaceGrapheme(t *testing.T) {
 	m.deleteWordLeft()
 	if got, want := m.Value(), "ab \u0301"; got != want {
 		t.Fatalf("deleteWordLeft: got %q want %q", got, want)
+	}
+}
+
+func TestIndicConjunctIsOneGrapheme(t *testing.T) {
+	m := newTextArea()
+	m.SetValue("क्षत्रिय")
+	var stops []int
+	for m.col > 0 {
+		m.characterLeft(false)
+		stops = append(stops, m.col)
+	}
+	if want := []int{7, 3, 0}; !slices.Equal(stops, want) {
+		t.Fatalf("left stops: got %v want %v", stops, want)
 	}
 }

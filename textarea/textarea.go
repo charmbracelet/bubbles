@@ -636,11 +636,9 @@ func (m *Model) insertRunesFromUserInput(runes []rune) {
 	// Finally add the tail at the end of the last line inserted.
 	m.value[m.row] = append(m.value[m.row], tail...)
 
-	// Keep the cursor after the typed text when it joins the next grapheme.
-	if start, end := graphemeAt(m.value[m.row], m.col); start < m.col {
-		m.col = end
-	}
-	m.SetCursorColumn(m.col)
+	// Leave the cursor right after the typed text, even when that text joined
+	// the next grapheme, so a virama or ZWJ composes with what is typed next.
+	m.lastCharOffset = 0
 }
 
 // Value returns the value of the text input.

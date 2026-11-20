@@ -1,6 +1,7 @@
 package textarea
 
 import (
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/rivo/uniseg"
@@ -42,7 +43,7 @@ func graphemeAt(runes []rune, col int) (int, int) {
 func deletesWhole(cluster []rune) bool {
 	for i, r := range cluster {
 		switch {
-		case r == '\u200d' && i < len(cluster)-1, // ZWJ joining two emoji
+		case r == '\u200d' && i < len(cluster)-1 && !unicode.IsLetter(cluster[i+1]), // ZWJ emoji, not an Indic half-form
 			r >= 0xFE00 && r <= 0xFE0F,   // variation selectors
 			r >= 0xE0100 && r <= 0xE01EF, // ideographic variation selectors
 			r >= 0x1F1E6 && r <= 0x1F1FF, // regional indicators (flags)
