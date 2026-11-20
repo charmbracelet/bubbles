@@ -273,13 +273,13 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.minIdx = 0
 			m.maxIdx = m.bottomIdx(0)
 		case key.Matches(msg, m.KeyMap.GoToLast):
-			m.selected = len(m.files) - 1
+			m.selected = max(len(m.files)-1, 0)
 			m.minIdx = max(len(m.files)-m.Height(), 0)
 			m.maxIdx = len(m.files) - 1
 		case key.Matches(msg, m.KeyMap.Down):
 			m.selected++
 			if m.selected >= len(m.files) {
-				m.selected = len(m.files) - 1
+				m.selected = max(len(m.files)-1, 0)
 			}
 			if m.selected > m.maxIdx {
 				m.minIdx++
@@ -297,7 +297,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		case key.Matches(msg, m.KeyMap.PageDown):
 			m.selected += m.Height()
 			if m.selected >= len(m.files) {
-				m.selected = len(m.files) - 1
+				m.selected = max(len(m.files)-1, 0)
 			}
 			m.minIdx += m.Height()
 			m.maxIdx += m.Height()
@@ -446,7 +446,7 @@ func (m Model) View() string {
 		s.WriteRune('\n')
 	}
 
-	for i := lipgloss.Height(s.String()); i <= m.Height(); i++ {
+	for i := lipgloss.Height(s.String()); i < m.Height(); i++ {
 		s.WriteRune('\n')
 	}
 

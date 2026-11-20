@@ -179,7 +179,6 @@ func (m Model) FullHelpView(groups [][]key.Binding) string {
 		out []string
 
 		totalWidth int
-		separator  = m.Styles.FullSeparator.Inline(true).Render(m.FullSeparator)
 	)
 
 	// Iterate over groups to build columns
@@ -193,11 +192,6 @@ func (m Model) FullHelpView(groups [][]key.Binding) string {
 			descriptions []string
 		)
 
-		// Sep
-		if totalWidth > 0 && i < len(groups) {
-			sep = separator
-		}
-
 		// Separate keys and descriptions into different slices
 		for _, kb := range group {
 			if !kb.Enabled() {
@@ -205,6 +199,17 @@ func (m Model) FullHelpView(groups [][]key.Binding) string {
 			}
 			keys = append(keys, kb.Help().Key)
 			descriptions = append(descriptions, kb.Help().Desc)
+		}
+
+		// Sep
+		if totalWidth > 0 && i < len(groups) {
+			separatorWidth := lipgloss.Width(m.FullSeparator)
+			separatorLines := make([]string, len(keys))
+			separatorLines[0] = m.FullSeparator
+			for i := 1; i < len(separatorLines); i++ {
+				separatorLines[i] = strings.Repeat(" ", separatorWidth)
+			}
+			sep = m.Styles.FullSeparator.Render(strings.Join(separatorLines, "\n"))
 		}
 
 		// Column
@@ -232,15 +237,16 @@ func (m Model) FullHelpView(groups [][]key.Binding) string {
 }
 
 func (m Model) shouldAddItem(totalWidth, width int) (tail string, ok bool) {
-	// If there's room for an ellipsis, print that.
-	if m.width > 0 && totalWidth+width > m.width {
-		tail = " " + m.Styles.Ellipsis.Inline(true).Render(m.Ellipsis)
-
-		if totalWidth+lipgloss.Width(tail) < m.width {
-			return tail, false
-		}
+	if m.width <= 0 || totalWidth+width <= m.width {
+		return "", true
 	}
-	return "", true
+
+	// The item does not fit. End with an ellipsis if there's room for one.
+	tail = " " + m.Styles.Ellipsis.Inline(true).Render(m.Ellipsis)
+	if totalWidth+lipgloss.Width(tail) < m.width {
+		return tail, false
+	}
+	return "", false
 }
 
 func shouldRenderColumn(b []key.Binding) (ok bool) {

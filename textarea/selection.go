@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/charmbracelet/x/ansi"
+	"github.com/rivo/uniseg"
 )
 
 // Position is a location in the textarea's logical buffer: Row indexes a
@@ -34,20 +34,20 @@ func (m Model) gutterWidth() int {
 	return w
 }
 
-// runeIndexForColumn returns the index of the rune occupying the given display
-// column within runes, accounting for double-width runes. A column past the
-// end of the line yields len(runes).
+// runeIndexForColumn returns the index of the first rune of the grapheme
+// occupying the given display column within runes, accounting for wide and
+// multi-rune graphemes. A column past the end of the line yields len(runes).
 func runeIndexForColumn(runes []rune, col int) int {
 	if col <= 0 {
 		return 0
 	}
-	w := 0
-	for i, r := range runes {
-		rWidth := ansi.StringWidth(string(r))
-		if w+rWidth > col {
+	w, i := 0, 0
+	for g := uniseg.NewGraphemes(string(runes)); g.Next(); {
+		if w+g.Width() > col {
 			return i
 		}
-		w += rWidth
+		w += g.Width()
+		i += len(g.Runes())
 	}
 	return len(runes)
 }

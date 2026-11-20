@@ -1,6 +1,7 @@
 package textarea
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -98,6 +99,59 @@ func TestWordWrapOverflowing(t *testing.T) {
 	}
 }
 
+func TestWrapLastWordFillsWidth(t *testing.T) {
+	// A final word that exactly fills the remaining width should stay on its
+	// line; only the cursor's trailing cell moves to the next row, as it does
+	// for a single unbroken word that fills the width.
+	tests := []struct {
+		input string
+		want  []string
+	}{
+		{"1234567890", []string{"1234567890", " "}},
+		{"1 2 3 4 5", []string{"1 2 3 4 5 "}},
+		{"1 2 3 4 56", []string{"1 2 3 4 56", " "}},
+		{"1 2 3 4 567", []string{"1 2 3 4 ", "567 "}},
+		{"1 2 3 4 中", []string{"1 2 3 4 中", " "}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			var got []string
+			for _, line := range wrap([]rune(tt.input), 10) {
+				got = append(got, string(line))
+			}
+			if fmt.Sprintf("%q", got) != fmt.Sprintf("%q", tt.want) {
+				t.Errorf("wrap(%q, 10) = %q, want %q", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestTypingLastWordFillsWidthDoesNotReflow(t *testing.T) {
+	textarea := newTextArea()
+	textarea.Prompt = ""
+	textarea.ShowLineNumbers = false
+	textarea.SetWidth(10)
+	textarea.SetHeight(3)
+
+	for _, k := range "1 2 3 4 56" {
+		textarea, _ = textarea.Update(keyPress(k))
+	}
+
+	firstLine := strings.Split(ansi.Strip(textarea.View()), "\n")[0]
+	if firstLine != "1 2 3 4 56" {
+		t.Fatalf("expected the first line to hold the whole input, got %q", firstLine)
+	}
+
+	// Typing one more character overflows the width, so the last word
+	// should now reflow onto the next line.
+	textarea, _ = textarea.Update(keyPress('7'))
+	lines := strings.Split(ansi.Strip(textarea.View()), "\n")
+	if strings.TrimRight(lines[0], " ") != "1 2 3 4" || strings.TrimRight(lines[1], " ") != "567" {
+		t.Fatalf("expected %q to reflow onto the second line, got %q", "567", lines[:2])
+	}
+}
+
 func TestValueSoftWrap(t *testing.T) {
 	textarea := newTextArea()
 	textarea.SetWidth(16)
@@ -121,6 +175,40 @@ func TestValueSoftWrap(t *testing.T) {
 	}
 }
 
+func TestAutoResizeKeepsFirstSoftWrappedRowVisible(t *testing.T) {
+	textarea := newTextArea()
+	textarea.Prompt = ""
+	textarea.ShowLineNumbers = false
+	textarea.SetWidth(24)
+	textarea.SetHeight(1)
+	textarea.CharLimit = 200
+
+	textarea, _ = textarea.Update(nil)
+
+	input := "this is a long active line that should wrap to the next row while typing"
+	for _, k := range input {
+		textarea, _ = textarea.Update(keyPress(k))
+		textarea.SetHeight(softWrappedLineCount(textarea))
+		textarea.View()
+	}
+
+	if got := textarea.viewport.YOffset(); got != 0 {
+		t.Fatalf("expected viewport offset 0 after autoresize, got %d", got)
+	}
+
+	view := stripString(textarea.View())
+	if !strings.Contains(view, "this is a long active") {
+		t.Fatalf("expected first wrapped row to stay visible, got %q", view)
+	}
+	if !strings.Contains(view, "typing") {
+		t.Fatalf("expected last wrapped row to be visible, got %q", view)
+	}
+}
+
+func softWrappedLineCount(m Model) int {
+	return m.totalLineCount()
+}
+
 func TestSetValue(t *testing.T) {
 	textarea := newTextArea()
 	textarea.SetValue(strings.Join([]string{"Foo", "Bar", "Baz"}, "\n"))
@@ -141,6 +229,22 @@ func TestSetValue(t *testing.T) {
 	if value != "Test" {
 		t.Log(value)
 		t.Fatal("Text area was not reset when SetValue() was called")
+	}
+}
+
+func TestSetValueViewportReposition(t *testing.T) {
+	ta := newTextArea()
+	ta.SetHeight(3)
+	ta.SetWidth(40)
+
+	// Insert more lines than the viewport height so the cursor ends below the visible area.
+	lines := strings.Join([]string{"line1", "line2", "line3", "line4", "line5"}, "\n")
+	ta.SetValue(lines)
+
+	// Cursor must be visible: ScrollYOffset must be high enough that the last row is in view.
+	if ta.ScrollYOffset()+ta.Height()-1 < ta.LineCount()-1 {
+		t.Fatalf("cursor out of view after SetValue: yOffset=%d height=%d lines=%d",
+			ta.ScrollYOffset(), ta.Height(), ta.LineCount())
 	}
 }
 
@@ -326,6 +430,101 @@ func TestVerticalNavigationShouldRememberPositionWhileTraversing(t *testing.T) {
 	if textarea.col != 4 || textarea.row != 2 {
 		t.Log(textarea.col)
 		t.Fatal("Expected cursor to be on the 4th character of the last line")
+	}
+}
+
+func TestVerticalNavigationThroughSoftWraps(t *testing.T) {
+	const nextLine = "\nabcdefghijklmnop"
+	tests := []struct {
+		name  string
+		value string
+		want  []Position
+	}{
+		{
+			name:  "short line",
+			value: strings.Repeat("a", 19) + nextLine,
+			want:  []Position{{0, 7}, {1, 7}},
+		},
+		{
+			name:  "exact width",
+			value: strings.Repeat("a", 20) + nextLine,
+			want:  []Position{{0, 7}, {0, 20}, {1, 7}},
+		},
+		{
+			name:  "over width",
+			value: strings.Repeat("a", 21) + nextLine,
+			want:  []Position{{0, 7}, {0, 21}, {1, 7}},
+		},
+		{
+			name:  "word wrap",
+			value: "one two three four five" + nextLine,
+			want:  []Position{{0, 7}, {0, 23}, {1, 7}},
+		},
+		{
+			name:  "multiple exact wraps",
+			value: strings.Repeat("a", 40) + nextLine,
+			want:  []Position{{0, 7}, {0, 27}, {0, 40}, {1, 7}},
+		},
+		{
+			name:  "exact width with spaces",
+			value: "123456789 123456789 " + nextLine,
+			want:  []Position{{0, 7}, {0, 20}, {1, 7}},
+		},
+		{
+			name:  "wide runes",
+			value: strings.Repeat("你好", 5) + nextLine,
+			want:  []Position{{0, 4}, {0, 10}, {1, 8}},
+		},
+		{
+			name:  "mixed width runes",
+			value: strings.Repeat("a", 18) + "你" + nextLine,
+			want:  []Position{{0, 7}, {0, 19}, {1, 7}},
+		},
+		{
+			name:  "exact width at end of buffer",
+			value: strings.Repeat("a", 20),
+			want:  []Position{{0, 7}, {0, 20}},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			textarea := newTextArea()
+			textarea.Prompt = ""
+			textarea.ShowLineNumbers = false
+			textarea.SetWidth(20)
+			textarea.SetHeight(10)
+			textarea.SetVirtualCursor(false)
+			textarea.SetValue(tt.value)
+			textarea.MoveToBegin()
+			textarea.SetCursorColumn(tt.want[0].Col)
+
+			checkCursor := func(key string, visualRow int) {
+				t.Helper()
+				got := Position{Row: textarea.Line(), Col: textarea.Column()}
+				if got != tt.want[visualRow] {
+					t.Fatalf("%s: cursor = %v, want %v", key, got, tt.want[visualRow])
+				}
+				if got := textarea.Cursor().Position.Y; got != visualRow {
+					t.Fatalf("%s: visual row = %d, want %d", key, got, visualRow)
+				}
+			}
+
+			checkCursor("start", 0)
+			for i := 1; i < len(tt.want); i++ {
+				textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyDown})
+				checkCursor("down", i)
+			}
+			textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyDown})
+			checkCursor("down at end", len(tt.want)-1)
+
+			for i := len(tt.want) - 2; i >= 0; i-- {
+				textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyUp})
+				checkCursor("up", i)
+			}
+			textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyUp})
+			checkCursor("up at start", 0)
+		})
 	}
 }
 
@@ -1890,6 +2089,23 @@ func TestView(t *testing.T) {
 				cursorRow: 7,
 			},
 		},
+		{
+			name: "empty textarea with placeholder and styled border",
+			modelFunc: func(m Model) Model {
+				m.SetHeight(2)
+				m.SetWidth(20)
+				m.Placeholder = "line 1"
+				m.styles.Focused.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`┌────────────────────┐
+				    │>   1 line 1        │
+				    │>                   │
+				    └────────────────────┘
+				`),
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -2359,6 +2575,102 @@ func TestMaxContentHeight_CursorVisibleWhileScrolling(t *testing.T) {
 	}
 }
 
+func TestMaxContentHeight_Insertion(t *testing.T) {
+	tests := []struct {
+		name    string
+		initial string
+		column  int
+		input   string
+		width   int
+		limit   int
+		want    string
+		row     int
+		col     int
+		visual  int
+	}{
+		{name: "exact multiline", input: "alpha\nbeta", width: 40, limit: 2, want: "alpha\nbeta", row: 1, col: 4, visual: 2},
+		{name: "last permitted line", initial: "alpha\nbeta", column: 4, input: "\ngamma", width: 40, limit: 3, want: "alpha\nbeta\ngamma", row: 2, col: 5, visual: 3},
+		{name: "single line at limit", initial: "alpha", column: 5, input: "beta", width: 40, limit: 1, want: "alphabeta", col: 9, visual: 1},
+		{name: "midline suffix", initial: "prefixsuffix", column: 6, input: "alpha\nbeta", width: 40, limit: 2, want: "prefixalpha\nbetasuffix", row: 1, col: 4, visual: 2},
+		{name: "single line with suffix", initial: "abef", column: 2, input: "cd", width: 40, limit: 1, want: "abcdef", col: 4, visual: 1},
+		{name: "first line wraps", initial: "abc", column: 3, input: "de\nx", width: 5, limit: 3, want: "abcde\nx", row: 1, col: 1, visual: 3},
+		{name: "suffix wraps", initial: "abcdef", column: 3, input: "x\nyz", width: 5, limit: 3, want: "abcx\nyzdef", row: 1, col: 2, visual: 3},
+		{name: "suffix exceeds limit", initial: "abcdef", column: 3, input: "x\nyz", width: 5, limit: 2, want: "abcxdef", col: 4, visual: 2},
+		{name: "middle line wraps", input: "a\nabcdef\nb", width: 5, limit: 4, want: "a\nabcdef\nb", row: 2, col: 1, visual: 4},
+		{name: "wide suffix wraps", initial: "界界", column: 1, input: "ab\nc界", width: 5, limit: 3, want: "界ab\nc界界", row: 1, col: 2, visual: 3},
+		{name: "wide suffix exceeds limit", initial: "界界", column: 1, input: "ab\nc界", width: 5, limit: 2, want: "界ab界", col: 3, visual: 2},
+		{name: "trailing newline", input: "alpha\n", width: 40, limit: 2, want: "alpha\n", row: 1, visual: 2},
+		{name: "excess lines trimmed", input: "a\nb\nc", width: 40, limit: 2, want: "a\nb", row: 1, col: 1, visual: 2},
+		{name: "single line exceeds limit", initial: "abc", column: 3, input: "de", width: 5, limit: 1, want: "abc", col: 3, visual: 1},
+		{name: "unlimited", input: "alpha\nbeta", width: 40, want: "alpha\nbeta", row: 1, col: 4, visual: 2},
+		{name: "empty insertion", initial: "alpha", column: 2, width: 40, limit: 1, want: "alpha", col: 2, visual: 1},
+	}
+	for _, tt := range tests {
+		for _, dynamic := range []bool{false, true} {
+			for _, paste := range []bool{false, true} {
+				t.Run(fmt.Sprintf("%s/dynamic=%t/paste=%t", tt.name, dynamic, paste), func(t *testing.T) {
+					ta := New()
+					ta.Prompt = ""
+					ta.ShowLineNumbers = false
+					ta.DynamicHeight = dynamic
+					ta.SetWidth(tt.width)
+					ta.Focus()
+					ta.SetValue(tt.initial)
+					ta.SetCursorColumn(tt.column)
+					ta.MaxContentHeight = tt.limit
+
+					if paste {
+						ta, _ = ta.Update(tea.PasteMsg{Content: tt.input})
+					} else {
+						ta.InsertString(tt.input)
+					}
+
+					if got := ta.Value(); got != tt.want {
+						t.Fatalf("expected value %q, got %q", tt.want, got)
+					}
+					if ta.Line() != tt.row || ta.Column() != tt.col {
+						t.Errorf("expected cursor (%d, %d), got (%d, %d)", tt.row, tt.col, ta.Line(), ta.Column())
+					}
+					if got := ta.totalVisualLines(); got != tt.visual {
+						t.Errorf("expected %d visual lines, got %d", tt.visual, got)
+					}
+					if dynamic && ta.Height() != tt.visual {
+						t.Errorf("expected height %d, got %d", tt.visual, ta.Height())
+					}
+				})
+			}
+		}
+	}
+}
+
+func TestMaxContentHeight_SingleRuneAtLimit(t *testing.T) {
+	for _, key := range []bool{false, true} {
+		t.Run(fmt.Sprintf("key=%t", key), func(t *testing.T) {
+			ta := New()
+			ta.Prompt = ""
+			ta.ShowLineNumbers = false
+			ta.SetWidth(5)
+			ta.Focus()
+			ta.SetValue("abc")
+			ta.MaxContentHeight = 1
+
+			for _, r := range "de" {
+				if key {
+					ta, _ = ta.Update(keyPress(r))
+				} else {
+					ta.InsertRune(r)
+				}
+			}
+			if got := ta.Value(); got != "abcd" {
+				t.Fatalf("expected value %q, got %q", "abcd", got)
+			}
+			if ta.Line() != 0 || ta.Column() != 4 || ta.totalVisualLines() != 1 {
+				t.Errorf("expected cursor (0, 4) within one visual line, got (%d, %d) within %d", ta.Line(), ta.Column(), ta.totalVisualLines())
+			}
+		})
+	}
+}
+
 func TestMaxContentHeight_PasteCapped(t *testing.T) {
 	ta := New()
 	ta.Prompt = ""
@@ -2450,6 +2762,36 @@ func TestDynamicHeight_ShrinksWhenScrolledNoMaxContent(t *testing.T) {
 	}
 	if ta.viewport.YOffset() != 0 {
 		t.Errorf("expected yOffset 0 after shrinking, got %d", ta.viewport.YOffset())
+	}
+}
+
+func TestShiftBackspaceDeletesCharacterBackward(t *testing.T) {
+	ta := newTextArea()
+	ta.SetValue("abc")
+
+	ta, _ = ta.Update(tea.KeyPressMsg{Code: tea.KeyBackspace, Mod: tea.ModShift})
+
+	if got, want := ta.Value(), "ab"; got != want {
+		t.Errorf("after shift+backspace got %q, want %q", got, want)
+	}
+}
+
+func TestCharLimitWideRunes(t *testing.T) {
+	m := newTextArea()
+	m.Prompt = ""
+	m.ShowLineNumbers = false
+	m.CharLimit = 5
+
+	// Five East Asian wide runes, each two cells wide. CharLimit counts
+	// characters, not display cells, so all five should be accepted (this
+	// matches textinput, which limits by rune count).
+	m = sendString(m, "你好世界龍")
+
+	if got := len([]rune(m.Value())); got != 5 {
+		t.Errorf("CharLimit=5 admitted %d wide characters, want 5", got)
+	}
+	if got := m.Length(); got != 5 {
+		t.Errorf("Length() = %d for five characters, want 5", got)
 	}
 }
 
@@ -2879,5 +3221,124 @@ func TestSelectionRangeOrdering(t *testing.T) {
 	sel := textarea.SelectedText()
 	if sel != "world" {
 		t.Errorf("Expected selection %q, got %q", "world", sel)
+	}
+}
+
+type customClipboardErr struct {
+	msg string
+}
+
+func (e *customClipboardErr) Error() string {
+	return e.msg
+}
+
+func TestPasteErrMsgUnwrap(t *testing.T) {
+	underlyingErr := &customClipboardErr{msg: "clipboard paste error"}
+	m := New()
+	m.Focus()
+
+	m, _ = m.Update(pasteErrMsg{underlyingErr})
+
+	if m.Err == nil {
+		t.Fatal("expected m.Err to be set, got nil")
+	}
+
+	if !errors.Is(m.Err, underlyingErr) {
+		t.Errorf("expected errors.Is(m.Err, underlyingErr) to be true")
+	}
+
+	if unwrapped := errors.Unwrap(m.Err); unwrapped != underlyingErr {
+		t.Errorf("expected errors.Unwrap(m.Err) to be %v, got %v", underlyingErr, unwrapped)
+	}
+
+	var target *customClipboardErr
+	if !errors.As(m.Err, &target) || target != underlyingErr {
+		t.Errorf("expected errors.As(m.Err, &target) to match underlying error")
+	}
+}
+
+func TestCopyErrMsgUnwrap(t *testing.T) {
+	underlyingErr := &customClipboardErr{msg: "clipboard copy error"}
+	m := New()
+	m.Focus()
+
+	m, _ = m.Update(copyErrMsg{underlyingErr})
+
+	if m.Err == nil {
+		t.Fatal("expected m.Err to be set, got nil")
+	}
+
+	if !errors.Is(m.Err, underlyingErr) {
+		t.Errorf("expected errors.Is(m.Err, underlyingErr) to be true")
+	}
+
+	if unwrapped := errors.Unwrap(m.Err); unwrapped != underlyingErr {
+		t.Errorf("expected errors.Unwrap(m.Err) to be %v, got %v", underlyingErr, unwrapped)
+	}
+
+	var target *customClipboardErr
+	if !errors.As(m.Err, &target) || target != underlyingErr {
+		t.Errorf("expected errors.As(m.Err, &target) to match underlying error")
+	}
+}
+
+func TestSetWidth_MaxWidthBelowReservedWidth(t *testing.T) {
+	tests := []struct {
+		name            string
+		showLineNumbers bool
+		maxWidth        int
+	}{
+		{"prompt", false, 2},
+		{"prompt and line numbers", true, 1},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			textarea := newTextArea()
+			textarea.ShowLineNumbers = tt.showLineNumbers
+			textarea.MaxWidth = tt.maxWidth
+			textarea.SetWidth(80)
+			textarea.Focus()
+
+			if textarea.Width() < 1 {
+				t.Fatalf("expected a text width of at least 1 but got %d", textarea.Width())
+			}
+
+			textarea.SetValue("a b  ")
+			textarea.SetCursorColumn(1)
+			_ = textarea.View()
+
+			textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyLeft})
+			_ = textarea.View()
+		})
+	}
+}
+
+func TestSetWidthHonorsUsableMaximum(t *testing.T) {
+	t.Parallel()
+	m := newTextArea()
+	m.SetWidth(40)
+	want := m.Width()
+	m.MaxWidth = 40
+	m.SetWidth(80)
+	if got := m.Width(); got != want {
+		t.Fatalf("input width = %d, want %d", got, want)
+	}
+}
+
+func TestSetWidthDoesNotExpandToMaximum(t *testing.T) {
+	t.Parallel()
+	m := newTextArea()
+	m.SetWidth(40)
+	want := m.Width()
+	m.MaxWidth = 80
+	m.SetWidth(40)
+	if got := m.Width(); got != want {
+		t.Fatalf("input width = %d, want %d", got, want)
+	}
+	m.MaxWidth = 0
+	m.SetWidth(40)
+	if got := m.Width(); got != want {
+		t.Fatalf("unlimited input width = %d, want %d", got, want)
 	}
 }
