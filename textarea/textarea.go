@@ -1984,7 +1984,8 @@ func (m *Model) visualLinesForInsert(lines [][]rune) int {
 	delta := len(m.memoizedWrap(merged, m.width)) - currentRowVisual
 
 	// Each additional line is a new logical line.
-	for i, content := range lines {
+	for i := 1; i < len(lines); i++ {
+		content := lines[i]
 		if i == len(lines)-1 {
 			content = append(content, m.value[m.row][m.col:]...)
 		}
