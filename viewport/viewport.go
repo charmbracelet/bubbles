@@ -94,8 +94,10 @@ type Model struct {
 	// of index, soft wrapping, etc.
 	LeftGutterFunc GutterFunc
 
-	initialized      bool
-	lines            []string
+	initialized bool
+	lines       []string
+	// longestLineWidth is measured on first use after the content changes;
+	// -1 means it has not been measured yet.
 	longestLineWidth int
 
 	// HighlightStyle highlights the ranges set with [SetHighligths].
@@ -212,12 +214,13 @@ func (m Model) ScrollPercent() float64 {
 // HorizontalScrollPercent returns the amount horizontally scrolled as a float
 // between 0 and 1.
 func (m Model) HorizontalScrollPercent() float64 {
-	if m.xOffset >= m.longestLineWidth-m.Width() {
+	longest := m.measureLongestLine()
+	if m.xOffset >= longest-m.Width() {
 		return 1.0
 	}
 	y := float64(m.xOffset)
 	h := float64(m.Width())
-	t := float64(m.longestLineWidth)
+	t := float64(longest)
 	v := y / (t - h)
 	return clamp(v, 0, 1)
 }
@@ -253,7 +256,7 @@ func (m *Model) SetContentLines(lines []string) {
 		}
 	}
 
-	m.longestLineWidth = maxLineWidth(m.lines)
+	m.longestLineWidth = -1
 	m.ClearHighlights()
 
 	if m.YOffset() > m.maxYOffset() {
@@ -307,8 +310,27 @@ func (m Model) maxYOffset() int {
 
 // maxXOffset returns the maximum possible value of the x-offset based on the
 // viewport's content and set width.
-func (m Model) maxXOffset() int {
-	return max(0, m.longestLineWidth-m.Width())
+func (m *Model) maxXOffset() int {
+	return max(0, m.longestLine()-m.Width())
+}
+
+// longestLine returns the width of the longest line, measuring the content
+// on first use after it changes.  Measuring every line is costly for large
+// content, and only horizontal scrolling needs the result.
+func (m *Model) longestLine() int {
+	if m.longestLineWidth < 0 {
+		m.longestLineWidth = m.measureLongestLine()
+	}
+	return m.longestLineWidth
+}
+
+// measureLongestLine returns the measured longest line width without
+// storing it, for value receivers.
+func (m Model) measureLongestLine() int {
+	if m.longestLineWidth < 0 {
+		return maxLineWidth(m.lines)
+	}
+	return m.longestLineWidth
 }
 
 // maxWidth returns the maximum width of the viewport. It accounts for the frame
@@ -348,8 +370,8 @@ func (m Model) visibleLines() (lines []string) {
 		lines = append(lines, "")
 	}
 
-	// if longest line fit within width, no need to do anything else.
-	if (m.xOffset == 0 && m.longestLineWidth <= maxWidth) || maxWidth == 0 {
+	// If the visible lines fit within the width, no need to do anything else.
+	if (m.xOffset == 0 && maxLineWidth(lines) <= maxWidth) || maxWidth == 0 {
 		return m.setupGutter(lines, total, ridx)
 	}
 
