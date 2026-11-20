@@ -92,3 +92,24 @@ func TestFullHelpStylesColumnPaddingSkipsDisabledBindings(t *testing.T) {
 		t.Fatalf("expected exactly two rendered rows when one binding is disabled, got %q", rendered)
 	}
 }
+
+func TestShortHelpFitsWidth(t *testing.T) {
+	k := key.WithKeys("x")
+	kb := []key.Binding{
+		key.NewBinding(k, key.WithHelp("enter", "continue")),
+		key.NewBinding(k, key.WithHelp("esc", "back")),
+		key.NewBinding(k, key.WithHelp("ctrl+c", "quit")),
+	}
+
+	m := New()
+	full := ansi.StringWidth(m.ShortHelpView(kb))
+
+	for w := 1; w <= full; w++ {
+		t.Run(fmt.Sprintf("width %d", w), func(t *testing.T) {
+			m.SetWidth(w)
+			if got := ansi.StringWidth(m.ShortHelpView(kb)); got > w {
+				t.Errorf("ShortHelpView is %d cells wide, want at most %d", got, w)
+			}
+		})
+	}
+}
