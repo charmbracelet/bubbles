@@ -118,3 +118,34 @@ func sendString(m Model, str string) Model {
 
 	return m
 }
+
+func TestGraphemeEditing(t *testing.T) {
+	for _, tt := range []struct {
+		name, value, want string
+		start, wantPos    int
+		key               rune
+	}{
+		{"left across Thai cluster", "กน้ำ", "กน้ำ", 4, 1, tea.KeyLeft},
+		{"right across Thai cluster", "กน้ำ", "กน้ำ", 1, 4, tea.KeyRight},
+		{"delete Thai cluster", "น้ำก", "ก", 0, 0, tea.KeyDelete},
+		{"delete from inside cluster", "xน้ำก", "xก", 2, 1, tea.KeyDelete},
+		{"backspace one code point", "น้ำ", "น้", 3, 2, tea.KeyBackspace},
+		{"right across emoji sequence", "👩‍💻x", "👩‍💻x", 0, 3, tea.KeyRight},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			m := New()
+			m.SetValue(tt.value)
+			m.SetCursor(tt.start)
+			m.Focus()
+
+			m, _ = m.Update(tea.KeyPressMsg{Code: tt.key})
+
+			if got := m.Value(); got != tt.want {
+				t.Errorf("Value() = %q, want %q", got, tt.want)
+			}
+			if got := m.Position(); got != tt.wantPos {
+				t.Errorf("Position() = %d, want %d", got, tt.wantPos)
+			}
+		})
+	}
+}

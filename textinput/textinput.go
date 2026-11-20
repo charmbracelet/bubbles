@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"charm.land/bubbles/v2/cursor"
 	"charm.land/bubbles/v2/internal/runeutil"
@@ -563,6 +564,19 @@ func (m *Model) wordForward() {
 	}
 }
 
+// graphemeBounds returns the rune offsets of the grapheme containing pos.
+func (m Model) graphemeBounds(pos int) (start, end int) {
+	clusters := uniseg.NewGraphemes(string(m.value))
+	for clusters.Next() {
+		start = end
+		end += utf8.RuneCountInString(clusters.Str())
+		if pos < end {
+			return start, end
+		}
+	}
+	return end, end
+}
+
 func (m Model) echoTransform(v string) string {
 	switch m.EchoMode {
 	case EchoPassword:
@@ -613,20 +627,24 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.wordBackward()
 		case key.Matches(msg, m.KeyMap.CharacterBackward):
 			if m.pos > 0 {
-				m.SetCursor(m.pos - 1)
+				start, _ := m.graphemeBounds(m.pos - 1)
+				m.SetCursor(start)
 			}
 		case key.Matches(msg, m.KeyMap.WordForward):
 			m.wordForward()
 		case key.Matches(msg, m.KeyMap.CharacterForward):
 			if m.pos < len(m.value) {
-				m.SetCursor(m.pos + 1)
+				_, end := m.graphemeBounds(m.pos)
+				m.SetCursor(end)
 			}
 		case key.Matches(msg, m.KeyMap.LineStart):
 			m.CursorStart()
 		case key.Matches(msg, m.KeyMap.DeleteCharacterForward):
 			if len(m.value) > 0 && m.pos < len(m.value) {
-				m.value = slices.Delete(m.value, m.pos, m.pos+1)
+				start, end := m.graphemeBounds(m.pos)
+				m.value = slices.Delete(m.value, start, end)
 				m.Err = m.validate(m.value)
+				m.SetCursor(start)
 			}
 		case key.Matches(msg, m.KeyMap.LineEnd):
 			m.CursorEnd()
