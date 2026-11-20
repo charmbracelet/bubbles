@@ -1,8 +1,10 @@
 package textarea
 
 import (
-	tea "charm.land/bubbletea/v2"
+	"strings"
 	"testing"
+
+	tea "charm.land/bubbletea/v2"
 )
 
 func TestSetCursorColumnSnapsToGraphemeStart(t *testing.T) {
@@ -13,6 +15,7 @@ func TestSetCursorColumnSnapsToGraphemeStart(t *testing.T) {
 		t.Fatalf("cursor inside emoji: got %d want 1", m.col)
 	}
 }
+
 func TestVerticalCursorSnapsToGraphemeStart(t *testing.T) {
 	m := newTextArea()
 	m.SetValue("ab\n👩‍💻x")
@@ -24,6 +27,7 @@ func TestVerticalCursorSnapsToGraphemeStart(t *testing.T) {
 		t.Fatalf("vertical cursor split cluster at %d", m.col)
 	}
 }
+
 func TestBackspaceRemovesMarkWithoutConsonant(t *testing.T) {
 	for _, value := range []string{"น้", "कि"} {
 		m := newTextArea()
@@ -55,5 +59,91 @@ func TestWordOperationsAdvanceOverGraphemes(t *testing.T) {
 				t.Fatalf("deleteWordRight: got %q", m.Value())
 			}
 		})
+	}
+}
+
+func TestBackspaceRemovesEmojiSequenceWhole(t *testing.T) {
+	for value, want := range map[string]string{
+		"x👍🏽":              "x",
+		"x👨\u200d👩\u200d👧": "x",
+		"x🇺🇸":              "x",
+		"x❤\ufe0f":         "x",
+		"x1\ufe0f\u20e3":   "x",
+		"x🏴\U000e0067\U000e0062\U000e0073\U000e0063\U000e0074\U000e007f": "x",
+		"x👨\u200d": "x👨",
+		"क्\u200d": "क्",
+	} {
+		m := newTextArea()
+		m.SetValue(value)
+		m, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyBackspace})
+		if m.Value() != want {
+			t.Errorf("backspace %q: got %q want %q", value, m.Value(), want)
+		}
+	}
+}
+
+func TestClickMapsToGraphemeStart(t *testing.T) {
+	m := newTextArea()
+	m.SetValue("A👩‍💻BC")
+	for x, want := range []int{0, 1, 1, 4, 5, 6} {
+		if got := m.PositionAt(x+m.gutterWidth(), 0).Col; got != want {
+			t.Errorf("click at cell %d: got col %d want %d", x, got, want)
+		}
+	}
+}
+
+func TestVerticalCursorUsesGraphemeWidth(t *testing.T) {
+	m := newTextArea()
+	m.SetValue("abcdef\n👩‍💻xyz")
+	m.CursorUp()
+	m.SetCursorColumn(4)
+	m.CursorDown()
+	if m.col != 5 {
+		t.Fatalf("down from cell 4: got col %d want 5", m.col)
+	}
+}
+
+func TestTransposeSwapsGraphemes(t *testing.T) {
+	m := newTextArea()
+	m.SetValue("ab👩‍💻")
+	m.transposeLeft()
+	if got, want := m.Value(), "a👩‍💻b"; got != want {
+		t.Fatalf("transpose: got %q want %q", got, want)
+	}
+}
+
+func TestInsertJoiningNextGraphemeKeepsCursorAfter(t *testing.T) {
+	m := newTextArea()
+	m.SetValue("🇸x")
+	m.CursorStart()
+	m.InsertString("🇺")
+	if m.col != 2 {
+		t.Fatalf("cursor moved before typed text: col %d want 2", m.col)
+	}
+}
+
+func TestWrapKeepsGraphemesWhole(t *testing.T) {
+	for _, value := range []string{
+		strings.Repeat("👩‍💻", 12),
+		strings.Repeat("e\u0301", 30),
+		strings.Repeat("नमस्ते", 8),
+	} {
+		runes := []rune(value)
+		offset := 0
+		for _, line := range wrap(runes, 10) {
+			if start, _ := graphemeAt(runes, offset); start != offset {
+				t.Errorf("wrap split a grapheme of %q at rune %d", value, offset)
+			}
+			offset += len(line)
+		}
+	}
+}
+
+func TestDeleteWordLeftKeepsSpaceGrapheme(t *testing.T) {
+	m := newTextArea()
+	m.SetValue("ab \u0301cd")
+	m.deleteWordLeft()
+	if got, want := m.Value(), "ab \u0301"; got != want {
+		t.Fatalf("deleteWordLeft: got %q want %q", got, want)
 	}
 }

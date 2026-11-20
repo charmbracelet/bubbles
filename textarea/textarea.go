@@ -21,7 +21,6 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/atotto/clipboard"
 	"github.com/charmbracelet/x/ansi"
-	rw "github.com/mattn/go-runewidth"
 	"github.com/rivo/uniseg"
 )
 
@@ -637,6 +636,10 @@ func (m *Model) insertRunesFromUserInput(runes []rune) {
 	// Finally add the tail at the end of the last line inserted.
 	m.value[m.row] = append(m.value[m.row], tail...)
 
+	// Keep the cursor after the typed text when it joins the next grapheme.
+	if start, end := graphemeAt(m.value[m.row], m.col); start < m.col {
+		m.col = end
+	}
 	m.SetCursorColumn(m.col)
 }
 
@@ -745,8 +748,9 @@ func (m *Model) setCursorLineRelative(delta int) {
 		if m.row >= len(m.value) || m.col >= len(m.value[m.row]) || offset >= nli.CharWidth-1 {
 			break
 		}
-		offset += rw.RuneWidth(m.value[m.row][m.col])
-		m.col++
+		_, end := graphemeAt(m.value[m.row], m.col)
+		offset += uniseg.StringWidth(string(m.value[m.row][m.col:end]))
+		m.col = end
 	}
 	if m.col < len(m.value[m.row]) {
 		m.col, _ = graphemeAt(m.value[m.row], m.col)
@@ -897,10 +901,14 @@ func (m *Model) transposeLeft() {
 	if m.col >= len(m.value[m.row]) {
 		m.SetCursorColumn(m.col - 1)
 	}
-	m.value[m.row][m.col-1], m.value[m.row][m.col] = m.value[m.row][m.col], m.value[m.row][m.col-1]
-	if m.col < len(m.value[m.row]) {
-		m.SetCursorColumn(m.col + 1)
+	if m.col == 0 {
+		return
 	}
+	line := m.value[m.row]
+	prev, _ := graphemeAt(line, m.col-1)
+	_, end := graphemeAt(line, m.col)
+	copy(line[prev:end], append(slices.Clone(line[m.col:end]), line[prev:m.col]...))
+	m.SetCursorColumn(end)
 }
 
 // deleteWordLeft deletes the word left to the cursor. Returns whether or not
@@ -930,7 +938,7 @@ func (m *Model) deleteWordLeft() {
 		} else {
 			if m.col > 0 {
 				// keep the previous space
-				m.SetCursorColumn(m.col + 1)
+				m.characterRight()
 			}
 			break
 		}
@@ -1318,6 +1326,9 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				// Backspace removes one code point so combining marks can be
 				// corrected without erasing their base consonant.
 				start := m.col - 1
+				if s, _ := graphemeAt(m.value[m.row], start); deletesWhole(m.value[m.row][s:m.col]) {
+					start = s
+				}
 				m.value[m.row] = append(m.value[m.row][:start], m.value[m.row][m.col:]...)
 				m.SetCursorColumn(start)
 			}
@@ -1566,9 +1577,10 @@ func (m *Model) view() string {
 					m.virtualCursor.SetChar(" ")
 					s.WriteString(m.virtualCursor.View())
 				} else {
-					m.virtualCursor.SetChar(string(wrappedLine[lineInfo.ColumnOffset]))
+					_, end := graphemeAt(wrappedLine, lineInfo.ColumnOffset)
+					m.virtualCursor.SetChar(string(wrappedLine[lineInfo.ColumnOffset:end]))
 					s.WriteString(style.Render(m.virtualCursor.View()))
-					s.WriteString(style.Render(string(wrappedLine[lineInfo.ColumnOffset+1:])))
+					s.WriteString(style.Render(string(wrappedLine[end:])))
 				}
 			} else {
 				s.WriteString(style.Render(string(wrappedLine)))
@@ -2036,12 +2048,12 @@ func wrap(runes []rune, width int) [][]rune {
 		spaces int
 	)
 
-	// Word wrap the runes
-	for _, r := range runes {
-		if unicode.IsSpace(r) {
+	// Word wrap by grapheme so a line never breaks inside a character.
+	for g := uniseg.NewGraphemes(string(runes)); g.Next(); {
+		if r := g.Runes(); len(r) == 1 && unicode.IsSpace(r[0]) {
 			spaces++
 		} else {
-			word = append(word, r)
+			word = append(word, r...)
 		}
 
 		if spaces > 0 { //nolint:nestif
@@ -2061,7 +2073,7 @@ func wrap(runes []rune, width int) [][]rune {
 		} else {
 			// If the last character is a double-width rune, then we may not be able to add it to this line
 			// as it might cause us to go past the width.
-			lastCharLen := rw.RuneWidth(word[len(word)-1])
+			lastCharLen := g.Width()
 			if uniseg.StringWidth(string(word))+lastCharLen > width {
 				// If the current line has any content, let's move to the next
 				// line because the current word fills up the entire line.
