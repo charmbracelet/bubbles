@@ -216,3 +216,33 @@ func TestTitleViewWithoutStatusMessageDoesNotTruncate(t *testing.T) {
 		t.Fatalf("expected title %q, got %q", list.Title, got)
 	}
 }
+
+func TestTitleFitsListWidth(t *testing.T) {
+	const width = 20
+	for _, tc := range []struct {
+		name    string
+		padding int
+	}{
+		{name: "default"},
+		{name: "extra padding", padding: 3},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			m := New(nil, NewDefaultDelegate(), width, 7)
+			m.Title = "A long 日本語 title that exceeds the allotted width"
+			m.SetShowHelp(false)
+			m.SetShowPagination(false)
+			m.SetShowStatusBar(false)
+			if tc.padding != 0 {
+				m.Styles.TitleBar = m.Styles.TitleBar.Padding(0, tc.padding)
+			}
+
+			title, _, _ := strings.Cut(m.View(), "\n")
+			if got := ansi.StringWidth(title); got > width {
+				t.Errorf("title occupies %d columns, want at most %d: %q", got, width, ansi.Strip(title))
+			}
+			if !strings.Contains(ansi.Strip(title), "A long") || !strings.Contains(title, ellipsis) {
+				t.Errorf("expected a truncated title, got %q", ansi.Strip(title))
+			}
+		})
+	}
+}

@@ -1152,7 +1152,8 @@ func (m Model) titleView() string {
 			view += "  " + m.statusMessage
 		}
 		if m.filterState != Filtering {
-			view = ansi.Truncate(view, m.width-spinnerWidth, ellipsis)
+			titleWidth := m.width - spinnerWidth - titleBarStyle.GetHorizontalFrameSize()
+			view = ansi.Truncate(view, titleWidth, ellipsis)
 		}
 	}
 
