@@ -528,6 +528,46 @@ func TestVerticalNavigationThroughSoftWraps(t *testing.T) {
 	}
 }
 
+func TestViewRendersOnlyVisiblePrompts(t *testing.T) {
+	m := newTextArea()
+	m.CharLimit = 0
+	m.ShowLineNumbers = false
+	m.SetWidth(20)
+	m.SetHeight(4)
+	var promptLines []int
+	m.SetPromptFunc(0, func(info PromptInfo) string {
+		promptLines = append(promptLines, info.LineNumber)
+		return ""
+	})
+	m.SetValue(strings.Repeat("example\n", 1000) + "last line")
+	m.MoveToBegin()
+
+	check := func(first int, text string) {
+		t.Helper()
+		promptLines = nil
+		view := m.View()
+		if !strings.Contains(view, text) {
+			t.Fatalf("view does not contain %q: %q", text, view)
+		}
+		if len(promptLines) != m.Height() {
+			t.Fatalf("styled %d rows, want %d", len(promptLines), m.Height())
+		}
+		for offset, line := range promptLines {
+			if line != first+offset {
+				t.Errorf("prompt row %d = %d, want %d", offset, line, first+offset)
+			}
+		}
+	}
+
+	check(0, "example")
+	m.MoveToEnd()
+	offset := m.viewport.YOffset()
+	if offset == 0 {
+		t.Fatal("expected the view to scroll to the end")
+	}
+	check(offset, "last line")
+}
+
 func TestView(t *testing.T) {
 	t.Parallel()
 
