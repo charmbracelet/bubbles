@@ -1523,7 +1523,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 }
 
 func (m *Model) view() string {
-	if len(m.Value()) == 0 && m.row == 0 && m.col == 0 && m.Placeholder != "" {
+	if m.Placeholder != "" && m.row == 0 && m.col == 0 && len(m.Value()) == 0 {
 		return m.placeholderView()
 	}
 	m.virtualCursor.TextStyle = m.activeStyle().computedCursorLine()
@@ -1531,15 +1531,24 @@ func (m *Model) view() string {
 	var (
 		s                strings.Builder
 		style            lipgloss.Style
-		newLines         int
 		widestLineNumber int
 		lineInfo         = m.LineInfo()
 		styles           = m.activeStyle()
 	)
 
+	// Keep the viewport's line count for scrolling, but only style rows it can show.
+	// Include the end-of-buffer rows and the final newline when clamping the offset.
+	lastOffset := max(0, m.totalVisualLines()+m.height+1-m.viewport.Height())
+	firstVisible := min(m.viewport.YOffset(), lastOffset)
+	afterVisible := firstVisible + m.viewport.Height()
 	displayLine := 0
 	for l, line := range m.value {
 		wrappedLines := m.memoizedWrap(line, m.width)
+		if displayLine+len(wrappedLines) <= firstVisible || displayLine >= afterVisible {
+			s.WriteString(strings.Repeat("\n", len(wrappedLines)))
+			displayLine += len(wrappedLines)
+			continue
+		}
 
 		if m.row == l {
 			style = styles.computedCursorLine()
@@ -1553,6 +1562,27 @@ func (m *Model) view() string {
 		wrappedBase := 0
 
 		for wl, wrappedLine := range wrappedLines {
+			strwidth := uniseg.StringWidth(string(wrappedLine))
+			padding := m.width - strwidth
+			// If the trailing space causes the line to be wider than the
+			// width, we should not draw it to the screen since it will result
+			// in an extra space at the end of the line which can look off when
+			// the cursor line is showing.
+			if strwidth > m.width {
+				// The character causing the line to be wider than the width is
+				// guaranteed to be a space since any other character would
+				// have been wrapped.
+				wrappedLine = []rune(strings.TrimSuffix(string(wrappedLine), " "))
+				padding -= m.width - strwidth
+			}
+
+			if displayLine < firstVisible || displayLine >= afterVisible {
+				wrappedBase += len(wrappedLine)
+				s.WriteRune('\n')
+				displayLine++
+				continue
+			}
+
 			prompt := m.promptView(displayLine)
 			s.WriteString(style.Render(prompt))
 			displayLine++
@@ -1572,20 +1602,6 @@ func (m *Model) view() string {
 			lnw := uniseg.StringWidth(ln)
 			if lnw > widestLineNumber {
 				widestLineNumber = lnw
-			}
-
-			strwidth := uniseg.StringWidth(string(wrappedLine))
-			padding := m.width - strwidth
-			// If the trailing space causes the line to be wider than the
-			// width, we should not draw it to the screen since it will result
-			// in an extra space at the end of the line which can look off when
-			// the cursor line is showing.
-			if strwidth > m.width {
-				// The character causing the line to be wider than the width is
-				// guaranteed to be a space since any other character would
-				// have been wrapped.
-				wrappedLine = []rune(strings.TrimSuffix(string(wrappedLine), " "))
-				padding -= m.width - strwidth
 			}
 
 			// A selection covering this segment takes precedence over the
@@ -1612,13 +1628,17 @@ func (m *Model) view() string {
 			wrappedBase += len(wrappedLine)
 			s.WriteString(style.Render(strings.Repeat(" ", max(0, padding))))
 			s.WriteRune('\n')
-			newLines++
 		}
 	}
 
 	// Always show at least `m.Height` lines at all times.
 	// To do this we can simply pad out a few extra new lines in the view.
 	for range m.height {
+		if displayLine < firstVisible || displayLine >= afterVisible {
+			s.WriteRune('\n')
+			displayLine++
+			continue
+		}
 		s.WriteString(m.promptView(displayLine))
 		displayLine++
 
