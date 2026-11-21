@@ -2,6 +2,7 @@ package timer
 
 import (
 	"testing"
+	"testing/synctest"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -247,6 +248,50 @@ func TestTimeoutMsgSentOnLastTick(t *testing.T) {
 	if cmd == nil {
 		t.Error("expected a command after final tick")
 	}
+}
+
+func TestTimeoutTickSentWithTimeoutMsg(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		m := New(time.Second)
+		m, cmd := updateWithTick(t, m, m.Init())
+		if !m.Timedout() || cmd == nil {
+			t.Fatal("expected the timer to expire and return notifications")
+		}
+		expiredAt := time.Now()
+		batch, ok := cmd().(tea.BatchMsg)
+		if !ok || len(batch) != 2 {
+			t.Fatalf("expected two timeout commands, got %v", batch)
+		}
+
+		type notification struct {
+			msg   tea.Msg
+			delay time.Duration
+		}
+		received := make(chan notification, len(batch))
+		for _, notify := range batch {
+			go func() {
+				msg := notify()
+				received <- notification{msg: msg, delay: time.Since(expiredAt)}
+			}()
+		}
+
+		var sawTick, sawTimeout bool
+		for range batch {
+			result := <-received
+			if result.delay != 0 {
+				t.Errorf("%T arrived %v after expiry", result.msg, result.delay)
+			}
+			switch msg := result.msg.(type) {
+			case TickMsg:
+				sawTick = msg.Timeout && msg.ID == m.ID()
+			case TimeoutMsg:
+				sawTimeout = msg.ID == m.ID()
+			}
+		}
+		if !sawTick || !sawTimeout {
+			t.Errorf("expected a timeout tick and TimeoutMsg for timer %d", m.ID())
+		}
+	})
 }
 
 // TestTickMsgFromDifferentTimerIsIgnored verifies that tick messages

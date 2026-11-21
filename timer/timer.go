@@ -170,7 +170,10 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 		m.Timeout -= m.Interval
 		m.tag++
-		return m, tea.Batch(m.tick(), m.timedout())
+		if cmd := m.timedout(); cmd != nil {
+			return m, cmd
+		}
+		return m, m.tick()
 	}
 
 	return m, nil
@@ -198,17 +201,21 @@ func (m *Model) Toggle() tea.Cmd {
 
 func (m Model) tick() tea.Cmd {
 	return tea.Tick(m.Interval, func(_ time.Time) tea.Msg {
-		return TickMsg{ID: m.id, tag: m.tag, Timeout: m.Timedout()}
+		return m.tickMsg()
 	})
+}
+
+func (m Model) tickMsg() tea.Msg {
+	return TickMsg{ID: m.id, tag: m.tag, Timeout: m.Timedout()}
 }
 
 func (m Model) timedout() tea.Cmd {
 	if !m.Timedout() {
 		return nil
 	}
-	return func() tea.Msg {
+	return tea.Batch(m.tickMsg, func() tea.Msg {
 		return TimeoutMsg{ID: m.id}
-	}
+	})
 }
 
 func (m Model) startStop(v bool) tea.Cmd {
