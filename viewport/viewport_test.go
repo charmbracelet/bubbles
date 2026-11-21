@@ -924,3 +924,49 @@ func TestScrollPercentWithFrame(t *testing.T) {
 		t.Errorf("9 lines at the top: expected ScrollPercent 0, got %v", got)
 	}
 }
+
+func TestHorizontalScrollWithFrameAndGutter(t *testing.T) {
+	t.Parallel()
+
+	border := lipgloss.NewStyle().Border(lipgloss.NormalBorder())
+	gutter := func(GutterContext) string { return "界" }
+
+	for _, tt := range []struct {
+		name   string
+		style  lipgloss.Style
+		gutter GutterFunc
+		end    int
+		tail   string
+	}{
+		{"frame", border, nil, 2, "cdefgh"},
+		{"gutter", lipgloss.NewStyle(), gutter, 2, "cdefgh"},
+		{"frame and gutter", border, gutter, 4, "efgh"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			vp := New(WithWidth(8), WithHeight(3))
+			vp.Style = tt.style
+			vp.LeftGutterFunc = tt.gutter
+			vp.SetContent("abcdefgh")
+
+			if got := vp.HorizontalScrollPercent(); got != 0 {
+				t.Errorf("at the left edge: expected scroll percent 0, got %v", got)
+			}
+			vp.ScrollRight(tt.end / 2)
+			if got := vp.HorizontalScrollPercent(); got != 0.5 {
+				t.Errorf("halfway: expected scroll percent 0.5, got %v", got)
+			}
+			vp.ScrollRight(20)
+			if got := vp.XOffset(); got != tt.end {
+				t.Errorf("at the right edge: expected XOffset %d, got %d", tt.end, got)
+			}
+			if got := vp.HorizontalScrollPercent(); got != 1 {
+				t.Errorf("at the right edge: expected scroll percent 1, got %v", got)
+			}
+			if got := vp.View(); !strings.Contains(got, tt.tail) {
+				t.Errorf("view at the right edge lacks %q: %q", tt.tail, got)
+			}
+		})
+	}
+}
