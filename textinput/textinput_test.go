@@ -381,3 +381,39 @@ func TestSetValueDoesNotCompleteUnmatchedInput(t *testing.T) {
 		t.Fatalf("unmatched value = %q, want other", got)
 	}
 }
+
+func Test_CursorPositionWithEchoMode(t *testing.T) {
+	tests := []struct {
+		name     string
+		mode     EchoMode
+		echoChar rune
+		value    string
+		want     int
+	}{
+		// The default prompt is "> ", two columns wide.
+		{"echo none draws nothing", EchoNone, '*', "abc", 2},
+		{"echo none with wide value", EchoNone, '*', "あいう", 2},
+		{"password masks each cell", EchoPassword, '*', "abc", 2 + 3},
+		{"password with wide mask", EchoPassword, '＊', "abc", 2 + 6},
+		{"normal", EchoNormal, '*', "abc", 2 + 3},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := New()
+			m.SetVirtualCursor(false)
+			m.Focus()
+			m.SetWidth(40)
+			m.EchoMode = tt.mode
+			m.EchoCharacter = tt.echoChar
+			m.SetValue(tt.value)
+
+			c := m.Cursor()
+			if c == nil {
+				t.Fatal("expected a cursor")
+			}
+			if c.X != tt.want {
+				t.Fatalf("expected cursor X to be %d, got %d", tt.want, c.X)
+			}
+		})
+	}
+}
