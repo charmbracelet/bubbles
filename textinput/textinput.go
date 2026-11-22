@@ -933,10 +933,12 @@ func (m Model) Cursor() *tea.Cursor {
 	promptWidth := w(m.promptView())
 	// The cursor sits after the visible text, so measure the display width of
 	// the value between the scroll offset and the cursor position instead of
-	// using the rune index, which is wrong for double-width characters.
+	// using the rune index, which is wrong for double-width characters. Measure
+	// it as View draws it, after the echo transform: EchoNone draws nothing and
+	// EchoPassword draws one EchoCharacter per cell.
 	end := max(m.offset, m.pos)
 	xOffset := promptWidth +
-		uniseg.StringWidth(string(m.value[m.offset:end]))
+		uniseg.StringWidth(m.echoTransform(string(m.value[m.offset:end])))
 	if m.width > 0 {
 		xOffset = min(xOffset, m.width+promptWidth)
 	}
