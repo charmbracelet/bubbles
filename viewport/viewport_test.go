@@ -557,6 +557,78 @@ Charm热爱开源 • Charm loves open source
 	})
 }
 
+func TestMatchesToHighlights_ANSI(t *testing.T) {
+	t.Run("ansi prefix on single line", func(t *testing.T) {
+		content := "\x1b[31mX\x1b[0m padding needle padding\n"
+		testHighlights(t, content, regexp.MustCompile("needle"), []highlightInfo{
+			{
+				lineStart: 0,
+				lineEnd:   0,
+				lines: map[int][2]int{
+					0: {10, 16},
+				},
+			},
+		})
+	})
+
+	t.Run("ansi styled words across lines", func(t *testing.T) {
+		content := "\x1b[1mfirst\x1b[0m line with \x1b[32mneedle\x1b[0m\nsecond \x1b[34mneedle\x1b[0m here\n"
+		testHighlights(t, content, regexp.MustCompile("needle"), []highlightInfo{
+			{
+				lineStart: 0,
+				lineEnd:   0,
+				lines: map[int][2]int{
+					0: {16, 22},
+				},
+			},
+			{
+				lineStart: 1,
+				lineEnd:   1,
+				lines: map[int][2]int{
+					1: {7, 13},
+				},
+			},
+		})
+	})
+
+	t.Run("ansi escapes before match on multiline", func(t *testing.T) {
+		content := "a\x1b[32mb\x1b[0mc\nneed\nle here\n"
+		testHighlights(t, content, regexp.MustCompile("need\nle"), []highlightInfo{
+			{
+				lineStart: 1,
+				lineEnd:   2,
+				lines: map[int][2]int{
+					1: {0, 5},
+					2: {0, 2},
+				},
+			},
+		})
+	})
+
+	t.Run("reproducer from issue 1049", func(t *testing.T) {
+		for _, content := range []string{
+			"padding padding padding needle padding padding\n",
+			"\x1b[31mX\x1b[0m padding padding padding needle padding padding\n",
+		} {
+			i := strings.Index(content, "needle")
+			vp := New(WithWidth(60), WithHeight(3))
+			vp.HighlightStyle = lipgloss.NewStyle().Reverse(true)
+			vp.SelectedHighlightStyle = lipgloss.NewStyle().Reverse(true)
+			vp.SetContent(content)
+			vp.SetHighlights([][]int{{i, i + len("needle")}})
+
+			if len(vp.highlights) != 1 {
+				t.Fatalf("expected 1 highlight, got %d", len(vp.highlights))
+			}
+			hl := vp.highlights[0].lines[0]
+			cut := ansi.Strip(ansi.Cut(vp.lines[0], hl[0], hl[1]))
+			if cut != "needle" {
+				t.Errorf("expected cut to be 'needle', got %q", cut)
+			}
+		}
+	})
+}
+
 func testHighlights(tb testing.TB, content string, re *regexp.Regexp, expect []highlightInfo) {
 	tb.Helper()
 
@@ -772,4 +844,83 @@ func BenchmarkView(b *testing.B) {
 			vt.View()
 		}
 	})
+}
+
+func TestPageScrollWithFrame(t *testing.T) {
+	t.Parallel()
+
+	lines := make([]string, 30)
+	for i := range lines {
+		lines[i] = fmt.Sprintf("line %02d", i)
+	}
+
+	// Height is 10, but the border takes 2 rows, so 8 lines are visible.
+	newViewport := func() Model {
+		vp := New(WithWidth(20), WithHeight(10))
+		vp.Style = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
+		vp.SetContent(strings.Join(lines, "\n"))
+		return vp
+	}
+
+	tests := []struct {
+		name   string
+		start  int
+		scroll func(*Model)
+		want   int
+	}{
+		{"PageDown", 0, (*Model).PageDown, 8},
+		{"PageUp", 16, (*Model).PageUp, 8},
+		{"HalfPageDown", 0, (*Model).HalfPageDown, 4},
+		{"HalfPageUp", 16, (*Model).HalfPageUp, 12},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			vp := newViewport()
+			vp.SetYOffset(tt.start)
+			tt.scroll(&vp)
+			if got := vp.YOffset(); got != tt.want {
+				t.Errorf("expected YOffset %d, got %d", tt.want, got)
+			}
+		})
+	}
+}
+
+func TestScrollPercentWithFrame(t *testing.T) {
+	t.Parallel()
+
+	lines := make([]string, 20)
+	for i := range lines {
+		lines[i] = fmt.Sprintf("line %02d", i)
+	}
+
+	// Height is 10, but the border takes 2 rows, so 8 lines are visible and
+	// the last offset is 20 - 8 = 12.
+	vp := New(WithWidth(20), WithHeight(10))
+	vp.Style = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
+	vp.SetContent(strings.Join(lines, "\n"))
+
+	for _, tt := range []struct {
+		offset int
+		want   float64
+	}{
+		{0, 0},
+		{6, 0.5},
+		{12, 1},
+	} {
+		vp.SetYOffset(tt.offset)
+		if got := vp.ScrollPercent(); got != tt.want {
+			t.Errorf("YOffset %d: expected ScrollPercent %v, got %v", tt.offset, tt.want, got)
+		}
+	}
+
+	// 9 lines do not fit in the 8 visible rows, so at the top the viewport
+	// is not fully scrolled.
+	vp.SetContent(strings.Join(lines[:9], "\n"))
+	vp.GotoTop()
+	if got := vp.ScrollPercent(); got != 0 {
+		t.Errorf("9 lines at the top: expected ScrollPercent 0, got %v", got)
+	}
 }

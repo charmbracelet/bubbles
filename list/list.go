@@ -102,7 +102,7 @@ func DefaultFilter(term string, targets []string) []Rank {
 	for i, r := range ranks {
 		result[i] = Rank{
 			Index:          r.Index,
-			MatchedIndexes: r.MatchedIndexes,
+			MatchedIndexes: runeIndexes(targets[r.Index], r.MatchedIndexes),
 		}
 	}
 	return result
@@ -116,10 +116,37 @@ func UnsortedFilter(term string, targets []string) []Rank {
 	for i, r := range ranks {
 		result[i] = Rank{
 			Index:          r.Index,
-			MatchedIndexes: r.MatchedIndexes,
+			MatchedIndexes: runeIndexes(targets[r.Index], r.MatchedIndexes),
 		}
 	}
 	return result
+}
+
+// runeIndexes converts the byte offsets that sahilm/fuzzy reports into rune
+// offsets. MatchesForItem documents its result as rune positions and
+// lipgloss.StyleRunes consumes them as such, so byte offsets would highlight
+// the wrong runes (or none) when a target contains multi-byte characters. The
+// byte offsets are ascending and always fall on rune boundaries.
+func runeIndexes(target string, byteIndexes []int) []int {
+	if len(byteIndexes) == 0 {
+		return byteIndexes
+	}
+	out := make([]int, len(byteIndexes))
+	next := 0
+	runeIndex := 0
+	for byteIndex := range target {
+		for next < len(byteIndexes) && byteIndexes[next] == byteIndex {
+			out[next] = runeIndex
+			next++
+		}
+		runeIndex++
+	}
+	// Handle any trailing offset that points just past the last rune.
+	for next < len(byteIndexes) {
+		out[next] = runeIndex
+		next++
+	}
+	return out
 }
 
 type statusMessageTimeoutMsg struct{}
@@ -441,7 +468,19 @@ func (m *Model) InsertItem(index int, item Item) tea.Cmd {
 func (m *Model) RemoveItem(index int) {
 	m.items = removeItemFromSlice(m.items, index)
 	if m.filterState != Unfiltered {
-		m.filteredItems = removeFilterMatchFromSlice(m.filteredItems, index)
+		// Rebuild filtered list: drop the entry matching the removed global
+		// index and shift down all subsequent global indices by one.
+		filtered := m.filteredItems[:0]
+		for _, fi := range m.filteredItems {
+			if fi.index == index {
+				continue
+			}
+			if fi.index > index {
+				fi.index--
+			}
+			filtered = append(filtered, fi)
+		}
+		m.filteredItems = filtered
 		if len(m.filteredItems) == 0 {
 			m.resetFiltering()
 		}
@@ -1109,8 +1148,10 @@ func (m Model) titleView() string {
 		view += m.Styles.Title.Render(m.Title)
 
 		// Status message
-		if m.filterState != Filtering {
+		if m.filterState != Filtering && m.statusMessage != "" {
 			view += "  " + m.statusMessage
+		}
+		if m.filterState != Filtering {
 			view = ansi.Truncate(view, m.width-spinnerWidth, ellipsis)
 		}
 	}
@@ -1297,15 +1338,6 @@ func removeItemFromSlice(i []Item, index int) []Item {
 	}
 	copy(i[index:], i[index+1:])
 	i[len(i)-1] = nil
-	return i[:len(i)-1]
-}
-
-func removeFilterMatchFromSlice(i []filteredItem, index int) []filteredItem {
-	if index >= len(i) {
-		return i // noop
-	}
-	copy(i[index:], i[index+1:])
-	i[len(i)-1] = filteredItem{}
 	return i[:len(i)-1]
 }
 

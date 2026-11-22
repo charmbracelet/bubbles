@@ -1,9 +1,11 @@
 package textarea
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 	"unicode"
 
 	tea "charm.land/bubbletea/v2"
@@ -97,6 +99,59 @@ func TestWordWrapOverflowing(t *testing.T) {
 	}
 }
 
+func TestWrapLastWordFillsWidth(t *testing.T) {
+	// A final word that exactly fills the remaining width should stay on its
+	// line; only the cursor's trailing cell moves to the next row, as it does
+	// for a single unbroken word that fills the width.
+	tests := []struct {
+		input string
+		want  []string
+	}{
+		{"1234567890", []string{"1234567890", " "}},
+		{"1 2 3 4 5", []string{"1 2 3 4 5 "}},
+		{"1 2 3 4 56", []string{"1 2 3 4 56", " "}},
+		{"1 2 3 4 567", []string{"1 2 3 4 ", "567 "}},
+		{"1 2 3 4 中", []string{"1 2 3 4 中", " "}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			var got []string
+			for _, line := range wrap([]rune(tt.input), 10) {
+				got = append(got, string(line))
+			}
+			if fmt.Sprintf("%q", got) != fmt.Sprintf("%q", tt.want) {
+				t.Errorf("wrap(%q, 10) = %q, want %q", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestTypingLastWordFillsWidthDoesNotReflow(t *testing.T) {
+	textarea := newTextArea()
+	textarea.Prompt = ""
+	textarea.ShowLineNumbers = false
+	textarea.SetWidth(10)
+	textarea.SetHeight(3)
+
+	for _, k := range "1 2 3 4 56" {
+		textarea, _ = textarea.Update(keyPress(k))
+	}
+
+	firstLine := strings.Split(ansi.Strip(textarea.View()), "\n")[0]
+	if firstLine != "1 2 3 4 56" {
+		t.Fatalf("expected the first line to hold the whole input, got %q", firstLine)
+	}
+
+	// Typing one more character overflows the width, so the last word
+	// should now reflow onto the next line.
+	textarea, _ = textarea.Update(keyPress('7'))
+	lines := strings.Split(ansi.Strip(textarea.View()), "\n")
+	if strings.TrimRight(lines[0], " ") != "1 2 3 4" || strings.TrimRight(lines[1], " ") != "567" {
+		t.Fatalf("expected %q to reflow onto the second line, got %q", "567", lines[:2])
+	}
+}
+
 func TestValueSoftWrap(t *testing.T) {
 	textarea := newTextArea()
 	textarea.SetWidth(16)
@@ -120,6 +175,40 @@ func TestValueSoftWrap(t *testing.T) {
 	}
 }
 
+func TestAutoResizeKeepsFirstSoftWrappedRowVisible(t *testing.T) {
+	textarea := newTextArea()
+	textarea.Prompt = ""
+	textarea.ShowLineNumbers = false
+	textarea.SetWidth(24)
+	textarea.SetHeight(1)
+	textarea.CharLimit = 200
+
+	textarea, _ = textarea.Update(nil)
+
+	input := "this is a long active line that should wrap to the next row while typing"
+	for _, k := range input {
+		textarea, _ = textarea.Update(keyPress(k))
+		textarea.SetHeight(softWrappedLineCount(textarea))
+		textarea.View()
+	}
+
+	if got := textarea.viewport.YOffset(); got != 0 {
+		t.Fatalf("expected viewport offset 0 after autoresize, got %d", got)
+	}
+
+	view := stripString(textarea.View())
+	if !strings.Contains(view, "this is a long active") {
+		t.Fatalf("expected first wrapped row to stay visible, got %q", view)
+	}
+	if !strings.Contains(view, "typing") {
+		t.Fatalf("expected last wrapped row to be visible, got %q", view)
+	}
+}
+
+func softWrappedLineCount(m Model) int {
+	return m.totalLineCount()
+}
+
 func TestSetValue(t *testing.T) {
 	textarea := newTextArea()
 	textarea.SetValue(strings.Join([]string{"Foo", "Bar", "Baz"}, "\n"))
@@ -140,6 +229,22 @@ func TestSetValue(t *testing.T) {
 	if value != "Test" {
 		t.Log(value)
 		t.Fatal("Text area was not reset when SetValue() was called")
+	}
+}
+
+func TestSetValueViewportReposition(t *testing.T) {
+	ta := newTextArea()
+	ta.SetHeight(3)
+	ta.SetWidth(40)
+
+	// Insert more lines than the viewport height so the cursor ends below the visible area.
+	lines := strings.Join([]string{"line1", "line2", "line3", "line4", "line5"}, "\n")
+	ta.SetValue(lines)
+
+	// Cursor must be visible: ScrollYOffset must be high enough that the last row is in view.
+	if ta.ScrollYOffset()+ta.Height()-1 < ta.LineCount()-1 {
+		t.Fatalf("cursor out of view after SetValue: yOffset=%d height=%d lines=%d",
+			ta.ScrollYOffset(), ta.Height(), ta.LineCount())
 	}
 }
 
@@ -325,6 +430,101 @@ func TestVerticalNavigationShouldRememberPositionWhileTraversing(t *testing.T) {
 	if textarea.col != 4 || textarea.row != 2 {
 		t.Log(textarea.col)
 		t.Fatal("Expected cursor to be on the 4th character of the last line")
+	}
+}
+
+func TestVerticalNavigationThroughSoftWraps(t *testing.T) {
+	const nextLine = "\nabcdefghijklmnop"
+	tests := []struct {
+		name  string
+		value string
+		want  []Position
+	}{
+		{
+			name:  "short line",
+			value: strings.Repeat("a", 19) + nextLine,
+			want:  []Position{{0, 7}, {1, 7}},
+		},
+		{
+			name:  "exact width",
+			value: strings.Repeat("a", 20) + nextLine,
+			want:  []Position{{0, 7}, {0, 20}, {1, 7}},
+		},
+		{
+			name:  "over width",
+			value: strings.Repeat("a", 21) + nextLine,
+			want:  []Position{{0, 7}, {0, 21}, {1, 7}},
+		},
+		{
+			name:  "word wrap",
+			value: "one two three four five" + nextLine,
+			want:  []Position{{0, 7}, {0, 23}, {1, 7}},
+		},
+		{
+			name:  "multiple exact wraps",
+			value: strings.Repeat("a", 40) + nextLine,
+			want:  []Position{{0, 7}, {0, 27}, {0, 40}, {1, 7}},
+		},
+		{
+			name:  "exact width with spaces",
+			value: "123456789 123456789 " + nextLine,
+			want:  []Position{{0, 7}, {0, 20}, {1, 7}},
+		},
+		{
+			name:  "wide runes",
+			value: strings.Repeat("你好", 5) + nextLine,
+			want:  []Position{{0, 4}, {0, 10}, {1, 8}},
+		},
+		{
+			name:  "mixed width runes",
+			value: strings.Repeat("a", 18) + "你" + nextLine,
+			want:  []Position{{0, 7}, {0, 19}, {1, 7}},
+		},
+		{
+			name:  "exact width at end of buffer",
+			value: strings.Repeat("a", 20),
+			want:  []Position{{0, 7}, {0, 20}},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			textarea := newTextArea()
+			textarea.Prompt = ""
+			textarea.ShowLineNumbers = false
+			textarea.SetWidth(20)
+			textarea.SetHeight(10)
+			textarea.SetVirtualCursor(false)
+			textarea.SetValue(tt.value)
+			textarea.MoveToBegin()
+			textarea.SetCursorColumn(tt.want[0].Col)
+
+			checkCursor := func(key string, visualRow int) {
+				t.Helper()
+				got := Position{Row: textarea.Line(), Col: textarea.Column()}
+				if got != tt.want[visualRow] {
+					t.Fatalf("%s: cursor = %v, want %v", key, got, tt.want[visualRow])
+				}
+				if got := textarea.Cursor().Position.Y; got != visualRow {
+					t.Fatalf("%s: visual row = %d, want %d", key, got, visualRow)
+				}
+			}
+
+			checkCursor("start", 0)
+			for i := 1; i < len(tt.want); i++ {
+				textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyDown})
+				checkCursor("down", i)
+			}
+			textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyDown})
+			checkCursor("down at end", len(tt.want)-1)
+
+			for i := len(tt.want) - 2; i >= 0; i-- {
+				textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyUp})
+				checkCursor("up", i)
+			}
+			textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyUp})
+			checkCursor("up at start", 0)
+		})
 	}
 }
 
@@ -1889,6 +2089,23 @@ func TestView(t *testing.T) {
 				cursorRow: 7,
 			},
 		},
+		{
+			name: "empty textarea with placeholder and styled border",
+			modelFunc: func(m Model) Model {
+				m.SetHeight(2)
+				m.SetWidth(20)
+				m.Placeholder = "line 1"
+				m.styles.Focused.Base = lipgloss.NewStyle().Border(lipgloss.NormalBorder())
+				return m
+			},
+			want: want{
+				view: heredoc.Doc(`┌────────────────────┐
+				    │>   1 line 1        │
+				    │>                   │
+				    └────────────────────┘
+				`),
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -1913,6 +2130,68 @@ func TestView(t *testing.T) {
 			if tt.want.cursorRow != cursorRow || tt.want.cursorCol != cursorCol {
 				format := "Want cursor at row: %v, col: %v Got: row: %v col: %v\n"
 				t.Fatalf(format, tt.want.cursorRow, tt.want.cursorCol, cursorRow, cursorCol)
+			}
+		})
+	}
+}
+
+func TestWordLeftStopsAtStart(t *testing.T) {
+	tests := []struct {
+		name             string
+		value            string
+		row, col         int
+		wantRow, wantCol int
+	}{
+		{
+			name: "empty input",
+		},
+		{
+			name:  "buffer start before whitespace",
+			value: " word",
+		},
+		{
+			name:    "inside leading whitespace",
+			value:   "   word",
+			col:     2,
+			wantCol: 0,
+		},
+		{
+			name:    "multiline whitespace prefix",
+			value:   "  \n  word",
+			row:     1,
+			col:     2,
+			wantRow: 0,
+			wantCol: 0,
+		},
+		{
+			name:    "previous word",
+			value:   "first second",
+			col:     len("first second"),
+			wantCol: len("first "),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			textarea := newTextArea()
+			textarea.SetValue(tt.value)
+			textarea.row = tt.row
+			textarea.col = tt.col
+
+			type position struct{ row, col int }
+			done := make(chan position, 1)
+			go func() {
+				textarea.wordLeft()
+				done <- position{row: textarea.row, col: textarea.col}
+			}()
+
+			select {
+			case got := <-done:
+				if got.row != tt.wantRow || got.col != tt.wantCol {
+					t.Fatalf("expected cursor at row %d, col %d; got row %d, col %d", tt.wantRow, tt.wantCol, got.row, got.col)
+				}
+			case <-time.After(time.Second):
+				t.Fatal("wordLeft did not terminate")
 			}
 		})
 	}
@@ -1974,6 +2253,548 @@ func TestWord(t *testing.T) {
 	})
 }
 
+func newDynamicTextArea(minH, maxH int) Model {
+	ta := New()
+	ta.Prompt = ""
+	ta.ShowLineNumbers = false
+	ta.DynamicHeight = true
+	ta.MinHeight = minH
+	ta.MaxHeight = maxH
+	ta.SetWidth(20)
+	ta.Focus()
+	ta, _ = ta.Update(nil)
+	return ta
+}
+
+func TestDynamicHeight_DefaultUnchanged(t *testing.T) {
+	ta := newTextArea()
+	ta.SetHeight(6)
+	ta.SetWidth(40)
+
+	for _, k := range "hello\nworld\n" {
+		ta, _ = ta.Update(keyPress(k))
+	}
+
+	if ta.Height() != 6 {
+		t.Errorf("expected static height 6, got %d", ta.Height())
+	}
+}
+
+func TestDynamicHeight_GrowsOnNewline(t *testing.T) {
+	ta := newDynamicTextArea(1, 20)
+
+	ta, _ = ta.Update(keyPress('a'))
+	if ta.Height() != 1 {
+		t.Errorf("expected height 1 after single char, got %d", ta.Height())
+	}
+
+	enter := tea.KeyPressMsg{Code: tea.KeyEnter}
+	ta, _ = ta.Update(enter)
+	if ta.Height() != 2 {
+		t.Errorf("expected height 2 after first newline, got %d", ta.Height())
+	}
+
+	ta, _ = ta.Update(enter)
+	if ta.Height() != 3 {
+		t.Errorf("expected height 3 after second newline, got %d", ta.Height())
+	}
+}
+
+func TestDynamicHeight_GrowsOnSoftWrap(t *testing.T) {
+	ta := newDynamicTextArea(1, 20)
+	// width=20, so typing >20 chars should cause a soft wrap
+	input := "abcdefghijklmnopqrstuvwxyz"
+	for _, k := range input {
+		ta, _ = ta.Update(keyPress(k))
+	}
+
+	if ta.Height() < 2 {
+		t.Errorf("expected height >= 2 after soft wrap, got %d", ta.Height())
+	}
+}
+
+func TestDynamicHeight_ShrinksOnLineDeletion(t *testing.T) {
+	ta := newDynamicTextArea(1, 20)
+
+	enter := tea.KeyPressMsg{Code: tea.KeyEnter}
+	ta, _ = ta.Update(keyPress('a'))
+	ta, _ = ta.Update(enter)
+	ta, _ = ta.Update(keyPress('b'))
+	ta, _ = ta.Update(enter)
+	ta, _ = ta.Update(keyPress('c'))
+
+	if ta.Height() != 3 {
+		t.Fatalf("expected height 3 before deletion, got %d", ta.Height())
+	}
+
+	// Backspace at start of line 3 merges with line 2
+	ta.CursorStart()
+	backspace := tea.KeyPressMsg{Code: tea.KeyBackspace}
+	ta, _ = ta.Update(backspace)
+
+	if ta.Height() != 2 {
+		t.Errorf("expected height 2 after line merge, got %d", ta.Height())
+	}
+}
+
+func TestDynamicHeight_RespectsMinHeight(t *testing.T) {
+	ta := newDynamicTextArea(5, 20)
+
+	ta, _ = ta.Update(keyPress('a'))
+
+	if ta.Height() != 5 {
+		t.Errorf("expected min height 5, got %d", ta.Height())
+	}
+}
+
+func TestDynamicHeight_RespectsMaxHeight(t *testing.T) {
+	ta := newDynamicTextArea(1, 5)
+
+	enter := tea.KeyPressMsg{Code: tea.KeyEnter}
+	for range 10 {
+		ta, _ = ta.Update(keyPress('x'))
+		ta, _ = ta.Update(enter)
+	}
+
+	if ta.Height() != 5 {
+		t.Errorf("expected max height 5, got %d", ta.Height())
+	}
+}
+
+func TestDynamicHeight_GrowsOnPaste(t *testing.T) {
+	ta := newDynamicTextArea(1, 20)
+
+	paste := tea.PasteMsg{Content: "line1\nline2\nline3\nline4\nline5"}
+	ta, _ = ta.Update(paste)
+
+	if ta.Height() != 5 {
+		t.Errorf("expected height 5 after pasting 5 lines, got %d", ta.Height())
+	}
+}
+
+func TestDynamicHeight_RecalculatesOnSetWidth(t *testing.T) {
+	ta := newDynamicTextArea(1, 50)
+	ta.SetWidth(40)
+
+	// Insert a line that fits in 40 cols but wraps in 10 cols
+	ta.SetValue("abcdefghijklmnopqrstuvwxyz")
+
+	if ta.Height() != 1 {
+		t.Fatalf("expected height 1 at width 40, got %d", ta.Height())
+	}
+
+	ta.SetWidth(10)
+
+	if ta.Height() < 3 {
+		t.Errorf("expected height >= 3 after narrowing to width 10, got %d", ta.Height())
+	}
+}
+
+func TestDynamicHeight_RecalculatesOnSetValue(t *testing.T) {
+	ta := newDynamicTextArea(1, 20)
+
+	ta.SetValue("a\nb\nc\nd\ne")
+
+	if ta.Height() != 5 {
+		t.Errorf("expected height 5 after SetValue with 5 lines, got %d", ta.Height())
+	}
+}
+
+func TestDynamicHeight_CursorPositionAfterGrow(t *testing.T) {
+	ta := newDynamicTextArea(1, 20)
+
+	enter := tea.KeyPressMsg{Code: tea.KeyEnter}
+	for i := range 5 {
+		ta, _ = ta.Update(keyPress(rune('a' + i)))
+		ta, _ = ta.Update(enter)
+	}
+	ta, _ = ta.Update(keyPress('f'))
+
+	// Cursor should be on the last line (row 5, 0-indexed)
+	if ta.Line() != 5 {
+		t.Errorf("expected cursor on row 5, got %d", ta.Line())
+	}
+
+	// Cursor visual line should be within the viewport
+	cursorLine := ta.cursorLineNumber()
+	minVisible := ta.viewport.YOffset()
+	maxVisible := minVisible + ta.viewport.Height() - 1
+	if cursorLine < minVisible || cursorLine > maxVisible {
+		t.Errorf("cursor line %d outside viewport [%d, %d]", cursorLine, minVisible, maxVisible)
+	}
+}
+
+func TestDynamicHeight_CursorPositionAfterShrink(t *testing.T) {
+	ta := newDynamicTextArea(1, 20)
+
+	enter := tea.KeyPressMsg{Code: tea.KeyEnter}
+	for i := range 5 {
+		ta, _ = ta.Update(keyPress(rune('a' + i)))
+		ta, _ = ta.Update(enter)
+	}
+	ta, _ = ta.Update(keyPress('f'))
+
+	if ta.Height() != 6 {
+		t.Fatalf("expected height 6 before shrink, got %d", ta.Height())
+	}
+
+	// Delete lines by backspacing
+	backspace := tea.KeyPressMsg{Code: tea.KeyBackspace}
+	ta, _ = ta.Update(backspace) // delete 'f'
+	ta, _ = ta.Update(backspace) // merge line 5 into 4
+	ta, _ = ta.Update(backspace) // delete 'e'
+	ta, _ = ta.Update(backspace) // merge line 4 into 3
+
+	cursorLine := ta.cursorLineNumber()
+	minVisible := ta.viewport.YOffset()
+	maxVisible := minVisible + ta.viewport.Height() - 1
+	if cursorLine < minVisible || cursorLine > maxVisible {
+		t.Errorf("cursor line %d outside viewport [%d, %d] after shrink", cursorLine, minVisible, maxVisible)
+	}
+}
+
+func TestDynamicHeight_CursorPositionAfterPaste(t *testing.T) {
+	ta := newDynamicTextArea(1, 20)
+
+	paste := tea.PasteMsg{Content: "line1\nline2\nline3\nline4\nline5"}
+	ta, _ = ta.Update(paste)
+
+	// Cursor should be at the end of the last pasted line
+	if ta.Line() != 4 {
+		t.Errorf("expected cursor on row 4, got %d", ta.Line())
+	}
+
+	cursorLine := ta.cursorLineNumber()
+	minVisible := ta.viewport.YOffset()
+	maxVisible := minVisible + ta.viewport.Height() - 1
+	if cursorLine < minVisible || cursorLine > maxVisible {
+		t.Errorf("cursor line %d outside viewport [%d, %d] after paste", cursorLine, minVisible, maxVisible)
+	}
+}
+
+func TestMaxContentHeight_ScrollsBeyondMaxHeight(t *testing.T) {
+	ta := newDynamicTextArea(1, 5)
+	ta.MaxContentHeight = 10
+
+	enter := tea.KeyPressMsg{Code: tea.KeyEnter}
+	for range 8 {
+		ta, _ = ta.Update(keyPress('x'))
+		ta, _ = ta.Update(enter)
+	}
+
+	if ta.Height() != 5 {
+		t.Errorf("expected visible height capped at 5, got %d", ta.Height())
+	}
+
+	if ta.LineCount() != 9 {
+		t.Errorf("expected 9 logical lines, got %d", ta.LineCount())
+	}
+}
+
+func TestMaxContentHeight_BlocksAtLimit(t *testing.T) {
+	ta := New()
+	ta.Prompt = ""
+	ta.ShowLineNumbers = false
+	ta.MaxContentHeight = 5
+	ta.SetWidth(20)
+	ta.Focus()
+	ta, _ = ta.Update(nil)
+
+	enter := tea.KeyPressMsg{Code: tea.KeyEnter}
+	for range 10 {
+		ta, _ = ta.Update(keyPress('x'))
+		ta, _ = ta.Update(enter)
+	}
+
+	if ta.totalVisualLines() > 5 {
+		t.Errorf("expected total visual lines <= 5, got %d", ta.totalVisualLines())
+	}
+}
+
+func TestMaxContentHeight_BackwardCompat(t *testing.T) {
+	ta := New()
+	ta.Prompt = ""
+	ta.ShowLineNumbers = false
+	ta.MaxHeight = 10
+	ta.SetWidth(20)
+	ta.Focus()
+	ta, _ = ta.Update(nil)
+
+	enter := tea.KeyPressMsg{Code: tea.KeyEnter}
+	for range 15 {
+		ta, _ = ta.Update(keyPress('x'))
+		ta, _ = ta.Update(enter)
+	}
+
+	if ta.LineCount() > 10 {
+		t.Errorf("expected logical line count <= 10 (legacy behavior), got %d", ta.LineCount())
+	}
+}
+
+func TestMaxContentHeight_WithoutDynamicHeight(t *testing.T) {
+	ta := New()
+	ta.Prompt = ""
+	ta.ShowLineNumbers = false
+	ta.MaxContentHeight = 5
+	ta.SetHeight(3)
+	ta.SetWidth(20)
+	ta.Focus()
+	ta, _ = ta.Update(nil)
+
+	enter := tea.KeyPressMsg{Code: tea.KeyEnter}
+	for range 10 {
+		ta, _ = ta.Update(keyPress('x'))
+		ta, _ = ta.Update(enter)
+	}
+
+	if ta.Height() != 3 {
+		t.Errorf("expected fixed height 3, got %d", ta.Height())
+	}
+
+	if ta.totalVisualLines() > 5 {
+		t.Errorf("expected content capped at 5 visual lines, got %d", ta.totalVisualLines())
+	}
+}
+
+func TestMaxContentHeight_CursorVisibleWhileScrolling(t *testing.T) {
+	ta := newDynamicTextArea(1, 5)
+	ta.MaxContentHeight = 10
+
+	enter := tea.KeyPressMsg{Code: tea.KeyEnter}
+	for range 8 {
+		ta, _ = ta.Update(keyPress('x'))
+		ta, _ = ta.Update(enter)
+	}
+	ta, _ = ta.Update(keyPress('y'))
+
+	cursorLine := ta.cursorLineNumber()
+	minVisible := ta.viewport.YOffset()
+	maxVisible := minVisible + ta.viewport.Height() - 1
+	if cursorLine < minVisible || cursorLine > maxVisible {
+		t.Errorf("cursor line %d outside viewport [%d, %d] while scrolling", cursorLine, minVisible, maxVisible)
+	}
+}
+
+func TestMaxContentHeight_Insertion(t *testing.T) {
+	tests := []struct {
+		name    string
+		initial string
+		column  int
+		input   string
+		width   int
+		limit   int
+		want    string
+		row     int
+		col     int
+		visual  int
+	}{
+		{name: "exact multiline", input: "alpha\nbeta", width: 40, limit: 2, want: "alpha\nbeta", row: 1, col: 4, visual: 2},
+		{name: "last permitted line", initial: "alpha\nbeta", column: 4, input: "\ngamma", width: 40, limit: 3, want: "alpha\nbeta\ngamma", row: 2, col: 5, visual: 3},
+		{name: "single line at limit", initial: "alpha", column: 5, input: "beta", width: 40, limit: 1, want: "alphabeta", col: 9, visual: 1},
+		{name: "midline suffix", initial: "prefixsuffix", column: 6, input: "alpha\nbeta", width: 40, limit: 2, want: "prefixalpha\nbetasuffix", row: 1, col: 4, visual: 2},
+		{name: "single line with suffix", initial: "abef", column: 2, input: "cd", width: 40, limit: 1, want: "abcdef", col: 4, visual: 1},
+		{name: "first line wraps", initial: "abc", column: 3, input: "de\nx", width: 5, limit: 3, want: "abcde\nx", row: 1, col: 1, visual: 3},
+		{name: "suffix wraps", initial: "abcdef", column: 3, input: "x\nyz", width: 5, limit: 3, want: "abcx\nyzdef", row: 1, col: 2, visual: 3},
+		{name: "suffix exceeds limit", initial: "abcdef", column: 3, input: "x\nyz", width: 5, limit: 2, want: "abcxdef", col: 4, visual: 2},
+		{name: "middle line wraps", input: "a\nabcdef\nb", width: 5, limit: 4, want: "a\nabcdef\nb", row: 2, col: 1, visual: 4},
+		{name: "wide suffix wraps", initial: "界界", column: 1, input: "ab\nc界", width: 5, limit: 3, want: "界ab\nc界界", row: 1, col: 2, visual: 3},
+		{name: "wide suffix exceeds limit", initial: "界界", column: 1, input: "ab\nc界", width: 5, limit: 2, want: "界ab界", col: 3, visual: 2},
+		{name: "trailing newline", input: "alpha\n", width: 40, limit: 2, want: "alpha\n", row: 1, visual: 2},
+		{name: "excess lines trimmed", input: "a\nb\nc", width: 40, limit: 2, want: "a\nb", row: 1, col: 1, visual: 2},
+		{name: "single line exceeds limit", initial: "abc", column: 3, input: "de", width: 5, limit: 1, want: "abc", col: 3, visual: 1},
+		{name: "unlimited", input: "alpha\nbeta", width: 40, want: "alpha\nbeta", row: 1, col: 4, visual: 2},
+		{name: "empty insertion", initial: "alpha", column: 2, width: 40, limit: 1, want: "alpha", col: 2, visual: 1},
+	}
+	for _, tt := range tests {
+		for _, dynamic := range []bool{false, true} {
+			for _, paste := range []bool{false, true} {
+				t.Run(fmt.Sprintf("%s/dynamic=%t/paste=%t", tt.name, dynamic, paste), func(t *testing.T) {
+					ta := New()
+					ta.Prompt = ""
+					ta.ShowLineNumbers = false
+					ta.DynamicHeight = dynamic
+					ta.SetWidth(tt.width)
+					ta.Focus()
+					ta.SetValue(tt.initial)
+					ta.SetCursorColumn(tt.column)
+					ta.MaxContentHeight = tt.limit
+
+					if paste {
+						ta, _ = ta.Update(tea.PasteMsg{Content: tt.input})
+					} else {
+						ta.InsertString(tt.input)
+					}
+
+					if got := ta.Value(); got != tt.want {
+						t.Fatalf("expected value %q, got %q", tt.want, got)
+					}
+					if ta.Line() != tt.row || ta.Column() != tt.col {
+						t.Errorf("expected cursor (%d, %d), got (%d, %d)", tt.row, tt.col, ta.Line(), ta.Column())
+					}
+					if got := ta.totalVisualLines(); got != tt.visual {
+						t.Errorf("expected %d visual lines, got %d", tt.visual, got)
+					}
+					if dynamic && ta.Height() != tt.visual {
+						t.Errorf("expected height %d, got %d", tt.visual, ta.Height())
+					}
+				})
+			}
+		}
+	}
+}
+
+func TestMaxContentHeight_SingleRuneAtLimit(t *testing.T) {
+	for _, key := range []bool{false, true} {
+		t.Run(fmt.Sprintf("key=%t", key), func(t *testing.T) {
+			ta := New()
+			ta.Prompt = ""
+			ta.ShowLineNumbers = false
+			ta.SetWidth(5)
+			ta.Focus()
+			ta.SetValue("abc")
+			ta.MaxContentHeight = 1
+
+			for _, r := range "de" {
+				if key {
+					ta, _ = ta.Update(keyPress(r))
+				} else {
+					ta.InsertRune(r)
+				}
+			}
+			if got := ta.Value(); got != "abcd" {
+				t.Fatalf("expected value %q, got %q", "abcd", got)
+			}
+			if ta.Line() != 0 || ta.Column() != 4 || ta.totalVisualLines() != 1 {
+				t.Errorf("expected cursor (0, 4) within one visual line, got (%d, %d) within %d", ta.Line(), ta.Column(), ta.totalVisualLines())
+			}
+		})
+	}
+}
+
+func TestMaxContentHeight_PasteCapped(t *testing.T) {
+	ta := New()
+	ta.Prompt = ""
+	ta.ShowLineNumbers = false
+	ta.MaxContentHeight = 5
+	ta.SetWidth(20)
+	ta.Focus()
+	ta, _ = ta.Update(nil)
+
+	paste := tea.PasteMsg{Content: "1\n2\n3\n4\n5\n6\n7\n8\n9\n10"}
+	ta, _ = ta.Update(paste)
+
+	if ta.totalVisualLines() > 5 {
+		t.Errorf("expected paste capped at 5 visual lines, got %d", ta.totalVisualLines())
+	}
+}
+
+func TestDynamicHeight_ShrinksWhenScrolledAndLinesDeleted(t *testing.T) {
+	ta := newDynamicTextArea(1, 5)
+	ta.MaxContentHeight = 10
+
+	enter := tea.KeyPressMsg{Code: tea.KeyEnter}
+	// Type 8 lines so we exceed MaxHeight (5) and start scrolling
+	for range 7 {
+		ta, _ = ta.Update(keyPress('x'))
+		ta, _ = ta.Update(enter)
+	}
+	ta, _ = ta.Update(keyPress('x'))
+
+	if ta.Height() != 5 {
+		t.Fatalf("expected height 5 (capped at MaxHeight), got %d", ta.Height())
+	}
+	if ta.LineCount() != 8 {
+		t.Fatalf("expected 8 lines, got %d", ta.LineCount())
+	}
+
+	// Now delete lines from the bottom by selecting all on current line and backspacing
+	backspace := tea.KeyPressMsg{Code: tea.KeyBackspace}
+	for ta.LineCount() > 4 {
+		ta.CursorEnd()
+		for len(ta.value[ta.row]) > 0 {
+			ta, _ = ta.Update(backspace)
+		}
+		ta, _ = ta.Update(backspace) // merge with previous line
+	}
+
+	// Now we have 4 lines, which is less than MaxHeight (5).
+	// Height should shrink to 4.
+	if ta.Height() != 4 {
+		t.Errorf("expected height to shrink to 4 (matching content), got %d", ta.Height())
+	}
+	if ta.viewport.YOffset() != 0 {
+		t.Errorf("expected yOffset 0 after shrinking, got %d", ta.viewport.YOffset())
+	}
+}
+
+func TestDynamicHeight_ShrinksWhenScrolledNoMaxContent(t *testing.T) {
+	// DynamicHeight with MaxHeight but no MaxContentHeight
+	ta := newDynamicTextArea(1, 99)
+
+	enter := tea.KeyPressMsg{Code: tea.KeyEnter}
+	// Type 8 lines
+	for range 7 {
+		ta, _ = ta.Update(keyPress('x'))
+		ta, _ = ta.Update(enter)
+	}
+	ta, _ = ta.Update(keyPress('x'))
+
+	if ta.Height() != 8 {
+		t.Fatalf("expected height 8, got %d", ta.Height())
+	}
+
+	// Manually set a smaller MaxHeight to simulate scrolling scenario
+	ta.MaxHeight = 5
+	ta, _ = ta.Update(nil)
+
+	// Now delete lines from the bottom
+	backspace := tea.KeyPressMsg{Code: tea.KeyBackspace}
+	for ta.LineCount() > 3 {
+		ta.CursorEnd()
+		for len(ta.value[ta.row]) > 0 {
+			ta, _ = ta.Update(backspace)
+		}
+		ta, _ = ta.Update(backspace)
+	}
+
+	if ta.Height() != 3 {
+		t.Errorf("expected height to shrink to 3 (matching content), got %d", ta.Height())
+	}
+	if ta.viewport.YOffset() != 0 {
+		t.Errorf("expected yOffset 0 after shrinking, got %d", ta.viewport.YOffset())
+	}
+}
+
+func TestShiftBackspaceDeletesCharacterBackward(t *testing.T) {
+	ta := newTextArea()
+	ta.SetValue("abc")
+
+	ta, _ = ta.Update(tea.KeyPressMsg{Code: tea.KeyBackspace, Mod: tea.ModShift})
+
+	if got, want := ta.Value(), "ab"; got != want {
+		t.Errorf("after shift+backspace got %q, want %q", got, want)
+	}
+}
+
+func TestCharLimitWideRunes(t *testing.T) {
+	m := newTextArea()
+	m.Prompt = ""
+	m.ShowLineNumbers = false
+	m.CharLimit = 5
+
+	// Five East Asian wide runes, each two cells wide. CharLimit counts
+	// characters, not display cells, so all five should be accepted (this
+	// matches textinput, which limits by rune count).
+	m = sendString(m, "你好世界龍")
+
+	if got := len([]rune(m.Value())); got != 5 {
+		t.Errorf("CharLimit=5 admitted %d wide characters, want 5", got)
+	}
+	if got := m.Length(); got != 5 {
+		t.Errorf("Length() = %d for five characters, want 5", got)
+	}
+}
+
 func newTextArea() Model {
 	textarea := New()
 
@@ -2012,4 +2833,512 @@ func stripString(str string) string {
 	}
 
 	return strings.Join(lines, "\n")
+}
+
+func TestSelectionCharacterForward(t *testing.T) {
+	textarea := newTextArea()
+	textarea.Prompt = ""
+	textarea.ShowLineNumbers = false
+	textarea.SetWidth(20)
+	textarea.SetHeight(5)
+
+	textarea = sendString(textarea, "hello world")
+
+	// Move cursor to start.
+	textarea.CursorStart()
+
+	// Select "hello" by pressing shift+right 5 times.
+	for range 5 {
+		textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyRight, Mod: tea.ModShift})
+	}
+
+	sel := textarea.SelectedText()
+	if sel != "hello" {
+		t.Errorf("Expected selection %q, got %q", "hello", sel)
+	}
+
+	if !textarea.HasSelection() {
+		t.Error("Expected selection to be active")
+	}
+}
+
+func TestSelectionCharacterBackward(t *testing.T) {
+	textarea := newTextArea()
+	textarea.Prompt = ""
+	textarea.ShowLineNumbers = false
+	textarea.SetWidth(20)
+	textarea.SetHeight(5)
+
+	textarea = sendString(textarea, "hello")
+
+	// Cursor is at end. Select "hello" backwards.
+	for range 5 {
+		textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyLeft, Mod: tea.ModShift})
+	}
+
+	sel := textarea.SelectedText()
+	if sel != "hello" {
+		t.Errorf("Expected selection %q, got %q", "hello", sel)
+	}
+}
+
+func TestSelectionWordForward(t *testing.T) {
+	textarea := newTextArea()
+	textarea.Prompt = ""
+	textarea.ShowLineNumbers = false
+	textarea.SetWidth(20)
+	textarea.SetHeight(5)
+
+	textarea = sendString(textarea, "hello world foo")
+
+	textarea.CursorStart()
+
+	// Select "hello" with alt+shift+right.
+	textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyRight, Mod: tea.ModShift | tea.ModAlt})
+
+	sel := textarea.SelectedText()
+	if sel != "hello" {
+		t.Errorf("Expected selection %q, got %q", "hello", sel)
+	}
+}
+
+func TestSelectionMultiLine(t *testing.T) {
+	textarea := newTextArea()
+	textarea.Prompt = ""
+	textarea.ShowLineNumbers = false
+	textarea.SetWidth(20)
+	textarea.SetHeight(10)
+
+	textarea = sendString(textarea, "line one")
+	textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	textarea = sendString(textarea, "line two")
+
+	// Go to start.
+	textarea.MoveToBegin()
+
+	// Select down one line.
+	textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyDown, Mod: tea.ModShift})
+
+	sel := textarea.SelectedText()
+	if sel != "line one\n" {
+		t.Errorf("Expected selection %q, got %q", "line one\n", sel)
+	}
+
+	// Now select to end of line two.
+	for range 8 {
+		textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyRight, Mod: tea.ModShift})
+	}
+
+	sel = textarea.SelectedText()
+	if sel != "line one\nline two" {
+		t.Errorf("Expected selection %q, got %q", "line one\nline two", sel)
+	}
+}
+
+func TestSelectAll(t *testing.T) {
+	textarea := newTextArea()
+	textarea.Prompt = ""
+	textarea.ShowLineNumbers = false
+	textarea.SetWidth(20)
+	textarea.SetHeight(10)
+
+	textarea = sendString(textarea, "hello world")
+
+	textarea.SelectAll()
+
+	sel := textarea.SelectedText()
+	if sel != "hello world" {
+		t.Errorf("Expected selection %q, got %q", "hello world", sel)
+	}
+}
+
+func TestSelectionClearedOnMovement(t *testing.T) {
+	textarea := newTextArea()
+	textarea.Prompt = ""
+	textarea.ShowLineNumbers = false
+	textarea.SetWidth(20)
+	textarea.SetHeight(5)
+
+	textarea = sendString(textarea, "hello")
+	textarea.CursorStart()
+
+	// Select some text.
+	textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyRight, Mod: tea.ModShift})
+	if !textarea.HasSelection() {
+		t.Fatal("Expected selection to be active")
+	}
+
+	// Move without shift, selection should clear.
+	textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyRight})
+	if textarea.HasSelection() {
+		t.Error("Expected selection to be cleared after non-selection movement")
+	}
+}
+
+func TestSelectionClearedOnType(t *testing.T) {
+	textarea := newTextArea()
+	textarea.Prompt = ""
+	textarea.ShowLineNumbers = false
+	textarea.SetWidth(20)
+	textarea.SetHeight(5)
+
+	textarea = sendString(textarea, "hello")
+	textarea.CursorStart()
+
+	// Select some text.
+	textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyRight, Mod: tea.ModShift})
+	if !textarea.HasSelection() {
+		t.Fatal("Expected selection to be active")
+	}
+
+	// Type a character, selection should clear.
+	textarea, _ = textarea.Update(keyPress('x'))
+	if textarea.HasSelection() {
+		t.Error("Expected selection to be cleared after typing")
+	}
+}
+
+func TestClearSelection(t *testing.T) {
+	textarea := newTextArea()
+	textarea.Prompt = ""
+	textarea.ShowLineNumbers = false
+	textarea.SetWidth(20)
+	textarea.SetHeight(5)
+
+	textarea = sendString(textarea, "hello")
+	textarea.SelectAll()
+
+	if !textarea.HasSelection() {
+		t.Fatal("Expected selection to be active")
+	}
+
+	textarea.ClearSelection()
+
+	if textarea.HasSelection() {
+		t.Error("Expected selection to be cleared")
+	}
+
+	if sel := textarea.SelectedText(); sel != "" {
+		t.Errorf("Expected empty selection, got %q", sel)
+	}
+}
+
+func TestSelectionRendering(t *testing.T) {
+	textarea := newTextArea()
+	textarea.Prompt = ""
+	textarea.ShowLineNumbers = false
+	textarea.SetWidth(20)
+	textarea.SetHeight(5)
+
+	textarea = sendString(textarea, "hello")
+
+	textarea.CursorStart()
+	for range 3 {
+		textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyRight, Mod: tea.ModShift})
+	}
+
+	// Render the view and check it doesn't panic.
+	view := textarea.View()
+	if view == "" {
+		t.Error("Expected non-empty view")
+	}
+}
+
+func TestTypingReplacesSelection(t *testing.T) {
+	textarea := newTextArea()
+	textarea.Prompt = ""
+	textarea.ShowLineNumbers = false
+	textarea.SetWidth(20)
+	textarea.SetHeight(5)
+
+	textarea = sendString(textarea, "hello world")
+	textarea.CursorStart()
+
+	// Select "hello".
+	for range 5 {
+		textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyRight, Mod: tea.ModShift})
+	}
+	if sel := textarea.SelectedText(); sel != "hello" {
+		t.Fatalf("Expected selection %q, got %q", "hello", sel)
+	}
+
+	// Type 'X' — should replace selection.
+	textarea, _ = textarea.Update(keyPress('X'))
+
+	if got := textarea.Value(); got != "X world" {
+		t.Errorf("Expected %q, got %q", "X world", got)
+	}
+	if textarea.HasSelection() {
+		t.Error("Expected selection to be cleared after typing")
+	}
+}
+
+func TestBackspaceDeletesSelection(t *testing.T) {
+	textarea := newTextArea()
+	textarea.Prompt = ""
+	textarea.ShowLineNumbers = false
+	textarea.SetWidth(20)
+	textarea.SetHeight(5)
+
+	textarea = sendString(textarea, "hello world")
+	textarea.CursorStart()
+
+	// Select "hello ".
+	for range 6 {
+		textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyRight, Mod: tea.ModShift})
+	}
+
+	// Press backspace — should delete selection.
+	textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyBackspace})
+
+	if got := textarea.Value(); got != "world" {
+		t.Errorf("Expected %q, got %q", "world", got)
+	}
+	if textarea.HasSelection() {
+		t.Error("Expected selection to be cleared")
+	}
+}
+
+func TestDeleteForwardDeletesSelection(t *testing.T) {
+	textarea := newTextArea()
+	textarea.Prompt = ""
+	textarea.ShowLineNumbers = false
+	textarea.SetWidth(20)
+	textarea.SetHeight(5)
+
+	textarea = sendString(textarea, "hello world")
+	textarea.CursorStart()
+
+	for range 5 {
+		textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyRight, Mod: tea.ModShift})
+	}
+
+	textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyDelete})
+
+	if got := textarea.Value(); got != " world" {
+		t.Errorf("Expected %q, got %q", " world", got)
+	}
+}
+
+func TestPasteReplacesSelection(t *testing.T) {
+	textarea := newTextArea()
+	textarea.Prompt = ""
+	textarea.ShowLineNumbers = false
+	textarea.SetWidth(40)
+	textarea.SetHeight(5)
+
+	textarea = sendString(textarea, "hello world")
+	textarea.CursorStart()
+
+	// Select "hello".
+	for range 5 {
+		textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyRight, Mod: tea.ModShift})
+	}
+
+	// Simulate paste via internal message.
+	textarea, _ = textarea.Update(pasteMsg("REPLACED"))
+
+	if got := textarea.Value(); got != "REPLACED world" {
+		t.Errorf("Expected %q, got %q", "REPLACED world", got)
+	}
+}
+
+func TestNewlineReplacesSelection(t *testing.T) {
+	textarea := newTextArea()
+	textarea.Prompt = ""
+	textarea.ShowLineNumbers = false
+	textarea.SetWidth(20)
+	textarea.SetHeight(10)
+
+	textarea = sendString(textarea, "hello world")
+	textarea.CursorStart()
+
+	// Select "hello ".
+	for range 6 {
+		textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyRight, Mod: tea.ModShift})
+	}
+
+	// Press enter — should replace selection with newline.
+	textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+
+	if got := textarea.Value(); got != "\nworld" {
+		t.Errorf("Expected %q, got %q", "\nworld", got)
+	}
+}
+
+func TestDeleteSelectionMultiLine(t *testing.T) {
+	textarea := newTextArea()
+	textarea.Prompt = ""
+	textarea.ShowLineNumbers = false
+	textarea.SetWidth(20)
+	textarea.SetHeight(10)
+
+	textarea = sendString(textarea, "line one")
+	textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	textarea = sendString(textarea, "line two")
+	textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	textarea = sendString(textarea, "line three")
+
+	// Go to start and select through "line two\n".
+	textarea.MoveToBegin()
+	// Move right through "line one\n" (9 chars).
+	for range 9 {
+		textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyRight, Mod: tea.ModShift})
+	}
+	// Move right through "line two\n" (9 chars).
+	for range 9 {
+		textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyRight, Mod: tea.ModShift})
+	}
+
+	sel := textarea.SelectedText()
+	if sel != "line one\nline two\n" {
+		t.Fatalf("Expected selection %q, got %q", "line one\nline two\n", sel)
+	}
+
+	// Delete the selection.
+	textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyBackspace})
+
+	if got := textarea.Value(); got != "line three" {
+		t.Errorf("Expected %q, got %q", "line three", got)
+	}
+}
+
+func TestSelectionRangeOrdering(t *testing.T) {
+	textarea := newTextArea()
+	textarea.Prompt = ""
+	textarea.ShowLineNumbers = false
+	textarea.SetWidth(20)
+	textarea.SetHeight(5)
+
+	textarea = sendString(textarea, "hello world")
+
+	// Select backwards from end.
+	for range 5 {
+		textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyLeft, Mod: tea.ModShift})
+	}
+
+	// Selection should be "world" even though we selected backwards.
+	sel := textarea.SelectedText()
+	if sel != "world" {
+		t.Errorf("Expected selection %q, got %q", "world", sel)
+	}
+}
+
+type customClipboardErr struct {
+	msg string
+}
+
+func (e *customClipboardErr) Error() string {
+	return e.msg
+}
+
+func TestPasteErrMsgUnwrap(t *testing.T) {
+	underlyingErr := &customClipboardErr{msg: "clipboard paste error"}
+	m := New()
+	m.Focus()
+
+	m, _ = m.Update(pasteErrMsg{underlyingErr})
+
+	if m.Err == nil {
+		t.Fatal("expected m.Err to be set, got nil")
+	}
+
+	if !errors.Is(m.Err, underlyingErr) {
+		t.Errorf("expected errors.Is(m.Err, underlyingErr) to be true")
+	}
+
+	if unwrapped := errors.Unwrap(m.Err); unwrapped != underlyingErr {
+		t.Errorf("expected errors.Unwrap(m.Err) to be %v, got %v", underlyingErr, unwrapped)
+	}
+
+	var target *customClipboardErr
+	if !errors.As(m.Err, &target) || target != underlyingErr {
+		t.Errorf("expected errors.As(m.Err, &target) to match underlying error")
+	}
+}
+
+func TestCopyErrMsgUnwrap(t *testing.T) {
+	underlyingErr := &customClipboardErr{msg: "clipboard copy error"}
+	m := New()
+	m.Focus()
+
+	m, _ = m.Update(copyErrMsg{underlyingErr})
+
+	if m.Err == nil {
+		t.Fatal("expected m.Err to be set, got nil")
+	}
+
+	if !errors.Is(m.Err, underlyingErr) {
+		t.Errorf("expected errors.Is(m.Err, underlyingErr) to be true")
+	}
+
+	if unwrapped := errors.Unwrap(m.Err); unwrapped != underlyingErr {
+		t.Errorf("expected errors.Unwrap(m.Err) to be %v, got %v", underlyingErr, unwrapped)
+	}
+
+	var target *customClipboardErr
+	if !errors.As(m.Err, &target) || target != underlyingErr {
+		t.Errorf("expected errors.As(m.Err, &target) to match underlying error")
+	}
+}
+
+func TestSetWidth_MaxWidthBelowReservedWidth(t *testing.T) {
+	tests := []struct {
+		name            string
+		showLineNumbers bool
+		maxWidth        int
+	}{
+		{"prompt", false, 2},
+		{"prompt and line numbers", true, 1},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			textarea := newTextArea()
+			textarea.ShowLineNumbers = tt.showLineNumbers
+			textarea.MaxWidth = tt.maxWidth
+			textarea.SetWidth(80)
+			textarea.Focus()
+
+			if textarea.Width() < 1 {
+				t.Fatalf("expected a text width of at least 1 but got %d", textarea.Width())
+			}
+
+			textarea.SetValue("a b  ")
+			textarea.SetCursorColumn(1)
+			_ = textarea.View()
+
+			textarea, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyLeft})
+			_ = textarea.View()
+		})
+	}
+}
+
+func TestSetWidthHonorsUsableMaximum(t *testing.T) {
+	t.Parallel()
+	m := newTextArea()
+	m.SetWidth(40)
+	want := m.Width()
+	m.MaxWidth = 40
+	m.SetWidth(80)
+	if got := m.Width(); got != want {
+		t.Fatalf("input width = %d, want %d", got, want)
+	}
+}
+
+func TestSetWidthDoesNotExpandToMaximum(t *testing.T) {
+	t.Parallel()
+	m := newTextArea()
+	m.SetWidth(40)
+	want := m.Width()
+	m.MaxWidth = 80
+	m.SetWidth(40)
+	if got := m.Width(); got != want {
+		t.Fatalf("input width = %d, want %d", got, want)
+	}
+	m.MaxWidth = 0
+	m.SetWidth(40)
+	if got := m.Width(); got != want {
+		t.Fatalf("unlimited input width = %d, want %d", got, want)
+	}
 }
