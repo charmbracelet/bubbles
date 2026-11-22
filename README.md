@@ -89,9 +89,10 @@ logic and visualize pagination however you like.
 
 <img src="https://stuff.charm.sh/bubbles-examples/viewport.gif" width="600" alt="Viewport Example">
 
-A viewport for vertically scrolling content. Optionally includes standard
-pager keybindings and mouse wheel support. A high performance mode is available
-for applications which make use of the alternate screen buffer.
+A viewport for scrolling through content with pager-style keybindings. Long
+lines can be scrolled horizontally by default; set `SoftWrap` to `true` to wrap
+them instead. Enable mouse tracking in your Bubble Tea view to use the mouse
+wheel.
 
 - [Example code](https://github.com/charmbracelet/bubbletea/blob/main/examples/pager/main.go)
 

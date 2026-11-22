@@ -16,10 +16,9 @@ const (
 	defaultHorizontalStep = 6
 )
 
-// Option is a configuration option that works in conjunction with [New]. For
-// example:
+// Option configures a viewport created with [New]. For example:
 //
-//	timer := New(WithWidth(10, WithHeight(5)))
+//	vp := New(WithWidth(10), WithHeight(5))
 type Option func(*Model)
 
 // WithWidth is an initialization option that sets the width of the
@@ -78,8 +77,8 @@ type Model struct {
 	// default horizontal scroll.
 	horizontalStep int
 
-	// YPosition is the position of the viewport in relation to the terminal
-	// window. It's used in high performance rendering only.
+	// YPosition is the position of the viewport relative to the terminal
+	// window. The viewport does not use it during rendering.
 	YPosition int
 
 	// Style applies a lipgloss style to the viewport. Realistically, it's most
