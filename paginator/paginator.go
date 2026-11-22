@@ -59,9 +59,10 @@ type Model struct {
 // SetTotalPages is a helper function for calculating the total number of pages
 // from a given number of items. Its use is optional since this pager can be
 // used for other things beyond navigating sets. Note that it both returns the
-// number of total pages and alters the model.
+// number of total pages and alters the model. If items or PerPage is below
+// one, it returns the existing page count without changing the model.
 func (m *Model) SetTotalPages(items int) int {
-	if items < 1 {
+	if items < 1 || m.PerPage < 1 {
 		return m.TotalPages
 	}
 	n := items / m.PerPage

@@ -221,14 +221,11 @@ func (m Model) PastBottom() bool {
 
 // ScrollPercent returns the amount scrolled as a float between 0 and 1.
 func (m Model) ScrollPercent() float64 {
-	total, _, _ := m.calculateLine(0)
-	if m.Height() >= total {
+	maxYOffset := m.maxYOffset()
+	if maxYOffset == 0 {
 		return 1.0
 	}
-	y := float64(m.YOffset())
-	h := float64(m.Height())
-	t := float64(total)
-	v := y / (t - h)
+	v := float64(m.YOffset()) / float64(maxYOffset)
 	return clamp(v, 0, 1)
 }
 
@@ -524,7 +521,7 @@ func (m *Model) PageDown() {
 	if m.AtBottom() {
 		return
 	}
-	m.ScrollDown(m.Height())
+	m.ScrollDown(m.maxHeight())
 }
 
 // PageUp moves the view up by one height of the viewport.
@@ -532,7 +529,7 @@ func (m *Model) PageUp() {
 	if m.AtTop() {
 		return
 	}
-	m.ScrollUp(m.Height())
+	m.ScrollUp(m.maxHeight())
 }
 
 // HalfPageDown moves the view down by half the height of the viewport.
@@ -540,7 +537,7 @@ func (m *Model) HalfPageDown() {
 	if m.AtBottom() {
 		return
 	}
-	m.ScrollDown(m.Height() / 2) //nolint:mnd
+	m.ScrollDown(m.maxHeight() / 2) //nolint:mnd
 }
 
 // HalfPageUp moves the view up by half the height of the viewport.
@@ -548,7 +545,7 @@ func (m *Model) HalfPageUp() {
 	if m.AtTop() {
 		return
 	}
-	m.ScrollUp(m.Height() / 2) //nolint:mnd
+	m.ScrollUp(m.maxHeight() / 2) //nolint:mnd
 }
 
 // ScrollDown moves the view down by the given number of lines.

@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 )
 
 type item string
@@ -28,6 +29,16 @@ func (d itemDelegate) Render(w io.Writer, m Model, index int, listItem Item) {
 
 	str := fmt.Sprintf("%d. %s", index+1, i)
 	fmt.Fprint(w, m.Styles.TitleBar.Render(str))
+}
+
+func TestDefaultKeyMapQuit(t *testing.T) {
+	quit := DefaultKeyMap().Quit
+	if !reflect.DeepEqual(quit.Keys(), []string{"q", "esc"}) {
+		t.Fatalf("expected quit keys q and esc, got %v", quit.Keys())
+	}
+	if help := quit.Help(); help.Key != "q" || help.Desc != "quit" {
+		t.Fatalf("expected quit help, got %q, %q", help.Key, help.Desc)
+	}
 }
 
 func TestStatusBarItemName(t *testing.T) {
@@ -99,6 +110,29 @@ func TestSetFilterText(t *testing.T) {
 	}
 }
 
+func TestRemoveItemWithFilter(t *testing.T) {
+	items := []Item{item("foo"), item("bar"), item("baz")}
+	l := New(items, itemDelegate{}, 10, 10)
+	l.SetFilterText("ba")
+	l.SetFilterState(FilterApplied)
+
+	// filtered list contains ["bar", "baz"] at global indices 1 and 2.
+	// Remove "foo" (global index 0) — filtered list should be unchanged.
+	l.RemoveItem(0)
+	visible := l.VisibleItems()
+	if !reflect.DeepEqual(visible, []Item{item("bar"), item("baz")}) {
+		t.Fatalf("after removing unfiltered item: got %v, want [bar baz]", visible)
+	}
+
+	// The global list is now ["bar", "baz"]. Remove "bar" (global index 0).
+	// Filtered list should shrink to ["baz"].
+	l.RemoveItem(0)
+	visible = l.VisibleItems()
+	if !reflect.DeepEqual(visible, []Item{item("baz")}) {
+		t.Fatalf("after removing filtered item: got %v, want [baz]", visible)
+	}
+}
+
 func TestSetFilterState(t *testing.T) {
 	tc := []Item{item("foo"), item("bar"), item("baz")}
 
@@ -133,5 +167,52 @@ func TestSetFilterState(t *testing.T) {
 
 	if !strings.Contains(footer, expected) {
 		t.Fatalf("Error: expected view to contain '%s'", expected)
+	}
+}
+
+func TestFilterMatchedIndexesAreRunePositions(t *testing.T) {
+	// sahilm/fuzzy reports matched indexes as byte offsets, but MatchesForItem
+	// documents them as rune positions and lipgloss.StyleRunes consumes them as
+	// such. DefaultFilter and UnsortedFilter must convert byte offsets to rune
+	// offsets so multi-byte titles are highlighted correctly.
+	cases := []struct {
+		name   string
+		term   string
+		target string
+		want   []int
+	}{
+		{"ascii", "b", "abc", []int{1}},
+		{"multibyte prefix", "b", "日本b", []int{2}},
+		{"accented prefix", "x", "café x", []int{5}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			for _, f := range []struct {
+				name   string
+				filter FilterFunc
+			}{
+				{"DefaultFilter", DefaultFilter},
+				{"UnsortedFilter", UnsortedFilter},
+			} {
+				ranks := f.filter(tc.term, []string{tc.target})
+				if len(ranks) != 1 {
+					t.Fatalf("%s: expected 1 rank, got %d", f.name, len(ranks))
+				}
+				if !reflect.DeepEqual(ranks[0].MatchedIndexes, tc.want) {
+					t.Errorf("%s: MatchedIndexes = %v, want %v", f.name, ranks[0].MatchedIndexes, tc.want)
+				}
+			}
+		})
+	}
+}
+
+func TestTitleViewWithoutStatusMessageDoesNotTruncate(t *testing.T) {
+	list := New(nil, itemDelegate{}, 20, 10)
+	list.Title = "List Title ABCDEFG"
+	list.Styles.Title = list.Styles.Title.Padding(0)
+	list.Styles.TitleBar = list.Styles.TitleBar.Padding(0)
+
+	if got := ansi.Strip(list.titleView()); got != list.Title {
+		t.Fatalf("expected title %q, got %q", list.Title, got)
 	}
 }
