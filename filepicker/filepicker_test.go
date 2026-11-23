@@ -1,6 +1,7 @@
 package filepicker
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -8,6 +9,19 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 )
+
+// newManyFilesDir creates a directory containing n empty .txt files.
+func newManyFilesDir(tb testing.TB, n int) string {
+	tb.Helper()
+	dir := tb.TempDir()
+	for i := 0; i < n; i++ {
+		name := filepath.Join(dir, fmt.Sprintf("f%03d.txt", i))
+		if err := os.WriteFile(name, nil, 0o644); err != nil {
+			tb.Fatal(err)
+		}
+	}
+	return dir
+}
 
 // newTestDir creates a directory containing a subdirectory with a file in it.
 func newTestDir(tb testing.TB) string {
@@ -142,5 +156,47 @@ func TestLoadedPickerDoesNotNavigatePastLastEntry(t *testing.T) {
 		if m.selected != 0 {
 			t.Fatalf("selection = %d, want 0", m.selected)
 		}
+	}
+}
+
+// TestPagingClampsWindowToHeight asserts that paging never renders more rows
+// than the configured height. PageUp and PageDown adjust the visible window
+// with their own arithmetic, and at the ends of the list they used to leave
+// maxIdx one past the last row of a full-height window, so the picker drew an
+// extra entry and overflowed its allotted space.
+func TestPagingClampsWindowToHeight(t *testing.T) {
+	t.Parallel()
+	m := New()
+	m.SetHeight(5)
+	m.CurrentDirectory = newManyFilesDir(t, 12)
+	m = update(t, m, m.Init()())
+
+	// renderedRows counts the rows the picker actually drew. The view ends in
+	// a newline, so a plain split would report one row too many.
+	renderedRows := func(view string) int {
+		return strings.Count(strings.TrimSuffix(view, "\n"), "\n") + 1
+	}
+
+	assertViewFits := func(t *testing.T, m Model, step string) {
+		t.Helper()
+		if got, want := renderedRows(m.View()), m.Height(); got != want {
+			t.Fatalf("%s: rendered rows = %d, want %d (minIdx=%d maxIdx=%d)\n%s",
+				step, got, want, m.minIdx, m.maxIdx, m.View())
+		}
+	}
+
+	assertViewFits(t, m, "initial")
+
+	// PageUp while already at the top must not widen the window.
+	m = update(t, m, tea.KeyPressMsg{Code: tea.KeyPgUp})
+	assertViewFits(t, m, "page up at top")
+
+	// PageDown all the way to the last entry must keep the window full-height.
+	for i := 0; i < 5; i++ {
+		m = update(t, m, tea.KeyPressMsg{Code: tea.KeyPgDown})
+		assertViewFits(t, m, fmt.Sprintf("page down %d", i+1))
+	}
+	if m.selected != 11 {
+		t.Fatalf("selection = %d, want 11", m.selected)
 	}
 }
