@@ -304,7 +304,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 			if m.maxIdx >= len(m.files) {
 				m.maxIdx = len(m.files) - 1
-				m.minIdx = max(m.maxIdx-m.Height(), 0)
+				m.minIdx = max(m.maxIdx-m.Height()+1, 0)
 			}
 		case key.Matches(msg, m.KeyMap.PageUp):
 			m.selected -= m.Height()
@@ -316,7 +316,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 			if m.minIdx < 0 {
 				m.minIdx = 0
-				m.maxIdx = m.minIdx + m.Height()
+				m.maxIdx = m.bottomIdx(0)
 			}
 		case key.Matches(msg, m.KeyMap.Back):
 			m.CurrentDirectory = filepath.Dir(m.CurrentDirectory)
