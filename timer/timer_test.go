@@ -336,57 +336,30 @@ func TestRunningReturnsFalseWhenTimedOut(t *testing.T) {
 	}
 }
 
-// TestDuplicateTickStreamDoesNotPermanentlyDoubleSpeed reproduces
-// https://github.com/charmbracelet/bubbles/issues/1007: the tag-based
-// debounce guard in Update (mirrored from stopwatch) is dead code because
-// nothing ever increments m.tag. As a result, a second, independent tick
-// stream (e.g. Init being wired up twice) is never rejected, and the timer decrements twice per interval,
-// forever, with the overshoot growing without bound as more ticks arrive.
-//
-// With a working debounce, the two streams race exactly once (this first
-// hit is unavoidable: both streams are genuinely untagged, so there's no
-// way to tell them apart yet), but the guard then rejects the stale
-// stream's every subsequent tick, so only one stream survives. The
-// overshoot this causes is capped at exactly one interval no matter how
-// many rounds follow, instead of scaling with the round count.
+// TestDuplicateTickStreamDoesNotPermanentlyDoubleSpeed checks that a second
+// Init cannot keep an independent tick stream alive (issue #1007).
 func TestDuplicateTickStreamDoesNotPermanentlyDoubleSpeed(t *testing.T) {
 	m := New(10*time.Second, WithInterval(time.Millisecond))
+	cmdA, cmdB := m.Init(), m.Init()
 
-	// Chain A: the legitimate tick stream started by Init.
-	cmdA := m.Init()
-	if cmdA == nil {
-		t.Fatal("expected Init to return a tick command")
+	m, cmdA = updateWithTick(t, m, cmdA)
+	timeout, tag := m.Timeout, m.tag
+	m, cmdB = updateWithTick(t, m, cmdB)
+	if cmdB != nil || m.Timeout != timeout || m.tag != tag {
+		t.Fatal("duplicate initial tick changed the timer or spawned another command")
 	}
 
-	// Chain B: simulate Init being wired up twice, which spawns a second,
-	// independent tick stream.
-	cmdB := m.Init()
-	if cmdB == nil {
-		t.Fatal("expected the duplicate Init to return a second tick command")
-	}
-
-	initialTimeout := m.Timeout
-	interval := m.Interval
-
-	const rounds = 20
-	for i := 0; i < rounds; i++ {
-		if cmdA != nil {
-			m, cmdA = updateWithTick(t, m, cmdA)
+	for i := 0; i < 20; i++ {
+		msg := cmdA().(TickMsg)
+		m, cmdA = m.Update(msg)
+		timeout, tag = m.Timeout, m.tag
+		if cmdA == nil {
+			t.Fatal("live tick stream stopped")
 		}
-		if cmdB != nil {
-			m, cmdB = updateWithTick(t, m, cmdB)
+		m, cmdB = m.Update(msg)
+		if cmdB != nil || m.Timeout != timeout || m.tag != tag {
+			t.Fatal("stale tick changed the timer or spawned another command")
 		}
-	}
-
-	elapsed := initialTimeout - m.Timeout
-	// Exactly one interval of unavoidable one-time overshoot from the
-	// initial untagged race, and nothing more: with a working debounce
-	// the stale stream is rejected on its very next tick and stops
-	// spawning further commands, so the overshoot never grows past that
-	// single interval, no matter how many rounds run.
-	wantElapsed := time.Duration(rounds+1) * interval
-	if elapsed != wantElapsed {
-		t.Errorf("after %d rounds: elapsed = %v, want %v (overshoot from the duplicate tick stream is growing with the round count instead of settling after one interval; debounce guard is not rejecting the stale stream)", rounds, elapsed, wantElapsed)
 	}
 }
 
