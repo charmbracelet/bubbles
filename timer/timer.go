@@ -75,7 +75,8 @@ type TickMsg struct {
 	// alternatively listen for TimeoutMsg.
 	Timeout bool
 
-	tag int
+	tag       int
+	startedAt time.Time
 }
 
 // TimeoutMsg is a message that is sent once when the timer times out.
@@ -106,6 +107,7 @@ func New(timeout time.Duration, opts ...Option) Model {
 		Interval: time.Second,
 		running:  true,
 		id:       nextID(),
+		tag:      1, // Reserve zero for manually sent ticks.
 	}
 	for _, opt := range opts {
 		opt(&m)
@@ -135,7 +137,7 @@ func (m Model) Timedout() bool {
 
 // Init starts the timer.
 func (m Model) Init() tea.Cmd {
-	return m.tick()
+	return m.tick(time.Now())
 }
 
 // Update handles the timer tick.
@@ -153,7 +155,8 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		m.running = msg.running
 		// Only start ticking when transitioning to running state
 		if m.running {
-			return m, m.tick()
+			m.tag++
+			return m, m.tick(time.Now())
 		}
 		return m, nil
 	case TickMsg:
@@ -168,9 +171,14 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			return m, nil
 		}
 
-		m.Timeout -= m.Interval
+		now := time.Now()
+		elapsed := m.Interval
+		if !msg.startedAt.IsZero() {
+			elapsed = now.Sub(msg.startedAt)
+		}
+		m.Timeout -= elapsed
 		m.tag++
-		return m, tea.Batch(m.tick(), m.timedout())
+		return m, tea.Batch(m.tick(now), m.timedout())
 	}
 
 	return m, nil
@@ -196,9 +204,9 @@ func (m *Model) Toggle() tea.Cmd {
 	return m.startStop(!m.Running())
 }
 
-func (m Model) tick() tea.Cmd {
+func (m Model) tick(startedAt time.Time) tea.Cmd {
 	return tea.Tick(m.Interval, func(_ time.Time) tea.Msg {
-		return TickMsg{ID: m.id, tag: m.tag, Timeout: m.Timedout()}
+		return TickMsg{ID: m.id, tag: m.tag, Timeout: m.Timedout(), startedAt: startedAt}
 	})
 }
 
