@@ -67,6 +67,29 @@ func TestNaNAnimationRecovery(t *testing.T) {
 	}
 }
 
+func TestDecreasingProgressWaitsForSpringToSettle(t *testing.T) {
+	m := New()
+	m.SetSpringOptions(35, 0.1)
+	m.percentShown = 0.9
+	m.SetPercent(0.1)
+
+	for range 600 {
+		next, cmd := m.Update(FrameMsg{id: m.id, tag: m.tag})
+		m = next
+		if cmd != nil {
+			continue
+		}
+		if math.Abs(m.velocity) >= 0.01 {
+			t.Fatalf("animation stopped while still moving at velocity %v", m.velocity)
+		}
+		if math.Abs(m.percentShown-m.Percent()) >= 0.001 {
+			t.Fatalf("shown percent = %v, want approximately %v", m.percentShown, m.Percent())
+		}
+		return
+	}
+	t.Fatal("animation did not settle")
+}
+
 func TestBlend(t *testing.T) {
 	tests := []struct {
 		name    string
