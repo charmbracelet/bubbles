@@ -445,5 +445,5 @@ func clampPercent(percent float64) float64 {
 // longer animating.
 func (m *Model) IsAnimating() bool {
 	dist := math.Abs(m.percentShown - m.targetPercent)
-	return !(dist < 0.001 && m.velocity < 0.01)
+	return !(dist < 0.001 && math.Abs(m.velocity) < 0.01)
 }
