@@ -8,8 +8,40 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 )
+
+func TestPaddingIsUnstyled(t *testing.T) {
+	bg := lipgloss.NewStyle().Background(lipgloss.Color("#AFAFAF")).Foreground(lipgloss.Color("#000000"))
+
+	for _, tt := range []struct {
+		name        string
+		placeholder string
+		value       string
+	}{
+		{name: "text", value: "abc"},
+		{name: "placeholder", placeholder: "xyz"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			styles := DefaultDarkStyles()
+			styles.Focused.Text = bg
+			styles.Focused.Placeholder = bg
+
+			m := New()
+			m.SetStyles(styles)
+			m.Focus()
+			m.SetWidth(12)
+			m.Placeholder = tt.placeholder
+			m.SetValue(tt.value)
+
+			got := m.View()
+			if !strings.HasSuffix(got, " ") {
+				t.Fatalf("expected trailing padding to be unstyled, got %q", got)
+			}
+		})
+	}
+}
 
 func Test_CurrentSuggestion(t *testing.T) {
 	textinput := New()
