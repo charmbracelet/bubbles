@@ -731,7 +731,7 @@ func (m Model) View() string {
 	// consumes some of the width, so it is subtracted from the padding.
 	if m.Width() > 0 && valWidth <= m.Width() {
 		padding := max(0, m.Width()+1-valWidth-cursorExtra-ansi.StringWidth(completion))
-		v += styleText(strings.Repeat(" ", padding))
+		v += strings.Repeat(" ", padding)
 	}
 
 	return m.promptView() + v
@@ -775,7 +775,7 @@ func (m Model) placeholderView() string {
 		}
 		// append placeholder[len] - cursor, append padding
 		v += render(string(p[1:minWidth]))
-		v += render(strings.Repeat(" ", availWidth))
+		v += strings.Repeat(" ", availWidth)
 	} else {
 		// if there is no width, the placeholder can be any length
 		v += render(string(p[1:]))
