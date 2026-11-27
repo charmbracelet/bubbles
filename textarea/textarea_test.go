@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 	"unicode"
 
 	tea "charm.land/bubbletea/v2"
@@ -1972,6 +1973,28 @@ func TestWord(t *testing.T) {
 			t.Fatalf("Expected last word to be '%s', got '%s'", expect, word)
 		}
 	})
+}
+
+func TestWordLeftOnEmptyDoesNotHang(t *testing.T) {
+	// Regression test for charmbracelet/bubbletea#1652. Pressing alt+left
+	// (the WordBackward binding) on an empty textarea used to spin
+	// wordLeft's "skip spaces backward" loop forever because characterLeft
+	// is a no-op at (0,0) and the break condition can never become true.
+	textarea := newTextArea()
+	textarea.SetHeight(3)
+	textarea.SetWidth(20)
+
+	done := make(chan struct{})
+	go func() {
+		_, _ = textarea.Update(tea.KeyPressMsg{Code: tea.KeyLeft, Mod: tea.ModAlt, Text: "alt+left"})
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("wordLeft never returned on an empty textarea (would have hung the event loop)")
+	}
 }
 
 func newTextArea() Model {

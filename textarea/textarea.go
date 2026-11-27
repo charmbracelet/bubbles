@@ -921,7 +921,14 @@ func (m *Model) characterLeft(insideLine bool) {
 // cursor blink should be reset. If input is masked, move input to the start
 // so as not to reveal word breaks in the masked input.
 func (m *Model) wordLeft() {
+	// Skip spaces backward. characterLeft is a no-op at the very beginning
+	// of the buffer (row=0, col=0), so without an explicit check the loop
+	// spins forever on an empty textarea or one whose content is all
+	// trailing whitespace. See #1652 (filed against bubbletea, lives here).
 	for {
+		if m.row == 0 && m.col == 0 {
+			return
+		}
 		m.characterLeft(true /* insideLine */)
 		if m.col < len(m.value[m.row]) && !unicode.IsSpace(m.value[m.row][m.col]) {
 			break
