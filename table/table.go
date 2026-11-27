@@ -306,7 +306,9 @@ func (m Model) Columns() []Column {
 func (m *Model) SetRows(r []Row) {
 	m.rows = r
 
-	if m.cursor > len(m.rows)-1 {
+	if len(m.rows) == 0 {
+		m.cursor = 0
+	} else if m.cursor > len(m.rows)-1 {
 		m.cursor = len(m.rows) - 1
 	}
 
@@ -350,6 +352,18 @@ func (m Model) Cursor() int {
 func (m *Model) SetCursor(n int) {
 	m.cursor = clamp(n, 0, len(m.rows)-1)
 	m.UpdateViewport()
+
+	if len(m.rows) > 0 && m.viewport.Height() > 0 {
+		cursorIdx := m.cursor - m.start
+		offset := m.viewport.YOffset()
+		switch {
+		case cursorIdx < offset:
+			offset = cursorIdx
+		case cursorIdx >= offset+m.viewport.Height():
+			offset = cursorIdx - m.viewport.Height() + 1
+		}
+		m.viewport.SetYOffset(offset)
+	}
 }
 
 // MoveUp moves the selection up by any number of rows.
@@ -366,17 +380,26 @@ func (m *Model) MoveUp(n int) {
 	case offset >= 1:
 		offset = clamp(offset+n, 1, m.viewport.Height())
 	}
-	m.viewport.SetYOffset(offset)
+	// Re-render the row window before applying the offset (as MoveDown does):
+	// SetYOffset clamps against the current content, which still ends at the
+	// previous cursor. From the last row that content is only one row taller
+	// than the viewport, so the new offset would be cut back and the whole
+	// window would shift up by a row instead of just the cursor.
 	m.UpdateViewport()
+	m.viewport.SetYOffset(offset)
 }
 
 // MoveDown moves the selection down by any number of rows.
 // It can not go below the last row.
 func (m *Model) MoveDown(n int) {
 	m.cursor = clamp(m.cursor+n, 0, len(m.rows)-1)
+	// Read the offset before re-rendering: SetContent clamps the y-offset
+	// when the row window shrinks (the window starts later as the cursor
+	// moves down), and subtracting n from an already-clamped offset would
+	// scroll the view up by a row instead of just moving the cursor.
+	offset := m.viewport.YOffset()
 	m.UpdateViewport()
 
-	offset := m.viewport.YOffset()
 	switch {
 	case m.end == len(m.rows) && offset > 0:
 		offset = clamp(offset-n, 1, m.viewport.Height())
@@ -431,6 +454,9 @@ func (m Model) headersView() string {
 func (m *Model) renderRow(r int) string {
 	s := make([]string, 0, len(m.cols))
 	for i, value := range m.rows[r] {
+		if i >= len(m.cols) {
+			break
+		}
 		if m.cols[i].Width <= 0 {
 			continue
 		}

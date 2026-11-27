@@ -14,6 +14,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/atotto/clipboard"
+	"github.com/charmbracelet/x/ansi"
 	rw "github.com/mattn/go-runewidth"
 	"github.com/rivo/uniseg"
 )
@@ -23,6 +24,8 @@ type (
 	pasteMsg    string
 	pasteErrMsg struct{ error }
 )
+
+func (e pasteErrMsg) Unwrap() error { return e.error }
 
 // EchoMode sets the input behavior of the text input field.
 type EchoMode int
@@ -75,7 +78,7 @@ func DefaultKeyMap() KeyMap {
 		DeleteWordForward:       key.NewBinding(key.WithKeys("alt+delete", "alt+d", "ctrl+delete")),
 		DeleteAfterCursor:       key.NewBinding(key.WithKeys("ctrl+k")),
 		DeleteBeforeCursor:      key.NewBinding(key.WithKeys("ctrl+u")),
-		DeleteCharacterBackward: key.NewBinding(key.WithKeys("backspace", "ctrl+h")),
+		DeleteCharacterBackward: key.NewBinding(key.WithKeys("backspace", "shift+backspace", "ctrl+h")),
 		DeleteCharacterForward:  key.NewBinding(key.WithKeys("delete", "ctrl+d")),
 		LineStart:               key.NewBinding(key.WithKeys("home", "ctrl+a")),
 		LineEnd:                 key.NewBinding(key.WithKeys("end", "ctrl+e")),
@@ -213,6 +216,7 @@ func (m *Model) SetValue(s string) {
 	runes := m.san().Sanitize([]rune(s))
 	err := m.validate(runes)
 	m.setValueInternal(runes, err)
+	m.updateSuggestions()
 }
 
 func (m *Model) setValueInternal(runes []rune, err error) {
@@ -471,29 +475,17 @@ func (m *Model) deleteWordForward() {
 	}
 
 	oldPos := m.pos
-	m.SetCursor(m.pos + 1)
-	for unicode.IsSpace(m.value[m.pos]) {
-		// ignore series of whitespace after cursor
-		m.SetCursor(m.pos + 1)
-
-		if m.pos >= len(m.value) {
-			break
-		}
+	end := oldPos
+	for end < len(m.value) && unicode.IsSpace(m.value[end]) {
+		// Ignore whitespace when deletion starts on whitespace.
+		end++
 	}
 
-	for m.pos < len(m.value) {
-		if !unicode.IsSpace(m.value[m.pos]) {
-			m.SetCursor(m.pos + 1)
-		} else {
-			break
-		}
+	for end < len(m.value) && !unicode.IsSpace(m.value[end]) {
+		end++
 	}
 
-	if m.pos > len(m.value) {
-		m.value = m.value[:oldPos]
-	} else {
-		m.value = append(m.value[:oldPos], m.value[m.pos:]...)
-	}
+	m.value = append(m.value[:oldPos], m.value[end:]...)
 	m.Err = m.validate(m.value)
 
 	m.SetCursor(oldPos)
@@ -690,17 +682,29 @@ func (m Model) View() string {
 	styles := m.activeStyle()
 
 	styleText := styles.Text.Inline(true).Render
+	m.virtualCursor.TextStyle = styles.Text
 
 	value := m.value[m.offset:m.offsetRight]
 	pos := max(0, m.pos-m.offset)
 	v := styleText(m.echoTransform(string(value[:pos])))
 
+	valWidth := uniseg.StringWidth(string(value))
+
+	// The cursor sits on top of a character while pos < len(value), so it does
+	// not add a column. At the end of the input it is appended after the text
+	// and consumes one column.
+	cursorExtra := 1
+	if pos < len(value) {
+		cursorExtra = 0
+	}
+
+	var completion string
 	if pos < len(value) { //nolint:nestif
 		char := m.echoTransform(string(value[pos]))
 		m.virtualCursor.SetChar(char)
 		v += m.virtualCursor.View()                            // cursor and text under it
 		v += styleText(m.echoTransform(string(value[pos+1:]))) // text after cursor
-		v += m.completionView(0)                               // suggested completion
+		completion = m.completionView(0, max(0, m.Width()+1-valWidth))
 	} else {
 		if m.focus && m.canAcceptSuggestion() {
 			suggestion := m.matchedSuggestions[m.currentSuggestionIndex]
@@ -708,7 +712,7 @@ func (m Model) View() string {
 				m.virtualCursor.TextStyle = styles.Suggestion
 				m.virtualCursor.SetChar(m.echoTransform(string(suggestion[pos])))
 				v += m.virtualCursor.View()
-				v += m.completionView(1)
+				completion = m.completionView(1, max(0, m.Width()-valWidth))
 			} else {
 				m.virtualCursor.SetChar(" ")
 				v += m.virtualCursor.View()
@@ -718,15 +722,15 @@ func (m Model) View() string {
 			v += m.virtualCursor.View()
 		}
 	}
+	if completion != "" {
+		v += completion
+	}
 
 	// If a max width and background color were set fill the empty spaces with
-	// the background color.
-	valWidth := uniseg.StringWidth(string(value))
+	// the background color. The suggested completion, when rendered, already
+	// consumes some of the width, so it is subtracted from the padding.
 	if m.Width() > 0 && valWidth <= m.Width() {
-		padding := max(0, m.Width()-valWidth)
-		if valWidth+padding <= m.Width() && pos < len(value) {
-			padding++
-		}
+		padding := max(0, m.Width()+1-valWidth-cursorExtra-ansi.StringWidth(completion))
 		v += styleText(strings.Repeat(" ", padding))
 	}
 
@@ -745,15 +749,16 @@ func (m Model) placeholderView() string {
 		render = styles.Placeholder.Render
 	)
 
-	p := make([]rune, m.Width()+1)
-	copy(p, []rune(m.Placeholder))
+	placeholderRunes := []rune(m.Placeholder)
+	p := make([]rune, max(m.Width()+1, len(placeholderRunes)))
+	copy(p, placeholderRunes)
 
 	m.virtualCursor.TextStyle = styles.Placeholder
 	m.virtualCursor.SetChar(string(p[:1]))
 	v += m.virtualCursor.View()
 
 	// If the entire placeholder is already set and no padding is needed, finish
-	if m.Width() < 1 && len(p) <= 1 {
+	if m.Width() < 1 && len(placeholderRunes) <= 1 {
 		return styles.Prompt.Render(m.Prompt) + v
 	}
 
@@ -800,17 +805,22 @@ func clamp(v, low, high int) int {
 	return min(high, max(low, v))
 }
 
-func (m Model) completionView(offset int) string {
+func (m Model) completionView(offset, maxWidth int) string {
 	if !m.canAcceptSuggestion() {
 		return ""
 	}
+
+	sraw := m.matchedSuggestions[m.currentSuggestionIndex]
 	value := m.value
-	suggestion := m.matchedSuggestions[m.currentSuggestionIndex]
-	if len(value) < len(suggestion) {
-		return m.activeStyle().Suggestion.Inline(true).
-			Render(string(suggestion[len(value)+offset:]))
+	if len(value) >= len(sraw) || maxWidth <= 0 {
+		return ""
 	}
-	return ""
+
+	tail := string(sraw[len(value)+offset:])
+	// Keep the suggestion within the input width so the rendered line doesn't
+	// overflow the space given to the text input.
+	tail = ansi.Truncate(tail, maxWidth, "")
+	return m.activeStyle().Suggestion.Inline(true).Render(tail)
 }
 
 func (m *Model) getSuggestions(sugs [][]rune) []string {
@@ -889,7 +899,7 @@ func (m *Model) nextSuggestion() {
 func (m *Model) previousSuggestion() {
 	m.currentSuggestionIndex = (m.currentSuggestionIndex - 1)
 	if m.currentSuggestionIndex < 0 {
-		m.currentSuggestionIndex = len(m.matchedSuggestions) - 1
+		m.currentSuggestionIndex = max(0, len(m.matchedSuggestions)-1)
 	}
 }
 
@@ -921,8 +931,12 @@ func (m Model) Cursor() *tea.Cursor {
 	w := lipgloss.Width
 
 	promptWidth := w(m.promptView())
-	xOffset := m.Position() +
-		promptWidth
+	// The cursor sits after the visible text, so measure the display width of
+	// the value between the scroll offset and the cursor position instead of
+	// using the rune index, which is wrong for double-width characters.
+	end := max(m.offset, m.pos)
+	xOffset := promptWidth +
+		uniseg.StringWidth(string(m.value[m.offset:end]))
 	if m.width > 0 {
 		xOffset = min(xOffset, m.width+promptWidth)
 	}

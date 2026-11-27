@@ -84,3 +84,63 @@ func TestDidSelectFileRequiresPath(t *testing.T) {
 		t.Fatalf("expected path to end in file.go, got %q", path)
 	}
 }
+
+// TestKeysBeforeEntriesLoad asserts that navigation keys pressed while the
+// directory is still being read do not leave the selection out of range once
+// the entries arrive.
+func TestKeysBeforeEntriesLoad(t *testing.T) {
+	keys := map[string]tea.KeyPressMsg{
+		"down":      {Code: tea.KeyDown},
+		"last":      {Code: 'G', Text: "G"},
+		"page down": {Code: tea.KeyPgDown},
+	}
+	for name, k := range keys {
+		t.Run(name, func(t *testing.T) {
+			m := New()
+			m.CurrentDirectory = filepath.Join(newTestDir(t), "subdir")
+			m.FileAllowed = true
+			m.SetHeight(5)
+
+			// The entries have not arrived yet.
+			m = update(t, m, k)
+			m = update(t, m, m.Init()())
+
+			enter := tea.KeyPressMsg{Code: tea.KeyEnter}
+			m = update(t, m, enter)
+			didSelect, path := m.DidSelectFile(enter)
+			if !didSelect {
+				t.Fatal("expected file.go to be selected")
+			}
+			if !strings.HasSuffix(path, "file.go") {
+				t.Fatalf("expected path to end in file.go, got %q", path)
+			}
+		})
+	}
+}
+
+func TestLoadedPickerSelectsFile(t *testing.T) {
+	t.Parallel()
+	m := New()
+	m.SetHeight(5)
+	m.CurrentDirectory = filepath.Join(newTestDir(t), "subdir")
+	m = update(t, m, m.Init()())
+	enter := tea.KeyPressMsg{Code: tea.KeyEnter}
+	m = update(t, m, enter)
+	if ok, path := m.DidSelectFile(enter); !ok || !strings.HasSuffix(path, "file.go") {
+		t.Fatalf("selection = %v %q", ok, path)
+	}
+}
+
+func TestLoadedPickerDoesNotNavigatePastLastEntry(t *testing.T) {
+	t.Parallel()
+	m := New()
+	m.SetHeight(5)
+	m.CurrentDirectory = filepath.Join(newTestDir(t), "subdir")
+	m = update(t, m, m.Init()())
+	for _, k := range []tea.KeyPressMsg{{Code: tea.KeyDown}, {Code: 'G', Text: "G"}, {Code: tea.KeyPgDown}} {
+		m = update(t, m, k)
+		if m.selected != 0 {
+			t.Fatalf("selection = %d, want 0", m.selected)
+		}
+	}
+}

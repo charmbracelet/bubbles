@@ -115,3 +115,32 @@ func TestTreeAdditionalHelp(t *testing.T) {
 		golden.RequireEqual(t, []byte(s))
 	})
 }
+
+func TestSetNodesNil(t *testing.T) {
+	m := New(Root("~/charm").Child("ayman", "maas"), 40, 10)
+	m.SetNodes(nil)
+
+	expected := ansi.Strip(New(nil, 40, 10).View())
+	if got := ansi.Strip(m.View()); got != expected {
+		t.Fatalf("expected the view of an empty tree\n%q\ngot\n%q", expected, got)
+	}
+}
+
+func TestSetNodesRendersReplacement(t *testing.T) {
+	t.Parallel()
+	m := New(Root("old"), 40, 10)
+	m.SetNodes(Root("replacement"))
+	if got := ansi.Strip(m.View()); !strings.Contains(got, "replacement") || strings.Contains(got, "old") {
+		t.Fatalf("replacement view = %q", got)
+	}
+}
+
+func TestSetNodesPreservesSuppliedNode(t *testing.T) {
+	t.Parallel()
+	node := Root("replacement").Child("child")
+	m := New(Root("old"), 40, 10)
+	m.SetNodes(node)
+	if m.root != node {
+		t.Fatal("SetNodes replaced the supplied non-nil node")
+	}
+}
