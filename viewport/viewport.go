@@ -307,11 +307,14 @@ func (m Model) maxXOffset() int {
 }
 
 // maxWidth returns the maximum width of the viewport. It accounts for the frame
-// size, in addition to the gutter size.
+// size, in addition to the gutter size measured using the last line's context.
 func (m Model) maxWidth() int {
 	var gutterSize int
 	if m.LeftGutterFunc != nil {
-		gutterSize = ansi.StringWidth(m.LeftGutterFunc(GutterContext{}))
+		gutterSize = ansi.StringWidth(m.LeftGutterFunc(GutterContext{
+			Index:      max(0, len(m.lines)-1),
+			TotalLines: len(m.lines),
+		}))
 	}
 	return max(0, m.Width()-m.Style.GetHorizontalFrameSize()-gutterSize)
 }
