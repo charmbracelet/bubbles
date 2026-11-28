@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -923,4 +924,189 @@ func TestScrollPercentWithFrame(t *testing.T) {
 	if got := vp.ScrollPercent(); got != 0 {
 		t.Errorf("9 lines at the top: expected ScrollPercent 0, got %v", got)
 	}
+}
+
+func TestHorizontalScrollWithFrameAndGutter(t *testing.T) {
+	t.Parallel()
+
+	border := lipgloss.NewStyle().Border(lipgloss.NormalBorder())
+	gutter := func(GutterContext) string { return "界" }
+
+	for _, tt := range []struct {
+		name   string
+		style  lipgloss.Style
+		gutter GutterFunc
+		end    int
+		tail   string
+	}{
+		{"frame", border, nil, 2, "cdefgh"},
+		{"gutter", lipgloss.NewStyle(), gutter, 2, "cdefgh"},
+		{"frame and gutter", border, gutter, 4, "efgh"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			vp := New(WithWidth(8), WithHeight(3))
+			vp.Style = tt.style
+			vp.LeftGutterFunc = tt.gutter
+			vp.SetContent("abcdefgh")
+
+			if got := vp.HorizontalScrollPercent(); got != 0 {
+				t.Errorf("at the left edge: expected scroll percent 0, got %v", got)
+			}
+			vp.ScrollRight(tt.end / 2)
+			if got := vp.HorizontalScrollPercent(); got != 0.5 {
+				t.Errorf("halfway: expected scroll percent 0.5, got %v", got)
+			}
+			vp.ScrollRight(20)
+			if got := vp.XOffset(); got != tt.end {
+				t.Errorf("at the right edge: expected XOffset %d, got %d", tt.end, got)
+			}
+			if got := vp.HorizontalScrollPercent(); got != 1 {
+				t.Errorf("at the right edge: expected scroll percent 1, got %v", got)
+			}
+			if got := vp.View(); !strings.Contains(got, tt.tail) {
+				t.Errorf("view at the right edge lacks %q: %q", tt.tail, got)
+			}
+		})
+	}
+}
+
+func TestHorizontalScrollDynamicGutter(t *testing.T) {
+	t.Parallel()
+
+	unpaddedGutter := func(info GutterContext) string {
+		return fmt.Sprintf("%d | ", info.Index+1)
+	}
+	paddedGutter := func(info GutterContext) string {
+		width := len(strconv.Itoa(max(1, info.TotalLines)))
+		if info.Index >= info.TotalLines {
+			return strings.Repeat(" ", width-1) + "~ | "
+		}
+		return fmt.Sprintf("%*d | ", width, info.Index+1)
+	}
+
+	makeLines := func(n int, text string) string {
+		lines := make([]string, n)
+		for i := range lines {
+			lines[i] = text
+		}
+		return strings.Join(lines, "\n")
+	}
+
+	for _, tt := range []struct {
+		name         string
+		gutter       GutterFunc
+		lineCount    int
+		wantMaxWidth int
+		wantEnd      int
+		wantBottom   string
+	}{
+		{
+			name:         "single digit unpadded",
+			gutter:       unpaddedGutter,
+			lineCount:    9,
+			wantMaxWidth: 8,
+			wantEnd:      2,
+			wantBottom:   "9 | cdefghij",
+		},
+		{
+			name:         "three digit unpadded",
+			gutter:       unpaddedGutter,
+			lineCount:    100,
+			wantMaxWidth: 6,
+			wantEnd:      4,
+			wantBottom:   "100 | efghij",
+		},
+		{
+			name:         "three digit padded by total lines",
+			gutter:       paddedGutter,
+			lineCount:    100,
+			wantMaxWidth: 6,
+			wantEnd:      4,
+			wantBottom:   "100 | efghij",
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			vp := New(WithWidth(12), WithHeight(3))
+			vp.LeftGutterFunc = tt.gutter
+			vp.SetContent(makeLines(tt.lineCount, "abcdefghij"))
+
+			if got := vp.maxWidth(); got != tt.wantMaxWidth {
+				t.Errorf("expected maxWidth %d, got %d", tt.wantMaxWidth, got)
+			}
+			if got := vp.HorizontalScrollPercent(); got != 0 {
+				t.Errorf("at the left edge: expected scroll percent 0, got %v", got)
+			}
+			vp.ScrollRight(tt.wantEnd / 2)
+			if got := vp.HorizontalScrollPercent(); got != 0.5 {
+				t.Errorf("halfway: expected scroll percent 0.5, got %v", got)
+			}
+			vp.ScrollRight(20)
+			if got := vp.XOffset(); got != tt.wantEnd {
+				t.Errorf("at the right edge: expected XOffset %d, got %d", tt.wantEnd, got)
+			}
+			if got := vp.HorizontalScrollPercent(); got != 1 {
+				t.Errorf("at the right edge: expected scroll percent 1, got %v", got)
+			}
+
+			vp.GotoBottom()
+			view := vp.View()
+			if !strings.Contains(view, tt.wantBottom) {
+				t.Errorf("view at bottom lacks %q: %q", tt.wantBottom, view)
+			}
+			if w, h := lipgloss.Size(view); w != 12 || h != 3 {
+				t.Errorf("expected view size 12x3, got %dx%d", w, h)
+			}
+		})
+	}
+
+	t.Run("empty viewport", func(t *testing.T) {
+		t.Parallel()
+
+		vp := New(WithWidth(12), WithHeight(3))
+		vp.LeftGutterFunc = func(info GutterContext) string {
+			if info.Index < 0 {
+				t.Errorf("unexpected negative gutter index: %d", info.Index)
+			}
+			if info.TotalLines != 0 {
+				t.Errorf("expected TotalLines 0 for empty viewport, got %d", info.TotalLines)
+			}
+			return paddedGutter(info)
+		}
+		vp.SetContent("")
+
+		if got := vp.maxWidth(); got != 8 {
+			t.Errorf("expected maxWidth 8, got %d", got)
+		}
+		vp.ScrollRight(10)
+		if got := vp.XOffset(); got != 0 {
+			t.Errorf("expected XOffset 0, got %d", got)
+		}
+		if got := vp.HorizontalScrollPercent(); got != 1 {
+			t.Errorf("expected scroll percent 1, got %v", got)
+		}
+		if w, h := lipgloss.Size(vp.View()); w != 12 || h != 3 {
+			t.Errorf("expected view size 12x3, got %dx%d", w, h)
+		}
+	})
+
+	t.Run("softwrap with dynamic gutter", func(t *testing.T) {
+		t.Parallel()
+
+		vp := New(WithWidth(12), WithHeight(3))
+		vp.SoftWrap = true
+		vp.LeftGutterFunc = unpaddedGutter
+		vp.SetContent(makeLines(100, "abcdefghij"))
+
+		if got := vp.maxWidth(); got != 6 {
+			t.Errorf("expected maxWidth 6, got %d", got)
+		}
+		vp.GotoBottom()
+		if w, h := lipgloss.Size(vp.View()); w != 12 || h != 3 {
+			t.Errorf("expected view size 12x3, got %dx%d", w, h)
+		}
+	})
 }

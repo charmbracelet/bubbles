@@ -209,13 +209,11 @@ func (m Model) ScrollPercent() float64 {
 // HorizontalScrollPercent returns the amount horizontally scrolled as a float
 // between 0 and 1.
 func (m Model) HorizontalScrollPercent() float64 {
-	if m.xOffset >= m.longestLineWidth-m.Width() {
+	maxXOffset := m.maxXOffset()
+	if maxXOffset == 0 {
 		return 1.0
 	}
-	y := float64(m.xOffset)
-	h := float64(m.Width())
-	t := float64(m.longestLineWidth)
-	v := y / (t - h)
+	v := float64(m.XOffset()) / float64(maxXOffset)
 	return clamp(v, 0, 1)
 }
 
@@ -303,17 +301,20 @@ func (m Model) maxYOffset() int {
 }
 
 // maxXOffset returns the maximum possible value of the x-offset based on the
-// viewport's content and set width.
+// viewport's content and visible width.
 func (m Model) maxXOffset() int {
-	return max(0, m.longestLineWidth-m.Width())
+	return max(0, m.longestLineWidth-m.maxWidth())
 }
 
 // maxWidth returns the maximum width of the viewport. It accounts for the frame
-// size, in addition to the gutter size.
+// size, in addition to the gutter size measured using the last line's context.
 func (m Model) maxWidth() int {
 	var gutterSize int
 	if m.LeftGutterFunc != nil {
-		gutterSize = ansi.StringWidth(m.LeftGutterFunc(GutterContext{}))
+		gutterSize = ansi.StringWidth(m.LeftGutterFunc(GutterContext{
+			Index:      max(0, len(m.lines)-1),
+			TotalLines: len(m.lines),
+		}))
 	}
 	return max(0, m.Width()-m.Style.GetHorizontalFrameSize()-gutterSize)
 }
